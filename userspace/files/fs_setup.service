@@ -1,0 +1,12 @@
+[Unit]
+Description=Setup rootfs
+After=data.mount
+Before=local-fs.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/fs_setup.sh
+
+[Install]
+WantedBy=multi-user.target

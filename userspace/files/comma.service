@@ -1,0 +1,15 @@
+[Unit]
+Description=Comma tmux
+After=weston.service gpio.service
+
+[Service]
+Type=simple
+User=comma
+Restart=always
+ExecStart=/bin/bash -c "/usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh && sleep infinity"
+KillSignal=SIGKILL
+LimitRTPRIO=100
+LimitNICE=-10
+
+[Install]
+WantedBy=multi-user.target

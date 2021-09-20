@@ -1,0 +1,11 @@
+*.swp
+*.tar.gz
+
+agnos/
+output/
+build/
+tmp/
+qdl/
+.qemu_registered
+
+.vscode

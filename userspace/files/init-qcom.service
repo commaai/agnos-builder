@@ -1,0 +1,10 @@
+[Unit]
+Description=QCOM init
+After=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/init.qcom.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,56 @@
+# /etc/profile: system-wide .profile file for the Bourne shell (sh(1))
+# and Bourne compatible shells (bash(1), ksh(1), ash(1), ...).
+
+if [ "${PS1-}" ]; then
+  if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
+    # The file bash.bashrc already sets the default PS1.
+    # PS1='\h:\w\$ '
+    if [ -f /etc/bash.bashrc ]; then
+      . /etc/bash.bashrc
+    fi
+  else
+    if [ "`id -u`" -eq 0 ]; then
+      PS1='# '
+    else
+      PS1='$ '
+    fi
+  fi
+fi
+
+if [ -d /etc/profile.d ]; then
+  for i in /etc/profile.d/*.sh; do
+    if [ -r $i ]; then
+      . $i
+    fi
+  done
+  unset i
+fi
+
+# display setup
+export XDG_RUNTIME_DIR="/var/tmp/weston"
+export QT_QPA_PLATFORM="wayland-egl"
+
+# python setup
+export PYTHONPATH="/data/pythonpath:/data/pythonpath/pyextra"
+export PATH="/usr/local/pyenv/bin:$PATH"
+export PYENV_VERSION="3.8.5"
+export PYENV_ROOT="/usr/local/pyenv"
+
+# output of "pyenv init - --no-rehash"
+export PATH="/usr/local/pyenv/shims:${PATH}"
+export PYENV_SHELL=bash
+source '/usr/local/pyenv/libexec/../completions/pyenv.bash'
+pyenv() {
+  local command
+  command="${1:-}"
+  if [ "$#" -gt 0 ]; then
+    shift
+  fi
+
+  case "$command" in
+  activate|deactivate|rehash|shell)
+    eval "$(pyenv "sh-$command" "$@")";;
+  *)
+    command pyenv "$command" "$@";;
+  esac
+}

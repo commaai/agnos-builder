@@ -1,0 +1,15 @@
+[Unit]
+Description=PulseAudio system server
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/usr/bin/pulseaudio --realtime
+KillSignal=SIGKILL
+User=comma
+Environment="XDG_RUNTIME_DIR=/var/tmp/weston"
+LimitRTPRIO=100
+LimitNICE=-10
+
+[Install]
+WantedBy=multi-user.target

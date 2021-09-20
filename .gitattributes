@@ -1,0 +1,3 @@
+*.deb filter=lfs diff=lfs merge=lfs -text
+*.ko filter=lfs diff=lfs merge=lfs -text
+userspace/files/sound/tinymix filter=lfs diff=lfs merge=lfs -text

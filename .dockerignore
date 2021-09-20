@@ -1,0 +1,9 @@
+*.pyc
+*.pyo
+.*.swp
+.*.swo
+
+build/
+output/
+edk2_tici/
+agnos-kernel-sdm845/

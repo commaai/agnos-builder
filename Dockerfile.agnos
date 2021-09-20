@@ -1,0 +1,215 @@
+# ################## #
+# ###### Base ###### #
+# ################## #
+FROM scratch AS agnos-base
+ADD ubuntu-base-20.04.1-base-arm64.tar.gz /
+
+# Add aarch64 and arm support
+COPY --from=multiarch/qemu-user-static:x86_64-aarch64 /usr/bin/qemu-aarch64-static /usr/bin
+COPY --from=multiarch/qemu-user-static:x86_64-arm /usr/bin/qemu-arm-static /usr/bin
+
+# Build folder
+RUN mkdir -p /tmp/agnos
+
+# Stop on error
+RUN set -xe
+
+ENV USERNAME=comma
+ENV PASSWD=comma
+ENV HOST=tici
+
+# Base system setup
+RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
+COPY ./userspace/base_setup.sh /tmp/agnos
+RUN /tmp/agnos/base_setup.sh
+
+# ################## #
+# #### Compiler #### #
+# ################## #
+FROM agnos-base as agnos-compiler
+
+RUN apt-get update && apt-get install --no-install-recommends checkinstall
+# Install openpilot dependencies, probably needed for build,
+# but we don't want these in the base image
+COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh
+
+# Individual compiling images
+FROM agnos-compiler as agnos-compiler-capnp
+COPY ./userspace/compile-capnp.sh /tmp/agnos/
+RUN /tmp/agnos/compile-capnp.sh
+
+FROM agnos-compiler as agnos-compiler-ffmpeg
+COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
+RUN /tmp/agnos/compile-ffmpeg.sh
+
+FROM agnos-compiler as agnos-compiler-mapbox-gl-native
+COPY ./userspace/compile-mapbox-gl-native.sh /tmp/agnos/
+RUN /tmp/agnos/compile-mapbox-gl-native.sh
+
+FROM agnos-compiler as agnos-compiler-qtlocation
+COPY ./userspace/compile-qtlocation.sh /tmp/agnos/
+RUN /tmp/agnos/compile-qtlocation.sh
+
+# ################### #
+# ###### AGNOS ###### #
+# ################### #
+FROM agnos-base
+
+# Hardware setup
+RUN mkdir -p /tmp/agnos/debs
+COPY ./userspace/debs /tmp/agnos/debs
+COPY ./userspace/hardware_setup.sh /tmp/agnos
+RUN /tmp/agnos/hardware_setup.sh
+RUN mv /data/persist /system/ && rm -rf /data/*
+
+# Pre-compiled capnp (must be before python install)
+COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
+RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
+
+# Install openpilot dependencies
+COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh
+COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_python_dependencies.sh
+
+# Use other pre-compiled packages
+COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
+COPY --from=agnos-compiler-qtlocation /tmp/qtlocation.deb /tmp/qtlocation.deb
+RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb ./qtlocation.deb
+COPY --from=agnos-compiler-mapbox-gl-native /tmp/libqmapboxgl.so /lib/aarch64-linux-gnu/libqmapboxgl.so
+
+# Install openpilot python packages
+COPY ./userspace/Pipfile* /tmp/agnos/
+RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
+    export PYENV_ROOT="/usr/local/pyenv" && \
+    eval "$(pyenv init -)" && \
+    pip3 install --no-cache-dir --upgrade pip==20.2.4 && \
+    pip3 install --no-cache-dir --upgrade pipenv==2020.8.13 && \
+    cd /tmp/agnos && \
+    MAKEFLAGS="-j$(nproc)" pipenv install --system --deploy --dev --clear && \
+    pip uninstall -y pipenv && \
+    pyenv rehash
+
+# 16.04 libwayland-client + libffi6
+COPY ./userspace/qtwayland/libffi.so.6 /lib/aarch64-linux-gnu/
+COPY ./userspace/qtwayland/libwayland-client.so.0 /lib/aarch64-linux-gnu/libwayland-client.so.0
+
+# Patched qtwayland that does not use EGL EXT, and outputs a fixed screen size
+# Clone qtwayland submodule, checkout 5.12.9 (5.12.8 leaks timers, see https://bugreports.qt.io/browse/QTBUG-82914), apply patch, qmake, make
+COPY ./userspace/qtwayland/libqwayland-egl.so /lib/aarch64-linux-gnu/qt5/plugins/platforms/libqwayland-egl.so
+COPY ./userspace/qtwayland/libQt5WaylandClient.so.5.12.8 /lib/aarch64-linux-gnu/libQt5WaylandClient.so.5.12.8
+
+# Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
+COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
+
+COPY ./userspace/home/ /home/$USERNAME/
+COPY ./userspace/home/.config/ /root/.config
+RUN chown -R $USERNAME: /home/$USERNAME/.config
+
+# populate /lib
+COPY ./userspace/files/*.path /lib/systemd/system/
+COPY ./userspace/files/*.mount /lib/systemd/system/
+COPY ./userspace/files/*.service /lib/systemd/system/
+COPY ./userspace/files/*.timer /lib/systemd/system/
+COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
+COPY ./userspace/firmware/* /lib/firmware/
+
+# populate /etc
+COPY ./userspace/files/fstab /etc
+COPY ./userspace/files/profile /etc/profile
+COPY ./userspace/files/ethernet.yaml /etc/netplan/
+COPY ./userspace/files/allow-network-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-network-control.pkla
+COPY ./userspace/files/allow-modem-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-modem-control.pkla
+COPY ./userspace/files/*.rules /etc/udev/rules.d/
+COPY ./userspace/files/default.pa /etc/pulse/default.pa
+COPY ./userspace/files/ssh*_config /etc/ssh/
+COPY ./userspace/files/logrotate.conf /etc/
+RUN chmod 644 /etc/logrotate.conf
+
+# populate /usr
+COPY ./userspace/usr/comma/ /usr/$USERNAME/
+COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
+COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
+COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
+
+# Weston with hacked touch rotate and color correction
+COPY ./userspace/files/weston /usr/bin/weston
+COPY ./userspace/files/gl-renderer.so /usr/lib/arm-linux-gnueabihf/weston
+
+# Setup systemd services
+COPY ./userspace/services.sh /tmp/agnos
+RUN /tmp/agnos/services.sh
+
+# MOTD
+RUN rm -r /etc/update-motd.d/*
+COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
+
+# Let NetworkManager manage eth0
+COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
+COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+
+# Add LTE connection
+COPY ./userspace/files/lte.nmconnection /usr/lib/NetworkManager/system-connections/
+RUN chmod 600 /usr/lib/NetworkManager/system-connections/lte.nmconnection
+
+# Prefer ipv4 over ipv6
+RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+
+# Don't let logind delete /dev/shm
+COPY ./userspace/files/logind.conf /etc/systemd/logind.conf
+
+# Disable bootkick on shutdown
+COPY ./userspace/files/disable_bootkick.py /lib/systemd/system-shutdown/
+
+# Remove qt network bearer plugins
+RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
+
+# HACK: get newer version of ModemManager and libqmi from 21.04
+# ModemManager 1.12.8 suffers from a bug with reconnecting: https://gitlab.freedesktop.org/mobile-broadband/ModemManager/-/issues/242
+# libqmi 1.24.8 segfaults when power cycling the modem: https://gitlab.freedesktop.org/mobile-broadband/libqmi/-/issues/37
+RUN echo "" >> /etc/apt/sources.list && \
+    echo "deb http://ports.ubuntu.com/ubuntu-ports/ hirsute main restricted" >> /etc/apt/sources.list && \
+    echo "deb http://ports.ubuntu.com/ubuntu-ports/ hirsute universe" >> /etc/apt/sources.list && \
+    apt-get remove -y modemmanager && \
+    apt-get update && \
+    apt-cache show modemmanager && \
+    apt-get install -y modemmanager libqmi-glib5 libqmi-utils mobile-broadband-provider-info
+
+# Run ModemManager in debug mode to allow AT commands
+COPY ./userspace/files/ModemManager.service /lib/systemd/system/
+
+# Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
+COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
+
+# TODO: move this to base_setup.sh or build gcc from source
+# Remove unused architectures from arm-none-eabi
+RUN cd /usr/lib/gcc/arm-none-eabi/9.2.1 && \
+    rm -rf arm/ && \
+    rm -rf thumb/nofp thumb/v6* thumb/v8* thumb/v7+fp thumb/v7-r+fp.sp
+
+# keep this last
+RUN ldconfig
+
+# Setup RO rootfs
+RUN mkdir -p /tmptmp
+COPY ./userspace/files/comma.conf /usr/lib/tmpfiles.d/
+COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
+RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
+
+# copy at the end, after all apt usage
+COPY ./userspace/files/apt.conf /etc/apt/apt.conf
+
+# Write version file
+RUN echo -n "1.6" > /VERSION
+
+# ################## #
+# #### Cleaunup #### #
+# ################## #
+
+RUN rm -rf /usr/share/icons/* && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /home/$USERNAME/.cache && \
+    rm -rf /root/.cache && \
+    pyclean /usr && \
+    apt-get clean

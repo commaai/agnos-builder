@@ -1,0 +1,1 @@
+KERNEL=="adsprpc-smd", GROUP="gpu", MODE="0660"

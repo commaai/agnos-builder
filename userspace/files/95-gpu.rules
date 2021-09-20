@@ -1,0 +1,3 @@
+KERNEL=="kgsl-3d0", GROUP="gpu", MODE="0660"
+KERNEL=="ion", GROUP="gpu", MODE="0660"
+SUBSYSTEM=="drm", GROUP="gpu", MODE="0660"

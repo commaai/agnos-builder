@@ -1,0 +1,4 @@
+[Allow sudo users to control networking]
+Identity=unix-group:sudo
+Action=org.freedesktop.NetworkManager.*
+ResultAny=yes

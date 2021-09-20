@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly rotation of log files
+Documentation=man:logrotate(8) man:logrotate.conf(5)
+
+[Timer]
+Unit=logrotate.service
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description= Power Drop Monitor Service
+
+[Service]
+Restart=always
+ExecStart=/usr/local/pyenv/shims/python -u /usr/comma/power_drop_monitor.py
+
+[Install]
+WantedBy=multi-user.target

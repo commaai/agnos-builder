@@ -1,0 +1,4 @@
+[Allow sudo users to control modem]
+Identity=unix-group:sudo
+Action=org.freedesktop.ModemManager1.*
+ResultAny=yes

@@ -1,0 +1,9 @@
+[Unit]
+Description=Wifi
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/insmod /usr/comma/wlan.ko
+
+[Install]
+WantedBy=multi-user.target
