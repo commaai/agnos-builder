@@ -7542,19 +7542,19 @@ conceived.
 			</apn>
 		</gsm>
 	</provider>
-        <provider primary="false">
-                <name>Mineo (Docomo)</name>
-                <gsm>
-                        <network-id mcc="440" mnc="10"/>
-                        <apn value="mineo-d.jp">
-                                <plan type="prepaid"/>
-                                <usage type="internet"/>
-                                <name>mineo-d.jp</name>
-                                <username>mineo@k-opti.com</username>
-                                <password>mineo</password>
-                        </apn>
-                </gsm>
-        </provider>
+	<provider primary="false">
+		<name>Mineo (Docomo)</name>
+		<gsm>
+			<network-id mcc="440" mnc="10"/>
+			<apn value="mineo-d.jp">
+				<plan type="prepaid"/>
+				<usage type="internet"/>
+				<name>mineo-d.jp</name>
+				<username>mineo@k-opti.com</username>
+				<password>mineo</password>
+			</apn>
+			</gsm>
+	</provider>
 	<provider primary="false">
 		<name>b-mobile</name>
 		<gsm>
