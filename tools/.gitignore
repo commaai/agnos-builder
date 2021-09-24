@@ -1,3 +1,8 @@
+!SecImage.tar.gz
+!aarch64-linux-android-4.9.tar.gz
+!aarch64-linux-gnu-gcc.tar.gz
+!llvm-arm-toolchain-ship.tar.gz
+
 aarch64-linux-android-4.9/
 aarch64-linux-gnu-gcc/
 llvm-arm-toolchain-ship/
