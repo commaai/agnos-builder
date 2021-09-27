@@ -20,7 +20,6 @@ systemctl enable power_drop_monitor.service
 systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable home.mount
-systemctl enable color_correction.service
 systemctl enable logrotate-hourly.timer
 
 # Disable SSH by default
