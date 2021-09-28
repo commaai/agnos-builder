@@ -1,6 +1,5 @@
 [Unit]
 Description=Weston
-After=color_correction.service
 
 # If we start weston immediately it just exits without an error
 # TODO: Figure out what we need to wait for (drm?)
