@@ -11,8 +11,8 @@ BOOT_IMG=./boot.img
 cd $DIR
 
 # Clone kernel if not done already
-if [ ! -d agnos-kernel-sdm845 ]; then
-  git submodule init agnos-kernel-sdm845
+if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
+  git submodule update --init agnos-kernel-sdm845
 fi
 cd agnos-kernel-sdm845
 
