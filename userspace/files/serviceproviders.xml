@@ -12288,6 +12288,17 @@ conceived.
 			</apn>
 		</gsm>
 	</provider>
+	<provider>
+		<name>Swan</name>
+		<gsm>
+			<network-id mcc="231" mnc="03"/>
+			<apn value="internet">
+				<plan type="postpaid"/>
+				<usage type="internet"/>
+				<name>Internet</name>
+			</apn>
+		</gsm>
+	</provider>
 </country>
 
 <!-- Senegal -->
