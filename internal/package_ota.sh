@@ -2,13 +2,12 @@
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-cd $DIR
 
-# Constants
+ROOT="$DIR/../"
 TMP_DIR="/tmp/agnos-builder-tmp"
-OUTPUT_DIR="$DIR/output"
+OUTPUT_DIR="$ROOT/output"
 OTA_OUTPUT_DIR="$OUTPUT_DIR/ota"
-FIRMWARE_DIR="$DIR/agnos-firmware"
+FIRMWARE_DIR="$ROOT/agnos-firmware"
 
 SYSTEM_IMAGE_RAW="/tmp/system.img.raw"
 SYSTEM_IMAGE="$OUTPUT_DIR/system.img"
@@ -21,6 +20,8 @@ AGNOS_UPDATE_URL=${AGNOS_UPDATE_URL:-https://commadist.azureedge.net/agnosupdate
 AGNOS_STAGING_UPDATE_URL=${AGNOS_STAGING_UPDATE_URL:-https://commadist.azureedge.net/agnosupdate-staging}
 OUTPUT_JSON="$OTA_OUTPUT_DIR/ota.json"
 OUTPUT_STAGING_JSON="$OTA_OUTPUT_DIR/ota-staging.json"
+
+cd $ROOT
 
 # Create dirs if non-existent
 mkdir -p $OTA_OUTPUT_DIR

@@ -5,25 +5,25 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
 # Constants
-OTA_DIR="$DIR/output/ota"
+OTA_DIR="$DIR/../output/ota"
 DATA_ACCOUNT="commadist"
 
 # Parse input
 FOUND=0
 if [ "$1" == "production" ]; then
-    OTA_JSON="$OTA_DIR/ota.json"
-    DATA_CONTAINER="agnosupdate"
-    FOUND=1
+  OTA_JSON="$OTA_DIR/ota.json"
+  DATA_CONTAINER="agnosupdate"
+  FOUND=1
 fi
 if [ "$1" == "staging" ]; then
-    OTA_JSON="$OTA_DIR/ota-staging.json"
-    DATA_CONTAINER="agnosupdate-staging"
-    FOUND=1
+  OTA_JSON="$OTA_DIR/ota-staging.json"
+  DATA_CONTAINER="agnosupdate-staging"
+  FOUND=1
 fi
 
 if [ $FOUND == 0 ]; then
-    echo "Supply either 'production' or 'staging' as first argument!"
-    exit 1
+  echo "Supply either 'production' or 'staging' as first argument!"
+  exit 1
 fi
 
 # Read update file

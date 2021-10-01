@@ -16,6 +16,8 @@ if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
 fi
 cd agnos-kernel-sdm845
 
+$DIR/tools/extract_tools.sh
+
 # Build parameters
 export ARCH=arm64
 export CROSS_COMPILE=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-

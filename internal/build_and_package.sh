@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+cd $DIR/..
+
 read -p "Is the kernel repo up to date? " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -18,4 +21,4 @@ fi
 cp output/wlan.ko userspace/usr/comma
 cp output/snd*.ko userspace/usr/comma/sound/
 ./build_system.sh
-./package_ota.sh
+internal/package_ota.sh
