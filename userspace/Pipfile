@@ -66,6 +66,7 @@ pyserial = "*"
 dbus-python = "*"
 timezonefinder = "*"
 sentry-sdk = "*"
+bitstruct = "*"
 
 [requires]
 python_version = "3.8"
