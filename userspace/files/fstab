@@ -1,5 +1,6 @@
 /dev/disk/by-label/dsp /dsp auto
 /dev/disk/by-partlabel/modem_a /firmware auto
+/dev/disk/by-partlabel/persist /persist auto ro,relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
 /dev/disk/by-partlabel/userdata /data auto discard,nosuid,nodev,nofail 0 0
 /dev/nvme0n1 /data/media auto discard,nosuid,nodev,nofail,x-systemd.device-timeout=5s 0 0
 tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755 0 0
