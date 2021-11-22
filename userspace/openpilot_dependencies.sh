@@ -56,6 +56,7 @@ apt-get install --no-install-recommends -yq \
     libqt5opengl5-dev \
     libqt5sql5-sqlite \
     libqt5svg5-dev \
+    libqt5multimedia5-plugins \
     qml-module-qtquick2 \
     qt5-default \
     qtbase5-private-dev \
