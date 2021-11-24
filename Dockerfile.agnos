@@ -91,6 +91,10 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     pip uninstall -y pipenv && \
     pyenv rehash
 
+# Install nice to haves
+COPY ./userspace/install_extras.sh /tmp/agnos/
+RUN /tmp/agnos/install_extras.sh
+
 # 16.04 libwayland-client + libffi6
 COPY ./userspace/qtwayland/libffi.so.6 /lib/aarch64-linux-gnu/
 COPY ./userspace/qtwayland/libwayland-client.so.0 /lib/aarch64-linux-gnu/libwayland-client.so.0
