@@ -2,6 +2,11 @@
 
 echo "Extracting tools..."
 
+git lfs &> /dev/null || {
+    echo "ERROR: git lfs not installed"
+    exit 1
+}
+
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 ROOT=$DIR/..
@@ -13,15 +18,14 @@ GOOGLE_GCC_4_9=aarch64-linux-android-4.9
 EDK2_LLVM=llvm-arm-toolchain-ship
 SEC_IMAGE=SecImage
 
-if [ ! -f $LINARO_GCC*.gz ] || \
-   [ ! -f $GOOGLE_GCC_4_9*.gz ] || \
-   [ ! -f $EDK2_LLVM*.gz ] || \
-   [ ! -f $SEC_IMAGE*.gz ]; then
-  cd $ROOT
-  git lfs install
-  git lfs pull
-  cd $DIR
-fi
+# grep for `-`, which stands for LFS pointer
+git lfs ls-files | awk '{print $2}' | grep "-" &>/dev/null && {
+    echo "Pulling git lfs objects..."
+    cd $ROOT
+    git lfs install
+    git lfs pull
+    cd $DIR
+}
 
 LINARO_GCC_TARBALL=$LINARO_GCC.tar.gz
 GOOGLE_GCC_4_9_TARBALL=$GOOGLE_GCC_4_9.tar.gz
