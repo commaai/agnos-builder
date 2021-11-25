@@ -3,8 +3,8 @@
 echo "Extracting tools..."
 
 git lfs &> /dev/null || {
-    echo "ERROR: git lfs not installed"
-    exit 1
+  echo "ERROR: git lfs not installed"
+  exit 1
 }
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -20,11 +20,11 @@ SEC_IMAGE=SecImage
 
 # grep for `-`, which stands for LFS pointer
 git lfs ls-files | awk '{print $2}' | grep "-" &>/dev/null && {
-    echo "Pulling git lfs objects..."
-    cd $ROOT
-    git lfs install
-    git lfs pull
-    cd $DIR
+  echo "Pulling git lfs objects..."
+  cd $ROOT
+  git lfs install
+  git lfs pull
+  cd $DIR
 }
 
 LINARO_GCC_TARBALL=$LINARO_GCC.tar.gz
