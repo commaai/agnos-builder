@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import sys
 import time
 import smbus2
 import select
@@ -48,6 +47,14 @@ def read_voltage_mV():
   with open(VOLTAGE_FILE, "r") as f:
     return int(f.read().strip())
 
+def update_param(shutdown):
+  prefix = "SHUTDOWN" if shutdown else "ABORTED"
+  try:
+    with open("/data/params/d/LastPowerDropDetected", "w") as f:
+      f.write(f"{prefix} {datetime.datetime.now()}")
+  except Exception:
+    print("Failed to update LastControlledShutdown param")
+
 def perform_controlled_shutdown():
   print("Power alert received! Syncing. If voltage still low after 100ms, shutting down...")
   prev_screen_power = get_screen_power()
@@ -60,14 +67,11 @@ def perform_controlled_shutdown():
 
   if read_voltage_mV() > ALERT_VOLTAGE_THRESHOLD_mV:
     print("Voltage restored. Not shutting down!")
+    update_param(shutdown=False)
     set_screen_power(prev_screen_power)
     return
 
-  try:
-    with open("/data/params/d/LastControlledShutdown", "w") as f:
-      f.write(str(datetime.datetime.now()))
-  except Exception:
-    print("Failed to update LastControlledShutdown param")
+  update_param(shutdown=True)
 
   # Send a signal to loggerd that it's time to clean up
   os.system("pkill -SIGPWR loggerd")
