@@ -56,11 +56,11 @@ def update_param(shutdown):
     print("Failed to update LastControlledShutdown param")
 
 def perform_controlled_shutdown():
-  print("Power alert received! Syncing. If voltage still low after 100ms, shutting down...")
+  print("Power alert received! If voltage still low after 100ms, shutting down...")
   prev_screen_power = get_screen_power()
   set_screen_power(False)
 
-  # Wait 100ms before checking voltage level
+  # Wait 100ms before checking voltage level again
   t = time.monotonic()
   while time.monotonic() - t < 0.1:
     time.sleep(0.01)
