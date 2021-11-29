@@ -50,7 +50,8 @@ def read_voltage_mV():
 def update_param(shutdown):
   prefix = "SHUTDOWN" if shutdown else "ABORTED"
   try:
-    with open("/data/params/d/LastPowerDropDetected", "w") as f:
+    os.umask(0)
+    with open(os.open("/data/params/d/LastPowerDropDetected", os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
       f.write(f"{prefix} {datetime.datetime.now()}")
   except Exception:
     print("Failed to update LastControlledShutdown param")
