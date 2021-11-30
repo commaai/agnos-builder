@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import sys
 import time
 import smbus2
 import select
@@ -20,9 +19,13 @@ VOLTAGE_FILE = f"/sys/class/hwmon/hwmon1/in1_input"
 
 alert_pin_base = f"/sys/class/gpio/gpio{POWER_ALERT_GPIO_PIN}/"
 
-def set_screen_brightness(val):
-  with open("/sys/class/backlight/panel0-backlight/brightness", "w") as f:
-    f.write(str(val))
+def set_screen_power(on):
+  with open("/sys/class/backlight/panel0-backlight/bl_power", "w") as f:
+    f.write("0\n" if on else "4\n")
+
+def get_screen_power():
+  with open("/sys/class/backlight/panel0-backlight/bl_power", "r") as f:
+    return f.read(1) == "0"
 
 def swap_word_bytes(val):
   return ((val & 0xFF) << 8) | ((val & 0xFF00) >> 8)
@@ -44,20 +47,32 @@ def read_voltage_mV():
   with open(VOLTAGE_FILE, "r") as f:
     return int(f.read().strip())
 
-def perform_controlled_shutdown():
-  print("Power alert received! Syncing. If voltage still low after 100ms, shutting down...")
+def update_param(shutdown):
+  prefix = "SHUTDOWN" if shutdown else "ABORTED"
+  try:
+    os.umask(0)
+    with open(os.open("/data/params/d/LastPowerDropDetected", os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
+      f.write(f"{prefix} {datetime.datetime.now()}")
+  except Exception:
+    print("Failed to update LastControlledShutdown param")
 
+def perform_controlled_shutdown():
+  print("Power alert received! If voltage still low after 100ms, shutting down...")
+  prev_screen_power = get_screen_power()
+  set_screen_power(False)
+
+  # Wait 100ms before checking voltage level again
   t = time.monotonic()
   while time.monotonic() - t < 0.1:
-    set_screen_brightness(0)
     time.sleep(0.01)
 
   if read_voltage_mV() > ALERT_VOLTAGE_THRESHOLD_mV:
     print("Voltage restored. Not shutting down!")
+    update_param(shutdown=False)
+    set_screen_power(prev_screen_power)
     return
 
-  with open("/data/last_controlled_shutdown", "w") as f:
-    f.write(str(datetime.datetime.now()))
+  update_param(shutdown=True)
 
   # Send a signal to loggerd that it's time to clean up
   os.system("pkill -SIGPWR loggerd")
@@ -65,8 +80,8 @@ def perform_controlled_shutdown():
   os.system("pkill -9 modeld")
   os.system("pkill -9 camerad")
 
+  # Wait for loggerd to exit
   while os.system("pgrep loggerd") == 0:
-    set_screen_brightness(0)
     time.sleep(0.01)
 
   os.sync()
