@@ -19,7 +19,7 @@ sudo chown comma: /data
 sudo chown comma: /data/media
 sudo chown comma: /persist
 
-sudo su -c "echo 800 > /sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/brightness"
+sudo su -c "echo 500 > /sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/brightness"
 
 handle_setup_keys () {
   # install default SSH key while still in setup
