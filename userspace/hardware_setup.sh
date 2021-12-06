@@ -3,7 +3,7 @@
 # Install driver deb files (we're fine with overwriting stuff too)
 cd /tmp/agnos/debs
 apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
-  ./agnos-base_0.0.1.deb \
+  ./agnos-base.deb \
   ./agnos-display_0.0.1.deb \
   ./agnos-wlan_0.0.1.deb
 
