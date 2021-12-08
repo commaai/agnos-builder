@@ -5,14 +5,13 @@ import time
 # limit display brightness with display uptime to prevent burn in
 
 BL_OFF = 4
-BL_POWER_PATH = "/sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/bl_power"
-BRIGHTNESS_PATH = "/sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/brightness"
-CLIPPED_BRIGHTNESS_PATH = "/sys/devices/platform/soc/soc:qcom,dsi-display@0/clipped_brightness"
+BL_POWER_PATH = "/sys/class/backlight/panel0-backlight/bl_power"
+BRIGHTNESS_PATH = "/sys/class/backlight/panel0-backlight/brightness"
+MAX_BRIGHTNESS_PATH= "/sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent"
 
 MAX_PERCENT = 90
 MIN_PERCENT = 30
 HOURLY_PERC_DECREASE = 5
-MAX_BRIGHTNESS = 1024
 
 def read(path: str) -> int:
   try:
@@ -39,9 +38,8 @@ if __name__ == "__main__":
       clipped_perc = MAX_PERCENT - (HOURLY_PERC_DECREASE*uptime_hours)
       clipped_perc = max(min(clipped_perc, MAX_PERCENT), MIN_PERCENT)
 
-      clipped_brightness = int(MAX_BRIGHTNESS * clipped_perc / 100)
-      with open(CLIPPED_BRIGHTNESS_PATH, 'w') as f:
-        f.write(f"{clipped_brightness}\n")
+      with open(MAX_BRIGHTNESS_PATH, 'w') as f:
+        f.write(f"{int(clipped_perc)}\n")
     except Exception:
       pass
 
