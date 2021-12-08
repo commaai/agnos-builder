@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 import time
 
 # limit display brightness with display uptime to prevent burn in
@@ -23,6 +22,7 @@ def read(path: str) -> int:
 
 if __name__ == "__main__":
 
+  last_perc = None
   last_off_ts = time.monotonic()
 
   while True:
@@ -36,10 +36,12 @@ if __name__ == "__main__":
       # calculate new max
       uptime_hours = (time.monotonic() - last_off_ts) / 60*60
       clipped_perc = MAX_PERCENT - (HOURLY_PERC_DECREASE*uptime_hours)
-      clipped_perc = max(min(clipped_perc, MAX_PERCENT), MIN_PERCENT)
+      clipped_perc = int(max(min(clipped_perc, MAX_PERCENT), MIN_PERCENT))
 
-      with open(MAX_BRIGHTNESS_PATH, 'w') as f:
-        f.write(f"{int(clipped_perc)}\n")
+      if clipped_perc != last_perc:
+        with open(MAX_BRIGHTNESS_PATH, 'w') as f:
+          f.write(f"{int(clipped_perc)}\n")
+      last_perc = clipped_perc
     except Exception:
       pass
 
