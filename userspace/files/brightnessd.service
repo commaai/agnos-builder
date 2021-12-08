@@ -1,0 +1,9 @@
+[Unit]
+Description=Limit display brightness with uptime
+
+[Service]
+Restart=always
+ExecStart=/usr/local/pyenv/shims/python -u /usr/comma/brightnessd.py
+
+[Install]
+WantedBy=multi-user.target
