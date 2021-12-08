@@ -34,7 +34,7 @@ if __name__ == "__main__":
         last_off_ts = time.monotonic()
 
       # calculate new max
-      uptime_hours = (time.monotonic() - last_off_ts) / 60*60
+      uptime_hours = (time.monotonic() - last_off_ts) / (60*60)
       clipped_perc = MAX_PERCENT - (HOURLY_PERC_DECREASE*uptime_hours)
       clipped_perc = int(max(min(clipped_perc, MAX_PERCENT), MIN_PERCENT))
 
