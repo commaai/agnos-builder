@@ -59,28 +59,24 @@ echo "Extracting docker image"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 docker container rm $CONTAINER_ID > /dev/null
-cd $ROOTFS_DIR
-sudo tar -xf $BUILD_DIR/filesystem.tar > /dev/null
+docker exec -w $ROOTFS_DIR -t build_system_helper bash -c "tar -xf $BUILD_DIR/filesystem.tar > /dev/null"
 
-# Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"
 HOST=tici
-sudo bash -c "echo $HOST > etc/hostname"
-sudo bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
-sudo bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
+docker exec -w $ROOTFS_DIR -t build_system_helper bash -c "echo $HOST > etc/hostname"
+docker exec -w $ROOTFS_DIR -t build_system_helper bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
+docker exec -w $ROOTFS_DIR -t build_system_helper bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
 # Fix resolv config
-sudo bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
-
-cd $DIR
+docker exec -w $ROOTFS_DIR -t build_system_helper bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
 
 # Unmount image
 echo "Unmount filesystem"
-docker exec -it build_system_helper umount -l $ROOTFS_DIR
+docker exec -t build_system_helper umount -l $ROOTFS_DIR || true
 
 # Sparsify
 echo "Sparsify image"
-docker exec -it build_system_helper img2simg $ROOTFS_IMAGE $SPARSE_IMAGE
+docker exec -t build_system_helper img2simg $ROOTFS_IMAGE $SPARSE_IMAGE
 mv $SPARSE_IMAGE $OUTPUT_DIR
 
 # Remove the temporary container
