@@ -36,14 +36,10 @@ echo "Building image"
 export DOCKER_CLI_EXPERIMENTAL=enabled
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
 
-# Create a temporary container in which to do some platform-specific work so that Mac can build too
-docker start build_system_helper || docker run -d \
-  --privileged \
+# Create a temporary container in which to run linux-specific calls (for Mac support)
+docker start build_system_helper || docker run -d --privileged \
   --mount type=bind,source=$BUILD_DIR,target=$BUILD_DIR \
-  --mount type=bind,source=/tmp/script.sh,target=/tmp/script.sh \
-  --name build_system_helper \
-  -t ubuntu:20.04 bash
-
+  --name build_system_helper -t ubuntu:20.04 bash
 docker exec -t build_system_helper apt update
 docker exec -t build_system_helper apt install -y img2simg
 
