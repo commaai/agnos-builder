@@ -45,7 +45,7 @@ docker start build_system_helper || docker run -d \
   -t ubuntu:20.04 bash
 
 docker exec -t build_system_helper apt update
-docker exec -t build_system_helper apt install -y img2simg sudo
+docker exec -t build_system_helper apt install -y img2simg
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
@@ -55,8 +55,8 @@ docker exec -it build_system_helper mkfs.ext4 $ROOTFS_IMAGE
 # Mount filesystem
 echo "Mounting empty filesystem"
 mkdir -p $ROOTFS_DIR
-docker exec -t build_system_helper sudo umount -l $ROOTFS_DIR || true
-docker exec -t build_system_helper sudo mount $ROOTFS_IMAGE $ROOTFS_DIR
+docker exec -t build_system_helper umount -l $ROOTFS_DIR || true
+docker exec -t build_system_helper mount $ROOTFS_IMAGE $ROOTFS_DIR
 
 # Extract image
 echo "Extracting docker image"
@@ -81,7 +81,6 @@ cd $DIR
 # Unmount image
 echo "Unmount filesystem"
 docker exec -it build_system_helper umount -l $ROOTFS_DIR
-# sudo umount -l $ROOTFS_DIR
 
 # Sparsify
 echo "Sparsify image"
