@@ -36,16 +36,27 @@ echo "Building image"
 export DOCKER_CLI_EXPERIMENTAL=enabled
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
 
+# Create a temporary container in which to do some platform-specific work so that Mac can build too
+docker start build_system_helper || docker run -d \
+  --privileged \
+  --mount type=bind,source=$BUILD_DIR,target=$BUILD_DIR \
+  --mount type=bind,source=/tmp/script.sh,target=/tmp/script.sh \
+  --name build_system_helper \
+  -t ubuntu:20.04 bash
+
+docker exec -t build_system_helper apt update
+docker exec -t build_system_helper apt install -y img2simg sudo
+
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
-docker run --rm --mount type=bind,source=$BUILD_DIR,target=$BUILD_DIR -it agnos-builder fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-docker run --rm --mount type=bind,source=$BUILD_DIR,target=$BUILD_DIR -it agnos-builder mkfs.ext4 $ROOTFS_IMAGE
+docker exec -t build_system_helper fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
+docker exec -it build_system_helper mkfs.ext4 $ROOTFS_IMAGE
 
 # Mount filesystem
 echo "Mounting empty filesystem"
 mkdir -p $ROOTFS_DIR
-sudo umount -l $ROOTFS_DIR > /dev/null || true
-sudo mount $ROOTFS_IMAGE $ROOTFS_DIR
+docker exec -t build_system_helper sudo umount -l $ROOTFS_DIR || true
+docker exec -t build_system_helper sudo mount $ROOTFS_IMAGE $ROOTFS_DIR
 
 # Extract image
 echo "Extracting docker image"
@@ -69,11 +80,15 @@ cd $DIR
 
 # Unmount image
 echo "Unmount filesystem"
-sudo umount -l $ROOTFS_DIR
+docker exec -it build_system_helper umount -l $ROOTFS_DIR
+# sudo umount -l $ROOTFS_DIR
 
 # Sparsify
 echo "Sparsify image"
-img2simg $ROOTFS_IMAGE $SPARSE_IMAGE
+docker exec -it build_system_helper img2simg $ROOTFS_IMAGE $SPARSE_IMAGE
 mv $SPARSE_IMAGE $OUTPUT_DIR
+
+# Remove the temporary container
+docker rm -f build_system_helper
 
 echo "Done!"
