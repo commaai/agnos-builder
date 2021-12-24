@@ -38,8 +38,8 @@ docker build -f Dockerfile.agnos -t agnos-builder $DIR
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
-fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-mkfs.ext4 $ROOTFS_IMAGE > /dev/null
+docker run --rm --mount type=bind,source=$BUILD_DIR,target=$BUILD_DIR -it agnos-builder fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
+docker run --rm --mount type=bind,source=$BUILD_DIR,target=$BUILD_DIR -it agnos-builder mkfs.ext4 $ROOTFS_IMAGE
 
 # Mount filesystem
 echo "Mounting empty filesystem"
