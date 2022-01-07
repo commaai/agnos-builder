@@ -17,7 +17,6 @@ sudo chmod -R 770 $XDG_RUNTIME_DIR
 
 sudo chown comma: /data
 sudo chown comma: /data/media
-sudo chown comma: /persist
 
 sudo su -c "echo 500 > /sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/brightness"
 
