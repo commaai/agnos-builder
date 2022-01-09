@@ -1,0 +1,10 @@
+[Unit]
+Description=Mount storage drive
+After=data.mount
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/mount-storage.sh
+
+[Install]
+WantedBy=local-fs.target
