@@ -62,9 +62,16 @@ def printk(msg):
   print(msg)
 
 def perform_controlled_shutdown():
-  printk("Power alert received! If voltage still low after 100ms, shutting down...")
+  printk("Power alert received!")
+
   prev_screen_power = get_screen_power()
   set_screen_power(False)
+
+  update_param(shutdown=True)
+
+  printk("Sync /data")
+  os.system("sync --file-system /data")
+  printk("Sync done")
 
   # Wait 100ms before checking voltage level again
   t = time.monotonic()
@@ -77,9 +84,6 @@ def perform_controlled_shutdown():
     set_screen_power(prev_screen_power)
     return
 
-  printk("Shutdown")
-  update_param(shutdown=True)
-
   printk("Unmount nvme")
   os.system("umount -l /dev/nvme0")
   # TODO: turn off nvme regulator. Currently no userspace control over this
@@ -90,10 +94,7 @@ def perform_controlled_shutdown():
   os.system("pkill -9 modeld")
   os.system("pkill -9 camerad")
 
-  printk("Sync /data")
-  os.system("sync --file-system /data")
-  printk("Sync done. Halting")
-
+  printk("Halt")
   os.system("halt -f")
 
 if __name__ == '__main__':
