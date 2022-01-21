@@ -16,6 +16,7 @@ INA231_LIMIT_REG = 0x07
 INA231_MASK_CONFIG = (1 << 12) # Bus undervoltage, not latching
 INA231_BUS_VOLTAGE_LSB_mV = 1.25
 VOLTAGE_FILE = f"/sys/class/hwmon/hwmon1/in1_input"
+PARAM_FILE = "/data/params/d/LastPowerDropDetected"
 
 alert_pin_base = f"/sys/class/gpio/gpio{POWER_ALERT_GPIO_PIN}/"
 
@@ -51,7 +52,7 @@ def update_param(shutdown):
   prefix = "SHUTDOWN" if shutdown else "ABORTED"
   try:
     os.umask(0)
-    with open(os.open("/data/params/d/LastPowerDropDetected", os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
+    with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
       f.write(f"{prefix} {datetime.datetime.now()}")
   except Exception:
     print("Failed to update LastControlledShutdown param")
@@ -70,7 +71,8 @@ def perform_controlled_shutdown():
   update_param(shutdown=True)
 
   printk("Sync /data")
-  os.system("sync --file-system /data")
+  os.system(f"sync --data {PARAM_FILE}")
+  os.system(f"sync --file-system {PARAM_FILE}")
   printk("Sync done")
 
   # Wait 100ms before checking voltage level again
