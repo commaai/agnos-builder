@@ -1,0 +1,6 @@
+[Unit]
+Description=adbd Service
+
+[Service]
+User=root
+ExecStart=/usr/comma/adbd
