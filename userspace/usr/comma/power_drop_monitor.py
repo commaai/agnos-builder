@@ -16,6 +16,7 @@ INA231_LIMIT_REG = 0x07
 INA231_MASK_CONFIG = (1 << 12) # Bus undervoltage, not latching
 INA231_BUS_VOLTAGE_LSB_mV = 1.25
 VOLTAGE_FILE = f"/sys/class/hwmon/hwmon1/in1_input"
+PARAM_FILE = "/data/params/d/LastPowerDropDetected"
 
 alert_pin_base = f"/sys/class/gpio/gpio{POWER_ALERT_GPIO_PIN}/"
 
@@ -51,15 +52,28 @@ def update_param(shutdown):
   prefix = "SHUTDOWN" if shutdown else "ABORTED"
   try:
     os.umask(0)
-    with open(os.open("/data/params/d/LastPowerDropDetected", os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
+    with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
       f.write(f"{prefix} {datetime.datetime.now()}")
   except Exception:
     print("Failed to update LastControlledShutdown param")
 
+def printk(msg):
+  with open('/dev/kmsg', 'w') as kmsg:
+    kmsg.write(f"<3>[power drop monitor] {msg}\n")
+  print(msg)
+
 def perform_controlled_shutdown():
-  print("Power alert received! If voltage still low after 100ms, shutting down...")
+  printk("Power alert received!")
+
   prev_screen_power = get_screen_power()
   set_screen_power(False)
+
+  update_param(shutdown=True)
+
+  printk("Sync /data")
+  os.system(f"sync --data {PARAM_FILE}")
+  os.system(f"sync --file-system {PARAM_FILE}")
+  printk("Sync done")
 
   # Wait 100ms before checking voltage level again
   t = time.monotonic()
@@ -67,24 +81,22 @@ def perform_controlled_shutdown():
     time.sleep(0.01)
 
   if read_voltage_mV() > ALERT_VOLTAGE_THRESHOLD_mV:
-    print("Voltage restored. Not shutting down!")
+    printk("Voltage restored. Not shutting down!")
     update_param(shutdown=False)
     set_screen_power(prev_screen_power)
     return
 
-  update_param(shutdown=True)
+  printk("Unmount nvme")
+  os.system("umount -l /dev/nvme0")
+  # TODO: turn off nvme regulator. Currently no userspace control over this
 
-  # Send a signal to loggerd that it's time to clean up
-  os.system("pkill -SIGPWR loggerd")
+  printk("Killing services")
+  os.system("pkill -9 loggerd")
   os.system("pkill -9 _ui")
   os.system("pkill -9 modeld")
   os.system("pkill -9 camerad")
 
-  # Wait for loggerd to exit
-  while os.system("pgrep loggerd") == 0:
-    time.sleep(0.01)
-
-  os.sync()
+  printk("Halt")
   os.system("halt -f")
 
 if __name__ == '__main__':
