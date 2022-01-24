@@ -17,7 +17,6 @@ systemctl enable weston.service
 systemctl enable wifi.service
 systemctl enable init-qcom.service
 systemctl enable power_drop_monitor.service
-systemctl enable mount_storage.service
 systemctl enable brightnessd.service
 systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
