@@ -9,6 +9,7 @@ apt-get install --no-install-recommends -yq \
     automake \
     build-essential \
     bzip2 \
+    casync \
     clang \
     clinfo \
     cmake \
