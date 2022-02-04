@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# drop all incoming connections on cell interface
+if ! iptables -C INPUT -i wwan0 -j DROP > /dev/null 2>&1; then
+  iptables -A INPUT -i wwan0 -j DROP
+fi
