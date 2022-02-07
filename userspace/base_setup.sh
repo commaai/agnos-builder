@@ -64,6 +64,7 @@ apt-get install --no-install-recommends -yq \
     i2c-tools \
     ifmetric \
     ifupdown \
+    iptables-persistent \
     jq \
     landscape-common \
     libi2c-dev \
