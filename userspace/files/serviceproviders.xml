@@ -13173,15 +13173,15 @@ conceived.
 			<network-id mcc="310" mnc="560"/>
 			<network-id mcc="310" mnc="680"/>
 			<!-- http://www.wireless.att.com/answer-center/main.jsp?solutionId=35078&t=solutionTab -->
-			<apn value="wap.cingular">
-				<plan type="postpaid"/>
-				<usage type="internet"/>
-				<name>MEdia Net (phones)</name>
-			</apn>
 			<apn value="Broadband">
 				<plan type="postpaid"/>
 				<usage type="internet"/>
 				<name>LaptopConnect (data cards)</name>
+			</apn>
+      <apn value="wap.cingular">
+				<plan type="postpaid"/>
+				<usage type="internet"/>
+				<name>MEdia Net (phones)</name>
 			</apn>
 			<apn value="isp.cingular">
 				<plan type="postpaid"/>
