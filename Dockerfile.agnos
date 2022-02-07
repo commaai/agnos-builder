@@ -169,9 +169,6 @@ COPY ./userspace/files/disable_bootkick.py /lib/systemd/system-shutdown/
 # Remove qt network bearer plugins
 RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
 
-# Add iptable rules to block incoming traffic on wwan0
-COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
-
 # HACK: get newer version of ModemManager and libqmi from 21.04
 # ModemManager 1.12.8 suffers from a bug with reconnecting: https://gitlab.freedesktop.org/mobile-broadband/ModemManager/-/issues/242
 # libqmi 1.24.8 segfaults when power cycling the modem: https://gitlab.freedesktop.org/mobile-broadband/libqmi/-/issues/37
