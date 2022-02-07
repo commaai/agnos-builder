@@ -18,6 +18,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 ./build_kernel.sh
+cp output/ifb.ko userspace/usr/comma
 cp output/wlan.ko userspace/usr/comma
 cp output/snd*.ko userspace/usr/comma/sound/
 ./build_system.sh
