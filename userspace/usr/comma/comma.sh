@@ -65,6 +65,9 @@ fi
 # sudo because udev isn't ready yet
 sudo $(which python3) /usr/comma/set_time.py
 
+# TODO: why is this necessary when this is in the connection settings?
+nmcli connection modify --temporary lte gsm.auto-config yes
+nmcli connection modify --temporary lte gsm.home-only yes
 
 while true; do
   pkill -f "$SETUP"
