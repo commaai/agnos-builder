@@ -67,6 +67,7 @@ dbus-python = "*"
 timezonefinder = "*"
 sentry-sdk = "*"
 markdown-it-py = "*"
+onnx="*"
 
 [requires]
 python_version = "3.8"
