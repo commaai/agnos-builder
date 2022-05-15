@@ -68,6 +68,8 @@ timezonefinder = "*"
 sentry-sdk = "*"
 markdown-it-py = "*"
 onnx="*"
+pyopencl="*"
+pytest="*"
 
 [requires]
 python_version = "3.8"
