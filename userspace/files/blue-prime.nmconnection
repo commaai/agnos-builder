@@ -5,9 +5,11 @@ type=gsm
 interface-name=cdc-wdm0
 permissions=
 autoconnect=yes
-autoconnect-retries=0
+autoconnect-retries=100
+autoconnect-priority=1
 
 [gsm]
+apn=Broadband
 auto-config=yes
 home-only=yes
 sim-operator-id=310410

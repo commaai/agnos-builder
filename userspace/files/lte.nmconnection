@@ -5,7 +5,7 @@ type=gsm
 interface-name=cdc-wdm0
 permissions=
 autoconnect=yes
-autoconnect-retries=0
+autoconnect-retries=100
 
 [gsm]
 auto-config=yes

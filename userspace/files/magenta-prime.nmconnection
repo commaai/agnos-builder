@@ -5,9 +5,11 @@ type=gsm
 interface-name=cdc-wdm0
 permissions=
 autoconnect=yes
-autoconnect-retries=0
+autoconnect-retries=100
+autoconnect-priority=1
 
 [gsm]
+apn=fast.t-mobile.com
 auto-config=yes
 home-only=no
 sim-operator-id=310240
