@@ -2,7 +2,7 @@
 
 This is the tool to build AGNOS, our Ubuntu based OS. AGNOS runs on the [comma three devkit](https://comma.ai/shop/products/three).
 
-NOTE: the `edk2_tici` and `agnos-firmare` submodules are internal, private repos.
+NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repos.
 
 ## Setup
 
