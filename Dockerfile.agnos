@@ -84,10 +84,12 @@ COPY ./userspace/Pipfile* /tmp/agnos/
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
     eval "$(pyenv init -)" && \
-    pip3 install --no-cache-dir --upgrade pip==20.2.4 && \
-    pip3 install --no-cache-dir --upgrade pipenv==2020.8.13 && \
+    pip3 install --no-cache-dir --upgrade pip==22.1 && \
+    pip3 install --no-cache-dir --upgrade pipenv==2022.5.2 && \
     cd /tmp/agnos && \
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     MAKEFLAGS="-j$(nproc)" pipenv install --system --deploy --dev --clear && \
+    pip install PyQt5==5.15.4 && \
     pip uninstall -y pipenv && \
     pyenv rehash
 

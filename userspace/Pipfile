@@ -67,6 +67,11 @@ dbus-python = "*"
 timezonefinder = "*"
 sentry-sdk = "*"
 markdown-it-py = "*"
+onnx = "*"
+pyopencl = "*"
+pytest = "*"
+#PyQt5 = "5.15.4"
+PyQt5-sip = "12.9.0"
 
 [requires]
 python_version = "3.8"
