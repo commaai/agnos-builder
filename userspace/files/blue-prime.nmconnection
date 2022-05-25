@@ -4,13 +4,13 @@ uuid=d3e5a78d-7286-4656-b53a-53b5fd372ea3
 type=gsm
 interface-name=cdc-wdm0
 permissions=
-autoconnect=yes
+autoconnect=true
 autoconnect-retries=100
 autoconnect-priority=1
 
 [gsm]
 apn=Broadband
-home-only=yes
+home-only=true
 sim-operator-id=310410
 
 [ipv4]
