@@ -4,14 +4,12 @@ uuid=5bf787ca-ba77-4eda-9018-8cbde60ad2c7
 type=gsm
 interface-name=cdc-wdm0
 permissions=
-autoconnect=yes
-autoconnect-retries=100
+autoconnect=true
+autoconnect-retries=20
 autoconnect-priority=1
 
 [gsm]
 apn=fast.t-mobile.com
-auto-config=yes
-home-only=no
 sim-operator-id=310240
 
 [ipv4]

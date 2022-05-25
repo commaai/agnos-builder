@@ -10,7 +10,6 @@ autoconnect-priority=1
 
 [gsm]
 apn=Broadband
-auto-config=yes
 home-only=yes
 sim-operator-id=310410
 

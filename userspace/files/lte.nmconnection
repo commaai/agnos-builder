@@ -4,12 +4,11 @@ uuid=6586fb1f-4a66-46d4-9164-0100b73750ee
 type=gsm
 interface-name=cdc-wdm0
 permissions=
-autoconnect=yes
+autoconnect=true
 autoconnect-retries=100
 
 [gsm]
-auto-config=yes
-home-only=yes
+auto-config=true
 
 [ipv4]
 route-metric=1000
