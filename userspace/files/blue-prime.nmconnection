@@ -1,14 +1,17 @@
 [connection]
-id=lte
-uuid=6586fb1f-4a66-46d4-9164-0100b73750ee
+id=blue-prime
+uuid=d3e5a78d-7286-4656-b53a-53b5fd372ea3
 type=gsm
 interface-name=cdc-wdm0
 permissions=
 autoconnect=true
 autoconnect-retries=100
+autoconnect-priority=1
 
 [gsm]
-auto-config=true
+apn=Broadband
+home-only=true
+sim-operator-id=310410
 
 [ipv4]
 route-metric=1000

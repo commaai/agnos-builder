@@ -155,9 +155,9 @@ COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
 COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
 COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
 
-# Add LTE connection
-COPY ./userspace/files/lte.nmconnection /usr/lib/NetworkManager/system-connections/
-RUN chmod 600 /usr/lib/NetworkManager/system-connections/lte.nmconnection
+# Add cellular connections
+COPY ./userspace/files/*.nmconnection /usr/lib/NetworkManager/system-connections/
+RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
 
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
