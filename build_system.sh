@@ -65,6 +65,11 @@ sudo bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 # Fix resolv config
 sudo bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
 
+# Write build info
+DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
+GIT_HASH=$(git --git-dir=$DIR/.git rev-parse HEAD)
+sudo bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
+
 cd $DIR
 
 # Unmount image
