@@ -174,19 +174,13 @@ RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
 # Add iptable rules to block incoming traffic on wwan0
 COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
 
-# HACK: get newer version of ModemManager and libqmi from 21.04
-# ModemManager 1.12.8 suffers from a bug with reconnecting: https://gitlab.freedesktop.org/mobile-broadband/ModemManager/-/issues/242
-# libqmi 1.24.8 segfaults when power cycling the modem: https://gitlab.freedesktop.org/mobile-broadband/libqmi/-/issues/37
-RUN echo "" >> /etc/apt/sources.list && \
-    echo "deb http://ports.ubuntu.com/ubuntu-ports/ hirsute main restricted" >> /etc/apt/sources.list && \
-    echo "deb http://ports.ubuntu.com/ubuntu-ports/ hirsute universe" >> /etc/apt/sources.list && \
-    apt-get remove -y modemmanager && \
-    apt-get update && \
-    apt-cache show modemmanager && \
-    apt-get install -y modemmanager libqmi-glib5 libqmi-utils mobile-broadband-provider-info
+# Build ModemManager
+COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+RUN /tmp/agnos/compile-modemmanager.sh
 
 # Run ModemManager in debug mode to allow AT commands
 COPY ./userspace/files/ModemManager.service /lib/systemd/system/
+RUN systemctl enable ModemManager
 
 # Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
 COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
