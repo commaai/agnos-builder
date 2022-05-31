@@ -1,6 +1,6 @@
 [Unit]
 Description=LTE
-After=gpio.service network.target
+After=gpio.service
 
 [Service]
 Restart=no
