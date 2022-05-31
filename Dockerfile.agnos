@@ -47,10 +47,6 @@ FROM agnos-compiler as agnos-compiler-mapbox-gl-native
 COPY ./userspace/compile-mapbox-gl-native.sh /tmp/agnos/
 RUN /tmp/agnos/compile-mapbox-gl-native.sh
 
-FROM agnos-compiler as agnos-compiler-qtlocation
-COPY ./userspace/compile-qtlocation.sh /tmp/agnos/
-RUN /tmp/agnos/compile-qtlocation.sh
-
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
@@ -75,8 +71,7 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # Use other pre-compiled packages
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-COPY --from=agnos-compiler-qtlocation /tmp/qtlocation.deb /tmp/qtlocation.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb ./qtlocation.deb
+RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 COPY --from=agnos-compiler-mapbox-gl-native /tmp/libqmapboxgl.so /lib/aarch64-linux-gnu/libqmapboxgl.so
 
 # Install openpilot python packages
