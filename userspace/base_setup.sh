@@ -6,6 +6,7 @@ HOST=tici
 
 # Create identification file
 touch /TICI
+touch /AGNOS
 
 # Create privileged user
 useradd -G sudo -m -s /bin/bash $USERNAME
