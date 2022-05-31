@@ -61,6 +61,10 @@ if ! mountpoint -q /data; then
   $RESET --recover
 fi
 
+# symlink vscode to userdata
+mkdir -p /data/tmp/vscode-server
+ln -s /data/tmp/vscode-server ~/.vscode-server
+
 # set time from panda
 # sudo because udev isn't ready yet
 sudo $(which python3) /usr/comma/set_time.py
