@@ -20,6 +20,7 @@ ExecStart=/bin/bash -c "sleep 4 && \
                         chown -R comma: $XDG_RUNTIME_DIR && \
                         mkdir -p /data/misc/display || true && \
                         echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true && \
+                        echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true && \
                         /usr/bin/weston --idle-time=0 --tty=1 --config=/usr/comma/weston.ini"
 KillSignal=SIGKILL
 
