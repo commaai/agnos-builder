@@ -72,6 +72,7 @@ pyopencl = "*"
 pytest = "*"
 #PyQt5 = "5.15.4"
 PyQt5-sip = "12.9.0"
+hatanaka = "==2.4"
 
 [requires]
 python_version = "3.8"
