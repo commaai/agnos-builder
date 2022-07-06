@@ -53,10 +53,6 @@ echo "Hashing xbl_config..."
 XBL_CONFIG_HASH=$(sha256sum $XBL_CONFIG_IMAGE | cut -c 1-64)
 XBL_CONFIG_SIZE=$(wc -c < $XBL_CONFIG_IMAGE)
 
-echo "Getting previous system hash.."
-PREV_SYSTEM_HASH=$(curl https://raw.githubusercontent.com/commaai/openpilot/release3/selfdrive/hardware/tici/agnos.json 2>/dev/null | jq -r '.[] | select(.name=="system") | .hash_raw')
-echo "Previous system hash: $PREV_SYSTEM_HASH"
-
 # Compressing
 SYSTEM_ARCHIVE=$OTA_OUTPUT_DIR/system-$SYSTEM_HASH.img.xz
 BOOT_ARCHIVE=$OTA_OUTPUT_DIR/boot-$BOOT_HASH.img.xz
@@ -133,7 +129,6 @@ tee $OUTPUT_JSON > /dev/null <<EOM
     "has_ab": true
     "casync_caibx": "$AGNOS_UPDATE_URL/system-$SYSTEM_HASH.caibx",
     "casync_store": "$AGNOS_UPDATE_URL/system-$SYSTEM_HASH",
-    "casync_seed_caibx": "$AGNOS_UPDATE_URL/system-$PREV_SYSTEM_HASH.caibx",
   }
 ]
 EOM
@@ -192,7 +187,6 @@ tee $OUTPUT_STAGING_JSON > /dev/null <<EOM
     "has_ab": true
     "casync_caibx": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH.caibx",
     "casync_store": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH",
-    "casync_seed_caibx": "$AGNOS_UPDATE_URL/system-$PREV_SYSTEM_HASH.caibx",
   }
 ]
 EOM
