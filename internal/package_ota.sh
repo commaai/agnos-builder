@@ -36,7 +36,6 @@ SPARSE_SYSTEM_HASH=$(sha256sum $SYSTEM_IMAGE | cut -c 1-64)
 simg2img $SYSTEM_IMAGE $SYSTEM_IMAGE_RAW
 SYSTEM_HASH=$(sha256sum $SYSTEM_IMAGE_RAW | cut -c 1-64)
 SYSTEM_SIZE=$(wc -c < $SYSTEM_IMAGE_RAW)
-rm $SYSTEM_IMAGE_RAW
 
 echo "Hashing boot..."
 BOOT_HASH=$(sha256sum $BOOT_IMAGE | cut -c 1-64)
@@ -53,6 +52,10 @@ XBL_SIZE=$(wc -c < $XBL_IMAGE)
 echo "Hashing xbl_config..."
 XBL_CONFIG_HASH=$(sha256sum $XBL_CONFIG_IMAGE | cut -c 1-64)
 XBL_CONFIG_SIZE=$(wc -c < $XBL_CONFIG_IMAGE)
+
+echo "Getting previous system hash.."
+PREV_SYSTEM_HASH=$(curl https://raw.githubusercontent.com/commaai/openpilot/release3/selfdrive/hardware/tici/agnos.json 2>/dev/null | jq -r '.[] | select(.name=="system") | .hash_raw')
+echo "Previous system hash: $PREV_SYSTEM_HASH"
 
 # Compressing
 SYSTEM_ARCHIVE=$OTA_OUTPUT_DIR/system-$SYSTEM_HASH.img.xz
@@ -71,6 +74,9 @@ echo "Compressing xbl..."
 xz -vc $XBL_IMAGE > $XBL_ARCHIVE
 echo "Compressing xbl_config..."
 xz -vc $XBL_CONFIG_IMAGE > $XBL_CONFIG_ARCHIVE
+echo "Creating system casync files"
+casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$SYSTEM_HASH $OTA_OUTPUT_DIR/system-$SYSTEM_HASH.caibx $SYSTEM_IMAGE_RAW
+rm $SYSTEM_IMAGE_RAW
 
 # Generating JSONs
 echo "Generating production JSON ($OUTPUT_JSON)..."
@@ -125,6 +131,9 @@ tee $OUTPUT_JSON > /dev/null <<EOM
     "sparse": true,
     "full_check": false,
     "has_ab": true
+    "casync_caibx": "$AGNOS_UPDATE_URL/system-$SYSTEM_HASH.caibx",
+    "casync_store": "$AGNOS_UPDATE_URL/system-$SYSTEM_HASH",
+    "casync_seed_caibx": "$AGNOS_UPDATE_URL/system-$PREV_SYSTEM_HASH.caibx",
   }
 ]
 EOM
@@ -181,6 +190,9 @@ tee $OUTPUT_STAGING_JSON > /dev/null <<EOM
     "sparse": true,
     "full_check": false,
     "has_ab": true
+    "casync_caibx": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH.caibx",
+    "casync_store": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH",
+    "casync_seed_caibx": "$AGNOS_STAGING_UPDATE_URL/system-$PREV_SYSTEM_HASH.caibx",
   }
 ]
 EOM
