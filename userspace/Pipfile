@@ -71,8 +71,6 @@ onnx = "*"
 onnxruntime = "*"
 pyopencl = "*"
 pytest = "*"
-#PyQt5 = "5.15.4"
-PyQt5-sip = "12.9.0"
 hatanaka = "==2.4"
 protobuf = "==3.20.1"  # need to pin this one explicitly since onnx doesn't do it properly
 
