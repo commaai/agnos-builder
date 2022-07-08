@@ -71,7 +71,7 @@ xz -vc $XBL_IMAGE > $XBL_ARCHIVE
 echo "Compressing xbl_config..."
 xz -vc $XBL_CONFIG_IMAGE > $XBL_CONFIG_ARCHIVE
 echo "Creating system casync files"
-casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$SYSTEM_HASH $OTA_OUTPUT_DIR/system-$SYSTEM_HASH.caibx $SYSTEM_IMAGE_RAW
+casync make --compression=xz --chunk-size=1M --store $OTA_OUTPUT_DIR/system-$SYSTEM_HASH $OTA_OUTPUT_DIR/system-$SYSTEM_HASH.caibx $SYSTEM_IMAGE_RAW
 rm $SYSTEM_IMAGE_RAW
 
 # Generating JSONs
