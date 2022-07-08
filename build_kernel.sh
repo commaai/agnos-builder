@@ -39,13 +39,13 @@ make -j$(nproc --all) O=out  # Image.gz-dtb
 # Copy over Image.gz-dtb
 mkdir -p $TMP_DIR
 cd $TMP_DIR
-cp $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image.gz-dtb .
+cat $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image.gz $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/dts/qcom/sdm845-db845c.dtb > Image.gz-dtb
 
 # Make boot image
 $TOOLS/mkbootimg \
   --kernel Image.gz-dtb \
   --ramdisk /dev/null \
-  --cmdline "console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 video=DSI-1:1080x2160@60e mdss_mdp.panel=0:dsi:0:dsi_ss_ea8074_fhd_cmd_display ehci-hcd.park=3 lpm_levels.sleep_disabled=1 service_locator.enable=1 androidboot.selinux=permissive firmware_class.path=/lib/firmware/updates net.ifnames=0 dyndbg=\"\"" \
+  --cmdline "console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0xA84000" \
   --pagesize 4096 \
   --base 0x80000000 \
   --kernel_offset 0x8000 \
@@ -63,6 +63,8 @@ cat $BOOT_IMG.nonsecure $BOOT_IMG.sig.padded > $BOOT_IMG
 # Copy to output dir
 mkdir -p $OUTPUT_DIR
 mv $BOOT_IMG $OUTPUT_DIR/
-cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/snd-soc-sdm845.ko $OUTPUT_DIR/
-cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/codecs/snd-soc-wcd9xxx.ko $OUTPUT_DIR/
-cp $DIR/agnos-kernel-sdm845/out/drivers/staging/qcacld-3.0/wlan.ko $OUTPUT_DIR/
+
+# TODO: fix these
+#cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/snd-soc-sdm845.ko $OUTPUT_DIR/
+#cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/codecs/snd-soc-wcd9xxx.ko $OUTPUT_DIR/
+#cp $DIR/agnos-kernel-sdm845/out/drivers/staging/qcacld-3.0/wlan.ko $OUTPUT_DIR/
