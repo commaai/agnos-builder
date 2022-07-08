@@ -184,9 +184,9 @@ tee $OUTPUT_STAGING_JSON > /dev/null <<EOM
     "size": $SYSTEM_SIZE,
     "sparse": true,
     "full_check": false,
-    "has_ab": true
+    "has_ab": true,
     "casync_caibx": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH.caibx",
-    "casync_store": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH",
+    "casync_store": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH"
   }
 ]
 EOM
