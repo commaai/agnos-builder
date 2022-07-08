@@ -46,7 +46,7 @@ DATA_SAS_TOKEN=$(az storage container generate-sas --as-user --auth-mode login -
 # Liftoff!
 SYSTEM_FILE_NAME="system-$SYSTEM_HASH.img.xz"
 SYSTEM_CAIBX_FILE_NAME="system-$SYSTEM_HASH.caibx"
-SYSTEM_CUNKS_FOLDER="system-$SYSTEM_HASH"
+SYSTEM_CHUNKS_FOLDER="system-$SYSTEM_HASH"
 BOOT_FILE_NAME="boot-$BOOT_HASH.img.xz"
 ABL_FILE_NAME="abl-$ABL_HASH.img.xz"
 XBL_FILE_NAME="xbl-$XBL_HASH.img.xz"
@@ -61,7 +61,7 @@ SYSTEM_CAIBX_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$
 azcopy cp --overwrite=false $OTA_DIR/$SYSTEM_CAIBX_FILE_NAME "$SYSTEM_CAIBX_PATH?$DATA_SAS_TOKEN"
 
 echo "Copying system casync chunks to the cloud..."
-SYSTEM_CHUNKS_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$SYSTEM_CHUNKS_FOLDER"
+SYSTEM_CHUNKS_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER"
 azcopy cp --recursive=true --overwrite=false $OTA_DIR/$SYSTEM_CHUNKS_FOLDER "$SYSTEM_CHUNKS_PATH?$DATA_SAS_TOKEN"
 
 echo "Copying boot to the cloud..."
