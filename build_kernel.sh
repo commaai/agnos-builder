@@ -39,7 +39,8 @@ make -j$(nproc --all) O=out  # Image.gz-dtb
 # Copy over Image.gz-dtb
 mkdir -p $TMP_DIR
 cd $TMP_DIR
-cat $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image.gz $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/dts/qcom/sdm845-db845c.dtb > Image.gz-dtb
+cat $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image.gz $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/dts/qcom/sdm845-tici.dtb > Image.gz-dtb
+ls -l Image.gz-dtb
 
 # Make boot image
 $TOOLS/mkbootimg \
