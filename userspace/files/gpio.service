@@ -1,5 +1,6 @@
 [Unit]
 Description=GPIO export
+After=local-fs.target
 
 [Service]
 Type=oneshot
