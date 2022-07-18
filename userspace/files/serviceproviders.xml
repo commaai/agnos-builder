@@ -7635,6 +7635,13 @@ conceived.
 				<usage type="internet"/>
 				<name>mopera U</name>
 			</apn>
+			<apn value="mineo-d.jp">
+				<plan type="prepaid"/>
+				<usage type="internet"/>
+				<name>mineo-d.jp</name>
+				<username>mineo@k-opti.com</username>
+				<password>mineo</password>
+			</apn>
 		</gsm>
 	</provider>
 	<provider>
