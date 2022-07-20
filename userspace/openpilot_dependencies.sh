@@ -66,5 +66,4 @@ apt-get install --no-install-recommends -yq \
     qtlocation5-dev \
     qtmultimedia5-dev \
     qtpositioning5-dev \
-    qttools5-dev-tools \
     qtwayland5
