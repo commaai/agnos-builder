@@ -5268,6 +5268,18 @@ conceived.
 		</gsm>
 	</provider>
 	<provider>
+		<name>Vodafone Smart Sim</name>
+		<gsm>
+			<network-id mcc="901" mnc="28"/>
+			<apn value="ciot.vodafone.com">
+				<plan type="prepaid"/>
+				<usage type="internet"/>
+				<username>vodafone</username>
+				<password>vodafone</password>
+			</apn>
+		</gsm>
+	</provider>
+	<provider>
 		<name>Asda Mobile</name>
 		<gsm>
 			<network-id mcc="234" mnc="15"/>
