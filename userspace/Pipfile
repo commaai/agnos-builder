@@ -26,6 +26,7 @@ parameterized = "*"
 inputs = "*"
 casadi = "*"
 future-fstrings = "*"  # needed for acados for now
+tabulate = "*"
 
 [packages]
 atomicwrites = "*"
