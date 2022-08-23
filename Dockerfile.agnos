@@ -83,7 +83,7 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     pip3 install --no-cache-dir --upgrade pipenv==2022.5.2 && \
     cd /tmp/agnos && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" pipenv install --system --deploy --dev --clear && \
+    MAKEFLAGS="-j$(nproc)" pipenv sync --system --deploy --dev --clear && \
     pip uninstall -y pipenv && \
     pyenv rehash
 
