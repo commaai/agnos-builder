@@ -16,6 +16,7 @@ apt-get install --no-install-recommends -yq \
     cppcheck \
     curl \
     gcc-arm-none-eabi \
+    gpiod \
     libarchive-dev \
     libass-dev \
     libbz2-dev \
