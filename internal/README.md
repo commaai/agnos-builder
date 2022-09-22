@@ -3,8 +3,6 @@
 ## release checklist
 
 - [ ] CPU usage
-- [ ] shutdown
-- [ ] bootkick on ignition
 - [ ] wifi
 - [ ] modem
 - [ ] image size
