@@ -1,0 +1,10 @@
+[Unit]
+Description=Sets the hostname to the device's serial number
+
+[Service]
+User=root
+Type=oneshot
+ExecStart=/usr/comma/set-hostname.sh
+
+[Install]
+WantedBy=multi-user.target
