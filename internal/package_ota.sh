@@ -27,7 +27,7 @@ cd $ROOT
 mkdir -p $OTA_OUTPUT_DIR
 
 # Make sure archive dir is empty
-rm -r $OTA_OUTPUT_DIR
+rm -rf $OTA_OUTPUT_DIR
 mkdir -p $OTA_OUTPUT_DIR
 
 # Hashing
