@@ -8,6 +8,7 @@ systemctl enable cdsprpcd
 
 # Enable our services
 systemctl enable fs_setup.service
+systemctl enable serial-hostname.service
 systemctl enable comma.service
 systemctl enable gpio.service
 systemctl enable lte.service
