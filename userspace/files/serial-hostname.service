@@ -1,5 +1,6 @@
 [Unit]
 Description=Sets the hostname to the device's serial number
+After=NetworkManager.service
 
 [Service]
 User=root
