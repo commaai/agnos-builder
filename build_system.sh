@@ -18,6 +18,14 @@ SPARSE_IMAGE="$BUILD_DIR/system.img"
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
 
+# Copy kernel modules over
+if ! ls $OUTPUT_DIR/*.ko >/dev/null 2>&1; then
+  echo "kernel modules missing. run ./build_kernel.sh first"
+  exit 1
+fi
+cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
+cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
+
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
   echo -e "${GREEN}Downloading Ubuntu: $UBUNTU_FILE ${NO_COLOR}"
