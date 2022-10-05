@@ -20,6 +20,7 @@ adduser $USERNAME adm
 adduser $USERNAME gpu
 adduser $USERNAME audio
 adduser $USERNAME disk
+adduser $USERNAME dialout
 
 # Add armhf as supported architecture
 dpkg --add-architecture armhf
