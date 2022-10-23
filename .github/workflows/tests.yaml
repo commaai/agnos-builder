@@ -5,13 +5,11 @@ on:
 
 jobs:
   precommit:
-    name: pre-commit hooks
+    name: pre-commit
     runs-on: ubuntu-20.04
-    timeout-minutes: 60
+    timeout-minutes: 8
     steps:
     - uses: actions/checkout@v3
-    #  with:
-    #    submodules: true
     - uses: actions/setup-python@v4
       with:
         python-version: '3.8'
