@@ -15,7 +15,7 @@ INA231_MASK_REG = 0x06
 INA231_LIMIT_REG = 0x07
 INA231_MASK_CONFIG = (1 << 12) # Bus undervoltage, not latching
 INA231_BUS_VOLTAGE_LSB_mV = 1.25
-VOLTAGE_FILE = f"/sys/class/hwmon/hwmon1/in1_input"
+VOLTAGE_FILE = "/sys/class/hwmon/hwmon1/in1_input"
 PARAM_FILE = "/data/params/d/LastPowerDropDetected"
 
 alert_pin_base = f"/sys/class/gpio/gpio{POWER_ALERT_GPIO_PIN}/"
@@ -118,6 +118,6 @@ if __name__ == '__main__':
         state_last = f.read().strip()
         if int(state_last) == 0:
           perform_controlled_shutdown()
-    except:
+    except Exception:
       pass
 

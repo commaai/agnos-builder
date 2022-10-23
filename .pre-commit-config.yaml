@@ -1,11 +1,38 @@
 repos:
+-   repo: meta
+    hooks:
+    -   id: check-hooks-apply
+    -   id: check-useless-excludes
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.0.1
+    rev: v4.3.0
     hooks:
     -   id: check-ast
-        exclude: tools
+        exclude: '^(tools)/'
     -   id: check-json
     -   id: check-xml
     -   id: check-yaml
     -   id: check-merge-conflict
     -   id: check-symlinks
+    -   id: check-added-large-files
+        args: ['--maxkb=100']
+-   repo: https://github.com/codespell-project/codespell
+    rev: v2.2.2
+    hooks:
+    -   id: codespell
+        exclude: '^(userspace/files/serviceproviders.xml)|(tools/)'
+        args:
+        # if you've got a short variable name that's getting flagged, add it here
+        - -L bu,ro,te,ue,alo,hda,ois,nam,nams,ned,som,parm,setts,inout,warmup
+        - --builtins clear,rare,informal,usage,code,names,en-GB_to_en-US
+-   repo: https://github.com/PyCQA/flake8
+    rev: 5.0.4
+    hooks:
+    -   id: flake8
+        exclude: '^(tools/)'
+        additional_dependencies: ['flake8-no-implicit-concat']
+        args:
+        - --indent-size=2
+        - --enable-extensions=NIC
+        - --select=F,E112,E113,E304,E502,E701,E702,E703,E71,E72,E731,W191,W6
+        - --statistics
+        - -j4
