@@ -41,6 +41,7 @@ fi
 
 # Start docker build
 echo "Building image"
+export DOCKER_BUILDKIT=1
 export DOCKER_CLI_EXPERIMENTAL=enabled
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
 
