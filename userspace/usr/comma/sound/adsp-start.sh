@@ -18,7 +18,7 @@ echo -n "/firmware/image" > /sys/module/firmware_class/parameters/path
 count=0
 while [ ! -s /firmware/image/adsp.mdt ]; do
   sleep 0.1
-  # wait 10s for /firmare mounted
+  # wait 10s for /firmware mounted
   count=$(( $count + 1 ))
   if [ $count -ge 100 ]; then
     echo "[ERROR] Can not find the adsp's firmware"

@@ -2,7 +2,7 @@
 
 echo "Installing openpilot dependencies"
 
-# Install neccesary libs
+# Install necessary libs
 apt-get update
 apt-get install --no-install-recommends -yq \
     autoconf \

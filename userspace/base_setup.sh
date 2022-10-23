@@ -129,7 +129,7 @@ echo "" >> /etc/apt/sources.list
 echo "deb http://ports.ubuntu.com/ubuntu-ports/ bionic main restricted" >> /etc/apt/sources.list
 echo "deb http://ports.ubuntu.com/ubuntu-ports/ bionic universe" >> /etc/apt/sources.list
 
-# Install neccesary libs
+# Install necessary libs
 apt-get update -yq
 apt-get install --no-install-recommends -yq \
     libacl1:armhf \
