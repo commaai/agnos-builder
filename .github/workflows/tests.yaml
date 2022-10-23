@@ -1,0 +1,19 @@
+name: tests
+on:
+  push:
+  pull_request:
+
+jobs:
+  precommit:
+    name: pre-commit hooks
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@v3
+    #  with:
+    #    submodules: true
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    - run: 'pip install pre-commit'
+    - run: 'pre-commit run --all'
