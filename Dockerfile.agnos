@@ -196,7 +196,7 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
 # Write version file
-RUN echo -n "6.1" > /VERSION
+RUN echo -n "6.2" > /VERSION
 
 # ################## #
 # #### Cleaunup #### #
