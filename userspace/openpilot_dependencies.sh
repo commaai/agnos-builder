@@ -32,6 +32,7 @@ apt-get install --no-install-recommends -yq \
     libjpeg-dev \
     liblzma-dev \
     libomp-dev \
+    libportaudio2 \
     libsdl2-dev \
     libsqlite3-dev \
     libssl-dev \
