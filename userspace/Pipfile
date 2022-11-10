@@ -64,7 +64,7 @@ pycryptodome = "*"
 "Jinja2" = "*"
 PyJWT = "*"
 pyserial = "*"
-dbus-python = "!=1.3.2"
+dbus-python = "*"
 timezonefinder = "*"
 sentry-sdk = "*"
 markdown-it-py = "*"
@@ -76,6 +76,7 @@ hatanaka = "==2.4"
 protobuf = "==3.20.1"  # need to pin this one explicitly since onnx doesn't do it properly
 torch = "*"
 spidev = "*"
+sounddevice = "*"
 
 [requires]
 python_version = "3.8"
