@@ -1,7 +1,10 @@
 #!/bin/bash -e
+set -x
 
 UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
 UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
+
+export DOCKER_BUILDKIT=1
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -32,16 +35,13 @@ if [ ! -f $UBUNTU_FILE ]; then
   wget -c $UBUNTU_BASE_URL/$UBUNTU_FILE --quiet
 fi
 
-# TODO: this needs to be re-done sometimes
-# Register qemu multiarch if not done
-if [ ! -f $DIR/.qemu_registered ] && [ "$(uname -p)" != "aarch64" ]; then
-  docker run --rm --privileged multiarch/qemu-user-static:register
-  touch $DIR/.qemu_registered
+# Register qemu multiarch
+if [ "$(uname -p)" != "aarch64" ]; then
+  docker run --rm --privileged multiarch/qemu-user-static:register --reset
 fi
 
 # Start docker build
 echo "Building image"
-export DOCKER_BUILDKIT=1
 export DOCKER_CLI_EXPERIMENTAL=enabled
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
 
