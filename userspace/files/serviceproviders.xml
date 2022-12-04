@@ -2452,31 +2452,18 @@ conceived.
 		</gsm>
 	</provider>
 	<provider>
-		<name>WIND Mobile</name>
+		<name>Freedom Mobile</name>
 		<gsm>
 			<network-id mcc="302" mnc="490"/>
-			<apn value="broadband.windmobile.ca">
+			<apn value="internet.freedommobile.ca">
 				<plan type="postpaid"/>
 				<usage type="internet"/>
-				<name>Laptop (data stick)</name>
+				<name>Internet</name>
 			</apn>
-			<apn value="internet.windmobile.ca">
-				<plan type="postpaid"/>
-				<usage type="internet"/>
-				<name>Mobile (add-on for phone)</name>
-			</apn>
-			<apn value="mnet.b-online.gr">
-				<usage type="mms"/>
-				<name>WIND MMS</name>
-				<username>mms</username>
-				<password>mms</password>
-				<mmsc>http://192.168.200.95/servlets/mms</mmsc>
-				<mmsproxy>192.168.200.11:9401</mmsproxy>
-			</apn>
-			<apn value="mms.windmobile.ca">
+			<apn value="mms.freedommobile.ca">
 				<usage type="mms"/>
 				<name>MMS</name>
-				<mmsc>http://mms.windmobile.ca</mmsc>
+				<mmsc>http://mms.freedommobile.ca</mmsc>
 				<mmsproxy>74.115.197.70:8080</mmsproxy>
 			</apn>
 		</gsm>
