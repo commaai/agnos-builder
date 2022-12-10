@@ -4,5 +4,6 @@ export MYVIMRC="~/.vimrc"
 
 source $HOME/.profile
 
-# TODO: there's probably a better way to do this for only the main tmux session
-[ -d "/data/openpilot" ] && cd /data/openpilot
+if [ -d "/data/openpilot" ] && [ "$(tmux display-message -p '#{session_name}')" == "comma" ] ; then
+  cd /data/openpilot
+fi
