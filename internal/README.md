@@ -14,3 +14,5 @@
   - [ ] corrupt userdata
 - [ ] color calibration
 - [ ] clean setup
+- [ ] cameras
+- [ ] update works on warm boot
