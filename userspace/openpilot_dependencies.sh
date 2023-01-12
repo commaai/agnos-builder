@@ -15,6 +15,7 @@ apt-get install --no-install-recommends -yq \
     cmake \
     cppcheck \
     curl \
+    dkms \
     gcc-arm-none-eabi \
     gpiod \
     libarchive-dev \
