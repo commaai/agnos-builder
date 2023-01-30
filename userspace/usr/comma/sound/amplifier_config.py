@@ -25,6 +25,7 @@ BASE_CONFIG = [
   AmpConfig("MCLK prescaler", 0b01, 0x10, 4, 0b00110000),
   AmpConfig("PM: enable speakers", 0b11, 0x4D, 4, 0b00110000),
   AmpConfig("PM: enable DACs", 0b11, 0x4D, 0, 0b00000011),
+  AmpConfig("PM: disable line input A", 0b0, 0x4C, 7, 0b10000000),
   AmpConfig("Right speaker output from right DAC", 0b1, 0x2C, 0, 0b11111111),
   AmpConfig("Right Speaker Mixer Gain", 0b00, 0x2D, 2, 0b00001100),
   AmpConfig("Enable PLL1", 0b1, 0x12, 7, 0b10000000),
