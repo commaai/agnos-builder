@@ -37,6 +37,10 @@ XBL_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"xbl\") | .hash_raw")
 echo "Found xbl hash: $XBL_HASH"
 XBL_CONFIG_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"xbl_config\") | .hash_raw")
 echo "Found xbl_config hash: $XBL_CONFIG_HASH"
+DEVCFG_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"devcfg\") | .hash_raw")
+echo "Found devcfg hash: $DEVCFG_HASH"
+AOP_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"aop\") | .hash_raw")
+echo "Found aop hash: $AOP_HASH"
 
 # Generate token
 echo "Logging in..."
@@ -51,6 +55,8 @@ BOOT_FILE_NAME="boot-$BOOT_HASH.img.xz"
 ABL_FILE_NAME="abl-$ABL_HASH.img.xz"
 XBL_FILE_NAME="xbl-$XBL_HASH.img.xz"
 XBL_CONFIG_FILE_NAME="xbl_config-$XBL_CONFIG_HASH.img.xz"
+DEVCFG_FILE_NAME="devcfg-$DEVCFG_HASH.img.xz"
+AOP_FILE_NAME="aop-$AOP_HASH.img.xz"
 
 echo "Copying system to the cloud..."
 SYSTEM_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$SYSTEM_FILE_NAME"
@@ -80,9 +86,19 @@ echo "Copying xbl_config to the cloud..."
 XBL_CONFIG_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$XBL_CONFIG_FILE_NAME"
 azcopy cp --overwrite=false $OTA_DIR/$XBL_CONFIG_FILE_NAME "$XBL_CONFIG_CLOUD_PATH?$DATA_SAS_TOKEN"
 
+echo "Copying devcfg to the cloud..."
+DEVCFG_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$DEVCFG_FILE_NAME"
+azcopy cp --overwrite=false $OTA_DIR/$DEVCFG_FILE_NAME "$DEVCFG_CLOUD_PATH?$DATA_SAS_TOKEN"
+
+echo "Copying aop to the cloud..."
+AOP_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$AOP_FILE_NAME"
+azcopy cp --overwrite=false $OTA_DIR/$AOP_FILE_NAME "$AOP_CLOUD_PATH?$DATA_SAS_TOKEN"
+
 echo "Done!"
 echo "  System path: $SYSTEM_CLOUD_PATH"
 echo "  Boot path: $BOOT_CLOUD_PATH"
 echo "  abl path: $ABL_CLOUD_PATH"
 echo "  xbl path: $XBL_CLOUD_PATH"
 echo "  xbl_config path: $XBL_CONFIG_CLOUD_PATH"
+echo "  devcfg path: $DEVCFG_CLOUD_PATH"
+echo "  aop path: $AOP_CLOUD_PATH"
