@@ -1,8 +1,7 @@
 [Unit]
 Description=Weston
 
-# If we start weston immediately it just exits without an error
-# TODO: Figure out what we need to wait for (drm?)
+# TODO: run weston as a non-root user. use weston-launch?
 [Service]
 Type=simple
 Restart=always
