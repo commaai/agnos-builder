@@ -7,9 +7,7 @@ Description=Weston
 Type=simple
 Restart=always
 Environment="XDG_RUNTIME_DIR=/var/tmp/weston"
-ExecStart=/bin/bash -c "/usr/comma/modetest -M msm_drm -s 26@111:1080x2160-60 && \
-                        /usr/comma/modetest -M msm_drm -s 26@111:1080x2160-60 && \
-                        mkdir -p $XDG_RUNTIME_DIR && \
+ExecStart=/bin/bash -c "mkdir -p $XDG_RUNTIME_DIR && \
                         chown -R comma: $XDG_RUNTIME_DIR && \
                         mkdir -p /data/misc/display || true && \
                         echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true && \
