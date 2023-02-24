@@ -1,12 +1,22 @@
 [Unit]
 Description=Weston
 
-# TODO: run weston as a non-root user. use weston-launch?
+# If we start weston immediately it just exits without an error
+# TODO: Figure out what we need to wait for (drm?)
 [Service]
 Type=simple
 Restart=always
 Environment="XDG_RUNTIME_DIR=/var/tmp/weston"
-ExecStart=/bin/bash -c "mkdir -p $XDG_RUNTIME_DIR && \
+# TODO: detect if display was brought up by bootloader
+# Setting backlight to 0 while the screen is not initialized will turn off the regulators, 1023 turns it back on
+ExecStart=/bin/bash -c "sleep 4 && \
+                        echo 0 > /sys/class/backlight/panel0-backlight/brightness && \
+                        sleep 0.1 && \
+                        echo 1023 > /sys/class/backlight/panel0-backlight/brightness && \
+                        /usr/comma/modetest -M msm_drm -s 26@111:1080x2160-60 && \
+                        /usr/comma/modetest -M msm_drm -s 26@111:1080x2160-60 && \
+                        sleep 1 && \
+                        mkdir -p $XDG_RUNTIME_DIR && \
                         chown -R comma: $XDG_RUNTIME_DIR && \
                         mkdir -p /data/misc/display || true && \
                         echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true && \
