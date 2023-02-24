@@ -37,15 +37,13 @@
 - [ ] forget/connect to wifi
 - [ ] ethernet
 
-
 #### custom URL
 - (a) Not a real URL (e.g. `comma`, `abc123`, `...`)
-  - [ ] Shows "Download Failed"
+  - [ ] "Ensure the entered URL is valid"
   - [ ] Start over
   - [ ] Reboot device
 - (b) Website but not an installer URL (e.g. `github.com`, `comma.ai`, `installer.comma.ai`)
-  - [ ] Shows "Invalid Custom Software URL"
-  - [ ] Start over
+  - [ ] "No custom software found at this URL."
 - (c) Valid installer URL (e.g. `openpilot.comma.ai`)
   - [ ] Download successful (comma logo or installer appears)
   - [ ] `/tmp/installer_url` should contain the installer URL
