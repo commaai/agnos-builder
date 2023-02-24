@@ -15,6 +15,7 @@ apt-get install --no-install-recommends -yq \
     cmake \
     cppcheck \
     curl \
+    darkstat \
     dkms \
     gcc-arm-none-eabi \
     gpiod \
@@ -49,11 +50,13 @@ apt-get install --no-install-recommends -yq \
     libxcb1-dev \
     libzmq3-dev \
     locales \
+    nethogs \
     ocl-icd-libopencl1 \
     ocl-icd-opencl-dev \
     opencl-headers \
     pkg-config \
     texinfo \
+    vnstat \
     wget \
     zlib1g-dev \
     libqt5location5-plugin-mapboxgl \
