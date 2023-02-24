@@ -24,6 +24,10 @@ systemctl enable ssh-param-watcher.service
 systemctl enable home.mount
 systemctl enable logrotate-hourly.timer
 
+# Disable third party services
+systemctl disable darkstat.service
+systemctl disable vnstat.service
+
 # Disable SSH by default
 systemctl disable ssh
 
