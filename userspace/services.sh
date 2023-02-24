@@ -25,7 +25,7 @@ systemctl enable home.mount
 systemctl enable logrotate-hourly.timer
 
 # Enable third party services
-systemctl enable vnstat.service
+systemctl enable darkstat.service
 
 # Disable SSH by default
 systemctl disable ssh

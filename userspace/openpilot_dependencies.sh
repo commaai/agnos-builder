@@ -54,7 +54,7 @@ apt-get install --no-install-recommends -yq \
     opencl-headers \
     pkg-config \
     texinfo \
-    vnstat \
+    darkstat \
     wget \
     zlib1g-dev \
     libqt5location5-plugin-mapboxgl \
