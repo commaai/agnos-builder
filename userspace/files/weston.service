@@ -1,25 +1,29 @@
 [Unit]
 Description=Weston
+Conflicts=getty@tty1.service
+After=systemd-user-sessions.service getty@tty1.service
 
 [Service]
 Type=simple
 Restart=no
-Environment="XDG_RUNTIME_DIR=/var/tmp/weston"
-# TODO: why is the 1s sleep before weston starts necessary?
-# TODO: modetest shouldn't need to be run
-ExecStart=/bin/bash -c "echo 1 > /sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/brightness && \
-                        /usr/comma/modetest -M msm_drm -s 26@111:1080x2160-60 && \
-                        /usr/comma/modetest -M msm_drm -s 26@111:1080x2160-60 && \
-                        /usr/comma/modetest -M msm_drm -s 26@109:1080x2160-60 && \
-                        /usr/comma/modetest -M msm_drm -s 26@109:1080x2160-60 && \
-                        mkdir -p $XDG_RUNTIME_DIR && \
-                        chmod 0700 $XDG_RUNTIME_DIR && \
-                        mkdir -p /data/misc/display || true && \
-                        echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true && \
-                        echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true && \
-                        sleep 1 && \
-                        /usr/bin/weston --idle-time=0 --tty=1 --config=/usr/comma/weston.ini"
 KillSignal=SIGKILL
+Environment="XDG_RUNTIME_DIR=/var/tmp/weston"
+
+UtmpIdentifier=tty1
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+
+ExecStartPre=/bin/bash -c "mkdir -p $XDG_RUNTIME_DIR"
+ExecStartPre=/bin/bash -c "chown -R comma: $XDG_RUNTIME_DIR"
+
+ExecStartPre=/bin/bash -c "mkdir -p /data/misc/display || true"
+ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"
+ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true"
+
+ExecStartPre=/bin/chvt 1
+ExecStart=/usr/bin/weston --idle-time=0 --tty=1 --config=/usr/comma/weston.ini
 
 [Install]
 WantedBy=multi-user.target
