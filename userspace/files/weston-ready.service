@@ -10,7 +10,7 @@ ExecStart=/bin/echo "waiting for wayland socket"
 ExecStart=/bin/bash -c "while [ ! -e \"$XDG_RUNTIME_DIR/wayland-0\" ]; do sleep 0.1; done"
 
 # still starting after socket comes up
-ExecStart=/bin/sleep 1
+ExecStart=/bin/sleep 0.5
 
 ExecStart=/bin/echo "fixing permissions"
 ExecStart=/bin/bash -c "chmod -R 770 $XDG_RUNTIME_DIR"

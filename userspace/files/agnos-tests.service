@@ -5,7 +5,7 @@ After=weston-ready.service
 Type=simple
 User=comma
 Restart=no
-ExecStart=/bin/bash -c "/data/test_weston.sh"
+ExecStart=/bin/bash -c "source /etc/profile && /data/test_weston.py"
 
 [Install]
 WantedBy=multi-user.target
