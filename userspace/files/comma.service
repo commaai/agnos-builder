@@ -1,6 +1,5 @@
 [Unit]
-Description=Comma tmux
-After=weston.service gpio.service
+After=weston-ready.service gpio.service
 
 [Service]
 Type=simple
