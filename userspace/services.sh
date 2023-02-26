@@ -15,6 +15,7 @@ systemctl enable lte.service
 systemctl enable sound.service
 systemctl enable pulse.service
 systemctl enable weston.service
+systemctl enable weston-ready.service
 systemctl enable wifi.service
 systemctl enable init-qcom.service
 systemctl enable power_drop_monitor.service
@@ -23,6 +24,10 @@ systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable home.mount
 systemctl enable logrotate-hourly.timer
+
+# Disable some of our services
+systemctl disable serial-hostname.service
+systemctl disable agnos-tests.service
 
 # Disable third party services
 systemctl disable darkstat.service
