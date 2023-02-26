@@ -7,6 +7,8 @@ PROVIDER_INFO_VERSION="20220511"
 
 cd /tmp
 
+apt update
+
 # TODO: clean up these build time dependencies
 apt install -y --no-install-recommends python3 python3-pip python3-setuptools python3-wheel ninja-build
 pip3 install --user meson
