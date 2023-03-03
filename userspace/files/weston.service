@@ -15,6 +15,11 @@ TTYReset=yes
 TTYVHangup=yes
 TTYVTDisallocate=yes
 
+# TODO: brightness setting doesn't work without this
+ExecStartPre=/bin/bash -c "[ -d /sys/firmware/devicetree/base/soc/qcom,mdss_mdp@ae00000/qcom,mdss_dsi_mate10_lite_video ] && \
+                           /usr/comma/modetest -M msm_drm -s 26:1080x2160-60 && \
+                           sleep 1"
+
 ExecStartPre=/bin/bash -c "mkdir -p $XDG_RUNTIME_DIR"
 ExecStartPre=/bin/bash -c "chown -R comma: $XDG_RUNTIME_DIR"
 
