@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import time
 import smbus2
@@ -53,13 +52,11 @@ def update_param(stage, v_initial=None, v_final=None):
     os.umask(0)
     with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
       f.write(f"{stage} {datetime.datetime.now()} {v_initial}mV {v_final}mV")
+      f.flush()
+      os.fdatasync(f.fileno())
+      os.fsync(f.fileno())
   except Exception:
     print("Failed to update LastControlledShutdown param")
-
-  printk("Sync /data")
-  os.system(f"sync --data {PARAM_FILE}")
-  os.system(f"sync --file-system {PARAM_FILE}")
-  printk("Sync done")
 
 def printk(msg):
   with open('/dev/kmsg', 'w') as kmsg:
