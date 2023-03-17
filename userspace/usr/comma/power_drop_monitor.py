@@ -4,6 +4,7 @@ import time
 import smbus2
 import select
 import datetime
+import subprocess
 
 ALERT_VOLTAGE_THRESHOLD_mV = 4000
 
@@ -87,17 +88,15 @@ def perform_controlled_shutdown():
   update_param("SHUTDOWN", v_initial, v_now)
 
   printk("Unmount nvme")
-  os.system("umount -l /dev/nvme0")
+  subprocess.call(["/urs/bin/umount", "-l", "/dev/nvme0"])
   # TODO: turn off nvme regulator. Currently no userspace control over this
 
   printk("Killing services")
-  os.system("pkill -9 loggerd")
-  os.system("pkill -9 _ui")
-  os.system("pkill -9 modeld")
-  os.system("pkill -9 camerad")
+  for p in ('loggerd', '_ui', 'modeld', 'camerad'):
+    subprocess.call(["pkill", "-9", p])
 
   printk("Halt")
-  os.system("halt -f")
+  subprocess.call(["/usr/sbin/halt", "-f"])
 
 if __name__ == '__main__':
   init_alert_pin()
