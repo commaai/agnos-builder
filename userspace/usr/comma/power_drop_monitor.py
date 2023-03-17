@@ -48,14 +48,18 @@ def read_voltage_mV():
   with open(VOLTAGE_FILE, "r") as f:
     return int(f.read().strip())
 
-def update_param(shutdown):
-  prefix = "SHUTDOWN" if shutdown else "ABORTED"
+def update_param(stage, v_initial=None, v_final=None):
   try:
     os.umask(0)
     with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
-      f.write(f"{prefix} {datetime.datetime.now()}")
+      f.write(f"{stage} {datetime.datetime.now()} {v_initial}mV {v_final}mV")
   except Exception:
     print("Failed to update LastControlledShutdown param")
+
+  printk("Sync /data")
+  os.system(f"sync --data {PARAM_FILE}")
+  os.system(f"sync --file-system {PARAM_FILE}")
+  printk("Sync done")
 
 def printk(msg):
   with open('/dev/kmsg', 'w') as kmsg:
@@ -68,23 +72,22 @@ def perform_controlled_shutdown():
   prev_screen_power = get_screen_power()
   set_screen_power(False)
 
-  update_param(shutdown=True)
-
-  printk("Sync /data")
-  os.system(f"sync --data {PARAM_FILE}")
-  os.system(f"sync --file-system {PARAM_FILE}")
-  printk("Sync done")
+  v_initial = read_voltage_mV()
+  update_param("PREP", v_initial, None)
 
   # Wait 100ms before checking voltage level again
   t = time.monotonic()
   while time.monotonic() - t < 0.1:
     time.sleep(0.01)
 
+  v_now = read_voltage_mV()
   if read_voltage_mV() > ALERT_VOLTAGE_THRESHOLD_mV:
     printk("Voltage restored. Not shutting down!")
-    update_param(shutdown=False)
+    update_param("ABORT", v_initial, v_now)
     set_screen_power(prev_screen_power)
     return
+
+  update_param("SHUTDOWN", v_initial, v_now)
 
   printk("Unmount nvme")
   os.system("umount -l /dev/nvme0")
