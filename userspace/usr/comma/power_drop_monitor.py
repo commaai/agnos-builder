@@ -48,11 +48,11 @@ def read_voltage_mV():
   with open(VOLTAGE_FILE, "r") as f:
     return int(f.read().strip())
 
-def update_param(stage, v_initial=None, v_final=None):
+def update_param(stage, v_initial, v_final):
   try:
     os.umask(0)
-    with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
-      f.write(f"{stage} {datetime.datetime.now()} {v_initial}mV {v_final}mV")
+    with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'a') as f:
+      f.write(f"{stage} {datetime.datetime.now()} {v_initial} mV {v_final} mV\n")
       f.flush()
       os.fdatasync(f.fileno())
       os.fsync(f.fileno())
@@ -79,7 +79,7 @@ def perform_controlled_shutdown():
     time.sleep(0.01)
 
   v_now = read_voltage_mV()
-  if read_voltage_mV() > ALERT_VOLTAGE_THRESHOLD_mV:
+  if v_now > ALERT_VOLTAGE_THRESHOLD_mV:
     printk("Voltage restored. Not shutting down!")
     update_param("ABORT", v_initial, v_now)
     set_screen_power(prev_screen_power)
@@ -87,13 +87,15 @@ def perform_controlled_shutdown():
 
   update_param("SHUTDOWN", v_initial, v_now)
 
-  printk("Unmount nvme")
-  subprocess.call(["/urs/bin/umount", "-l", "/dev/nvme0"])
+  # TODO: let loggerd cleanly finish writing logs
+  printk("Unmount NVMe")
+  subprocess.call(["/usr/bin/umount", "-l", "/dev/nvme0"])
   # TODO: turn off nvme regulator. Currently no userspace control over this
 
+  # Kill services that draw a lot of power
   printk("Killing services")
-  for p in ('loggerd', '_ui', 'modeld', 'camerad'):
-    subprocess.call(["pkill", "-9", p])
+  subprocess.call(["/usr/bin/systemctl", "kill", "--signal=9", "weston", "comma"])
+  set_screen_power(False)
 
   printk("Halt")
   subprocess.call(["/usr/sbin/halt", "-f"])
