@@ -27,6 +27,7 @@ inputs = "*"
 casadi = "*"
 future-fstrings = "*"  # needed for acados for now
 tabulate = "*"
+flaky = "*"
 
 [packages]
 atomicwrites = "*"
@@ -78,6 +79,9 @@ torch = "*"
 spidev = "*"
 spidev2 = "*"
 sounddevice = "*"
+zstandard = "*"
+zstd = "*"
+pyzstd = "*"
 
 [requires]
 python_version = "3.8"
