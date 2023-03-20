@@ -49,6 +49,7 @@ apt-get install --no-install-recommends -yq \
     libxcb-xfixes0-dev \
     libxcb1-dev \
     libzmq3-dev \
+    libzstd-dev \
     locales \
     nethogs \
     ocl-icd-libopencl1 \
@@ -72,4 +73,5 @@ apt-get install --no-install-recommends -yq \
     qtlocation5-dev \
     qtmultimedia5-dev \
     qtpositioning5-dev \
-    qtwayland5
+    qtwayland5 \
+    zstd
