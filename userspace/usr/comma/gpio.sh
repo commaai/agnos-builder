@@ -9,6 +9,7 @@ pins=(
 # 27  # SW_3V3_EN
 # 25  # SW_5V_EN
 30  # HUB_RST_N
+49  # SOM_ST_IO
 134 # ST_BOOT0
 50  # LTE_RST_N
 116 # LTE_PWRKEY
