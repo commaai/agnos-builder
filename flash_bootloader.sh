@@ -13,7 +13,6 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
 # Flash bootloader
-fastboot --set-active=a
 fastboot flash abl_a $OUTPUT_DIR/$BOOTLOADER_IMAGE
 fastboot flash abl_b $OUTPUT_DIR/$BOOTLOADER_IMAGE
 

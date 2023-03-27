@@ -31,7 +31,7 @@ export XDG_RUNTIME_DIR="/var/tmp/weston"
 export QT_QPA_PLATFORM="wayland-egl"
 
 # python setup
-export PYTHONPATH="/data/pythonpath:/data/pythonpath/pyextra"
+export PYTHONPATH="/data/pythonpath"
 export PATH="/usr/local/pyenv/bin:$PATH"
 export PYENV_VERSION="3.8.10"
 export PYENV_ROOT="/usr/local/pyenv"

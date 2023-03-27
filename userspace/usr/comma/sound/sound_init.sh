@@ -9,4 +9,4 @@ insmod /usr/comma/sound/snd-soc-sdm845.ko
 /usr/comma/sound/tinymix set "MultiMedia1 Mixer TERT_MI2S_TX" 1
 
 # setup the amplifier registers
-/usr/local/pyenv/shims/python /usr/comma/sound/amplifier_config.py
+/usr/local/pyenv/shims/python /usr/comma/sound/amplifier.py

@@ -1,0 +1,11 @@
+[Unit]
+After=weston-ready.service
+
+[Service]
+Type=simple
+User=comma
+Restart=no
+#ExecStart=/bin/bash -c "source /etc/profile && /usr/comma/tests/test_weston.py"
+
+[Install]
+WantedBy=multi-user.target

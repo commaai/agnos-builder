@@ -59,6 +59,10 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
+# Build ModemManager
+COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+RUN /tmp/agnos/compile-modemmanager.sh
+
 # Pre-compiled capnp (must be before python install)
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
@@ -166,10 +170,6 @@ RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
 # Add iptable rules to block incoming traffic on wwan0
 COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
 
-# Build ModemManager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN /tmp/agnos/compile-modemmanager.sh
-
 # Run ModemManager in debug mode to allow AT commands
 COPY ./userspace/files/ModemManager.service /lib/systemd/system/
 RUN systemctl enable ModemManager
@@ -196,7 +196,7 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
 # Write version file
-RUN echo -n "6.2" > /VERSION
+RUN echo -n "7" > /VERSION
 
 # ################## #
 # #### Cleaunup #### #

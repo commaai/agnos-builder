@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-
 import os
 import time
 import smbus2
 import select
 import datetime
+import subprocess
 
 ALERT_VOLTAGE_THRESHOLD_mV = 4000
 
@@ -48,12 +48,14 @@ def read_voltage_mV():
   with open(VOLTAGE_FILE, "r") as f:
     return int(f.read().strip())
 
-def update_param(shutdown):
-  prefix = "SHUTDOWN" if shutdown else "ABORTED"
+def update_param(stage, v_initial, v_final):
   try:
     os.umask(0)
-    with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:
-      f.write(f"{prefix} {datetime.datetime.now()}")
+    with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'a') as f:
+      f.write(f"{stage} {datetime.datetime.now()} {v_initial} mV {v_final} mV\n")
+      f.flush()
+      os.fdatasync(f.fileno())
+      os.fsync(f.fileno())
   except Exception:
     print("Failed to update LastControlledShutdown param")
 
@@ -68,36 +70,35 @@ def perform_controlled_shutdown():
   prev_screen_power = get_screen_power()
   set_screen_power(False)
 
-  update_param(shutdown=True)
-
-  printk("Sync /data")
-  os.system(f"sync --data {PARAM_FILE}")
-  os.system(f"sync --file-system {PARAM_FILE}")
-  printk("Sync done")
+  v_initial = read_voltage_mV()
+  update_param("PREP", v_initial, None)
 
   # Wait 100ms before checking voltage level again
   t = time.monotonic()
   while time.monotonic() - t < 0.1:
     time.sleep(0.01)
 
-  if read_voltage_mV() > ALERT_VOLTAGE_THRESHOLD_mV:
+  v_now = read_voltage_mV()
+  if v_now > ALERT_VOLTAGE_THRESHOLD_mV:
     printk("Voltage restored. Not shutting down!")
-    update_param(shutdown=False)
+    update_param("ABORT", v_initial, v_now)
     set_screen_power(prev_screen_power)
     return
 
-  printk("Unmount nvme")
-  os.system("umount -l /dev/nvme0")
+  update_param("SHUTDOWN", v_initial, v_now)
+
+  # TODO: let loggerd cleanly finish writing logs
+  printk("Unmount NVMe")
+  subprocess.call(["/usr/bin/umount", "-l", "/dev/nvme0"])
   # TODO: turn off nvme regulator. Currently no userspace control over this
 
+  # Kill services that draw a lot of power
   printk("Killing services")
-  os.system("pkill -9 loggerd")
-  os.system("pkill -9 _ui")
-  os.system("pkill -9 modeld")
-  os.system("pkill -9 camerad")
+  subprocess.call(["/usr/bin/systemctl", "kill", "--signal=9", "weston", "comma"])
+  set_screen_power(False)
 
   printk("Halt")
-  os.system("halt -f")
+  subprocess.call(["/usr/sbin/halt", "-f"])
 
 if __name__ == '__main__':
   init_alert_pin()

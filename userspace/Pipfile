@@ -27,6 +27,7 @@ inputs = "*"
 casadi = "*"
 future-fstrings = "*"  # needed for acados for now
 tabulate = "*"
+flaky = "*"
 
 [packages]
 atomicwrites = "*"
@@ -76,7 +77,11 @@ hatanaka = "==2.4"
 protobuf = "==3.20.1"  # need to pin this one explicitly since onnx doesn't do it properly
 torch = "*"
 spidev = "*"
+spidev2 = "*"
 sounddevice = "*"
+zstandard = "*"
+zstd = "*"
+pyzstd = "*"
 
 [requires]
 python_version = "3.8"
