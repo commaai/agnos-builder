@@ -11,5 +11,7 @@ fi
 
 sudo mount -o rw,remount /
 
-sudo rm -rf /usr/comma/
+sudo rm -rf /usr/comma
 sudo ln -snf $ROOT/userspace/usr/comma/ /usr/comma
+
+sudo mount -o ro,remount /
