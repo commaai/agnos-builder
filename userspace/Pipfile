@@ -60,6 +60,7 @@ flake8 = "*"
 pylint = "*"
 pillow = "*"
 scons = "*"
+scons-contrib = {git = "https://github.com/SCons/scons-contrib"}
 cysignals = "*"
 pycryptodome = "*"
 "Jinja2" = "*"
