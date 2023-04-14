@@ -19,7 +19,7 @@ repos:
     rev: v2.2.4
     hooks:
     -   id: codespell
-        exclude: '^(userspace/files/serviceproviders.xml)|(tools/)'
+        exclude: '^(userspace/files/serviceproviders.xml)|(tools/)|(userspace/poetry.lock)'
         args:
         # if you've got a short variable name that's getting flagged, add it here
         - -L bu,ro,te,ue,alo,hda,ois,nam,nams,ned,som,parm,setts,inout,warmup
