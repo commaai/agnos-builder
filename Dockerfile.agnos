@@ -83,11 +83,14 @@ COPY ./userspace/pyproject.toml ./userspace/poetry.lock /tmp/agnos/
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
     eval "$(pyenv init -)" && \
-    pip3 install --no-cache-dir --upgrade pip==22.1 poetry==1.2.2 && \
+    eval "$(pyenv virtualenv-init -)" && \
+    pip3 install --no-cache-dir --upgrade pip==22.3.1 poetry==1.2.2 && \
     cd /tmp/agnos && \
+    poetry config virtualenvs.prefer-active-python true --local && \
+    poetry config virtualenvs.create false --local && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     export POETRY_VIRTUALENVS_CREATE=false && \
-    MAKEFLAGS="-j$(nproc)" poetry install --no-cache --no-root --sync && \
+    MAKEFLAGS="-j$(nproc)" poetry install --no-cache --no-root && \
     pyenv rehash
 
 # Install nice to haves
