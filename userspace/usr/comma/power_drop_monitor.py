@@ -48,11 +48,15 @@ def read_voltage_mV():
   with open(VOLTAGE_FILE, "r") as f:
     return int(f.read().strip())
 
-def update_param(stage, v_initial, v_final):
+def read_current_mA():
+  with open("/sys/class/hwmon/hwmon1/curr1_input", "r") as f:
+    return int(f.read().strip())
+
+def update_param(stage, v_initial, i_initial, v_final, i_final):
   try:
     os.umask(0)
     with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'a') as f:
-      f.write(f"{stage} {datetime.datetime.now()} {v_initial} mV {v_final} mV\n")
+      f.write(f"{stage} {datetime.datetime.now()}, ({v_initial=} mV, {i_initial=} mA) -> ({v_final=} mV, {i_final=} mA)\n")
       f.flush()
       os.fdatasync(f.fileno())
       os.fsync(f.fileno())
@@ -71,7 +75,8 @@ def perform_controlled_shutdown():
   set_screen_power(False)
 
   v_initial = read_voltage_mV()
-  update_param("PREP", v_initial, None)
+  i_initial = read_current_mA()
+  update_param("PREP", v_initial, i_initial, None, None)
 
   # Wait 100ms before checking voltage level again
   t = time.monotonic()
@@ -79,13 +84,14 @@ def perform_controlled_shutdown():
     time.sleep(0.01)
 
   v_now = read_voltage_mV()
+  i_now = read_current_mA()
   if v_now > ALERT_VOLTAGE_THRESHOLD_mV:
     printk("Voltage restored. Not shutting down!")
-    update_param("ABORT", v_initial, v_now)
+    update_param("ABORT", v_initial, i_initial, v_now, i_now)
     set_screen_power(prev_screen_power)
     return
 
-  update_param("SHUTDOWN", v_initial, v_now)
+  update_param("SHUTDOWN", v_initial, i_initial, v_now, i_now)
 
   # TODO: let loggerd cleanly finish writing logs
   printk("Unmount NVMe")
