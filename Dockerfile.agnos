@@ -78,6 +78,15 @@ COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 COPY --from=agnos-compiler-mapbox-gl-native /tmp/libqmapboxgl.so /lib/aarch64-linux-gnu/libqmapboxgl.so
 
+RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
+    export PYENV_ROOT="/usr/local/pyenv" && \
+    eval "$(pyenv init -)" && \
+    eval "$(pyenv virtualenv-init -)" && \
+    export MAKEFLAGS="-j40" && \
+    pip install pyqt5-sip=="12.9.0" && \
+    pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= && \
+    pyenv rehash
+
 # Install openpilot python packages
 COPY ./userspace/pyproject.toml ./userspace/poetry.lock /tmp/agnos/
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
