@@ -1,4 +1,5 @@
-#!/bin/bash -e
+#!/bin/bash
+set -e
 
 DEFCONFIG=tici_defconfig
 
@@ -18,9 +19,11 @@ cd agnos-kernel-sdm845
 
 # Build parameters
 export ARCH=arm64
-export CROSS_COMPILE=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-
-export CC=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc
-export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
+if [ ! -f /TICI ]; then
+  export CROSS_COMPILE=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-
+  export CC=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc
+  export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
+fi
 
 # these do anything?
 export KCFLAGS="-w"
