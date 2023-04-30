@@ -17,3 +17,5 @@ fi
 
 echo "Setting global python version"
 pyenv global $PYTHON_VERSION
+
+pip3 install --no-cache-dir --upgrade pip==22.3.1 poetry==1.2.2
