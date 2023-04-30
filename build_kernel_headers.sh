@@ -32,8 +32,13 @@ export KCFLAGS="-w"
 echo "-- First make --"
 make $DEFCONFIG O=out
 echo "-- Second make: $(nproc --all) cores --"
-make bindeb-pkg -j$(nproc --all) O=out  # Image.gz-dtb
+ARGS=""
+if [ -f /TICI ]; then
+  ARGS="sudo -E"
+fi
+$ARGS make bindeb-pkg -j$(nproc --all) O=out  # Image.gz-dtb
 
 # Copy output
+mkdir -p $OUTPUT_DIR
 cp linux-headers-*.deb $OUTPUT_DIR
 
