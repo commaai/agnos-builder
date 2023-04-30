@@ -83,8 +83,8 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
     export MAKEFLAGS="-j40" && \
-    pip install pyqt5-sip=="12.9.0" && \
-    pip install pyqt5 --verbose --config-settings --confirm-license= && \
+    pip install pyqt5-sip==12.9.0 && \
+    pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= && \
     pyenv rehash
 
 # Install openpilot python packages
