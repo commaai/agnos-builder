@@ -78,18 +78,27 @@ COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 COPY --from=agnos-compiler-mapbox-gl-native /tmp/libqmapboxgl.so /lib/aarch64-linux-gnu/libqmapboxgl.so
 
-# Install openpilot python packages
-COPY ./userspace/Pipfile* /tmp/agnos/
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
     eval "$(pyenv init -)" && \
-    pip3 install --no-cache-dir --upgrade pip==22.1 && \
-    pip3 install --no-cache-dir --upgrade pipenv==2022.5.2 && \
+    eval "$(pyenv virtualenv-init -)" && \
+    export MAKEFLAGS="-j40" && \
+    pip install pyqt5-sip==12.9.0 && \
+    pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= && \
+    pyenv rehash
+
+# Install openpilot python packages
+COPY ./userspace/pyproject.toml ./userspace/poetry.lock /tmp/agnos/
+RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
+    export PYENV_ROOT="/usr/local/pyenv" && \
+    eval "$(pyenv init -)" && \
+    eval "$(pyenv virtualenv-init -)" && \
     cd /tmp/agnos && \
+    poetry config virtualenvs.prefer-active-python true --local && \
+    poetry config virtualenvs.create false --local && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" pipenv sync --system --dev && \
-    pipenv --clear && \
-    pip uninstall -y pipenv && \
+    export POETRY_VIRTUALENVS_CREATE=false && \
+    MAKEFLAGS="-j$(nproc)" poetry install --no-cache --no-root && \
     pyenv rehash
 
 # Install nice to haves

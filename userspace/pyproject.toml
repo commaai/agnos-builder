@@ -1,35 +1,11 @@
-[[source]]
-name = "pypi"
-url = "https://pypi.org/simple"
-verify_ssl = true
+[tool.poetry]
+name = "agnos"
+version = "0.1.0"
+authors = ["Vehicle Researcher <user@comma.ai>"]
+description = ""
 
-[dev-packages]
-ipython = "*"
-azure-core = "*"
-azure-common = "*"
-azure-storage-blob = "~=2.1"
-azure-storage-common = "~=2.1"
-pycurl = "*"
-git-pylint-commit-hook = "*"
-tenacity = "*"
-mock = "*"
-dictdiffer = "*"
-aenum = "*"
-coverage = "*"
-paramiko = "*"
-lru-dict = "*"
-pprofile = "*"
-pyprof2calltree = "*"
-pre-commit = "*"
-mypy = "*"
-parameterized = "*"
-inputs = "*"
-casadi = "*"
-future-fstrings = "*"  # needed for acados for now
-tabulate = "*"
-flaky = "*"
-
-[packages]
+[tool.poetry.dependencies]
+python = "^3.8"
 atomicwrites = "*"
 cffi = "*"
 crcmod = "*"
@@ -60,10 +36,10 @@ flake8 = "*"
 pylint = "*"
 pillow = "*"
 scons = "*"
-scons-contrib = {git = "https://github.com/SCons/scons-contrib"}
+sconscontrib = {git = "https://github.com/SCons/scons-contrib"}
 cysignals = "*"
 pycryptodome = "*"
-"Jinja2" = "*"
+Jinja2 = "*"
 PyJWT = "*"
 pyserial = "*"
 dbus-python = "*"
@@ -83,6 +59,33 @@ sounddevice = "*"
 zstandard = "*"
 zstd = "*"
 pyzstd = "*"
+casadi = "*"
 
-[requires]
-python_version = "3.8"
+
+[tool.poetry.group.dev.dependencies]
+ipython = "*"
+azure-core = "*"
+azure-common = "*"
+azure-storage-blob = "~=2.1"
+azure-storage-common = "~=2.1"
+pycurl = "*"
+git-pylint-commit-hook = "*"
+tenacity = "*"
+mock = "*"
+dictdiffer = "*"
+aenum = "*"
+coverage = "*"
+paramiko = "*"
+lru-dict = "*"
+pprofile = "*"
+pyprof2calltree = "*"
+pre-commit = "*"
+mypy = "*"
+parameterized = "*"
+inputs = "*"
+future-fstrings = "*"
+tabulate = "*"
+flaky = "*"
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
