@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import time
-import hashlib
 import subprocess
 
 def run(cmd):
