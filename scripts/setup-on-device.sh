@@ -14,5 +14,4 @@ sudo mount -o rw,remount /
 sudo rm -rf /usr/comma
 sudo ln -snf $ROOT/userspace/usr/comma/ /usr/comma
 
-echo "done, remounting RO"
 sudo mount -o ro,remount /
