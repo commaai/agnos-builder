@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import os
-import time
 import uinput
 from watchfiles import watch
 
@@ -15,7 +13,7 @@ def read_file(fn: str) -> str:
   try:
     with open(fn) as f:
       return f.read().strip()
-  except Exception:
+  except Exception as e:
     print(f"Failed to read {fn}: {str(e)}")
   return ""
 
