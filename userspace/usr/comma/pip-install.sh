@@ -2,5 +2,8 @@
 set -e
 
 sudo mount -o rw,remount /
+
 sudo $(which pip) install "$@"
-sudo mount -o ro,remount /
+sudo $(which pyenv) rehash
+
+sudo mount -o ro,remount / || true
