@@ -27,7 +27,7 @@ ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true"
 
 ExecStartPre=/bin/chvt 1
-ExecStart=/usr/bin/weston --idle-time=0 --tty=1 --config=/usr/comma/weston.ini
+ExecStart=/usr/bin/weston --tty=1 --config=/usr/comma/weston.ini
 
 [Install]
 WantedBy=multi-user.target
