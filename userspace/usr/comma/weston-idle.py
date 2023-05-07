@@ -7,7 +7,8 @@ from watchfiles import watch
 # the requested state from the display brightness
 
 INPUT = uinput.KEY_BRIGHTNESS_ZERO
-BRIGHTNESS = "/sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/brightness"
+BL_OFF = "4"
+BL_POWER = "/sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/bl_power"
 
 def read_file(fn: str) -> str:
   try:
@@ -20,9 +21,9 @@ def read_file(fn: str) -> str:
 
 if __name__ == "__main__":
   device = uinput.Device([INPUT, ])
-  for _ in watch(BRIGHTNESS, debounce=0, step=0, rust_timeout=2*1000, yield_on_timeout=True):
-    brightness = read_file(BRIGHTNESS)
-    if brightness == "0":
+  for _ in watch(BL_POWER, debounce=0, step=0, rust_timeout=2*1000, yield_on_timeout=True):
+    pwr = read_file(BL_POWER)
+    if pwr == BL_OFF:
       # let weston go to idle
       pass
     else:
