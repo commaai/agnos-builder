@@ -8,6 +8,16 @@ CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
+
+# wait for weston-ready
+# TODO: log time and 
+#while true; do
+#  sleep 0.1
+#  break
+#done
+#echo "weston ready after ${SECONDS}s"
+#exit 0
+
 sudo chown comma: /data
 sudo chown comma: /data/media
 
@@ -46,10 +56,6 @@ fi
 # symlink vscode to userdata
 mkdir -p /data/tmp/vscode-server
 ln -s /data/tmp/vscode-server ~/.vscode-server
-
-# set time from panda
-# sudo because udev isn't ready yet
-sudo $(which python3) /usr/comma/set_time.py
 
 
 while true; do

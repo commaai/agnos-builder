@@ -1,5 +1,4 @@
 [Unit]
-After=weston-ready.service gpio.service
 
 [Service]
 Type=simple

@@ -24,5 +24,6 @@ for s in $(ls $ROOT/userspace/files/*.service); do
   sudo rm -f /lib/systemd/system/$service
   sudo ln -sf $ROOT/userspace/files/*.service /lib/systemd/system/
 done
+sudo $ROOT/userspace/services.sh
 
 sudo mount -o ro,remount /
