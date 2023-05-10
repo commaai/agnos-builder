@@ -3,6 +3,7 @@ PartOf=weston.service
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 Restart=no
 Environment="XDG_RUNTIME_DIR=/var/tmp/weston"
 
