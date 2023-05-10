@@ -12,7 +12,6 @@ echo "waiting for weston"
 for i in {1..200}; do
   if systemctl is-active --quiet weston-ready; then
     break
-    echo abc
   fi
   sleep 0.1
 done
