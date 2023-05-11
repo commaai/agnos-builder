@@ -1,17 +1,17 @@
 [Unit]
-#After=weston-ready.service
+After=weston-ready.service
 
 [Service]
-#Type=simple
-#User=comma
-Type=oneshot
+Type=simple
+User=comma
+#Type=oneshot
 Restart=no
 
 # exit if connected to 5V
 ExecStartPre=/bin/bash -c "if [ $(cat /sys/class/hwmon/hwmon1/in1_input) -le 6500 ]; then echo 'Exiting, connected to 5V'; exit 1; fi"
 
-#ExecStart=/bin/bash -c "source /etc/profile && /usr/comma/tests/test_weston.py"
-ExecStart=/bin/bash -c "source /etc/profile && /usr/comma/tests/test_sounds.py"
+ExecStart=/bin/bash -c "source /etc/profile && /usr/comma/tests/test_weston.py"
+#ExecStart=/bin/bash -c "source /etc/profile && /usr/comma/tests/test_sounds.py"
 
 [Install]
 WantedBy=multi-user.target
