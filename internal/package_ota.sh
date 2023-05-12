@@ -86,8 +86,10 @@ echo "Compressing devcfg..."
 xz -vc $DEVCFG_IMAGE > $DEVCFG_ARCHIVE
 echo "Compressing aop..."
 xz -vc $AOP_IMAGE > $AOP_ARCHIVE
-echo "Creating system casync files"
-casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$SYSTEM_HASH $OTA_OUTPUT_DIR/system-$SYSTEM_HASH.caibx $SYSTEM_IMAGE_RAW
+
+#echo "Creating system casync files"
+#casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$SYSTEM_HASH $OTA_OUTPUT_DIR/system-$SYSTEM_HASH.caibx $SYSTEM_IMAGE_RAW
+
 rm $SYSTEM_IMAGE_RAW
 
 # Generating JSONs
@@ -162,12 +164,13 @@ tee $OUTPUT_JSON > /dev/null <<EOM
     "size": $SYSTEM_SIZE,
     "sparse": true,
     "full_check": false,
-    "has_ab": true,
-    "casync_caibx": "$AGNOS_UPDATE_URL/system-$SYSTEM_HASH.caibx",
-    "casync_store": "$AGNOS_UPDATE_URL/system-$SYSTEM_HASH"
+    "has_ab": true
   }
 ]
 EOM
+#    "casync_caibx": "$AGNOS_UPDATE_URL/system-$SYSTEM_HASH.caibx",
+#    "casync_store": "$AGNOS_UPDATE_URL/system-$SYSTEM_HASH"
+
 
 echo "Generating staging JSON ($OUTPUT_STAGING_JSON)..."
 tee $OUTPUT_STAGING_JSON > /dev/null <<EOM
@@ -240,12 +243,12 @@ tee $OUTPUT_STAGING_JSON > /dev/null <<EOM
     "size": $SYSTEM_SIZE,
     "sparse": true,
     "full_check": false,
-    "has_ab": true,
-    "casync_caibx": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH.caibx",
-    "casync_store": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH"
+    "has_ab": true
   }
 ]
 EOM
+#    "casync_caibx": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH.caibx",
+#    "casync_store": "$AGNOS_STAGING_UPDATE_URL/system-$SYSTEM_HASH"
 
 echo
 echo "Done!"
