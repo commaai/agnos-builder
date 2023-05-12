@@ -7,11 +7,14 @@ good = """
 Starting Sound...
 [INFO] Bringing adsp out of reset
 subsys4
+waiting for sound card to come online
+sound card online
 sound.service: Succeeded.
 Finished Sound.
 """.strip()
 
 if __name__ == "__main__":
+  time.sleep(3)
   log = subprocess.check_output("journalctl -o cat -u sound", shell=True, encoding='utf8').strip()
   passed = log == good
   with open('/data/tmp/sound_log', 'a') as f:
