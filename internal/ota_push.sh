@@ -29,12 +29,15 @@ fi
 process_file() {
   local NAME=$1
   local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
-  local FILE_NAME="$NAME-$HASH.img.xz"
-  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
 
-  echo "Copying $NAME to the cloud..."
-  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
-  echo "  $CLOUD_PATH"
+  for EXT in xz gz; do
+    local FILE_NAME="$NAME-$HASH.img.$EXT"
+    local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
+
+    echo "Copying $NAME to the cloud..."
+    azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
+    echo "  $CLOUD_PATH"
+  done
 
   # if [ "$NAME" == "system" ]; then
   #   local CAIBX_FILE_NAME="system-$HASH.caibx"

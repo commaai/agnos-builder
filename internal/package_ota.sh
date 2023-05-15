@@ -47,11 +47,16 @@ process_file() {
     rm $FILE_RAW
   fi
 
-  echo "Compressing $NAME..."
-  local FILENAME=$NAME-$HASH_RAW.img.xz
-  local ARCHIVE=$OTA_OUTPUT_DIR/$FILENAME
-  xz -vc $FILE > $ARCHIVE
+  for compress in "xz xz" "gz gzip"; do
+    a=($compress)
+    EXT=${a[0]}
+    COMPRESS=${a[1]}
 
+    echo "Compressing $NAME.img.$EXT..."
+    $COMPRESS -vc $FILE > $OTA_OUTPUT_DIR/$NAME-$HASH_RAW.img.$EXT
+  done
+
+  local FILENAME=$NAME-$HASH_RAW.img.xz
   local URL=$AGNOS_UPDATE_URL/$FILENAME
   local STAGING_URL=$AGNOS_STAGING_UPDATE_URL/$FILENAME
 
