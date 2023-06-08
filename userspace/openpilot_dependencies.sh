@@ -56,6 +56,7 @@ apt-get install --no-install-recommends -yq \
     ocl-icd-opencl-dev \
     opencl-headers \
     pkg-config \
+    portaudio19-dev \
     texinfo \
     vnstat \
     wget \

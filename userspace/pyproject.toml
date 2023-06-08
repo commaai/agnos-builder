@@ -60,7 +60,10 @@ zstandard = "*"
 zstd = "*"
 pyzstd = "*"
 casadi = "*"
-
+pyaudio = "*"
+pydub = "*"
+aiohttp = "*"
+aiortc = "*"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "*"
@@ -89,3 +92,7 @@ flaky = "*"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+pytest-mock = "*"
+pytest-repeat = "*"
+pytest-timeout = "*"
+pytest-timeouts = "*"
