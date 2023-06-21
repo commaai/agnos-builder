@@ -20,6 +20,9 @@ rm -rf $OTA_OUTPUT_DIR && mkdir -p $OTA_OUTPUT_DIR
 process_file() {
   local FILE=$1
   local NAME=$2
+  local SPARSE=${3:-false}
+  local FULL_CHECK=${4:-true}
+  local HAS_AB=${5:-true}
 
   echo "Hashing $NAME..."
   local HASH=$(sha256sum $FILE | cut -c 1-64)
@@ -55,9 +58,9 @@ process_file() {
   echo "    \"hash\": \"$HASH\"," >> $OUTPUT_JSON
   echo "    \"hash_raw\": \"$HASH_RAW\"," >> $OUTPUT_JSON
   echo "    \"size\": $SIZE," >> $OUTPUT_JSON
-  echo "    \"sparse\": false," >> $OUTPUT_JSON
-  echo "    \"full_check\": true," >> $OUTPUT_JSON
-  echo "    \"has_ab\": true" >> $OUTPUT_JSON
+  echo "    \"sparse\": $SPARSE," >> $OUTPUT_JSON
+  echo "    \"full_check\": $FULL_CHECK," >> $OUTPUT_JSON
+  echo "    \"has_ab\": $HAS_AB" >> $OUTPUT_JSON
   # echo "    \"casync_caibx\": \"$AGNOS_UPDATE_URL/$NAME-$HASH.caibx\"," >> $OUTPUT_JSON
   # echo "    \"casync_store\": \"$AGNOS_UPDATE_URL/$NAME-$HASH\"" >> $OUTPUT_JSON
   echo "  }," >> $OUTPUT_JSON
@@ -68,9 +71,9 @@ process_file() {
   echo "    \"hash\": \"$HASH\"," >> $OUTPUT_STAGING_JSON
   echo "    \"hash_raw\": \"$HASH_RAW\"," >> $OUTPUT_STAGING_JSON
   echo "    \"size\": $SIZE," >> $OUTPUT_STAGING_JSON
-  echo "    \"sparse\": false," >> $OUTPUT_STAGING_JSON
-  echo "    \"full_check\": true," >> $OUTPUT_STAGING_JSON
-  echo "    \"has_ab\": true" >> $OUTPUT_STAGING_JSON
+  echo "    \"sparse\": $SPARSE," >> $OUTPUT_STAGING_JSON
+  echo "    \"full_check\": $FULL_CHECK," >> $OUTPUT_STAGING_JSON
+  echo "    \"has_ab\": $HAS_AB" >> $OUTPUT_STAGING_JSON
   # echo "    \"casync_caibx\": \"$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH.caibx\"," >> $OUTPUT_STAGING_JSON
   # echo "    \"casync_store\": \"$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH\"" >> $OUTPUT_STAGING_JSON
   echo "  }," >> $OUTPUT_STAGING_JSON
@@ -81,13 +84,13 @@ cd $ROOT
 echo "[" > $OUTPUT_JSON
 echo "[" > $OUTPUT_STAGING_JSON
 
-process_file "$OUTPUT_DIR/system.img" "system"
-process_file "$OUTPUT_DIR/boot.img" "boot"
-process_file "$FIRMWARE_DIR/abl.bin" "abl"
-process_file "$FIRMWARE_DIR/xbl.bin" "xbl"
-process_file "$FIRMWARE_DIR/xbl_config.bin" "xbl_config"
-process_file "$FIRMWARE_DIR/devcfg.bin" "devcfg"
-process_file "$FIRMWARE_DIR/aop.bin" "aop"
+process_file "$OUTPUT_DIR/boot.img" boot
+process_file "$FIRMWARE_DIR/abl.bin" abl
+process_file "$FIRMWARE_DIR/xbl.bin" xbl
+process_file "$FIRMWARE_DIR/xbl_config.bin" xbl_config
+process_file "$FIRMWARE_DIR/devcfg.bin" devcfg
+process_file "$FIRMWARE_DIR/aop.bin" aop
+process_file "$OUTPUT_DIR/system.img" system true false true
 
 # remove trailing comma
 sed -i '$ s/.$//' $OUTPUT_JSON
