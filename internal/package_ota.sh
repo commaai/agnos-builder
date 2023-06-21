@@ -31,16 +31,16 @@ process_file() {
 
   local HASH_RAW=$HASH
   if [ "$NAME" == "system" ]; then
-    echo "Converting $NAME to raw..."
-    local FILE_RAW=/tmp/$NAME.img.raw
+    echo "Converting system to raw..."
+    local FILE_RAW=/tmp/system.img.raw
     simg2img $FILE $FILE_RAW
 
-    echo "Hashing $NAME raw..."
-    HASH_RAW=$(sha256sum $FILE_RAW | cut -c 1-64)
+    echo "Hashing system raw..."
+    HASH_RAW=$(sha256sum $FILE | cut -c 1-64)
     echo "  $HASH_RAW"
 
-    # echo "Creating $NAME casync files"
-    # casync make --compression=xz --store $OTA_OUTPUT_DIR/$NAME-$HASH $OTA_OUTPUT_DIR/$NAME-$HASH.caibx $FILE_RAW
+    # echo "Creating system casync files"
+    # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH $OTA_OUTPUT_DIR/system-$HASH.caibx $FILE_RAW
 
     rm $FILE_RAW
   fi
