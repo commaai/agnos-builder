@@ -19,7 +19,7 @@ rm -rf $OTA_OUTPUT_DIR && mkdir -p $OTA_OUTPUT_DIR
 
 process_file() {
   local FILE=$1
-  local NAME=$(basename $1 .img)
+  local NAME=$2
 
   echo "Hashing $NAME..."
   local HASH=$(sha256sum $FILE | cut -c 1-64)
@@ -81,13 +81,13 @@ cd $ROOT
 echo "[" > $OUTPUT_JSON
 echo "[" > $OUTPUT_STAGING_JSON
 
-process_file "$OUTPUT_DIR/system.img"
-process_file "$OUTPUT_DIR/boot.img"
-process_file "$FIRMWARE_DIR/abl.bin"
-process_file "$FIRMWARE_DIR/xbl.bin"
-process_file "$FIRMWARE_DIR/xbl_config.bin"
-process_file "$FIRMWARE_DIR/devcfg.bin"
-process_file "$FIRMWARE_DIR/aop.bin"
+process_file "$OUTPUT_DIR/system.img" "system"
+process_file "$OUTPUT_DIR/boot.img" "boot"
+process_file "$FIRMWARE_DIR/abl.bin" "abl"
+process_file "$FIRMWARE_DIR/xbl.bin" "xbl"
+process_file "$FIRMWARE_DIR/xbl_config.bin" "xbl_config"
+process_file "$FIRMWARE_DIR/devcfg.bin" "devcfg"
+process_file "$FIRMWARE_DIR/aop.bin" "aop"
 
 # remove trailing comma
 sed -i '$ s/.$//' $OUTPUT_JSON
