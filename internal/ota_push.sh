@@ -54,8 +54,8 @@ process_file() {
 
 # Generate token
 echo "Logging in..."
-# SAS_EXPIRY=$(date -u '+%Y-%m-%dT%H:%M:%SZ' -d '+1 hour')
-# DATA_SAS_TOKEN=$(az storage container generate-sas --as-user --auth-mode login --account-name $DATA_ACCOUNT --name $DATA_CONTAINER --https-only --permissions wr --expiry $SAS_EXPIRY --output tsv)
+SAS_EXPIRY=$(date -u '+%Y-%m-%dT%H:%M:%SZ' -d '+1 hour')
+DATA_SAS_TOKEN=$(az storage container generate-sas --as-user --auth-mode login --account-name $DATA_ACCOUNT --name $DATA_CONTAINER --https-only --permissions wr --expiry $SAS_EXPIRY --output tsv)
 
 # Liftoff!
 process_file "system"
@@ -65,16 +65,5 @@ process_file "xbl"
 process_file "xbl_config"
 process_file "devcfg"
 process_file "aop"
-
-# SYSTEM_CAIBX_FILE_NAME="system-$SYSTEM_HASH.caibx"
-# SYSTEM_CHUNKS_FOLDER="system-$SYSTEM_HASH"
-
-#echo "Copying system.caibx to the cloud..."
-#SYSTEM_CAIBX_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$SYSTEM_CAIBX_FILE_NAME"
-#azcopy cp --overwrite=false $OTA_DIR/$SYSTEM_CAIBX_FILE_NAME "$SYSTEM_CAIBX_PATH?$DATA_SAS_TOKEN"
-
-#echo "Copying system casync chunks to the cloud..."
-#SYSTEM_CHUNKS_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER"
-#azcopy cp --recursive=true --overwrite=false $OTA_DIR/$SYSTEM_CHUNKS_FOLDER "$SYSTEM_CHUNKS_PATH?$DATA_SAS_TOKEN"
 
 echo "Done!"
