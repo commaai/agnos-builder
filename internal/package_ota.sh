@@ -89,6 +89,10 @@ process_file "$FIRMWARE_DIR/xbl_config.bin"
 process_file "$FIRMWARE_DIR/devcfg.bin"
 process_file "$FIRMWARE_DIR/aop.bin"
 
+# remove trailing comma
+sed -i '$ s/.$//' $OUTPUT_JSON
+sed -i '$ s/.$//' $OUTPUT_STAGING_JSON
+
 echo "]" >> $OUTPUT_JSON
 echo "]" >> $OUTPUT_STAGING_JSON
 
