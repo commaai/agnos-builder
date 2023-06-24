@@ -3,16 +3,18 @@
 cat << 'EOF'
 
 Here are some useful commands:
-  tmux a
-   └── enter the tmux session where the comma service runs
-  sudo apt update && sudo apt install <pkg>
-   └── install Ubuntu packages
-  /usr/comma/pip-install.sh <pkg>
-   └── install Python packages
+  Enter the tmux session where the comma service runs
+    └── tmux a
+
+  Install Ubuntu packages
+    └── sudo apt update && sudo apt install <pkg>
+
+  Install Python packages
+    └── /usr/comma/pip-install.sh <pkg>
 
 When modifying AGNOS, keep in mind that the system partition isn't
 particularly large. /data/ is the largest partition, and unlike the
 rest of the partitions, it will persist across AGNOS updates.
 
-Get into a bad state? Reflash AGNOS with https://flash.comma.ai.
+Want a clean slate? Reflash AGNOS with https://flash.comma.ai.
 EOF
