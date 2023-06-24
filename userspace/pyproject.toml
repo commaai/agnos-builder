@@ -64,6 +64,7 @@ pyaudio = "*"
 pydub = "*"
 aiohttp = "*"
 aiortc = "*"
+evdev = "*"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "*"
