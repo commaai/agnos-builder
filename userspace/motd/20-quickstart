@@ -10,7 +10,7 @@ Here are some useful commands:
     └── sudo apt update && sudo apt install <pkg>
 
   Install Python packages
-    └── /usr/comma/pip-install.sh <pkg>
+    └── pip install <pkg>
 
 When modifying AGNOS, keep in mind that the system partition isn't
 particularly large. /data/ is the largest partition, and unlike the
