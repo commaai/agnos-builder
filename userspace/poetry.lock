@@ -1513,6 +1513,17 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
+name = "pytest-random-order"
+version = "1.1.0"
+description = "Randomise the order in which pytest tests are run with some control over the randomness"
+category = "main"
+optional = false
+python-versions = ">=3.5.0"
+
+[package.dependencies]
+pytest = ">=3.0.0"
+
+[[package]]
 name = "python-dateutil"
 version = "2.8.2"
 description = "Extensions to the standard Python datetime module"
@@ -2120,7 +2131,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "28c026cd5bedd5ba4347b9317311e1cce342ab9fb675f6ff51f254e4c88b0146"
+content-hash = "bf54d64dc00c6ac240fe4175e72c629ccde892bf734e2ae4414bd1b0d621d867"
 
 [metadata.files]
 aenum = [
@@ -3936,6 +3947,10 @@ pyserial = [
 pytest = [
     {file = "pytest-7.4.0-py3-none-any.whl", hash = "sha256:78bf16451a2eb8c7a2ea98e32dc119fd2aa758f1d5d66dbf0a59d69a3969df32"},
     {file = "pytest-7.4.0.tar.gz", hash = "sha256:b4bf8c45bd59934ed84001ad51e11b4ee40d40a1229d2c79f9c592b0a3f6bd8a"},
+]
+pytest-random-order = [
+    {file = "pytest-random-order-1.1.0.tar.gz", hash = "sha256:dbe6debb9353a7af984cc9eddbeb3577dd4dbbcc1529a79e3d21f68ed9b45605"},
+    {file = "pytest_random_order-1.1.0-py3-none-any.whl", hash = "sha256:6cb1e59ab0f798bb0c3488c11ae0c70d7d3340306a466d28b28ccd8ef8c20b7e"},
 ]
 python-dateutil = [
     {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
