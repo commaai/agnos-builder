@@ -4,4 +4,5 @@
 
 apt-get update && apt-get install -y --no-install-recommends \
   irqtop \
-  ripgrep
+  ripgrep \
+  nfs-common
