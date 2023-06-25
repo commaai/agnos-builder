@@ -56,4 +56,4 @@ pyenv() {
 }
 
 # custom shims
-export PATH="/usr/comma/shims/:${PATH}"
+export PATH="/usr/comma/shims:${PATH}"
