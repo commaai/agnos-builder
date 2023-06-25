@@ -1,6 +1,7 @@
 *.swp
 *.tar.gz
 
+/logs/
 agnos/
 output/
 build/

@@ -11,7 +11,17 @@ fi
 
 sudo mount -o rw,remount /
 
+echo "symlink /usr/comma"
 sudo rm -rf /usr/comma
 sudo ln -snf $ROOT/userspace/usr/comma/ /usr/comma
+
+echo "cp systemd services"
+for s in $(ls $ROOT/userspace/files/*.service); do
+  service=$(basename $s)
+  echo "- $service"
+  sudo rm -f /lib/systemd/system/$service
+  sudo cp $ROOT/userspace/files/$service /lib/systemd/system/
+done
+sudo $ROOT/userspace/services.sh
 
 sudo mount -o ro,remount /
