@@ -33,7 +33,7 @@ export QT_QPA_PLATFORM="wayland-egl"
 # python setup
 export PYTHONPATH="/data/pythonpath"
 export PATH="/usr/local/pyenv/bin:$PATH"
-export PYENV_VERSION="3.8.10"
+export PYENV_VERSION="3.11.4"
 export PYENV_ROOT="/usr/local/pyenv"
 
 # output of "pyenv init - --no-rehash"

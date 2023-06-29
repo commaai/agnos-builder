@@ -5,15 +5,15 @@ authors = ["Vehicle Researcher <user@comma.ai>"]
 description = ""
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "~3.11"
 atomicwrites = "*"
 cffi = "*"
 crcmod = "*"
 hexdump = "*"
 libusb1 = "*"
-numpy = "*"
+numpy = "==1.24.2"
 psutil = "*"
-pycapnp = "==1.1.0"
+pycapnp = "==1.3.0"
 cryptography = "*"
 python-dateutil = "*"
 pyzmq = "*"
