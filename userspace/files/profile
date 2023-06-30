@@ -54,3 +54,6 @@ pyenv() {
     command pyenv "$command" "$@";;
   esac
 }
+
+# custom shims
+export PATH="/usr/comma/shims:${PATH}"

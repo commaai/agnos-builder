@@ -65,6 +65,7 @@ pydub = "*"
 aiohttp = "*"
 aiortc = "*"
 evdev = "*"
+pytest-random-order = "^1.1.0"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "*"
