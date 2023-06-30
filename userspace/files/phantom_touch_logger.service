@@ -1,0 +1,10 @@
+[Unit]
+After=multi-user.target
+
+[Service]
+User=comma
+Restart=no
+ExecStart=/usr/local/pyenv/shims/python -u /usr/comma/phantom_touch_logger.py
+
+[Install]
+WantedBy=multi-user.target

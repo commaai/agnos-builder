@@ -25,6 +25,7 @@ systemctl enable ssh-param-watcher.service
 systemctl enable home.mount
 systemctl enable logrotate-hourly.timer
 systemctl enable set_time.service
+systemctl enable phantom_touch_logger.service
 
 # Disable some of our services
 systemctl disable serial-hostname.service
