@@ -4,7 +4,7 @@ After=multi-user.target
 [Service]
 User=comma
 Restart=always
-ExecStart=/usr/local/pyenv/shims/python -u /usr/comma/touch_logger.py
+ExecStart=/usr/local/pyenv/shims/python -u /usr/comma/phantom_touch_logger.py
 
 [Install]
 WantedBy=multi-user.target
