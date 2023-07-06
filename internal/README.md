@@ -22,6 +22,7 @@
 
 - [ ] fastboot USB enumeration
 - [ ] system reset trigger works
+- [ ] system reset menu times out after 60s
 - [ ] boot time hasn't regressed (3.8s)
 
 ### XBL
