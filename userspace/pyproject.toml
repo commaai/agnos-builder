@@ -5,13 +5,13 @@ authors = ["Vehicle Researcher <user@comma.ai>"]
 description = ""
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "~3.11"
 atomicwrites = "*"
 cffi = "*"
 crcmod = "*"
 hexdump = "*"
 libusb1 = "*"
-numpy = "*"
+numpy = "==1.24.2"  # can be unpinned once acados is updated
 psutil = "*"
 pycapnp = "==1.1.0"
 cryptography = "*"
@@ -51,7 +51,7 @@ onnxruntime = "*"
 pyopencl = "*"
 pytest = "*"
 hatanaka = "==2.4"
-protobuf = "==3.20.1"  # need to pin this one explicitly since onnx doesn't do it properly
+protobuf = "*"
 torch = "*"
 spidev = "*"
 spidev2 = "*"
