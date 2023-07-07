@@ -58,3 +58,9 @@ systemctl disable multipathd.socket
 systemctl disable chgrp-diag.service
 systemctl disable lvm2-monitor.service
 systemctl mask systemd-backlight@.service
+
+# Disable NFS stuff by default
+systemctl disable rpcbind
+systemctl disable nfs-client.target
+systemctl disable remote-fs-pre.target
+systemctl disable run-rpc_pipefs.mount
