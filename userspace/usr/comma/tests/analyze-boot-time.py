@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
   # includes /sbin/init -> weston being ready to display stuff
   ts['weston'] = get_journal_time("Finished weston-ready.service") - tot_since_kern()
-  ts['comma'] = get_journal_time("Started Comma tmux") - tot_since_kern()
+  ts['comma'] = get_journal_time("Started comma.service") - tot_since_kern()
 
   # print
   tot = 0
