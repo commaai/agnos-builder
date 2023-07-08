@@ -1,0 +1,4 @@
+mkdir tmp
+dpkg-deb -R original.deb tmp
+# edit DEBIAN/postinst
+dpkg-deb -b tmp fixed.deb
