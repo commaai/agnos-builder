@@ -26,21 +26,31 @@ if [ $FOUND == 0 ]; then
   exit 1
 fi
 
-# Read update file
-SYSTEM_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"system\") | .hash_raw")
-echo "Found system hash: $SYSTEM_HASH"
-BOOT_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"boot\") | .hash_raw")
-echo "Found boot hash: $BOOT_HASH"
-ABL_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"abl\") | .hash_raw")
-echo "Found abl hash: $ABL_HASH"
-XBL_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"xbl\") | .hash_raw")
-echo "Found xbl hash: $XBL_HASH"
-XBL_CONFIG_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"xbl_config\") | .hash_raw")
-echo "Found xbl_config hash: $XBL_CONFIG_HASH"
-DEVCFG_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"devcfg\") | .hash_raw")
-echo "Found devcfg hash: $DEVCFG_HASH"
-AOP_HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"aop\") | .hash_raw")
-echo "Found aop hash: $AOP_HASH"
+process_file() {
+  local NAME=$1
+  local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
+  local FILE_NAME="$NAME-$HASH.img.xz"
+  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
+
+  echo "Copying $NAME to the cloud..."
+  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$SYSTEM_CLOUD_PATH?$DATA_SAS_TOKEN"
+  echo "  $CLOUD_PATH"
+
+  # if [ "$NAME" == "system" ]; then
+  #   local CAIBX_FILE_NAME="system-$HASH.caibx"
+  #   local CHUNKS_FOLDER="system-$HASH"
+
+  #   echo "Copying system.caibx to the cloud..."
+  #   local SYSTEM_CAIBX_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$CAIBX_FILE_NAME"
+  #   azcopy cp --overwrite=false $OTA_DIR/$CAIBX_FILE_NAME "$SYSTEM_CAIBX_PATH?$DATA_SAS_TOKEN"
+  #   echo "  $SYSTEM_CAIBX_PATH"
+
+  #   echo "Copying system chunks to the cloud..."
+  #   local SYSTEM_CHUNKS_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER"
+  #   azcopy cp --recursive --overwrite=false $OTA_DIR/$CHUNKS_FOLDER "$SYSTEM_CHUNKS_PATH?$DATA_SAS_TOKEN"
+  #   echo "  $SYSTEM_CHUNKS_PATH"
+  # fi
+}
 
 # Generate token
 echo "Logging in..."
@@ -48,57 +58,12 @@ SAS_EXPIRY=$(date -u '+%Y-%m-%dT%H:%M:%SZ' -d '+1 hour')
 DATA_SAS_TOKEN=$(az storage container generate-sas --as-user --auth-mode login --account-name $DATA_ACCOUNT --name $DATA_CONTAINER --https-only --permissions wr --expiry $SAS_EXPIRY --output tsv)
 
 # Liftoff!
-SYSTEM_FILE_NAME="system-$SYSTEM_HASH.img.xz"
-SYSTEM_CAIBX_FILE_NAME="system-$SYSTEM_HASH.caibx"
-SYSTEM_CHUNKS_FOLDER="system-$SYSTEM_HASH"
-BOOT_FILE_NAME="boot-$BOOT_HASH.img.xz"
-ABL_FILE_NAME="abl-$ABL_HASH.img.xz"
-XBL_FILE_NAME="xbl-$XBL_HASH.img.xz"
-XBL_CONFIG_FILE_NAME="xbl_config-$XBL_CONFIG_HASH.img.xz"
-DEVCFG_FILE_NAME="devcfg-$DEVCFG_HASH.img.xz"
-AOP_FILE_NAME="aop-$AOP_HASH.img.xz"
-
-echo "Copying system to the cloud..."
-SYSTEM_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$SYSTEM_FILE_NAME"
-azcopy cp --overwrite=false $OTA_DIR/$SYSTEM_FILE_NAME "$SYSTEM_CLOUD_PATH?$DATA_SAS_TOKEN"
-
-#echo "Copying system.caibx to the cloud..."
-#SYSTEM_CAIBX_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$SYSTEM_CAIBX_FILE_NAME"
-#azcopy cp --overwrite=false $OTA_DIR/$SYSTEM_CAIBX_FILE_NAME "$SYSTEM_CAIBX_PATH?$DATA_SAS_TOKEN"
-
-#echo "Copying system casync chunks to the cloud..."
-#SYSTEM_CHUNKS_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER"
-#azcopy cp --recursive=true --overwrite=false $OTA_DIR/$SYSTEM_CHUNKS_FOLDER "$SYSTEM_CHUNKS_PATH?$DATA_SAS_TOKEN"
-
-echo "Copying boot to the cloud..."
-BOOT_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$BOOT_FILE_NAME"
-azcopy cp --overwrite=false $OTA_DIR/$BOOT_FILE_NAME "$BOOT_CLOUD_PATH?$DATA_SAS_TOKEN"
-
-echo "Copying abl to the cloud..."
-ABL_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$ABL_FILE_NAME"
-azcopy cp --overwrite=false $OTA_DIR/$ABL_FILE_NAME "$ABL_CLOUD_PATH?$DATA_SAS_TOKEN"
-
-echo "Copying xbl to the cloud..."
-XBL_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$XBL_FILE_NAME"
-azcopy cp --overwrite=false $OTA_DIR/$XBL_FILE_NAME "$XBL_CLOUD_PATH?$DATA_SAS_TOKEN"
-
-echo "Copying xbl_config to the cloud..."
-XBL_CONFIG_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$XBL_CONFIG_FILE_NAME"
-azcopy cp --overwrite=false $OTA_DIR/$XBL_CONFIG_FILE_NAME "$XBL_CONFIG_CLOUD_PATH?$DATA_SAS_TOKEN"
-
-echo "Copying devcfg to the cloud..."
-DEVCFG_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$DEVCFG_FILE_NAME"
-azcopy cp --overwrite=false $OTA_DIR/$DEVCFG_FILE_NAME "$DEVCFG_CLOUD_PATH?$DATA_SAS_TOKEN"
-
-echo "Copying aop to the cloud..."
-AOP_CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$AOP_FILE_NAME"
-azcopy cp --overwrite=false $OTA_DIR/$AOP_FILE_NAME "$AOP_CLOUD_PATH?$DATA_SAS_TOKEN"
+process_file "system"
+process_file "boot"
+process_file "abl"
+process_file "xbl"
+process_file "xbl_config"
+process_file "devcfg"
+process_file "aop"
 
 echo "Done!"
-echo "  System path: $SYSTEM_CLOUD_PATH"
-echo "  Boot path: $BOOT_CLOUD_PATH"
-echo "  abl path: $ABL_CLOUD_PATH"
-echo "  xbl path: $XBL_CLOUD_PATH"
-echo "  xbl_config path: $XBL_CONFIG_CLOUD_PATH"
-echo "  devcfg path: $DEVCFG_CLOUD_PATH"
-echo "  aop path: $AOP_CLOUD_PATH"
