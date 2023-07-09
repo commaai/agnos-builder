@@ -33,7 +33,7 @@ process_file() {
   local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
 
   echo "Copying $NAME to the cloud..."
-  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$SYSTEM_CLOUD_PATH?$DATA_SAS_TOKEN"
+  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
   echo "  $CLOUD_PATH"
 
   # if [ "$NAME" == "system" ]; then
