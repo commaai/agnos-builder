@@ -14,6 +14,7 @@ MIN_DATE += datetime.timedelta(days=1)
 
 if __name__ == "__main__":
   sys_time = datetime.datetime.today()
+  print(f"System time: {sys_time}")
   if sys_time > MIN_DATE:
     print("System time valid")
     exit()
@@ -30,7 +31,12 @@ if __name__ == "__main__":
 
       # Set system time from panda RTC time
       panda_time = p.get_datetime()
+      print(f"panda time: {panda_time}")
       if panda_time > MIN_DATE:
         print(f"adjusting time from '{sys_time}' to '{panda_time}'")
         os.system(f"TZ=UTC date -s '{panda_time}'")
+      else:
+        print("panda time invalid")
       break
+  else:
+    print("No internal pandas found")
