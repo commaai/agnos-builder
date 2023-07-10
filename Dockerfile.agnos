@@ -147,6 +147,15 @@ COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
 COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
 
+# copy of panda python lib
+RUN cd /tmp/ && \
+    git clone https://github.com/commaai/panda.git && \
+    cd panda && \
+    git fetch --all && \
+    git checkout 8ba568388176b8fc6443c124ad9ecd4e33174642 && \
+    mkdir /usr/comma/panda/ && \
+    mv __init__.py python/ /usr/comma/panda/
+
 # kernel headers for the AGNOS kernel (built on device)
 COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
 RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
