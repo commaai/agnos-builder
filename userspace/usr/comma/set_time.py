@@ -1,28 +1,36 @@
 #!/usr/bin/env python3
 import datetime
 import os
-import struct
-import usb1
+import sys
 from pathlib import Path
 
-REQUEST_IN = usb1.ENDPOINT_IN | usb1.TYPE_VENDOR | usb1.RECIPIENT_DEVICE
+here = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, here)
+from panda import Panda
 
 # Systemd pushes the system time to the systemd build time if no time is set
 MIN_DATE = datetime.datetime.fromtimestamp(Path("/lib/systemd/systemd").stat().st_mtime)
 MIN_DATE += datetime.timedelta(days=1)
 
 if __name__ == "__main__":
-  ctx = usb1.USBContext()
-  dev = ctx.openByVendorIDAndProductID(0xbbaa, 0xddcc)
-  if dev is None:
-    print("No panda found")
+  sys_time = datetime.datetime.today()
+  if sys_time > MIN_DATE:
+    print("System time valid")
     exit()
 
-  # Set system time from panda RTC time
-  dat = dev.controlRead(REQUEST_IN, 0xa0, 0, 0, 8)
-  a = struct.unpack("HBBBBBB", dat)
-  panda_time = datetime.datetime(a[0], a[1], a[2], a[4], a[5], a[6])
-  sys_time = datetime.datetime.today()
-  if panda_time > MIN_DATE and sys_time < MIN_DATE:
-    print(f"adjusting time from '{sys_time}' to '{panda_time}'")
-    os.system(f"TZ=UTC date -s '{panda_time}'")
+  ps = Panda.list()
+  if len(ps) == 0:
+    print("Failed to set time, no pandas found")
+    exit()
+
+  for s in ps:
+    with Panda(serial=s) as p:
+      if not p.is_internal():
+        continue
+
+      # Set system time from panda RTC time
+      panda_time = p.get_datetime()
+      if panda_time > MIN_DATE:
+        print(f"adjusting time from '{sys_time}' to '{panda_time}'")
+        os.system(f"TZ=UTC date -s '{panda_time}'")
+      break
