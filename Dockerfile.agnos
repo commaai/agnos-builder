@@ -152,7 +152,7 @@ RUN cd /tmp/ && \
     git clone https://github.com/commaai/panda.git && \
     cd panda && \
     git fetch --all && \
-    git checkout 8ba568388176b8fc6443c124ad9ecd4e33174642 && \
+    git checkout 6b9b448259d1790ed8e18abde09ee72446996b3a && \
     mkdir /usr/comma/panda/ && \
     mv __init__.py python/ /usr/comma/panda/
 
