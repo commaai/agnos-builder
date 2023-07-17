@@ -36,8 +36,10 @@ process_file() {
     simg2img $FILE $FILE_RAW
 
     echo "Hashing system raw..."
-    HASH_RAW=$(sha256sum $FILE | cut -c 1-64)
-    echo "  $HASH_RAW"
+    HASH_RAW=$(sha256sum $FILE_RAW | cut -c 1-64)
+    SIZE=$(wc -c < $FILE_RAW)
+    echo "  $HASH_RAW ($SIZE bytes) (raw)"
+
 
     # echo "Creating system casync files"
     # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH $OTA_OUTPUT_DIR/system-$HASH.caibx $FILE_RAW
@@ -46,11 +48,12 @@ process_file() {
   fi
 
   echo "Compressing $NAME..."
-  local ARCHIVE=$OTA_OUTPUT_DIR/$NAME-$HASH.img.xz
+  local FILENAME=$NAME-$HASH_RAW.img.xz
+  local ARCHIVE=$OTA_OUTPUT_DIR/$FILENAME
   xz -vc $FILE > $ARCHIVE
 
-  local URL=$AGNOS_UPDATE_URL/$NAME-$HASH.img.xz
-  local STAGING_URL=$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH.img.xz
+  local URL=$AGNOS_UPDATE_URL/$FILENAME
+  local STAGING_URL=$AGNOS_STAGING_UPDATE_URL/$FILENAME
 
   echo "  {" >> $OUTPUT_JSON
   echo "    \"name\": \"$NAME\"," >> $OUTPUT_JSON
