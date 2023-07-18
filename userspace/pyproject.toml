@@ -13,7 +13,7 @@ hexdump = "*"
 libusb1 = "*"
 numpy = "==1.24.2"  # can be unpinned once acados is updated
 psutil = "*"
-pycapnp = "==1.1.0"
+pycapnp = "*"
 cryptography = "*"
 python-dateutil = "*"
 pyzmq = "*"
