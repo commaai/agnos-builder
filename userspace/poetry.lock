@@ -923,50 +923,6 @@ test = ["pretend", "pytest (>=6.2.0)", "pytest-benchmark", "pytest-cov", "pytest
 test-randomorder = ["pytest-randomly"]
 
 [[package]]
-name = "cysignals"
-version = "1.11.2"
-description = "Interrupt and signal handling for Cython"
-optional = false
-python-versions = "*"
-files = [
-    {file = "cysignals-1.11.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:aa5f6843a0d41e614f18163ecaf616ff0ece7a74a89ede4ba1c77561cd1b8de5"},
-    {file = "cysignals-1.11.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:84abb9759c355714662a337ded609b07d874eb78e0edab5ee218131ad961f47f"},
-    {file = "cysignals-1.11.2-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:cc974fc6fd4967916c49bd1a9e65a6bd28c240f90c0abbba4bb014cab52a9110"},
-    {file = "cysignals-1.11.2-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:f2cce048794e18e0dcd95b0aa5bc550f01b93141164f9be07f4ec1e28506d5f9"},
-    {file = "cysignals-1.11.2-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:9e9e7a98ac9c341a7416265ef06279f9d7d1fa3e94ea1221a601d459d4a1a857"},
-    {file = "cysignals-1.11.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:7deb00b8182796a4aa67b670f73995cec08a2d8a014b6bd4e24aa8fb7ecb22fe"},
-    {file = "cysignals-1.11.2-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:293b746421876126d8e4eaca111d0774f058af893365ee934555af0ad0b858bc"},
-    {file = "cysignals-1.11.2-cp36-cp36m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:5d7ec4e45e5b949972d2571d27bd0dd74d0d7889e4c91a9ee0a778cde0e46703"},
-    {file = "cysignals-1.11.2-cp36-cp36m-musllinux_1_1_i686.whl", hash = "sha256:aa824989e0786348863edf608e05fa9d85ec3d26a1b77838e69c0328da5000f6"},
-    {file = "cysignals-1.11.2-cp36-cp36m-musllinux_1_1_x86_64.whl", hash = "sha256:eedd6b14c3309860c900e9e635cd178b722f3948d7918f528b857c1c79c3bb16"},
-    {file = "cysignals-1.11.2-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:ac8ab6ae22d242efcad1d5351492636520f4ea5005b59949835b7194f56d415c"},
-    {file = "cysignals-1.11.2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:08d781581cccbbbe2e9d050b38934468cda9d4cbc066b79f828e8e20b764aa00"},
-    {file = "cysignals-1.11.2-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:16f94c3c052e56be70e6a90825590066855f2cdb5f0e9966d9e132c0bdb56e9a"},
-    {file = "cysignals-1.11.2-cp37-cp37m-musllinux_1_1_i686.whl", hash = "sha256:d282403fbb769ab972642f54c2fd9068353f9bf781147d2d5cbbb8ae5f2ed090"},
-    {file = "cysignals-1.11.2-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:49e18c398cc6bb3a2233c1fbe64694c3b7544e831a4b716eea1cd80f1f37420b"},
-    {file = "cysignals-1.11.2-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:a651e8192c131bf6798d957f76924e0b3841f7f4a287745b99d66dc553ec8102"},
-    {file = "cysignals-1.11.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b5694edaedcf9bd1e77f558d0e7b0665e6020f33897935f24947859919ec3e04"},
-    {file = "cysignals-1.11.2-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:2f586720d09c86448c6f383c2a2d2cb346ff5dae21ba94bcf19d5714fc4a8833"},
-    {file = "cysignals-1.11.2-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:fec0c31047becac75ac6f705b3f12df0eca4df8f7a576f2a0791d3d74272bbe0"},
-    {file = "cysignals-1.11.2-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:eab8038bb5e9ee1c7a7cfc28bf9a9b02101c924b9424dfd7ab38c51d462a728d"},
-    {file = "cysignals-1.11.2-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:c2bd95b9f569a36ab020a701fd08d6cfce10c8db2a3cb0c4aad4ce3fb790f93d"},
-    {file = "cysignals-1.11.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:143dcbe624bc99ecaf6a1e520a0afda6388e68487b4212704f18c250d9d8d2f3"},
-    {file = "cysignals-1.11.2-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:3b5b3fd42fed6d2d1d8ca5d37e0c9ce9966dc7e9d0a9ec879c44de2bb1e76b3c"},
-    {file = "cysignals-1.11.2-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:aa99a00da716c3b30b1b8a14c9c5193e666fe1b8f2225110049527522766646d"},
-    {file = "cysignals-1.11.2-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:833d7c85e634ea3aa7b16e5db71f4c6b3c4f5cbe96d8df9c479568564b808146"},
-    {file = "cysignals-1.11.2-pp37-pypy37_pp73-macosx_10_9_x86_64.whl", hash = "sha256:267c3d83482c714f3e3cbca34040a2e9d1d4752902451e152373d918ca031998"},
-    {file = "cysignals-1.11.2-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bf0a5fa6dfa6a8938e7169ac73908e21da26bef08bdeb7a33f5b5d0b3213cd50"},
-    {file = "cysignals-1.11.2-pp37-pypy37_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:82fa94f480f8d4cc21255b04dec0be048500bba78091ede7ce06b7fea47565b8"},
-    {file = "cysignals-1.11.2-pp38-pypy38_pp73-macosx_10_9_x86_64.whl", hash = "sha256:ca139d0db33febda85ec63a3e26c87fbe373783b1761715a8e73133bfda5211a"},
-    {file = "cysignals-1.11.2-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dc0b39e0549fe3c420d9592cbe562b056d909dbec7d553c710520db424f4da47"},
-    {file = "cysignals-1.11.2-pp38-pypy38_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:527518ee88fae25aa1a32a2bee9c2179c2797f9eea6ec5bbc23d4a2d29d65d69"},
-    {file = "cysignals-1.11.2.tar.gz", hash = "sha256:5858b1760fbe21848121b826b2463a67ac5a45caf3d73105497a68618c5a6fa6"},
-]
-
-[package.dependencies]
-Cython = ">=0.28"
-
-[[package]]
 name = "cython"
 version = "3.0.0"
 description = "The Cython compiler for writing C extensions in the Python language."
@@ -4522,4 +4478,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "6c5b83de36d58add287f4be5e0baf9af3416b77d553ad1f6463f68d8287f8ef2"
+content-hash = "ce8f36bf9b9f5e9776290cd66441bfbc348b15cfcd78dc0a4a748d99a5fb9158"
