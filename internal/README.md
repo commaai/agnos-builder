@@ -2,12 +2,13 @@
 
 ## release checklist
 
-- [ ] CPU usage
+- [ ] openpilot CPU usage unchanged
 - [ ] wifi
 - [ ] modem
 - [ ] image size
 - [ ] sounds
-- [ ] python/shims works
+- [ ] `python` is our python, not system version
+- [ ] pyenv shims works
 - [ ] clean openpilot build
 - [ ] factory reset
   - [ ] user-prompted reset
@@ -16,7 +17,7 @@
 - [ ] color calibration
 - [ ] clean setup
 - [ ] cameras
-- [ ] update works on warm boot
+- [ ] update works on warm boot, from previous AGNOS to new one
 
 ### ABL
 
@@ -36,7 +37,6 @@
 
 - [ ] continue button disabled when no connection
 - [ ] forget/connect to wifi
-- [ ] ethernet
 
 #### custom URL
 - (a) Not a real URL (e.g. `comma`, `abc123`, `...`)
