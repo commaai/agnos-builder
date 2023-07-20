@@ -17,7 +17,9 @@
 - [ ] color calibration
 - [ ] clean setup
 - [ ] cameras
-- [ ] update works on warm boot, from previous AGNOS to new one
+- [ ] update works on warm boot
+  - [ ] previous -> new
+  - [ ] new -> previous
 
 ### ABL
 
