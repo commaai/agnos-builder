@@ -14,18 +14,8 @@ class ChunkType(IntEnum):
 ChunkHeader = struct.Struct("<2H2I")
 
 
-if __name__ == "__main__":
-  parser = argparse.ArgumentParser(description="Replace FILL 0 chunks in a sparse image with DONT_CARE chunks",
-                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument("input_image", nargs="?", help="Input sparse image")
-  parser.add_argument("output_image", nargs="?", help="Output sparse image")
-  args = parser.parse_args(sys.argv[1:])
-
-  if args.input_image is None or args.output_image is None:
-    parser.print_help()
-    exit(1)
-
-  with open(args.input_image, "rb") as inf, open(args.output_image, "wb") as outf:
+def process_image(input_image: str, output_image: str) -> None:
+  with open(input_image, "rb") as inf, open(output_image, "wb") as outf:
     dat = inf.read(28)
     outf.write(dat)
 
@@ -70,3 +60,17 @@ if __name__ == "__main__":
       outf.write(header_bin)
       dat = inf.read(data_sz)
       outf.write(dat)
+
+
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser(description="Replace FILL 0 chunks in a sparse image with DONT_CARE chunks",
+                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  parser.add_argument("input_image", nargs="?", help="Input sparse image")
+  parser.add_argument("output_image", nargs="?", help="Output sparse image")
+  args = parser.parse_args(sys.argv[1:])
+
+  if args.input_image is None or args.output_image is None:
+    parser.print_help()
+    exit(1)
+
+  process_image(args.input_image, args.output_image)
