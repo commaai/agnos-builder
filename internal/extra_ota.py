@@ -6,6 +6,8 @@ from typing import cast, Dict, List, Union
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
+OTA_DIR = ROOT / "output" / "ota"
+
 sys.path.append(str(ROOT / "tools"))
 
 Manifest = List[Dict[str, Union[str, int, bool]]]
@@ -13,6 +15,8 @@ Manifest = List[Dict[str, Union[str, int, bool]]]
 
 def main(ota: Manifest) -> None:
   import simg2dontcare
+
+  extras: Manifest = []
 
   for image in ota:
     name = cast(str, image["name"])
@@ -27,6 +31,9 @@ def main(ota: Manifest) -> None:
     # TODO: Compress image (gzip)
     pass
 
+  with open(OTA_DIR / "extra.json", "w", encoding="utf-8") as f:
+    json.dump(extras, f, indent=2, ensure_ascii=False)
+
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description="Generate extra.json from ota.json manifest for flash tool")
@@ -35,7 +42,7 @@ if __name__ == "__main__":
 
   try:
     ota_file = f"ota-{'' if args.production else 'staging'}.json"
-    with open(ROOT / "output" / "ota" / ota_file, "r", encoding="utf-8") as f:
+    with open(OTA_DIR / ota_file, "r", encoding="utf-8") as f:
       ota_json = json.load(f)
   except FileNotFoundError:
     print(f"File not found: {args.ota_json}")
