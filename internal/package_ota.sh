@@ -43,7 +43,7 @@ process_file() {
 
     echo "Optimizing sparse system image..."
     local FILE_OPTIMIZED=/tmp/system-optimized.img
-    $ROOT/tools/simg2dontcare $FILE $FILE_OPTIMIZED
+    $ROOT/tools/simg2dontcare.py $FILE $FILE_OPTIMIZED
 
 
     # echo "Creating system casync files"
