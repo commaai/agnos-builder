@@ -34,7 +34,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   try:
-    ota_file = f"ota-{'staging' if args.production else ''}.json"
+    ota_file = f"ota-{'' if args.production else 'staging'}.json"
     with open(ROOT / "output" / "ota" / ota_file, "r", encoding="utf-8") as f:
       ota_json = json.load(f)
   except FileNotFoundError:
