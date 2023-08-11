@@ -40,10 +40,6 @@ process_file() {
     SIZE=$(wc -c < $FILE_RAW)
     echo "  $HASH_RAW ($SIZE bytes) (raw)"
 
-    echo "Optimizing sparse system image..."
-    local FILE_OPTIMIZED=/tmp/system-optimized.img
-    $ROOT/tools/simg2dontcare.py $FILE $FILE_OPTIMIZED
-
     # echo "Creating system casync files"
     # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH $OTA_OUTPUT_DIR/system-$HASH.caibx $FILE_RAW
 
