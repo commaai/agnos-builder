@@ -30,11 +30,12 @@ def main(ota: Manifest) -> None:
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description="Generate extra.json from ota.json manifest for flash tool")
-  parser.add_argument("ota_json", default="ota.json", help="manifest file")
+  parser.add_argument("production", action="store_true")
   args = parser.parse_args()
 
   try:
-    with open(args.ota_json, "r") as f:
+    ota_file = f"ota-{'staging' if args.production else ''}.json"
+    with open(ROOT / "output" / "ota" / ota_file, "r", encoding="utf-8") as f:
       ota_json = json.load(f)
   except FileNotFoundError:
     print(f"File not found: {args.ota_json}")
