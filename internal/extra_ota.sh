@@ -34,8 +34,6 @@ process_file() {
 
     echo "Decompressing $NAME..."
     xz --decompress --stdout $XZ_FILE > $IMAGE_FILE
-  else
-    echo "$NAME downloaded"
   fi
 
   local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash")
@@ -55,8 +53,6 @@ process_file() {
     if [ ! -f "$OPTIMIZED_IMAGE_FILE" ]; then
       echo "Optimizing $NAME..."
       $TOOLS_DIR/simg2dontcare.py $IMAGE_FILE $OPTIMIZED_IMAGE_FILE
-    else
-      echo "$NAME optimized"
     fi
   fi
 
@@ -64,8 +60,6 @@ process_file() {
   if [ ! -f "$GZ_FILE" ]; then
     echo "Compressing $NAME..."
     gzip -c $IMAGE_FILE > $GZ_FILE
-  else
-    echo "$NAME compressed"
   fi
 
   cat <<EOF > $EXTRA_JSON
