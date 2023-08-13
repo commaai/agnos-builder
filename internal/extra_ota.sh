@@ -18,15 +18,20 @@ EXTRA_STAGING_JSON="$OTA_DIR/extra-staging.json"
 
 process_file() {
   local NAME=$1
+
+  local URL=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .url")
+  local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash")
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
+  local SIZE=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .size")
+  local SPARSE=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .sparse")
+  local FULL_CHECK=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .full_check")
+  local HAS_AB=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .has_ab")
 
   local FILE_NAME="$NAME-$HASH_RAW.img"
-
   local IMAGE_FILE="$OTA_DIR/$FILE_NAME"
   if [ ! -f $IMAGE_FILE ]; then
     local XZ_FILE="$IMAGE_FILE.xz"
     if [ ! -f "$XZ_FILE" ]; then
-      local URL=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .url")
       echo "Downloading $NAME..."
       wget -O $XZ_FILE $URL
     fi
@@ -35,7 +40,16 @@ process_file() {
     xz --decompress --stdout $XZ_FILE > $IMAGE_FILE
   fi
 
-  local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash")
+  local ACTUAL_SIZE=$(wc -c < $IMAGE_FILE)
+  if [ $ACTUAL_SIZE != $SIZE ]; then
+    echo "$NAME size mismatch!"
+    echo "  Expected: $SIZE"
+    echo "  Actual:   $ACTUAL_SIZE"
+    exit 1
+  else
+    echo "$NAME size verified"
+  fi
+
   local ACTUAL_HASH=$(sha256sum $IMAGE_FILE | cut -c 1-64)
   if [ "$ACTUAL_HASH" != "$HASH" ]; then
     echo "$NAME hash mismatch!"
@@ -46,7 +60,6 @@ process_file() {
     echo "$NAME hash verified"
   fi
 
-  local SPARSE=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .sparse")
   if [ $SPARSE == "true" ] && [ $NAME == "system" ]; then
     local OPTIMIZED_IMAGE_FILE=${IMAGE_FILE%.img}-optimized.img
     if [ ! -f "$OPTIMIZED_IMAGE_FILE" ]; then
@@ -63,9 +76,6 @@ process_file() {
     gzip -c $IMAGE_FILE > $GZ_FILE
   fi
 
-  local SIZE=$(wc -c < $GZ_FILE)
-  local FULL_CHECK=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .full_check")
-  local HAS_AB=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .has_ab")
   cat <<EOF >> $EXTRA_JSON
   {
     "name": "$NAME",
@@ -78,7 +88,6 @@ process_file() {
     "has_ab": $HAS_AB
   },
 EOF
-
   cat <<EOF >> $EXTRA_STAGING_JSON
   {
     "name": "$NAME",
