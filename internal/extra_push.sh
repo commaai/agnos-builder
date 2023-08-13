@@ -10,26 +10,11 @@ OTA_DIR="$DIR/../output/ota"
 DATA_ACCOUNT="commadist"
 
 # Parse input
-FOUND=0
-if [ "$1" == "production" ]; then
-  EXTRA_JSON="$OTA_DIR/extra.json"
-  DATA_CONTAINER="agnosupdate"
-  FOUND=1
-fi
-if [ "$1" == "staging" ]; then
-  EXTRA_JSON="$OTA_DIR/extra-staging.json"
-  DATA_CONTAINER="agnosupdate-staging"
-  FOUND=1
-fi
-
-if [ $FOUND == 0 ]; then
-  echo "Supply either 'production' or 'staging' as first argument!"
-  exit 1
-fi
+source $DIR/upload.sh
 
 process_file() {
   local NAME=$1
-  local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
+  local HASH_RAW=$(cat $EXTRA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
   local FILE_NAME="$NAME-$HASH_RAW.img.gz"
   local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
 
