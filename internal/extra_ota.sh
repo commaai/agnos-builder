@@ -24,6 +24,7 @@ process_file() {
   local GZ_FILE="$IMAGE_FILE.gz"
 
   if [ ! -f "$IMAGE_FILE" ]; then
+    # TODO: verify checksum
     local XZ_FILE="$IMAGE_FILE.xz"
     if [ ! -f "$XZ_FILE" ]; then
       local URL=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .url")
