@@ -18,6 +18,7 @@ EXTRA_STAGING_JSON="$OTA_DIR/extra-staging.json"
 
 process_file() {
   local NAME=$1
+  echo "Processing $NAME..."
 
   local URL=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .url")
   local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash")
@@ -32,28 +33,27 @@ process_file() {
   if [ ! -f $IMAGE_FILE ]; then
     local XZ_FILE="$IMAGE_FILE.xz"
     if [ ! -f "$XZ_FILE" ]; then
-      echo "Downloading $NAME..."
-      wget -O $XZ_FILE $URL
+      echo "  downloading..."
+      wget -O $XZ_FILE $URL &> /dev/null
     fi
 
-    echo "Decompressing $NAME..."
+    echo "  decompressing..."
     xz --decompress --stdout $XZ_FILE > $IMAGE_FILE
   fi
 
+  echo "  verifying hash..."
   local ACTUAL_HASH=$(sha256sum $IMAGE_FILE | cut -c 1-64)
   if [ "$ACTUAL_HASH" != "$HASH" ]; then
-    echo "$NAME hash mismatch!"
-    echo "  Expected: $HASH"
-    echo "  Actual:   $ACTUAL_HASH"
+    echo "$NAME hash mismatch!" >&2
+    echo "  Expected: $HASH" >&2
+    echo "  Actual:   $ACTUAL_HASH" >&2
     exit 1
-  else
-    echo "$NAME hash verified"
   fi
 
   if [ $SPARSE == "true" ] && [ $NAME == "system" ]; then
     local OPTIMIZED_IMAGE_FILE=${IMAGE_FILE%.img}-optimized.img
     if [ ! -f "$OPTIMIZED_IMAGE_FILE" ]; then
-      echo "Optimizing $NAME..."
+      echo "  optimizing..."
       $TOOLS_DIR/simg2dontcare.py $IMAGE_FILE $OPTIMIZED_IMAGE_FILE
     fi
     IMAGE_FILE=$OPTIMIZED_IMAGE_FILE
@@ -62,7 +62,7 @@ process_file() {
   local GZ_FILE_NAME="$FILE_NAME.gz"
   local GZ_FILE="$OTA_DIR/$GZ_FILE_NAME"
   if [ ! -f "$GZ_FILE" ]; then
-    echo "Compressing $NAME..."
+    echo "  compressing..."
     gzip -c $IMAGE_FILE > $GZ_FILE
   fi
 
@@ -94,24 +94,28 @@ EOF
 }
 
 cd $ROOT
-
 mkdir -p $OTA_DIR
+
+# If given a manifest URL, download and use that
+if [ ! -z "$1" ]; then
+  OTA_JSON=$(mktemp)
+  echo "Using provided manifest..."
+  wget -O $OTA_JSON $1 &> /dev/null
+else
+  echo "Using master AGNOS manifest..."
+  wget -O $OTA_JSON https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/ota.json &> /dev/null
+fi
 
 echo "[" > $EXTRA_JSON
 echo "[" > $EXTRA_STAGING_JSON
-
-if [ ! -f $OTA_JSON ]; then
-  echo "Downloading $OTA_JSON..."
-  wget -O $OTA_JSON https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/agnos.json
-fi
 
 for image in $(cat $OTA_JSON | jq -r '.[] | .name'); do
   process_file $image
 done
 
 # remove trailing comma
-sed -i '$ s/.$//' $EXTRA_JSON
-sed -i '$ s/.$//' $EXTRA_STAGING_JSON
+sed -i "$ s/.$//" $EXTRA_JSON
+sed -i "$ s/.$//" $EXTRA_STAGING_JSON
 
 echo "]" >> $EXTRA_JSON
 echo "]" >> $EXTRA_STAGING_JSON
