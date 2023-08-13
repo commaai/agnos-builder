@@ -21,7 +21,7 @@ process_file() {
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
 
   local FILE_NAME="$NAME-$HASH_RAW.img"
-  local GZ_FILE_NAME="$IMAGE_FILE.gz"
+  local GZ_FILE_NAME="$FILE_NAME.gz"
 
   local IMAGE_FILE="$OTA_DIR/$FILE_NAME"
   if [ ! -f $IMAGE_FILE ]; then
@@ -64,8 +64,6 @@ process_file() {
   if [ ! -f "$GZ_FILE" ]; then
     echo "Compressing $NAME..."
     gzip -c $IMAGE_FILE > $GZ_FILE
-
-    # TODO: output
   else
     echo "$NAME compressed"
   fi
