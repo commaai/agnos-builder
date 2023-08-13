@@ -20,13 +20,13 @@ process_file() {
   local NAME=$1
   echo "Processing $NAME..."
 
-  local URL=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .url")
-  local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash")
-  local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
-  local SIZE=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .size")
-  local SPARSE=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .sparse")
-  local FULL_CHECK=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .full_check")
-  local HAS_AB=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .has_ab")
+  local IMAGE_CONFIG=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\")")
+  local URL=$(echo "$IMAGE_CONFIG" | jq -r ".url")
+  local HASH=$(echo "$IMAGE_CONFIG" | jq -r ".hash")
+  local HASH_RAW=$(echo "$IMAGE_CONFIG" | jq -r ".hash_raw")
+  local SPARSE=$(echo "$IMAGE_CONFIG" | jq -r ".sparse")
+  local FULL_CHECK=$(echo "$IMAGE_CONFIG" | jq -r ".full_check")
+  local HAS_AB=$(echo "$IMAGE_CONFIG" | jq -r ".has_ab")
 
   local FILE_NAME="$NAME-$HASH_RAW.img"
   local IMAGE_FILE="$OTA_DIR/$FILE_NAME"
