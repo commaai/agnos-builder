@@ -20,7 +20,7 @@ process_file() {
   local NAME=$1
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
 
-  local IMAGE_FILE="$OTA_DIR/$NAME-$HASH.img"
+  local IMAGE_FILE="$OTA_DIR/$NAME-$HASH_RAW.img"
   local GZ_FILE="$IMAGE_FILE.gz"
 
   if [ ! -f "$IMAGE_FILE" ]; then
