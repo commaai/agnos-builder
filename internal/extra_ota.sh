@@ -63,11 +63,19 @@ process_file() {
     gzip -c $IMAGE_FILE > $GZ_FILE
   fi
 
+  local SIZE=$(wc -c < $GZ_FILE)
+  local FULL_CHECK=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .full_check")
+  local HAS_AB=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .has_ab")
   cat <<EOF >> $EXTRA_JSON
   {
     "name": "$NAME",
     "url": "$AGNOS_UPDATE_URL/$GZ_FILE_NAME",
+    "hash": "$HASH",
     "hash_raw": "$HASH_RAW",
+    "size": $SIZE,
+    "sparse": $SPARSE,
+    "full_check": $FULL_CHECK,
+    "has_ab": $HAS_AB
   },
 EOF
 
@@ -75,7 +83,12 @@ EOF
   {
     "name": "$NAME",
     "url": "$AGNOS_STAGING_UPDATE_URL/$GZ_FILE_NAME",
+    "hash": "$HASH",
     "hash_raw": "$HASH_RAW",
+    "size": $SIZE,
+    "sparse": $SPARSE,
+    "full_check": $FULL_CHECK,
+    "has_ab": $HAS_AB
   },
 EOF
 }
