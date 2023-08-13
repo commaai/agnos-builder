@@ -18,13 +18,12 @@ EXTRA_STAGING_JSON="$OTA_OUTPUT_DIR/extra-staging.json"
 
 process_file() {
   local NAME=$1
-  local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
+  local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
 
   local IMAGE_FILE="$OTA_DIR/$NAME-$HASH.img"
   local GZ_FILE="$IMAGE_FILE.gz"
 
   if [ ! -f "$IMAGE_FILE" ]; then
-    # TODO: verify checksum
     local XZ_FILE="$IMAGE_FILE.xz"
     if [ ! -f "$XZ_FILE" ]; then
       local URL=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .url")
@@ -34,6 +33,14 @@ process_file() {
 
     echo "Decompressing $NAME..."
     xz --decompress --stdout $XZ_FILE > $IMAGE_FILE
+  fi
+
+  local ACTUAL_HASH_RAW=$(sha256sum $IMAGE_FILE | cut -c 1-64)
+  if [ "$ACTUAL_HASH_RAW" != "$HASH_RAW" ]; then
+    echo "$NAME hash mismatch!"
+    echo "  Expected: $HASH_RAW"
+    echo "  Actual:   $ACTUAL_HASH_RAW"
+    exit 1
   fi
 
   if [ $NAME == "system" ]; then
