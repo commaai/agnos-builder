@@ -21,7 +21,6 @@ process_file() {
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
 
   local FILE_NAME="$NAME-$HASH_RAW.img"
-  local GZ_FILE_NAME="$FILE_NAME.gz"
 
   local IMAGE_FILE="$OTA_DIR/$FILE_NAME"
   if [ ! -f $IMAGE_FILE ]; then
@@ -54,18 +53,28 @@ process_file() {
       echo "Optimizing $NAME..."
       $TOOLS_DIR/simg2dontcare.py $IMAGE_FILE $OPTIMIZED_IMAGE_FILE
     fi
+    IMAGE_FILE=$OPTIMIZED_IMAGE_FILE
   fi
 
+  local GZ_FILE_NAME="$FILE_NAME.gz"
   local GZ_FILE="$OTA_DIR/$GZ_FILE_NAME"
   if [ ! -f "$GZ_FILE" ]; then
     echo "Compressing $NAME..."
     gzip -c $IMAGE_FILE > $GZ_FILE
   fi
 
-  cat <<EOF > $EXTRA_JSON
+  cat <<EOF >> $EXTRA_JSON
   {
     "name": "$NAME",
     "url": "$AGNOS_UPDATE_URL/$GZ_FILE_NAME",
+    "hash_raw": "$HASH_RAW",
+  },
+EOF
+
+  cat <<EOF >> $EXTRA_STAGING_JSON
+  {
+    "name": "$NAME",
+    "url": "$AGNOS_STAGING_UPDATE_URL/$GZ_FILE_NAME",
     "hash_raw": "$HASH_RAW",
   },
 EOF
