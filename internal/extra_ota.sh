@@ -40,16 +40,6 @@ process_file() {
     xz --decompress --stdout $XZ_FILE > $IMAGE_FILE
   fi
 
-  local ACTUAL_SIZE=$(wc -c < $IMAGE_FILE)
-  if [ $ACTUAL_SIZE != $SIZE ]; then
-    echo "$NAME size mismatch!"
-    echo "  Expected: $SIZE"
-    echo "  Actual:   $ACTUAL_SIZE"
-    exit 1
-  else
-    echo "$NAME size verified"
-  fi
-
   local ACTUAL_HASH=$(sha256sum $IMAGE_FILE | cut -c 1-64)
   if [ "$ACTUAL_HASH" != "$HASH" ]; then
     echo "$NAME hash mismatch!"
@@ -76,6 +66,7 @@ process_file() {
     gzip -c $IMAGE_FILE > $GZ_FILE
   fi
 
+  local SIZE=$(wc -c < $IMAGE_FILE)
   cat <<EOF >> $EXTRA_JSON
   {
     "name": "$NAME",
