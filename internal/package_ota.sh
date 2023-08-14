@@ -42,7 +42,7 @@ process_file() {
 
 
     # echo "Creating system casync files"
-    # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH $OTA_OUTPUT_DIR/system-$HASH.caibx $FILE_RAW
+    # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH_RAW $OTA_OUTPUT_DIR/system-$HASH_RAW.caibx $FILE_RAW
 
     rm $FILE_RAW
   fi
@@ -64,8 +64,8 @@ process_file() {
   echo "    \"sparse\": $SPARSE," >> $OUTPUT_JSON
   echo "    \"full_check\": $FULL_CHECK," >> $OUTPUT_JSON
   echo "    \"has_ab\": $HAS_AB" >> $OUTPUT_JSON
-  # echo "    \"casync_caibx\": \"$AGNOS_UPDATE_URL/$NAME-$HASH.caibx\"," >> $OUTPUT_JSON
-  # echo "    \"casync_store\": \"$AGNOS_UPDATE_URL/$NAME-$HASH\"" >> $OUTPUT_JSON
+  # echo "    \"casync_caibx\": \"$AGNOS_UPDATE_URL/$NAME-$HASH_RAW.caibx\"," >> $OUTPUT_JSON
+  # echo "    \"casync_store\": \"$AGNOS_UPDATE_URL/$NAME-$HASH_RAW\"" >> $OUTPUT_JSON
   echo "  }," >> $OUTPUT_JSON
 
   echo "  {" >> $OUTPUT_STAGING_JSON
@@ -77,8 +77,8 @@ process_file() {
   echo "    \"sparse\": $SPARSE," >> $OUTPUT_STAGING_JSON
   echo "    \"full_check\": $FULL_CHECK," >> $OUTPUT_STAGING_JSON
   echo "    \"has_ab\": $HAS_AB" >> $OUTPUT_STAGING_JSON
-  # echo "    \"casync_caibx\": \"$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH.caibx\"," >> $OUTPUT_STAGING_JSON
-  # echo "    \"casync_store\": \"$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH\"" >> $OUTPUT_STAGING_JSON
+  # echo "    \"casync_caibx\": \"$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH_RAW.caibx\"," >> $OUTPUT_STAGING_JSON
+  # echo "    \"casync_store\": \"$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH_RAW\"" >> $OUTPUT_STAGING_JSON
   echo "  }," >> $OUTPUT_STAGING_JSON
 }
 

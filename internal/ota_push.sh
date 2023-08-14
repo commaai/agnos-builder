@@ -28,8 +28,8 @@ fi
 
 process_file() {
   local NAME=$1
-  local HASH=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
-  local FILE_NAME="$NAME-$HASH.img.xz"
+  local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
+  local FILE_NAME="$NAME-$HASH_RAW.img.xz"
   local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
 
   echo "Copying $NAME to the cloud..."
@@ -37,8 +37,8 @@ process_file() {
   echo "  $CLOUD_PATH"
 
   # if [ "$NAME" == "system" ]; then
-  #   local CAIBX_FILE_NAME="system-$HASH.caibx"
-  #   local CHUNKS_FOLDER="system-$HASH"
+  #   local CAIBX_FILE_NAME="system-$HASH_RAW.caibx"
+  #   local CHUNKS_FOLDER="system-$HASH_RAW"
 
   #   echo "Copying system.caibx to the cloud..."
   #   local SYSTEM_CAIBX_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$CAIBX_FILE_NAME"
