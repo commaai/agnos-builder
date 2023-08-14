@@ -8,6 +8,7 @@ TMP_DIR="/tmp/agnos-builder-tmp"
 OUTPUT_DIR="$ROOT/output"
 OTA_OUTPUT_DIR="$OUTPUT_DIR/ota"
 FIRMWARE_DIR="$ROOT/agnos-firmware"
+TOOLS_DIR="$ROOT/tools"
 
 AGNOS_UPDATE_URL=${AGNOS_UPDATE_URL:-https://commadist.azureedge.net/agnosupdate}
 AGNOS_STAGING_UPDATE_URL=${AGNOS_STAGING_UPDATE_URL:-https://commadist.azureedge.net/agnosupdate-staging}
@@ -40,11 +41,16 @@ process_file() {
     SIZE=$(wc -c < $FILE_RAW)
     echo "  $HASH_RAW ($SIZE bytes) (raw)"
 
-
     # echo "Creating system casync files"
     # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH_RAW $OTA_OUTPUT_DIR/system-$HASH_RAW.caibx $FILE_RAW
 
     rm $FILE_RAW
+
+    echo "Optimizing system..."
+    local OPTIMIZED_IMAGE_FILE=/tmp/system-optimized.img
+    $TOOLS_DIR/simg2dontcare.py $FILE $OPTIMIZED_IMAGE_FILE
+    mv $FILE ${FILE%.img}-original.img
+    mv $OPTIMIZED_IMAGE_FILE $FILE
   fi
 
   echo "Compressing $NAME..."
