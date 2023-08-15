@@ -58,12 +58,8 @@ SAS_EXPIRY=$(date -u '+%Y-%m-%dT%H:%M:%SZ' -d '+1 hour')
 DATA_SAS_TOKEN=$(az storage container generate-sas --as-user --auth-mode login --account-name $DATA_ACCOUNT --name $DATA_CONTAINER --https-only --permissions wr --expiry $SAS_EXPIRY --output tsv)
 
 # Liftoff!
-process_file "system"
-process_file "boot"
-process_file "abl"
-process_file "xbl"
-process_file "xbl_config"
-process_file "devcfg"
-process_file "aop"
+for name in $(cat $OTA_JSON | jq -r ".[] .name"); do
+  process_file $name
+done
 
 echo "Done!"
