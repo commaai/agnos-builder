@@ -30,6 +30,17 @@ process_file() {
   local SIZE=$(wc -c < $FILE)
   echo "  $HASH ($SIZE bytes)"
 
+  if [ "$NAME" == "system" ]; then
+    echo "Optimizing system..."
+    local OPTIMIZED_FILE=/tmp/system-optimized.img
+    $TOOLS_DIR/simg2dontcare.py $FILE $OPTIMIZED_FILE
+    mv $FILE ${FILE%.img}-original.img
+    mv $OPTIMIZED_FILE $FILE
+
+    echo "Hashing optimized system..."
+    HASH=$(sha256sum $FILE | cut -c 1-64)
+  fi
+
   local HASH_RAW=$HASH
   if [ "$NAME" == "system" ]; then
     echo "Converting system to raw..."
@@ -45,12 +56,6 @@ process_file() {
     # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH_RAW $OTA_OUTPUT_DIR/system-$HASH_RAW.caibx $FILE_RAW
 
     rm $FILE_RAW
-
-    echo "Optimizing system..."
-    local OPTIMIZED_IMAGE_FILE=/tmp/system-optimized.img
-    $TOOLS_DIR/simg2dontcare.py $FILE $OPTIMIZED_IMAGE_FILE
-    mv $FILE ${FILE%.img}-original.img
-    mv $OPTIMIZED_IMAGE_FILE $FILE
   fi
 
   echo "Compressing $NAME..."
