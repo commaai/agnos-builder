@@ -26,15 +26,24 @@ if [ $FOUND == 0 ]; then
   exit 1
 fi
 
+upload_file() {
+  local FILE_NAME=$1
+  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
+
+  echo "Copying $FILE_NAME to the cloud..."
+  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
+  echo "  $CLOUD_PATH"
+}
+
 process_file() {
   local NAME=$1
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
-  local FILE_NAME="$NAME-$HASH_RAW.img.xz"
-  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
+  upload_file "$NAME-$HASH_RAW.img.xz"
 
-  echo "Copying $NAME to the cloud..."
-  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
-  echo "  $CLOUD_PATH"
+  local HASH_OPTIMIZED=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_optimized")
+  if [ "$HASH_OPTIMIZED" != "null" ]; then
+    upload_file "$NAME-$HASH_RAW-optimized.img.xz"
+  fi
 
   # if [ "$NAME" == "system" ]; then
   #   local CAIBX_FILE_NAME="system-$HASH_RAW.caibx"
