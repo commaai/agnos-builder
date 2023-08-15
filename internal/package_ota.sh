@@ -72,7 +72,7 @@ EOF
 
   if [ "$SPARSE" == "true" ]; then
     echo "Optimizing $NAME..."
-    local OPTIMIZED_FILE=/tmp/$NAME-optimized.img
+    local OPTIMIZED_FILE=$TMP_DIR/$NAME-optimized.img
     $TOOLS_DIR/simg2dontcare.py $FILE $OPTIMIZED_FILE
 
     echo "Hashing optimized $NAME..."
