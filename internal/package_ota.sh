@@ -80,7 +80,7 @@ EOF
     echo "  $HASH_OPTIMIZED (optimized)"
 
     echo "Compressing optimized $NAME..."
-    local OPTIMIZED_FILENAME=$NAME-optimized-$HASH_OPTIMIZED.img.xz
+    local OPTIMIZED_FILENAME=$NAME-$HASH_RAW-optimized.img.xz
     local OPTIMIZED_ARCHIVE=$OTA_OUTPUT_DIR/$OPTIMIZED_FILENAME
     xz -vc $OPTIMIZED_FILE > $OPTIMIZED_ARCHIVE
 
