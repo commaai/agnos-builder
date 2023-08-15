@@ -100,8 +100,7 @@ process_file "$FIRMWARE_DIR/aop.bin" aop
 process_file "$OUTPUT_DIR/system.img" system true false true
 
 # remove trailing comma
-sed -i '$ s/.$//' $OUTPUT_JSON
-sed -i '$ s/.$//' $OUTPUT_STAGING_JSON
+sed -i "$ s/.$//" $OUTPUT_JSON $OUTPUT_STAGING_JSON
 
 echo "]" >> $OUTPUT_JSON
 echo "]" >> $OUTPUT_STAGING_JSON
