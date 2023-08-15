@@ -25,14 +25,6 @@ process_file() {
   local FULL_CHECK=${4:-true}
   local HAS_AB=${5:-true}
 
-  if [ "$NAME" == "system" ]; then
-    echo "Optimizing system..."
-    local OPTIMIZED_FILE=/tmp/system-optimized.img
-    $TOOLS_DIR/simg2dontcare.py $FILE $OPTIMIZED_FILE
-    mv $FILE ${FILE%.img}-original.img
-    mv $OPTIMIZED_FILE $FILE
-  fi
-
   echo "Hashing $NAME..."
   local HASH=$(sha256sum $FILE | cut -c 1-64)
   local SIZE=$(wc -c < $FILE)
@@ -77,6 +69,31 @@ EOF
   cat <<EOF >> $OUTPUT_STAGING_JSON
     "url": "$AGNOS_STAGING_UPDATE_URL/$FILENAME"
 EOF
+
+  if [ "$SPARSE" == "true" ]; then
+    echo "Optimizing $NAME..."
+    local OPTIMIZED_FILE=/tmp/$NAME-optimized.img
+    $TOOLS_DIR/simg2dontcare.py $FILE $OPTIMIZED_FILE
+
+    echo "Hashing optimized $NAME..."
+    local HASH_OPTIMIZED=$(sha256sum $OPTIMIZED_FILE | cut -c 1-64)
+    echo "  $HASH_OPTIMIZED (optimized)"
+
+    echo "Compressing optimized $NAME..."
+    local OPTIMIZED_FILENAME=$NAME-optimized-$HASH_OPTIMIZED.img.xz
+    local OPTIMIZED_ARCHIVE=$OTA_OUTPUT_DIR/$OPTIMIZED_FILENAME
+    xz -vc $OPTIMIZED_FILE > $OPTIMIZED_ARCHIVE
+
+    cat <<EOF | tee -a $OUTPUT_JSON $OUTPUT_STAGING_JSON > /dev/null
+    "hash_optimized": "$HASH_OPTIMIZED",
+EOF
+    cat <<EOF >> $OUTPUT_JSON
+    "url_optimized": "$AGNOS_UPDATE_URL/$OPTIMIZED_FILENAME"
+EOF
+    cat <<EOF >> $OUTPUT_STAGING_JSON
+    "url_optimized": "$AGNOS_STAGING_UPDATE_URL/$OPTIMIZED_FILENAME"
+EOF
+  fi
 
 #   if [ $NAME == "system" ]; then
 #     cat <<EOF >> $OUTPUT_JSON
