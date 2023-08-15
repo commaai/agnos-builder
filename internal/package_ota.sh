@@ -52,7 +52,7 @@ process_file() {
   local ARCHIVE=$OTA_OUTPUT_DIR/$FILENAME
   xz -vc $FILE > $ARCHIVE
 
-  cat <<EOF | tee $OUTPUT_JSON $OUTPUT_STAGING_JSON > /dev/null
+  cat <<EOF | tee -a $OUTPUT_JSON $OUTPUT_STAGING_JSON > /dev/null
   {
     "name": "$NAME",
     "hash": "$HASH",
