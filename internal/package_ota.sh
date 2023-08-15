@@ -25,21 +25,18 @@ process_file() {
   local FULL_CHECK=${4:-true}
   local HAS_AB=${5:-true}
 
-  echo "Hashing $NAME..."
-  local HASH=$(sha256sum $FILE | cut -c 1-64)
-  local SIZE=$(wc -c < $FILE)
-  echo "  $HASH ($SIZE bytes)"
-
   if [ "$NAME" == "system" ]; then
     echo "Optimizing system..."
     local OPTIMIZED_FILE=/tmp/system-optimized.img
     $TOOLS_DIR/simg2dontcare.py $FILE $OPTIMIZED_FILE
     mv $FILE ${FILE%.img}-original.img
     mv $OPTIMIZED_FILE $FILE
-
-    echo "Hashing optimized system..."
-    HASH=$(sha256sum $FILE | cut -c 1-64)
   fi
+
+  echo "Hashing $NAME..."
+  local HASH=$(sha256sum $FILE | cut -c 1-64)
+  local SIZE=$(wc -c < $FILE)
+  echo "  $HASH ($SIZE bytes)"
 
   local HASH_RAW=$HASH
   if [ "$NAME" == "system" ]; then
