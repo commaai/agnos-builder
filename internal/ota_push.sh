@@ -26,15 +26,19 @@ if [ $FOUND == 0 ]; then
   exit 1
 fi
 
+upload_file() {
+  local FILE_NAME=$1
+  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
+
+  echo "Copying $FILE_NAME to the cloud..."
+  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
+  echo "  $CLOUD_PATH"
+}
+
 process_file() {
   local NAME=$1
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
-  local FILE_NAME="$NAME-$HASH_RAW.img.xz"
-  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
-
-  echo "Copying $NAME to the cloud..."
-  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
-  echo "  $CLOUD_PATH"
+  upload_file "$NAME-$HASH_RAW.img.xz"
 
   # if [ "$NAME" == "system" ]; then
   #   local CAIBX_FILE_NAME="system-$HASH_RAW.caibx"
@@ -58,12 +62,8 @@ SAS_EXPIRY=$(date -u '+%Y-%m-%dT%H:%M:%SZ' -d '+1 hour')
 DATA_SAS_TOKEN=$(az storage container generate-sas --as-user --auth-mode login --account-name $DATA_ACCOUNT --name $DATA_CONTAINER --https-only --permissions wr --expiry $SAS_EXPIRY --output tsv)
 
 # Liftoff!
-process_file "system"
-process_file "boot"
-process_file "abl"
-process_file "xbl"
-process_file "xbl_config"
-process_file "devcfg"
-process_file "aop"
+for name in $(cat $OTA_JSON | jq -r ".[] .name"); do
+  process_file $name
+done
 
 echo "Done!"
