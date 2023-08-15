@@ -41,7 +41,7 @@ process_file() {
   local HASH_RAW=$HASH
   if [ "$NAME" == "system" ]; then
     echo "Converting system to raw..."
-    local FILE_RAW=/tmp/system.img.raw
+    local FILE_RAW=$TMP_DIR/system.img.raw
     simg2img $FILE $FILE_RAW
 
     echo "Hashing system raw..."
