@@ -60,14 +60,14 @@ process_file() {
     "size": $SIZE,
     "sparse": $SPARSE,
     "full_check": $FULL_CHECK,
-    "has_ab": $HAS_AB
+    "has_ab": $HAS_AB,
 EOF
 
   cat <<EOF >> $OUTPUT_JSON
-    "url": "$AGNOS_UPDATE_URL/$FILENAME",
+    "url": "$AGNOS_UPDATE_URL/$FILENAME"
 EOF
   cat <<EOF >> $OUTPUT_STAGING_JSON
-    "url": "$AGNOS_STAGING_UPDATE_URL/$FILENAME",
+    "url": "$AGNOS_STAGING_UPDATE_URL/$FILENAME"
 EOF
 
 #   if [ $NAME == "system" ]; then
