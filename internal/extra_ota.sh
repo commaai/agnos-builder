@@ -6,15 +6,15 @@ cd $DIR
 
 # Constants
 # TODO: get these from package_ota.sh
-OTA_DIR="$DIR/../output/ota"
+OUTPUT_DIR="$ROOT/output"
+OTA_OUTPUT_DIR="$OUTPUT_DIR/ota"
 TOOLS_DIR="$DIR/../tools"
 
 AGNOS_UPDATE_URL=${AGNOS_UPDATE_URL:-https://commadist.azureedge.net/agnosupdate}
 AGNOS_STAGING_UPDATE_URL=${AGNOS_STAGING_UPDATE_URL:-https://commadist.azureedge.net/agnosupdate-staging}
-OTA_JSON="$OTA_DIR/ota.json"
-OTA_STAGING_JSON="$OTA_DIR/ota-staging.json"
-EXTRA_JSON="$OTA_DIR/extra.json"
-EXTRA_STAGING_JSON="$OTA_DIR/extra-staging.json"
+OTA_JSON="$OTA_OUTPUT_DIR/ota.json"
+EXTRA_JSON="$OTA_OUTPUT_DIR/extra.json"
+EXTRA_STAGING_JSON="$OTA_OUTPUT_DIR/extra-staging.json"
 
 process_file() {
   local NAME=$1
@@ -29,7 +29,7 @@ process_file() {
   local HAS_AB=$(echo "$IMAGE_CONFIG" | jq -r ".has_ab")
 
   local FILE_NAME="$NAME-$HASH_RAW.img"
-  local IMAGE_FILE="$OTA_DIR/$FILE_NAME"
+  local IMAGE_FILE="$OTA_OUTPUT_DIR/$FILE_NAME"
   if [ ! -f $IMAGE_FILE ]; then
     local XZ_FILE="$IMAGE_FILE.xz"
     if [ ! -f "$XZ_FILE" ]; then
@@ -61,41 +61,38 @@ process_file() {
   fi
 
   local GZ_FILE_NAME="$FILE_NAME.gz"
-  local GZ_FILE="$OTA_DIR/$GZ_FILE_NAME"
+  local GZ_FILE="$OTA_OUTPUT_DIR/$GZ_FILE_NAME"
   if [ ! -f "$GZ_FILE" ]; then
     echo "  compressing..."
     gzip -c $IMAGE_FILE > $GZ_FILE
   fi
 
   local SIZE=$(wc -c < $IMAGE_FILE)
-  cat <<EOF >> $EXTRA_JSON
+  cat <<EOF | tee -a $EXTRA_JSON $EXTRA_STAGING_JSON > /dev/null
   {
     "name": "$NAME",
-    "url": "$AGNOS_UPDATE_URL/$GZ_FILE_NAME",
     "hash": "$HASH",
     "hash_raw": "$HASH_RAW",
     "size": $SIZE,
     "sparse": $SPARSE,
     "full_check": $FULL_CHECK,
-    "has_ab": $HAS_AB
-  },
+    "has_ab": $HAS_AB,
+EOF
+
+  cat <<EOF >> $EXTRA_JSON
+    "url": "$AGNOS_UPDATE_URL/$GZ_FILE_NAME"
 EOF
   cat <<EOF >> $EXTRA_STAGING_JSON
-  {
-    "name": "$NAME",
-    "url": "$AGNOS_STAGING_UPDATE_URL/$GZ_FILE_NAME",
-    "hash": "$HASH",
-    "hash_raw": "$HASH_RAW",
-    "size": $SIZE,
-    "sparse": $SPARSE,
-    "full_check": $FULL_CHECK,
-    "has_ab": $HAS_AB
+    "url": "$AGNOS_STAGING_UPDATE_URL/$GZ_FILE_NAME"
+EOF
+
+  cat <<EOF | tee -a $EXTRA_JSON $EXTRA_STAGING_JSON > /dev/null
   },
 EOF
 }
 
 cd $ROOT
-mkdir -p $OTA_DIR
+mkdir -p $OTA_OUTPUT_DIR
 
 # If given a manifest URL, download and use that
 if [ ! -z "$1" ]; then
