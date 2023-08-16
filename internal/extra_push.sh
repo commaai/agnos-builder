@@ -11,15 +11,10 @@ DATA_ACCOUNT="commadist"
 
 source $DIR/upload.sh
 
-process_file() {
-  local NAME=$1
-  local HASH_RAW=$(cat $EXTRA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
-  upload_file "$NAME-$HASH_RAW.img.gz"
-}
-
 # Liftoff!
-for image in $(cat $EXTRA_JSON | jq -r '.[] | .name'); do
-  process_file $image
+for name in $(cat $EXTRA_JSON | jq -r '.[] | .name'); do
+  local hash_raw=$(cat $EXTRA_JSON | jq -r ".[] | select(.name == \"$name\") | .hash_raw")
+  upload_file "$name-$hash_raw.img.gz"
 done
 
 echo "Done!"
