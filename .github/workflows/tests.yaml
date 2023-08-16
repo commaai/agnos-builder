@@ -17,15 +17,17 @@ jobs:
     - run: 'pre-commit run --all'
 
   extra_ota:
-    name: check extra OTA is valid JSON
+    name: check extra manifest is valid JSON
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 8
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
       with:
         python-version: '3.11.4'
     - run: |
-        internal/extra_ota.sh https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/agnos.json
+        internal/package_extra.sh https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/agnos.json
         cat output/ota/extra.json | jq empty
+        echo $?
         cat output/ota/extra-staging.json | jq empty
+        echo $?
