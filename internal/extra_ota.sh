@@ -100,6 +100,7 @@ if [ ! -z "$1" ]; then
   echo "Using provided manifest..."
   wget -O $OTA_JSON $1 &> /dev/null
 else
+  OTA_JSON=$(mktemp)
   echo "Using master AGNOS manifest..."
   wget -O $OTA_JSON https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/agnos.json &> /dev/null
 fi
