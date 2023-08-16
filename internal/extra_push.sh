@@ -14,7 +14,13 @@ source $DIR/upload.sh
 # Liftoff!
 for NAME in $(cat $EXTRA_JSON | jq -r '.[] | .name'); do
   local HASH_RAW=$(cat $EXTRA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
-  upload_file "$NAME-$HASH_RAW.img.gz"
+  local SPARSE=$(cat $EXTRA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .sparse")
+
+  if [ "$SPARSE" == "true" ]; then
+    upload_file "$NAME-$HASH_RAW-optimized.img.gz"
+  else
+    upload_file "$NAME-$HASH_RAW.img.gz"
+  fi
 done
 
 echo "Done!"

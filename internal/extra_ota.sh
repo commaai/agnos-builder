@@ -57,6 +57,7 @@ process_file() {
       $TOOLS_DIR/simg2dontcare.py $IMAGE_FILE $OPTIMIZED_IMAGE_FILE
     fi
     IMAGE_FILE=$OPTIMIZED_IMAGE_FILE
+    FILE_NAME=${FILE_NAME%.img}-optimized.img
     HASH=$(sha256sum $IMAGE_FILE | cut -c 1-64)
   fi
 
