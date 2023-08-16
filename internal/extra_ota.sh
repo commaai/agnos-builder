@@ -6,6 +6,7 @@ cd $DIR
 
 # Constants
 # TODO: get these from package_ota.sh
+ROOT="$DIR/../"
 OUTPUT_DIR="$ROOT/output"
 OTA_OUTPUT_DIR="$OUTPUT_DIR/ota"
 TOOLS_DIR="$DIR/../tools"
@@ -21,29 +22,27 @@ process_file() {
   echo "Processing $NAME..."
 
   local IMAGE_CONFIG=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\")")
-  local URL=$(echo "$IMAGE_CONFIG" | jq -r ".url")
-  local HASH=$(echo "$IMAGE_CONFIG" | jq -r ".hash")
-  local HASH_RAW=$(echo "$IMAGE_CONFIG" | jq -r ".hash_raw")
-  local SPARSE=$(echo "$IMAGE_CONFIG" | jq -r ".sparse")
-  local FULL_CHECK=$(echo "$IMAGE_CONFIG" | jq -r ".full_check")
-  local HAS_AB=$(echo "$IMAGE_CONFIG" | jq -r ".has_ab")
+  local URL=$(echo $IMAGE_CONFIG | jq -r ".url")
+  local HASH=$(echo $IMAGE_CONFIG | jq -r ".hash")
+  local HASH_RAW=$(echo $IMAGE_CONFIG | jq -r ".hash_raw")
+  local SPARSE=$(echo $IMAGE_CONFIG | jq -r ".sparse")
+  local FULL_CHECK=$(echo $IMAGE_CONFIG | jq -r ".full_check")
+  local HAS_AB=$(echo $IMAGE_CONFIG | jq -r ".has_ab")
 
-  local FILE_NAME="$NAME-$HASH_RAW.img"
-  local IMAGE_FILE="$OTA_OUTPUT_DIR/$FILE_NAME"
+  local FILE_NAME=$NAME-$HASH_RAW.img
+  local IMAGE_FILE=$OTA_OUTPUT_DIR/$FILE_NAME
   if [ ! -f $IMAGE_FILE ]; then
-    local XZ_FILE="$IMAGE_FILE.xz"
-    if [ ! -f "$XZ_FILE" ]; then
-      echo "  downloading..."
-      wget -O $XZ_FILE $URL &> /dev/null
-    fi
+    local XZ_FILE=$IMAGE_FILE.xz
+    echo "  downloading..."
+    wget -O $XZ_FILE $URL &> /dev/null
 
     echo "  decompressing..."
     xz --decompress --stdout $XZ_FILE > $IMAGE_FILE
   fi
 
-  echo "  verifying hash..."
+  echo "  hashing..."
   local ACTUAL_HASH=$(sha256sum $IMAGE_FILE | cut -c 1-64)
-  if [ "$ACTUAL_HASH" != "$HASH" ]; then
+  if [ $ACTUAL_HASH != $HASH ]; then
     echo "$NAME hash mismatch!" >&2
     echo "  Expected: $HASH" >&2
     echo "  Actual:   $ACTUAL_HASH" >&2
@@ -52,7 +51,7 @@ process_file() {
 
   if [ $SPARSE == "true" ]; then
     local OPTIMIZED_IMAGE_FILE=${IMAGE_FILE%.img}-optimized.img
-    if [ ! -f "$OPTIMIZED_IMAGE_FILE" ]; then
+    if [ ! -f $OPTIMIZED_IMAGE_FILE ]; then
       echo "  optimizing..."
       $TOOLS_DIR/simg2dontcare.py $IMAGE_FILE $OPTIMIZED_IMAGE_FILE
     fi
@@ -61,9 +60,9 @@ process_file() {
     HASH=$(sha256sum $IMAGE_FILE | cut -c 1-64)
   fi
 
-  local GZ_FILE_NAME="$FILE_NAME.gz"
-  local GZ_FILE="$OTA_OUTPUT_DIR/$GZ_FILE_NAME"
-  if [ ! -f "$GZ_FILE" ]; then
+  local GZ_FILE_NAME=$FILE_NAME.gz
+  local GZ_FILE=$OTA_OUTPUT_DIR/$GZ_FILE_NAME
+  if [ ! -f $GZ_FILE ]; then
     echo "  compressing..."
     gzip -c $IMAGE_FILE > $GZ_FILE
   fi
@@ -102,14 +101,14 @@ if [ ! -z "$1" ]; then
   wget -O $OTA_JSON $1 &> /dev/null
 else
   echo "Using master AGNOS manifest..."
-  wget -O $OTA_JSON https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/ota.json &> /dev/null
+  wget -O $OTA_JSON https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/agnos.json &> /dev/null
 fi
 
 echo "[" > $EXTRA_JSON
 echo "[" > $EXTRA_STAGING_JSON
 
-for image in $(cat $OTA_JSON | jq -r '.[] | .name'); do
-  process_file $image
+for NAME in $(cat $OTA_JSON | jq -r '.[] | .name'); do
+  process_file $NAME
 done
 
 # remove trailing comma
