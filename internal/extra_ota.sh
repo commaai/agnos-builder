@@ -50,7 +50,7 @@ process_file() {
     exit 1
   fi
 
-  if [ $SPARSE == "true" ] && [ $NAME == "system" ]; then
+  if [ $SPARSE == "true" ]; then
     local OPTIMIZED_IMAGE_FILE=${IMAGE_FILE%.img}-optimized.img
     if [ ! -f "$OPTIMIZED_IMAGE_FILE" ]; then
       echo "  optimizing..."
