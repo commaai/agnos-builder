@@ -28,6 +28,4 @@ jobs:
     - run: |
         internal/package_extra.sh https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/agnos.json
         cat output/ota/extra.json | jq empty
-        echo $?
         cat output/ota/extra-staging.json | jq empty
-        echo $?
