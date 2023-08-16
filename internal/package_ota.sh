@@ -41,7 +41,7 @@ process_file() {
     echo "  $HASH_RAW ($SIZE bytes) (raw)"
 
     # echo "Creating system casync files"
-    # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH $OTA_OUTPUT_DIR/system-$HASH.caibx $FILE_RAW
+    # casync make --compression=xz --store $OTA_OUTPUT_DIR/system-$HASH_RAW $OTA_OUTPUT_DIR/system-$HASH_RAW.caibx $FILE_RAW
 
     rm $FILE_RAW
   fi
@@ -51,34 +51,38 @@ process_file() {
   local ARCHIVE=$OTA_OUTPUT_DIR/$FILENAME
   xz -vc $FILE > $ARCHIVE
 
-  local URL=$AGNOS_UPDATE_URL/$FILENAME
-  local STAGING_URL=$AGNOS_STAGING_UPDATE_URL/$FILENAME
+  cat <<EOF | tee -a $OUTPUT_JSON $OUTPUT_STAGING_JSON > /dev/null
+  {
+    "name": "$NAME",
+    "hash": "$HASH",
+    "hash_raw": "$HASH_RAW",
+    "size": $SIZE,
+    "sparse": $SPARSE,
+    "full_check": $FULL_CHECK,
+    "has_ab": $HAS_AB,
+EOF
 
-  echo "  {" >> $OUTPUT_JSON
-  echo "    \"name\": \"$NAME\"," >> $OUTPUT_JSON
-  echo "    \"url\": \"$URL\"," >> $OUTPUT_JSON
-  echo "    \"hash\": \"$HASH\"," >> $OUTPUT_JSON
-  echo "    \"hash_raw\": \"$HASH_RAW\"," >> $OUTPUT_JSON
-  echo "    \"size\": $SIZE," >> $OUTPUT_JSON
-  echo "    \"sparse\": $SPARSE," >> $OUTPUT_JSON
-  echo "    \"full_check\": $FULL_CHECK," >> $OUTPUT_JSON
-  echo "    \"has_ab\": $HAS_AB" >> $OUTPUT_JSON
-  # echo "    \"casync_caibx\": \"$AGNOS_UPDATE_URL/$NAME-$HASH.caibx\"," >> $OUTPUT_JSON
-  # echo "    \"casync_store\": \"$AGNOS_UPDATE_URL/$NAME-$HASH\"" >> $OUTPUT_JSON
-  echo "  }," >> $OUTPUT_JSON
+  cat <<EOF >> $OUTPUT_JSON
+    "url": "$AGNOS_UPDATE_URL/$FILENAME"
+EOF
+  cat <<EOF >> $OUTPUT_STAGING_JSON
+    "url": "$AGNOS_STAGING_UPDATE_URL/$FILENAME"
+EOF
 
-  echo "  {" >> $OUTPUT_STAGING_JSON
-  echo "    \"name\": \"$NAME\"," >> $OUTPUT_STAGING_JSON
-  echo "    \"url\": \"$STAGING_URL\"," >> $OUTPUT_STAGING_JSON
-  echo "    \"hash\": \"$HASH\"," >> $OUTPUT_STAGING_JSON
-  echo "    \"hash_raw\": \"$HASH_RAW\"," >> $OUTPUT_STAGING_JSON
-  echo "    \"size\": $SIZE," >> $OUTPUT_STAGING_JSON
-  echo "    \"sparse\": $SPARSE," >> $OUTPUT_STAGING_JSON
-  echo "    \"full_check\": $FULL_CHECK," >> $OUTPUT_STAGING_JSON
-  echo "    \"has_ab\": $HAS_AB" >> $OUTPUT_STAGING_JSON
-  # echo "    \"casync_caibx\": \"$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH.caibx\"," >> $OUTPUT_STAGING_JSON
-  # echo "    \"casync_store\": \"$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH\"" >> $OUTPUT_STAGING_JSON
-  echo "  }," >> $OUTPUT_STAGING_JSON
+#   if [ $NAME == "system" ]; then
+#     cat <<EOF >> $OUTPUT_JSON
+#     "casync_caibx": "$AGNOS_UPDATE_URL/$NAME-$HASH_RAW.caibx",
+#     "casync_store": "$AGNOS_UPDATE_URL/$NAME-$HASH_RAW"
+# EOF
+#     cat <<EOF >> $OUTPUT_STAGING_JSON
+#     "casync_caibx": "$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH_RAW.caibx",
+#     "casync_store": "$AGNOS_STAGING_UPDATE_URL/$NAME-$HASH_RAW"
+# EOF
+#   fi
+
+  cat <<EOF | tee -a $OUTPUT_JSON $OUTPUT_STAGING_JSON > /dev/null
+  },
+EOF
 }
 
 cd $ROOT
@@ -95,8 +99,7 @@ process_file "$FIRMWARE_DIR/aop.bin" aop
 process_file "$OUTPUT_DIR/system.img" system true false true
 
 # remove trailing comma
-sed -i '$ s/.$//' $OUTPUT_JSON
-sed -i '$ s/.$//' $OUTPUT_STAGING_JSON
+sed -i "$ s/.$//" $OUTPUT_JSON $OUTPUT_STAGING_JSON
 
 echo "]" >> $OUTPUT_JSON
 echo "]" >> $OUTPUT_STAGING_JSON
