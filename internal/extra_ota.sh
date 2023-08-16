@@ -112,8 +112,7 @@ for NAME in $(cat $OTA_JSON | jq -r '.[] | .name'); do
 done
 
 # remove trailing comma
-sed -i "$ s/.$//" $EXTRA_JSON
-sed -i "$ s/.$//" $EXTRA_STAGING_JSON
+sed -i "$ s/.$//" $EXTRA_JSON $EXTRA_STAGING_JSON
 
 echo "]" >> $EXTRA_JSON
 echo "]" >> $EXTRA_STAGING_JSON
