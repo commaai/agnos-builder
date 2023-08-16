@@ -8,17 +8,7 @@ cd $DIR
 OTA_DIR="$DIR/../output/ota"
 DATA_ACCOUNT="commadist"
 
-# Parse input
 source $DIR/upload.sh
-
-upload_file() {
-  local FILE_NAME=$1
-  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
-
-  echo "Copying $FILE_NAME to the cloud..."
-  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
-  echo "  $CLOUD_PATH"
-}
 
 process_file() {
   local NAME=$1
@@ -40,11 +30,6 @@ process_file() {
   #   echo "  $SYSTEM_CHUNKS_PATH"
   # fi
 }
-
-# Generate token
-echo "Logging in..."
-SAS_EXPIRY=$(date -u '+%Y-%m-%dT%H:%M:%SZ' -d '+1 hour')
-DATA_SAS_TOKEN=$(az storage container generate-sas --as-user --auth-mode login --account-name $DATA_ACCOUNT --name $DATA_CONTAINER --https-only --permissions wr --expiry $SAS_EXPIRY --output tsv)
 
 # Liftoff!
 for name in $(cat $OTA_JSON | jq -r ".[] .name"); do
