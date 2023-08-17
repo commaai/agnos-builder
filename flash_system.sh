@@ -12,13 +12,14 @@ NO_COLOR='\033[0m'
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
+TOOLS_DIR="$DIR/tools"
+
 # Flash system
 fastboot --set-active=a
 
-# TODO: clean this up. move simg2dimg into a common repo?
 if [ -d $HOME/openpilot/provisioning ]; then
   DIMG=$(mktemp)
-  $HOME/openpilot/provisioning/scripts/simg2dontcare.py $OUTPUT_DIR/$ROOTFS_IMAGE $DIMG
+  $TOOLS_DIR/simg2dontcare.py $OUTPUT_DIR/$ROOTFS_IMAGE $DIMG
   fastboot erase system_a
   fastboot flash system_a $DIMG
 else

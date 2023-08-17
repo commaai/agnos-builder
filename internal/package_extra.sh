@@ -5,7 +5,6 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
 # Constants
-# TODO: get these from package_ota.sh
 ROOT="$DIR/../"
 OUTPUT_DIR="$ROOT/output"
 OTA_OUTPUT_DIR="$OUTPUT_DIR/ota"
