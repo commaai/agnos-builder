@@ -34,7 +34,7 @@ def process_image(input_image: str, output_image: str) -> None:
     assert file_hdr_sz == 28
     assert chunk_hdr_sz == 12
 
-    for i in range(1, total_chunks+1):
+    for _ in range(1, total_chunks+1):
       header_bin = inf.read(12)
 
       header = ChunkHeader.unpack(header_bin)
