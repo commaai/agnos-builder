@@ -15,10 +15,9 @@ cd $DIR
 # Flash system
 fastboot --set-active=a
 
-# TODO: clean this up. move simg2dimg into a common repo?
 if [ -d $HOME/openpilot/provisioning ]; then
   DIMG=$(mktemp)
-  $HOME/openpilot/provisioning/scripts/simg2dontcare.py $OUTPUT_DIR/$ROOTFS_IMAGE $DIMG
+  $DIR/tools/simg2dontcare.py $OUTPUT_DIR/$ROOTFS_IMAGE $DIMG
   fastboot erase system_a
   fastboot flash system_a $DIMG
 else
