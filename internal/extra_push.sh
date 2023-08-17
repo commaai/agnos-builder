@@ -6,8 +6,7 @@ cd $DIR
 
 # Constants
 # TODO: get these from package_ota.sh
-OTA_DIR="$DIR/../output/ota"
-DATA_ACCOUNT="commadist"
+OTA_OUTPUT_DIR="$DIR/../output/ota"
 
 source $DIR/upload.sh
 

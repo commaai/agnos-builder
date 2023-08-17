@@ -1,14 +1,22 @@
+if [ -z "$OTA_OUTPUT_DIR" ]; then
+  echo "OTA_OUTPUT_DIR is not set!" >&2
+  exit 1
+fi
+
+# Constants
+DATA_ACCOUNT="commadist"
+
 # Parse input
 FOUND=0
 if [ "$1" == "production" ]; then
-  OTA_JSON="$OTA_DIR/ota.json"
-  EXTRA_JSON="$OTA_DIR/extra.json"
+  OTA_JSON="$OTA_OUTPUT_DIR/ota.json"
+  EXTRA_JSON="$OTA_OUTPUT_DIR/extra.json"
   DATA_CONTAINER="agnosupdate"
   FOUND=1
 fi
 if [ "$1" == "staging" ]; then
-  OTA_JSON="$OTA_DIR/ota-staging.json"
-  EXTRA_JSON="$OTA_DIR/extra-staging.json"
+  OTA_JSON="$OTA_OUTPUT_DIR/ota-staging.json"
+  EXTRA_JSON="$OTA_OUTPUT_DIR/extra-staging.json"
   DATA_CONTAINER="agnosupdate-staging"
   FOUND=1
 fi
@@ -23,7 +31,7 @@ upload_file() {
   local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
 
   echo "Copying $FILE_NAME to the cloud..."
-  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
+  azcopy cp --overwrite=false $OTA_OUTPUT_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
   echo "  $CLOUD_PATH"
 }
 
