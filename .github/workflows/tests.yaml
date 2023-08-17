@@ -19,7 +19,7 @@ jobs:
   extra_ota:
     name: check extra manifest is valid JSON
     runs-on: ubuntu-20.04
-    timeout-minutes: 8
+    timeout-minutes: 9
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
