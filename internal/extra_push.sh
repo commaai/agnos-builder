@@ -7,7 +7,7 @@ cd $DIR
 # Constants
 OTA_OUTPUT_DIR="$DIR/../output/ota"
 
-source $DIR/upload.sh
+source upload.sh
 
 # Liftoff!
 for NAME in $(cat $EXTRA_JSON | jq -r '.[] | .name'); do

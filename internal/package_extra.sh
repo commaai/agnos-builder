@@ -25,8 +25,6 @@ process_file() {
   local HASH=$(echo $IMAGE_CONFIG | jq -r ".hash")
   local HASH_RAW=$(echo $IMAGE_CONFIG | jq -r ".hash_raw")
   local SPARSE=$(echo $IMAGE_CONFIG | jq -r ".sparse")
-  local FULL_CHECK=$(echo $IMAGE_CONFIG | jq -r ".full_check")
-  local HAS_AB=$(echo $IMAGE_CONFIG | jq -r ".has_ab")
 
   local FILE_NAME=$NAME-$HASH_RAW.img
   local IMAGE_FILE=$OTA_OUTPUT_DIR/$FILE_NAME
@@ -71,11 +69,7 @@ process_file() {
   {
     "name": "$NAME",
     "hash": "$HASH",
-    "hash_raw": "$HASH_RAW",
     "size": $SIZE,
-    "sparse": $SPARSE,
-    "full_check": $FULL_CHECK,
-    "has_ab": $HAS_AB,
 EOF
 
   cat <<EOF >> $EXTRA_JSON
@@ -96,12 +90,11 @@ mkdir -p $OTA_OUTPUT_DIR
 # If given a manifest URL, download and use that
 if [ ! -z "$1" ]; then
   OTA_JSON=$(mktemp)
-  echo "Using provided manifest..."
+  echo "Using provided manifest URL..."
   wget -O $OTA_JSON $1 &> /dev/null
-else
-  OTA_JSON=$(mktemp)
-  echo "Using master AGNOS manifest..."
-  wget -O $OTA_JSON https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/agnos.json &> /dev/null
+elif [ ! -f $OTA_JSON ]; then
+  echo "OTA file does not exist! Either provide a manifest URL to use or run package_ota.sh to create one" >&2
+  exit 1
 fi
 
 echo "[" > $EXTRA_JSON
