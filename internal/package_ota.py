@@ -62,7 +62,7 @@ def process_file(fn: Path, name: str, sparse=False, full_check=True, has_ab=True
 
     print("  compressing alt image")
     alt_xz_fn = OTA_OUTPUT_DIR / f"{alt.stem}-{hash_raw}.img.xz"
-    compress(fn, xz_fn)
+    compress(fn, alt_xz_fn)
 
     ret["alt"] = {
       "url": "{remote_url}/" + alt_xz_fn.name,
