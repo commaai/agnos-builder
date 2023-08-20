@@ -47,13 +47,13 @@ process_file() {
   fi
 
   if [ $SPARSE == "true" ]; then
-    local OPTIMIZED_IMAGE_FILE=${IMAGE_FILE%.img}-optimized.img
-    if [ ! -f $OPTIMIZED_IMAGE_FILE ]; then
+    local SKIP_CHUNKS_IMAGE_FILE=${IMAGE_FILE%.img}-skip-chunks.img
+    if [ ! -f $SKIP_CHUNKS_IMAGE_FILE ]; then
       echo "  optimizing..."
-      $TOOLS_DIR/simg2dontcare.py $IMAGE_FILE $OPTIMIZED_IMAGE_FILE
+      $TOOLS_DIR/simg2dontcare.py $IMAGE_FILE $SKIP_CHUNKS_IMAGE_FILE
     fi
-    IMAGE_FILE=$OPTIMIZED_IMAGE_FILE
-    FILE_NAME=${FILE_NAME%.img}-optimized.img
+    IMAGE_FILE=$SKIP_CHUNKS_IMAGE_FILE
+    FILE_NAME=${FILE_NAME%.img}-skip-chunks.img
     HASH=$(sha256sum $IMAGE_FILE | cut -c 1-64)
   fi
 
@@ -69,7 +69,9 @@ process_file() {
   {
     "name": "$NAME",
     "hash": "$HASH",
+    "hash_raw": "$HASH_RAW",
     "size": $SIZE,
+    "sparse": $SPARSE,
 EOF
 
   cat <<EOF >> $EXTRA_JSON
