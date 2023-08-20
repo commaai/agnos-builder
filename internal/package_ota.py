@@ -10,6 +10,9 @@ OUTPUT_DIR = ROOT / "output"
 OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
 FIRMWARE_DIR = ROOT / "agnos-firmware"
 
+AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate")
+AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
+
 
 def checksum(fn: str) -> str:
   return subprocess.check_output(["sha256sum", fn]).decode().split()[0]
@@ -48,8 +51,8 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
 
 if __name__ == "__main__":
   configs = [
-    ("https://commadist.azureedge.net/agnosupdate", "ota.json"),
-    ("https://commadist.azureedge.net/agnosupdate-staging", "ota-staging.json"),
+    (AGNOS_UPDATE_URL, "ota.json"),
+    (AGNOS_STAGING_UPDATE_URL, "ota-staging.json"),
   ]
   for remote_url, output_fn in configs:
     files = [
