@@ -2,18 +2,20 @@
 import json
 import os
 import subprocess
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-HERE = os.path.dirname(os.path.realpath(__file__))
-ROOT = os.path.join(HERE, "..")
-OUTPUT_DIR = os.path.join(ROOT, "output")
-OTA_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "ota")
-FIRMWARE_DIR = os.path.join(ROOT, "agnos-firmware")
+ROOT = Path(__file__).parent.parent
+OUTPUT_DIR = ROOT / "output"
+OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
+FIRMWARE_DIR = ROOT / "agnos-firmware"
+
 
 def checksum(fn: str) -> str:
   return subprocess.check_output(["sha256sum", fn]).decode().split()[0]
 
-def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None):
+
+def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None) -> dict:
   fn = os.path.join(OUTPUT_DIR, fn)
   hash_raw = hash = checksum(fn)
   size = os.path.getsize(fn)
@@ -51,13 +53,13 @@ if __name__ == "__main__":
   ]
   for remote_url, output_fn in configs:
     files = [
-      process_file(os.path.join(OUTPUT_DIR, "boot.img"), "boot"),
-      process_file(os.path.join(FIRMWARE_DIR, "abl.bin"), "abl"),
-      process_file(os.path.join(FIRMWARE_DIR, "xbl.bin"), "xbl"),
-      process_file(os.path.join(FIRMWARE_DIR, "xbl_config.bin"), "xbl_config"),
-      process_file(os.path.join(FIRMWARE_DIR, "devcfg.bin"), "devcfg"),
-      process_file(os.path.join(FIRMWARE_DIR, "aop.bin"), "aop"),
-      process_file(os.path.join(OUTPUT_DIR, "system.img"), "system", sparse=True, full_check=False),
+      process_file(OUTPUT_DIR / "boot.img", "boot"),
+      process_file(FIRMWARE_DIR / "abl.bin", "abl"),
+      process_file(FIRMWARE_DIR / "xbl.bin", "xbl"),
+      process_file(FIRMWARE_DIR / "xbl_config.bin", "xbl_config"),
+      process_file(FIRMWARE_DIR / "devcfg.bin", "devcfg"),
+      process_file(FIRMWARE_DIR / "aop.bin", "aop"),
+      process_file(OUTPUT_DIR / "system.img", "system", sparse=True, full_check=False),
     ]
-    with open(os.path.join(OTA_OUTPUT_DIR, output_fn), "w") as f:
+    with open(OTA_OUTPUT_DIR / output_fn, "w") as f:
       f.write(json.dumps(files, indent=2))
