@@ -6,7 +6,7 @@ cd $DIR
 
 fastboot --set-active=a
 fastboot erase system_a
-fastboot flash system_a $OUTPUT_DIR/system-missing-chunks.img
+fastboot flash system_a $OUTPUT_DIR/system-skip-chunks.img
 fastboot continue
 
 echo "Done!"

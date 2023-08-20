@@ -17,7 +17,7 @@ ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
 ROOTFS_IMAGE_SIZE=10G
 SPARSE_IMAGE="$OUTPUT_DIR/system.img"
-MISSING_CHUNKS_IMAGE="$OUTPUT_DIR/system-missing-chunks.img"
+SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -92,9 +92,9 @@ TMP_SPARSE="$(mktemp)"
 img2simg $ROOTFS_IMAGE $TMP_SPARSE
 mv $TMP_SPARSE $SPARSE_IMAGE
 
-# Make image with missing chunks
-TMP_MISSING="$(mktemp)"
-$DIR/tools/simg2dontcare.py $SPARSE_IMAGE $TMP_MISSING
-mv $TMP_MISSING $MISSING_CHUNKS_IMAGE
+# Make image with skipped chunks
+TMP_SKIP="$(mktemp)"
+$DIR/tools/simg2dontcare.py $SPARSE_IMAGE $TMP_SKIP
+mv $TMP_SKIP $SKIP_CHUNKS_IMAGE
 
 echo "Done!"
