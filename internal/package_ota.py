@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-import os
 import json
+import os
+import subprocess
+from tempfile import NamedTemporaryFile
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.join(HERE, "..")
@@ -8,13 +10,25 @@ OUTPUT_DIR = os.path.join(ROOT, "output")
 OTA_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "ota")
 FIRMWARE_DIR = os.path.join(ROOT, "agnos-firmware")
 
+def checksum(fn: str) -> str:
+  return subprocess.check_output(["sha256sum", fn]).decode().split()[0]
+
 def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None):
   fn = os.path.join(OUTPUT_DIR, fn)
+  hash_raw = hash = checksum(fn)
+  size = os.path.getsize(fn)
+
+  if sparse:
+    with NamedTemporaryFile() as f:
+      os.system(f"simg2img {fn} {f.name}")
+      hash_raw = checksum(f.name)
+      size = os.path.getsize(f.name)
+
   ret = {
     "name": name,
-    "hash": "TODO",
-    "hash_raw": "TODO",
-    "size": os.path.getsize(fn),
+    "hash": hash,
+    "hash_raw": hash_raw,
+    "size": size,
     "sparse": sparse,
     "full_check": full_check,
     "has_ab": has_ab,
