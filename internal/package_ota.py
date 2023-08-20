@@ -5,7 +5,7 @@ import subprocess
 from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import Optional, Union
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -16,15 +16,19 @@ AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.ne
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
 
 
-def checksum(fn: str) -> str:
+def checksum(fn: Union[str, Path]) -> str:
   return subprocess.check_output(["sha256sum", fn]).decode().split()[0]
+
+
+def compress(fin: Path, fout: Path) -> None:
+  subprocess.check_call(f"xz -vc {fin} > {fout}", shell=True)
 
 
 def process_file(fn: Path, name: str, sparse=False, full_check=True, has_ab=True,
                  alt: Optional[Path] = None) -> dict:
   print("Processing", name)
   print("  calculating checksum")
-  hash_raw = hash = checksum(str(fn))
+  hash_raw = hash = checksum(fn)
   size = fn.stat().st_size
   print(f"  {size} bytes, hash {hash}")
 
@@ -37,7 +41,9 @@ def process_file(fn: Path, name: str, sparse=False, full_check=True, has_ab=True
       size = Path(tmp_f.name).stat().st_size
       print(f"  {size} bytes, hash {hash}")
 
-  # TODO: compress
+  print("  compressing image")
+  xz_fn = OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img.xz"
+  compress(fn, xz_fn)
 
   ret = {
     "name": name,
@@ -47,19 +53,28 @@ def process_file(fn: Path, name: str, sparse=False, full_check=True, has_ab=True
     "sparse": sparse,
     "full_check": full_check,
     "has_ab": has_ab,
-    "url": "{remote_url}/" + f"{fn.name}-{hash_raw}.xz",
+    "url": "{remote_url}/" + xz_fn.name,
   }
 
   if alt is not None:
+    print("  calculating alt checksum")
+    alt_hash = checksum(alt)
+
+    print("  compressing alt image")
+    alt_xz_fn = OTA_OUTPUT_DIR / f"{alt.stem}-{hash_raw}.img.xz"
+    compress(fn, xz_fn)
+
     ret["alt"] = {
-      "url": "{remote_url}/" + f"{alt.name}-{hash_raw}.xz",
-      "hash": checksum(str(alt)),
+      "url": "{remote_url}/" + alt_xz_fn.name,
+      "hash": alt_hash,
     }
 
   return ret
 
 
 if __name__ == "__main__":
+  OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
   files = [
     process_file(OUTPUT_DIR / "boot.img", "boot"),
     process_file(FIRMWARE_DIR / "abl.bin", "abl"),
