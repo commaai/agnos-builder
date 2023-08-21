@@ -5,7 +5,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
 # Constants
-OUTPUT_DIR="$DIR/../output2"
+OUTPUT_DIR="$DIR/../output"
 
 if [ "$1" == "" ]; then
   echo "Supply the URL to the OTA JSON as first argument!"
