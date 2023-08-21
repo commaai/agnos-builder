@@ -66,7 +66,6 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
     ret["alt"] = {
       "url": "{remote_url}/" + alt_xz_fn.name,
       "hash": alt_hash,
-      "size": alt_size,
     }
 
   return ret
