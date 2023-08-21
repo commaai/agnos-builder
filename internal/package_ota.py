@@ -25,7 +25,6 @@ def compress(fin, fout) -> None:
 
 def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None):
   print("Processing", name)
-  print("  calculating checksum")
   hash_raw = hash = checksum(fn)
   size = fn.stat().st_size
   print(f"  {size} bytes, hash {hash}")
@@ -34,10 +33,9 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
     with NamedTemporaryFile() as tmp_f:
       print("  converting sparse image to raw")
       subprocess.check_call(["simg2img", fn, tmp_f.name])
-      print("  calculating checksum")
       hash = checksum(tmp_f.name)
       size = Path(tmp_f.name).stat().st_size
-      print(f"  {size} bytes, hash {hash}")
+      print(f"  {size} bytes, hash {hash} (raw)")
 
   print("  compressing image")
   xz_fn = OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img.xz"
@@ -60,7 +58,7 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
 
     print("  compressing alt image")
     alt_xz_fn = OTA_OUTPUT_DIR / f"{alt.stem}-{hash_raw}.img.xz"
-    compress(fn, alt_xz_fn)
+    compress(alt, alt_xz_fn)
 
     ret["alt"] = {
       "url": "{remote_url}/" + alt_xz_fn.name,
