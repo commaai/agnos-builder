@@ -19,5 +19,5 @@ fi
 
 ./build_kernel.sh
 ./build_system.sh
-internal/package_ota.sh
+internal/package_ota.py
 internal/ota_push.sh staging

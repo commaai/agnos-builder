@@ -16,7 +16,8 @@ OUTPUT_DIR="$DIR/output"
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
 ROOTFS_IMAGE_SIZE=10G
-SPARSE_IMAGE="$BUILD_DIR/system.img"
+SPARSE_IMAGE="$OUTPUT_DIR/system.img"
+SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -87,7 +88,13 @@ sudo umount -l $ROOTFS_DIR
 
 # Sparsify
 echo "Sparsify image"
-img2simg $ROOTFS_IMAGE $SPARSE_IMAGE
-mv $SPARSE_IMAGE $OUTPUT_DIR
+TMP_SPARSE="$(mktemp)"
+img2simg $ROOTFS_IMAGE $TMP_SPARSE
+mv $TMP_SPARSE $SPARSE_IMAGE
+
+# Make image with skipped chunks
+TMP_SKIP="$(mktemp)"
+$DIR/tools/simg2dontcare.py $SPARSE_IMAGE $TMP_SKIP
+mv $TMP_SKIP $SKIP_CHUNKS_IMAGE
 
 echo "Done!"
