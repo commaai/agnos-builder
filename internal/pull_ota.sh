@@ -2,7 +2,6 @@
 
 # Make sure we're in the correct directory
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-cd $DIR
 
 # Constants
 OUTPUT_DIR="$DIR/../output"
