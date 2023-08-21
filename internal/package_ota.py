@@ -20,7 +20,7 @@ def checksum(fn):
 
 
 def compress(fin, fout) -> None:
-  subprocess.check_call(f"xz -vc {fin} > {fout}", shell=True)
+  subprocess.check_call(f"xz -T4 -vc {fin} > {fout}", shell=True)
   subprocess.check_call(f"gzip -vc {fin} > {fout.with_suffix('.gz')}", shell=True)
 
 
