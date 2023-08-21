@@ -5,7 +5,6 @@ import subprocess
 from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Optional, Union
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -16,16 +15,15 @@ AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.ne
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
 
 
-def checksum(fn: Union[str, Path]) -> str:
+def checksum(fn):
   return subprocess.check_output(["sha256sum", fn]).decode().split()[0]
 
 
-def compress(fin: Path, fout: Path) -> None:
+def compress(fin, fout) -> None:
   subprocess.check_call(f"xz -vc {fin} > {fout}", shell=True)
 
 
-def process_file(fn: Path, name: str, sparse=False, full_check=True, has_ab=True,
-                 alt: Optional[Path] = None) -> dict:
+def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None):
   print("Processing", name)
   print("  calculating checksum")
   hash_raw = hash = checksum(fn)
