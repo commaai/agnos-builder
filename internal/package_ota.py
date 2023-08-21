@@ -24,7 +24,7 @@ def compress(fin, fout) -> None:
 
 
 def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None):
-  print("Processing", name)
+  print(name)
   hash_raw = hash = checksum(fn)
   size = fn.stat().st_size
   print(f"  {size} bytes, hash {hash}")
@@ -37,7 +37,7 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
       size = Path(tmp_f.name).stat().st_size
       print(f"  {size} bytes, hash {hash} (raw)")
 
-  print("  compressing image")
+  print("  compressing")
   xz_fn = OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img.xz"
   compress(fn, xz_fn)
 
@@ -53,16 +53,19 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
   }
 
   if alt is not None:
-    print("  calculating alt checksum")
+    print("  calculating alt")
     alt_hash = checksum(alt)
+    alt_size = alt.stat().st_size
+    print(f"  {alt_size} bytes, hash {alt_hash} (alt)")
 
-    print("  compressing alt image")
+    print("  compressing alt")
     alt_xz_fn = OTA_OUTPUT_DIR / f"{alt.stem}-{hash_raw}.img.xz"
     compress(alt, alt_xz_fn)
 
     ret["alt"] = {
       "url": "{remote_url}/" + alt_xz_fn.name,
       "hash": alt_hash,
+      "size": alt_size,
     }
 
   return ret
