@@ -44,13 +44,13 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
 
   ret = {
     "name": name,
+    "url": "{remote_url}/" + xz_fn.name,
     "hash": hash,
     "hash_raw": hash_raw,
     "size": size,
     "sparse": sparse,
     "full_check": full_check,
     "has_ab": has_ab,
-    "url": "{remote_url}/" + xz_fn.name,
   }
 
   if alt is not None:
@@ -64,8 +64,8 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
     compress(alt, alt_xz_fn)
 
     ret["alt"] = {
-      "url": "{remote_url}/" + alt_xz_fn.name,
       "hash": alt_hash,
+      "url": "{remote_url}/" + alt_xz_fn.name,
     }
 
   return ret
