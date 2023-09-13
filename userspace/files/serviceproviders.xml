@@ -2503,6 +2503,20 @@ conceived.
 			</apn>
 		</gsm>
 	</provider>
+	<provider>
+		<name>Lucky</name>
+		<gsm>
+			<network-id mcc="302" mnc="610"/>
+			<network-id mcc="302" mnc="640"/>
+			<network-id mcc="302" mnc="651"/>
+			<network-id mcc="302" mnc="880"/>
+			<apn value="connect">
+				<plan type="postpaid"/>
+				<usage type="internet"/>
+				<mmsc>http://mms.luckymobile.ca/mms/wapenc</mmsc>
+			</apn>
+		</gsm>
+	</provider>
 </country>
 
 <!-- Congo (Dem. Rep.) -->
