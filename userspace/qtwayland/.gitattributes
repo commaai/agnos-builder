@@ -1,4 +1,0 @@
-libffi.so.6 filter=lfs diff=lfs merge=lfs -text
-libqwayland-egl.so filter=lfs diff=lfs merge=lfs -text
-libwayland-client.so.0 filter=lfs diff=lfs merge=lfs -text
-libQt5WaylandClient.so.5.12.8 filter=lfs diff=lfs merge=lfs -text

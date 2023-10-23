@@ -47,17 +47,15 @@ FROM agnos-compiler as agnos-compiler-mapbox-gl-native
 COPY ./userspace/compile-mapbox-gl-native.sh /tmp/agnos/
 RUN /tmp/agnos/compile-mapbox-gl-native.sh
 
+FROM agnos-compiler as agnos-compiler-libglvnd
+COPY ./userspace/compile-libglvnd.sh /tmp/agnos/
+RUN /tmp/agnos/compile-libglvnd.sh
+RUN ls /tmp/libglvnd
+
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
 FROM agnos-base
-
-# Hardware setup
-RUN mkdir -p /tmp/agnos/debs
-COPY ./userspace/debs /tmp/agnos/debs
-COPY ./userspace/hardware_setup.sh /tmp/agnos
-RUN /tmp/agnos/hardware_setup.sh
-RUN mv /data/persist /system/ && rm -rf /data/*
 
 # Build ModemManager
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
@@ -77,6 +75,10 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 COPY --from=agnos-compiler-mapbox-gl-native /tmp/libqmapboxgl.so /lib/aarch64-linux-gnu/libqmapboxgl.so
+
+COPY --from=agnos-compiler-libglvnd /tmp/libglvnd.deb /tmp/libglvnd.deb
+RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libglvnd.deb
+
 
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
@@ -98,24 +100,12 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     poetry config virtualenvs.create false --local && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     export POETRY_VIRTUALENVS_CREATE=false && \
-    MAKEFLAGS="-j$(nproc)" poetry install --no-cache --no-root && \
+    MAKEFLAGS="-j40" poetry install --no-cache --no-root && \
     pyenv rehash
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
-
-# 16.04 libwayland-client + libffi6
-COPY ./userspace/qtwayland/libffi.so.6 /lib/aarch64-linux-gnu/
-COPY ./userspace/qtwayland/libwayland-client.so.0 /lib/aarch64-linux-gnu/libwayland-client.so.0
-
-# Patched qtwayland that does not use EGL EXT, and outputs a fixed screen size
-# Clone qtwayland submodule, checkout 5.12.9 (5.12.8 leaks timers, see https://bugreports.qt.io/browse/QTBUG-82914), apply patch, qmake, make
-COPY ./userspace/qtwayland/libqwayland-egl.so /lib/aarch64-linux-gnu/qt5/plugins/platforms/libqwayland-egl.so
-COPY ./userspace/qtwayland/libQt5WaylandClient.so.5.12.8 /lib/aarch64-linux-gnu/libQt5WaylandClient.so.5.12.8
-
-# Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
-COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
 
 COPY ./userspace/home/ /home/$USERNAME/
 COPY ./userspace/home/.config/ /root/.config
@@ -216,6 +206,13 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 
 # copy at the end, after all apt usage
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
+
+# Hardware setup
+RUN mkdir -p /tmp/agnos/debs
+COPY ./userspace/debs /tmp/agnos/debs
+COPY ./userspace/hardware_setup.sh /tmp/agnos
+RUN /tmp/agnos/hardware_setup.sh
+RUN mv /data/persist /system/ && rm -rf /data/*
 
 # Write version file
 RUN echo -n "8.2" > /VERSION

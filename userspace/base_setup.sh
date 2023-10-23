@@ -199,6 +199,7 @@ apt-get install --no-install-recommends -yq \
     libgles1 \
     libgles2 \
     libgles-dev \
+    libglvnd-dev \
     libwayland-dev \
     pulseaudio \
     pulseaudio-utils \

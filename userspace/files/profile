@@ -29,6 +29,7 @@ fi
 # display setup
 export XDG_RUNTIME_DIR="/var/tmp/weston"
 export QT_QPA_PLATFORM="wayland-egl"
+export __GLX_VENDOR_LIBRARY_NAME="adreno"
 
 # python setup
 export PYTHONPATH="/data/pythonpath"
