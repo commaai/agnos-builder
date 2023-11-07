@@ -68,7 +68,6 @@ sudo tar -xf $BUILD_DIR/filesystem.tar > /dev/null
 # Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"
 HOST=tici
-sudo bash -c "echo $HOST > etc/hostname"
 sudo bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
 sudo bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
