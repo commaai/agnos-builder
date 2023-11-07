@@ -160,6 +160,9 @@ RUN cd /tmp/ && \
 COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
 RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
 
+# use hostname from kernel everywhere (nomrally transient)
+RUN rm /etc/hostname && ln -s /proc/sys/kernel/hostname /etc/hostname
+
 # Weston with hacked touch rotate and color correction
 COPY ./userspace/files/weston /usr/bin/weston
 COPY ./userspace/files/gl-renderer.so /usr/lib/arm-linux-gnueabihf/weston
