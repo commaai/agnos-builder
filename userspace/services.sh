@@ -8,7 +8,7 @@ systemctl enable cdsprpcd
 
 # Enable our services
 systemctl enable fs_setup.service
-#systemctl enable serial-hostname.service
+systemctl enable serial-hostname.service
 systemctl enable comma.service
 systemctl enable gpio.service
 systemctl enable lte.service
@@ -28,7 +28,6 @@ systemctl enable set_time.service
 systemctl enable phantom_touch_logger.service
 
 # Disable some of our services
-systemctl disable serial-hostname.service
 systemctl disable agnos-tests.service
 
 # Disable third party services

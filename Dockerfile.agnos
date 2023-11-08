@@ -16,7 +16,7 @@ RUN set -xe
 
 ENV USERNAME=comma
 ENV PASSWD=comma
-ENV HOST=tici
+ENV HOST=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
