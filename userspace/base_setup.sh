@@ -2,7 +2,7 @@
 
 USERNAME=comma
 PASSWD=comma
-HOST=tici
+HOST=comma
 
 # Create identification file
 touch /TICI
