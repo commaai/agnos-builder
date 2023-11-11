@@ -64,9 +64,6 @@ pydub = "*"
 aiohttp = "*"
 aiortc = "*"
 evdev = "*"
-pytest-random-order = "^1.1.0"
-pytest-cpp = "*"
-pytest-timeout = "*"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "*"
@@ -93,7 +90,11 @@ flaky = "*"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-pytest-mock = "*"
-pytest-repeat = "*"
+pytest-cov = "*"
+pytest-cpp = "*"
+pytest-subtests = "*"
+pytest-xdist = "*"
+pytest-timeout = "*"
 pytest-timeouts = "*"
+pytest-random-order = "*"
 hypothesis = "*"
