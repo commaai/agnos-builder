@@ -63,6 +63,7 @@ pydub = "*"
 aiohttp = "*"
 aiortc = "*"
 evdev = "*"
+hypothesis = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-cpp = "*"
@@ -97,4 +98,3 @@ flaky = "*"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-hypothesis = "*"
