@@ -85,8 +85,6 @@ apt-get install --no-install-recommends -yq \
     network-manager \
     nvme-cli \
     openssl \
-    python-dev \
-    python-setuptools \
     smartmontools \
     speedtest-cli \
     ssh \
