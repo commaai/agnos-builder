@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
-UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
+UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/23.10/release"
+UBUNTU_FILE="ubuntu-base-23.10-base-arm64.tar.gz"
 
 export DOCKER_BUILDKIT=1
 
