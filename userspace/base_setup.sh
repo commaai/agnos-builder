@@ -8,6 +8,15 @@ HOST=comma
 touch /TICI
 touch /AGNOS
 
+# Add armhf as supported architecture
+dpkg --add-architecture armhf
+
+# Install packages
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -yq locales systemd adduser
+adduser $USERNAME systemd-journal
+
 # Create privileged user
 useradd -G sudo -m -s /bin/bash $USERNAME
 echo "$USERNAME:$PASSWD" | chpasswd
@@ -21,15 +30,6 @@ adduser $USERNAME gpu
 adduser $USERNAME audio
 adduser $USERNAME disk
 adduser $USERNAME dialout
-
-# Add armhf as supported architecture
-dpkg --add-architecture armhf
-
-# Install packages
-export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -yq locales systemd
-adduser $USERNAME systemd-journal
 
 # Enable serial console on UART
 systemctl enable serial-getty@ttyS0.service
