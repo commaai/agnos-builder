@@ -13341,6 +13341,18 @@ conceived.
 		<cdma/>
 	</provider>
 	<provider>
+		<name>MobileX</name>
+		<gsm>
+			<!-- Settings taken from https://www.mymobilex.com/faq/ , search "Setting up an APN on your Android device" -->
+			<network-id mcc="311" mnc="480"/>
+			<apn value="mx5g.vzwentp">
+				<plan type="postpaid"/>
+				<usage type="internet"/>
+				<name>4G LTE Contract</name>
+			</apn>
+		</gsm>
+	</provider>
+	<provider>
 		<name>Verizon</name>
 		<gsm>
 			<network-id mcc="310" mnc="995"/>
