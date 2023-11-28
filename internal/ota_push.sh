@@ -31,7 +31,7 @@ upload_file() {
   local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
 
   echo "Copying $FILE_NAME to the cloud..."
-  azcopy cp --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
+  azcopy cp --log-level ERROR --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"
   echo "  $CLOUD_PATH"
 }
 
@@ -45,7 +45,7 @@ process_file() {
   if [ "$ALT_URL" != "null" ]; then
     local ALT_FILE_NAME=$(basename $ALT_URL)
     upload_file $ALT_FILE_NAME
-    upload_file {$ALT_FILE_NAME%.xz}.gz
+    upload_file ${ALT_FILE_NAME%.xz}.gz
   fi
 
   # if [ "$NAME" == "system" ]; then
