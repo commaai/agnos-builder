@@ -5,8 +5,11 @@ type=gsm
 permissions=
 autoconnect=true
 autoconnect-retries=100
+metered=1
 
 [gsm]
+apn=
+home-only=false
 auto-config=true
 
 [ipv4]
