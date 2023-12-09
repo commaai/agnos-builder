@@ -2,7 +2,7 @@
 # ###### Base ###### #
 # ################## #
 FROM scratch AS agnos-base
-ADD ubuntu-base-20.04.1-base-arm64.tar.gz /
+ADD ubuntu-base-22.04-base-arm64.tar.gz /
 
 # Add aarch64 and arm support
 COPY --from=multiarch/qemu-user-static:x86_64-aarch64 /usr/bin/qemu-aarch64-static /usr/bin

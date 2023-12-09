@@ -8,6 +8,14 @@ HOST=comma
 touch /TICI
 touch /AGNOS
 
+# Add armhf as supported architecture
+dpkg --add-architecture armhf
+
+# Install packages
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -yq locales systemd adduser
+
 # Create privileged user
 useradd -G sudo -m -s /bin/bash $USERNAME
 echo "$USERNAME:$PASSWD" | chpasswd
@@ -21,14 +29,6 @@ adduser $USERNAME gpu
 adduser $USERNAME audio
 adduser $USERNAME disk
 adduser $USERNAME dialout
-
-# Add armhf as supported architecture
-dpkg --add-architecture armhf
-
-# Install packages
-export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -yq locales systemd
 adduser $USERNAME systemd-journal
 
 # Enable serial console on UART
@@ -85,8 +85,6 @@ apt-get install --no-install-recommends -yq \
     network-manager \
     nvme-cli \
     openssl \
-    python-dev \
-    python-setuptools \
     smartmontools \
     speedtest-cli \
     ssh \
@@ -112,8 +110,9 @@ echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
 mkdir /data && chown $USERNAME:$USERNAME /data
 mkdir /persist && chown $USERNAME:$USERNAME /persist
 
+# TODO: this is from 20.04, does it have a replacement?
 # Disable automatic ondemand switching from ubuntu
-systemctl disable ondemand
+#systemctl disable ondemand
 
 # Disable pstore service that moves files out of /sys/fs/pstore
 systemctl disable systemd-pstore.service
