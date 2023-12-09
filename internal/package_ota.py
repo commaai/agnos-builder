@@ -75,28 +75,28 @@ if __name__ == "__main__":
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
   files = [
-    process_file(OUTPUT_DIR / "boot.img", "boot"),
-    process_file(FIRMWARE_DIR / "abl.bin", "abl"),
-    process_file(FIRMWARE_DIR / "xbl.bin", "xbl"),
-    process_file(FIRMWARE_DIR / "xbl_config.bin", "xbl_config"),
-    process_file(FIRMWARE_DIR / "devcfg.bin", "devcfg"),
-    process_file(FIRMWARE_DIR / "aop.bin", "aop"),
+    # process_file(OUTPUT_DIR / "boot.img", "boot"),
+    # process_file(FIRMWARE_DIR / "abl.bin", "abl"),
+    # process_file(FIRMWARE_DIR / "xbl.bin", "xbl"),
+    # process_file(FIRMWARE_DIR / "xbl_config.bin", "xbl_config"),
+    # process_file(FIRMWARE_DIR / "devcfg.bin", "devcfg"),
+    # process_file(FIRMWARE_DIR / "aop.bin", "aop"),
     process_file(OUTPUT_DIR / "system.img", "system", sparse=True, full_check=False, alt=OUTPUT_DIR / "system-skip-chunks.img"),
   ]
-  configs = [
-    (AGNOS_UPDATE_URL, "ota.json"),
-    (AGNOS_STAGING_UPDATE_URL, "ota-staging.json"),
-  ]
+  # configs = [
+  #   (AGNOS_UPDATE_URL, "ota.json"),
+  #   (AGNOS_STAGING_UPDATE_URL, "ota-staging.json"),
+  # ]
 
-  for remote_url, output_fn in configs:
-    processed_files = []
-    for f in deepcopy(files):
-      f["url"] = f["url"].format(remote_url=remote_url)
-      if "alt" in f:
-        f["alt"]["url"] = f["alt"]["url"].format(remote_url=remote_url)
-      processed_files.append(f)
+  # for remote_url, output_fn in configs:
+  #   processed_files = []
+  #   for f in deepcopy(files):
+  #     f["url"] = f["url"].format(remote_url=remote_url)
+  #     if "alt" in f:
+  #       f["alt"]["url"] = f["alt"]["url"].format(remote_url=remote_url)
+  #     processed_files.append(f)
 
-    with open(OTA_OUTPUT_DIR / output_fn, "w") as out:
-      json.dump(processed_files, out, indent=2)
+  #   with open(OTA_OUTPUT_DIR / output_fn, "w") as out:
+  #     json.dump(processed_files, out, indent=2)
 
   print("Done")
