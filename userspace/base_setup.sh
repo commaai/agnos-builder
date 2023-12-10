@@ -123,11 +123,6 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 # setup /bin/sh symlink
 ln -sf /bin/bash /bin/sh
 
-# Add bionic repo to sources
-echo "" >> /etc/apt/sources.list
-echo "deb http://ports.ubuntu.com/ubuntu-ports/ bionic main restricted" >> /etc/apt/sources.list
-echo "deb http://ports.ubuntu.com/ubuntu-ports/ bionic universe" >> /etc/apt/sources.list
-
 # Install necessary libs
 apt-get update -yq
 apt-get install --no-install-recommends -yq \
