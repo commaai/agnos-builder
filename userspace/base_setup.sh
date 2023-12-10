@@ -127,7 +127,7 @@ ln -sf /bin/bash /bin/sh
 apt-get update -yq
 apt-get install --no-install-recommends -yq \
     libacl1:armhf \
-    libasan8-armhf-cross \
+    libasan6-armhf-cross \
     libatomic1-armhf-cross \
     libattr1:armhf \
     libaudit1:armhf \
@@ -145,7 +145,7 @@ apt-get install --no-install-recommends -yq \
     libfontconfig1:armhf \
     libfreetype6:armhf \
     libgbm1:armhf \
-    libgcc-6-dev-armhf-cross \
+    libgcc-11-dev-armhf-cross \
     libgcc1:armhf \
     libglib2.0-0:armhf \
     libgomp1-armhf-cross \
@@ -166,8 +166,8 @@ apt-get install --no-install-recommends -yq \
     libpixman-1-0:armhf \
     libpng16-16:armhf \
     libselinux1:armhf \
-    libstdc++6:armhf \
-    libstdc++6-armhf-cross \
+    libstdc++11:armhf \
+    libstdc++11-armhf-cross \
     libubsan1-armhf-cross \
     libudev-dev:armhf \
     libudev1:armhf \
