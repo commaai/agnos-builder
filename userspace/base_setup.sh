@@ -166,8 +166,8 @@ apt-get install --no-install-recommends -yq \
     libpixman-1-0:armhf \
     libpng16-16:armhf \
     libselinux1:armhf \
-    libstdc++11:armhf \
-    libstdc++11-armhf-cross \
+    libstdc++6:armhf \
+    libstdc++6-armhf-cross \
     libubsan1-armhf-cross \
     libudev-dev:armhf \
     libudev1:armhf \
