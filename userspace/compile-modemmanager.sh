@@ -25,7 +25,7 @@ make install
 
 # build libqmi
 cd /tmp
-apt install -y --no-install-recommends libgudev-1.0-dev gobject-introspection libgirepository1.0-dev help2man bash-completion
+apt install -y --no-install-recommends libgudev-1.0-dev gobject-introspection libgirepository1.0-dev help2man bash-completion python-is-python3
 
 git clone -b $LIBQMI_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/libqmi.git
 cd libqmi
