@@ -2,7 +2,7 @@
 
 USERNAME=comma
 PASSWD=comma
-HOST=tici
+HOST=comma
 
 # Create identification file
 touch /TICI
@@ -200,8 +200,6 @@ apt-get install --no-install-recommends -yq \
     libgles2 \
     libgles-dev \
     libwayland-dev \
-    pulseaudio \
-    pulseaudio-utils \
     openssh-server \
     dnsmasq-base \
     isc-dhcp-client \
