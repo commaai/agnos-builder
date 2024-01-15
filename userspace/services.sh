@@ -13,7 +13,6 @@ systemctl enable comma.service
 systemctl enable gpio.service
 systemctl enable lte.service
 systemctl enable sound.service
-systemctl enable pulse.service
 systemctl enable weston.service
 systemctl enable weston-ready.service
 systemctl enable wifi.service
