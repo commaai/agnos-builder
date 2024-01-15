@@ -23,6 +23,10 @@ RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-
 COPY ./userspace/base_setup.sh /tmp/agnos
 RUN /tmp/agnos/base_setup.sh
 
+# Install openpilot dependencies
+COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh
+
 # ################## #
 # #### Compiler #### #
 # ################## #
@@ -31,8 +35,8 @@ FROM agnos-base as agnos-compiler
 RUN apt-get update && apt-get install --no-install-recommends checkinstall
 # Install openpilot dependencies, probably needed for build,
 # but we don't want these in the base image
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
+# COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+# RUN /tmp/agnos/openpilot_dependencies.sh
 
 # Individual compiling images
 FROM agnos-compiler as agnos-compiler-capnp
@@ -68,8 +72,8 @@ COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
 # Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
+# COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+# RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
