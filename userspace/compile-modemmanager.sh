@@ -11,8 +11,7 @@ apt update
 apt install -y --no-install-recommends automake autoconf build-essential cmake
 
 # TODO: clean up these build time dependencies
-apt install -y --no-install-recommends python3 python3-pip python3-setuptools python3-wheel ninja-build
-pip3 install --user meson
+apt install -y --no-install-recommends python3 python3-pip python3-setuptools python3-wheel ninja-build meson
 export PATH=$PATH:/root/.local/bin
 
 # build mobile-broadband-provider-info
