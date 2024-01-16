@@ -44,7 +44,10 @@ fi
 # Start docker build
 echo "Building image"
 export DOCKER_CLI_EXPERIMENTAL=enabled
-docker build -f Dockerfile.agnos -t agnos-builder $DIR
+# docker build -f Dockerfile.agnos -t agnos-builder $DIR
+# docker build -f Dockerfile.agnos -t agnos-compiler-capnp --target agnos-compiler-capnp $DIR
+docker build -f Dockerfile.agnos -t agnos-compiler-mapbox-gl-native --target agnos-compiler-mapbox-gl-native $DIR
+exit 0
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
