@@ -10,5 +10,5 @@ CXXFLAGS="-fPIC -O2" ./configure
 
 make -j$(nproc)
 
-checkinstall -yD --install=no --pkgname=capnproto
+checkinstall -yD --install=no --fstrans=yes --pkgname=capnproto
 mv capnproto*.deb /tmp/capnproto.deb
