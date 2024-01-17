@@ -218,7 +218,7 @@ COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider
 
 # TODO: move this to base_setup.sh or build gcc from source
 # Remove unused architectures from arm-none-eabi
-RUN cd /usr/lib/gcc/arm-none-eabi/9.2.1 && \
+RUN cd /usr/lib/gcc/arm-none-eabi/* && \
     rm -rf arm/ && \
     rm -rf thumb/nofp thumb/v6* thumb/v8* thumb/v7+fp thumb/v7-r+fp.sp
 
