@@ -47,7 +47,7 @@ sentry-sdk = "*"
 markdown-it-py = "*"
 onnx = "*"
 onnxruntime = "*"
-pyopencl = "*"
+pyopencl = {git = "https://github.com/inducer/pyopencl"}
 hatanaka = "==2.4"
 protobuf = "*"
 torch = "*"
