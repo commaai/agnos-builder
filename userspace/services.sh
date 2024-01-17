@@ -43,7 +43,8 @@ systemctl disable apt-daily.service
 systemctl disable apt-daily-upgrade.timer
 systemctl disable apt-daily.timer
 systemctl disable serial-getty@ttyS0.service
-systemctl disable snapd.service
+# Failed to disable unit, unit snapd.service does not exist.
+# systemctl disable snapd.service
 systemctl disable wlan_daemon.service
 systemctl disable remote-fs.target
 systemctl disable remote-fs-pre.target
@@ -61,4 +62,5 @@ systemctl mask systemd-backlight@.service
 systemctl disable rpcbind
 systemctl disable nfs-client.target
 systemctl disable remote-fs-pre.target
-systemctl disable run-rpc_pipefs.mount
+# Failed to disable unit, unit run-rpc_pipefs.mount does not exist.
+# systemctl disable run-rpc_pipefs.mount
