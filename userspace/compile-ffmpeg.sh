@@ -14,5 +14,5 @@ cd ffmpeg-4.2.2
 ./configure --enable-shared --disable-static --disable-htmlpages
 make -j$(nproc)
 
-checkinstall -yD --install=no --pkgname=ffmpeg
+checkinstall -yD --install=no --fstrans=no --pkgname=ffmpeg
 mv ffmpeg*.deb /tmp/ffmpeg.deb
