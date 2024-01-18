@@ -1,33 +1,21 @@
-name: Build and Upload Images
+name: build system image
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build_system:
+    name: build system
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
-
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
       with:
-        python-version: 3.11
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xz-utils gzip
-
+        python-version: '3.11.4'
     - name: Build system image
       run: |
         ./build_system.sh
-
-    - name: Package OTA
-      run: |
-        python3 internal/package_ota.py
-
     - name: Upload images
       uses: actions/upload-artifact@v2
       with:
         name: SPARSE_IMAGE
-        path: output/ota/*.img.xz
+        path: output/system*.img
