@@ -89,7 +89,7 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 # Use other pre-compiled packages
 
 # Install ffmpeg from ubuntu (because checkinstall issue)
-RUN apt-get update && apt-get install -y --no-install-recommends capnproto
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg
 
 # COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 # RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
