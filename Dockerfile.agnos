@@ -34,13 +34,7 @@ FROM agnos-base as agnos-compiler
 
 RUN apt-get update && apt-get install --no-install-recommends checkinstall
 
-# Install openpilot dependencies, probably needed for build,
-# but we don't want these in the base image
-# COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-# RUN /tmp/agnos/openpilot_dependencies.sh
-
 # Individual compiling images
-
 FROM agnos-compiler as agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN /tmp/agnos/compile-capnp.sh
@@ -73,16 +67,12 @@ RUN /tmp/agnos/compile-modemmanager.sh
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
-# Install openpilot dependencies
-# COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-# RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # Use other pre-compiled packages
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
-
 COPY --from=agnos-compiler-mapbox-gl-native /tmp/libqmapboxgl.so /lib/aarch64-linux-gnu/libqmapboxgl.so
 
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
