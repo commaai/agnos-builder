@@ -102,9 +102,8 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-# 16.04 libwayland-client + libffi6
-COPY ./userspace/qtwayland/libffi.so.6 /lib/aarch64-linux-gnu/
-COPY ./userspace/qtwayland/libwayland-client.so.0 /lib/aarch64-linux-gnu/libwayland-client.so.0
+# Install libwayland-client
+RUN apt-get update && apt-get install --no-install-recommends libwayland-client0
 
 # Patched qtwayland that does not use EGL EXT, and outputs a fixed screen size
 # Clone qtwayland submodule, checkout 5.12.9 (5.12.8 leaks timers, see https://bugreports.qt.io/browse/QTBUG-82914), apply patch, qmake, make
