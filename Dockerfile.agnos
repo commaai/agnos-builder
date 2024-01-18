@@ -75,7 +75,7 @@ RUN /tmp/agnos/compile-modemmanager.sh
 # Pre-compiled capnp (must be before python install)
 
 # Install capnproto from ubuntu (because checkinstall issue)
-RUN apt-get update && apt-get install -y --no-install-recommends capnproto
+RUN apt-get update && apt-get install -y --no-install-recommends capnproto libcapnp-dev
 
 # COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 # RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
