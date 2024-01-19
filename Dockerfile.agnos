@@ -106,9 +106,9 @@ RUN /tmp/agnos/install_extras.sh
 RUN apt-get update && apt-get install --no-install-recommends libwayland-client0
 
 # Patched qtwayland that does not use EGL EXT, and outputs a fixed screen size
-# Clone qtwayland submodule, checkout 5.12.9 (5.12.8 leaks timers, see https://bugreports.qt.io/browse/QTBUG-82914), apply patch, qmake, make
+# Clone qtwayland, checkout v5.15.10-lts-lgpl (git clone -b v5.15.10-lts-lgpl https://github.com/qt/qtwayland.git), apply qtwayland.patch, qmake, make
 COPY ./userspace/qtwayland/libqwayland-egl.so /lib/aarch64-linux-gnu/qt5/plugins/platforms/libqwayland-egl.so
-COPY ./userspace/qtwayland/libQt5WaylandClient.so.5.12.8 /lib/aarch64-linux-gnu/libQt5WaylandClient.so.5.12.8
+COPY ./userspace/qtwayland/libQt5WaylandClient.so.5.15.10 /lib/aarch64-linux-gnu/libQt5WaylandClient.so.5.15.10
 
 # Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
 COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
