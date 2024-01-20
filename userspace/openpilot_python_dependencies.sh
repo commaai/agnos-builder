@@ -8,7 +8,7 @@ curl https://pyenv.run | bash
 export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 
-PYTHON_VERSION="3.11.4"
+PYTHON_VERSION="3.12.1"
 if [ "$(uname -p)" == "aarch64" ]; then
   pyenv install --verbose $PYTHON_VERSION
 else
