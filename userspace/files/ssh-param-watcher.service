@@ -1,9 +1,10 @@
 [Unit]
 Description=SSH param watcher
+After=multi-user.target
 
 [Service]
 Type=oneshot
 ExecStart=/usr/comma/set_ssh.sh
 
 [Install]
-WantedBy=rescue.target
+WantedBy=multi-user.target
