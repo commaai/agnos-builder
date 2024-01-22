@@ -2,12 +2,14 @@
 id=lte
 uuid=6586fb1f-4a66-46d4-9164-0100b73750ee
 type=gsm
-interface-name=cdc-wdm0
 permissions=
 autoconnect=true
 autoconnect-retries=100
+metered=1
 
 [gsm]
+apn=
+home-only=false
 auto-config=true
 
 [ipv4]

@@ -16,7 +16,7 @@ RUN set -xe
 
 ENV USERNAME=comma
 ENV PASSWD=comma
-ENV HOST=tici
+ENV HOST=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
@@ -139,7 +139,6 @@ COPY ./userspace/files/ethernet.yaml /etc/netplan/
 COPY ./userspace/files/allow-network-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-network-control.pkla
 COPY ./userspace/files/allow-modem-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-modem-control.pkla
 COPY ./userspace/files/*.rules /etc/udev/rules.d/
-COPY ./userspace/files/default.pa /etc/pulse/default.pa
 COPY ./userspace/files/ssh*_config /etc/ssh/
 COPY ./userspace/files/logrotate.conf /etc/
 RUN chmod 644 /etc/logrotate.conf
@@ -221,7 +220,7 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
 # Write version file
-RUN echo -n "8.2" > /VERSION
+RUN echo -n "9.1" > /VERSION
 
 # ################## #
 # #### Cleaunup #### #
