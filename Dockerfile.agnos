@@ -47,6 +47,11 @@ FROM agnos-compiler as agnos-compiler-mapbox-gl-native
 COPY ./userspace/compile-mapbox-gl-native.sh /tmp/agnos/
 RUN /tmp/agnos/compile-mapbox-gl-native.sh
 
+FROM agnos-compiler as agnos-compiler-qtwayland5
+COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
+COPY ./userspace/qtwayland/patch /tmp/agnos/
+RUN /tmp/agnos/compile-qtwayland5.sh
+
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
@@ -105,10 +110,8 @@ RUN /tmp/agnos/install_extras.sh
 # Install libwayland-client
 RUN apt-get update && apt-get install --no-install-recommends libwayland-client0
 
-# Patched qtwayland that does not use EGL EXT, and outputs a fixed screen size
-# Clone qtwayland, checkout v5.15.10-lts-lgpl (git clone -b v5.15.10-lts-lgpl https://github.com/qt/qtwayland.git), apply qtwayland.patch, qmake, make
-COPY ./userspace/qtwayland/libqwayland-egl.so /lib/aarch64-linux-gnu/qt5/plugins/platforms/libqwayland-egl.so
-COPY ./userspace/qtwayland/libQt5WaylandClient.so.5.15.10 /lib/aarch64-linux-gnu/libQt5WaylandClient.so.5.15.10
+COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
+RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
 
 # Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
 COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so

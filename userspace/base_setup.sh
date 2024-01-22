@@ -203,5 +203,4 @@ apt-get install --no-install-recommends -yq \
     wpasupplicant \
     hostapd \
     libgtk2.0-dev \
-    libcap2:armhf \
     libxml2:armhf \
