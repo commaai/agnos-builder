@@ -104,7 +104,8 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     export POETRY_VIRTUALENVS_CREATE=false && \
     MAKEFLAGS="-j$(nproc)" poetry install --no-cache --no-root && \
-    pyenv rehash
+    pyenv rehash && \
+    pyclean /usr
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
@@ -230,5 +231,4 @@ RUN rm -rf /usr/share/icons/* && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /home/$USERNAME/.cache && \
     rm -rf /root/.cache && \
-    pyclean /usr && \
     apt-get clean
