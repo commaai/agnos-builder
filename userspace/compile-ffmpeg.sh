@@ -14,5 +14,6 @@ cd ffmpeg-4.2.2
 ./configure --enable-shared --disable-static --disable-htmlpages
 make -j$(nproc)
 
+# TODO remove "--fstrans=no" when checkinstall is fixed
 checkinstall -yD --install=no --fstrans=no --pkgname=ffmpeg
 mv ffmpeg*.deb /tmp/ffmpeg.deb

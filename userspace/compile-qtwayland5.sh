@@ -15,5 +15,6 @@ qmake /tmp/qtwayland
 export MAKEFLAGS="-j$(nproc)"
 make
 
-checkinstall -yD --install=no --pkgversion="5.15.10" --pkgname=qtwayland5 --pkgarch=arm64 --replaces=qtwayland5,libqt5waylandclient5,libqt5waylandcompositor5
+# TODO remove "--fstrans=no" when checkinstall is fixed
+checkinstall -yD --install=no --fstrans=no --pkgversion="5.15.10" --pkgname=qtwayland5 --pkgarch=arm64 --replaces=qtwayland5,libqt5waylandclient5,libqt5waylandcompositor5
 mv qtwayland5*.deb /tmp/qtwayland5.deb
