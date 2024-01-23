@@ -47,3 +47,5 @@ fi
 if [ ! -d $SEC_IMAGE ]; then
   tar -xzf $SEC_IMAGE_TARBALL &>/dev/null
 fi
+
+pip install git+https://github.com/bkerler/edl

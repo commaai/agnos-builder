@@ -13,7 +13,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
 # Flash bootloader
-fastboot flash boot_a $OUTPUT_DIR/$KERNEL_IMAGE
-fastboot flash boot_b $OUTPUT_DIR/$KERNEL_IMAGE
+edl w boot_a $OUTPUT_DIR/$KERNEL_IMAGE
+edl w boot_b $OUTPUT_DIR/$KERNEL_IMAGE
 
 echo -e "${GREEN}Done!"
