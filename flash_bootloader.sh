@@ -12,8 +12,13 @@ NO_COLOR='\033[0m'
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
+EDL_DIR=$DIR/edl
+if [ ! -d  $EDL_DIR ]; then
+  ./install_edl.sh
+fi
+
 # Flash bootloader
-fastboot flash abl_a $OUTPUT_DIR/$BOOTLOADER_IMAGE
-fastboot flash abl_b $OUTPUT_DIR/$BOOTLOADER_IMAGE
+$EDL_DIR/edl w abl_a $OUTPUT_DIR/$BOOTLOADER_IMAGE
+$EDL_DIR/edl w abl_b $OUTPUT_DIR/$BOOTLOADER_IMAGE
 
 echo -e "${GREEN}Done!"

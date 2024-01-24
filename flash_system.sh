@@ -4,9 +4,15 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-fastboot --set-active=a
-fastboot erase system_a
-fastboot flash system_a $DIR/output/system-skip-chunks.img
+EDL_DIR=$DIR/edl
+if [ ! -d  $EDL_DIR ]; then
+  ./install_edl.sh
+fi
+
+$EDL_DIR/edl setactive a
+$EDL_DIR/edl e system_a
+$EDL_DIR/edl w system_a $DIR/output/system-skip-chunks.img
+
 fastboot continue
 
 echo "Done!"
