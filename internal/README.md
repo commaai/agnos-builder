@@ -11,9 +11,9 @@
 - [ ] pyenv shims works
 - [ ] clean openpilot build
 - [ ] factory reset
-  - [ ] user-prompted reset
+  - [ ] from openpilot menu
+  - [ ] tapping on boot
   - [ ] corrupt userdata
-  - [ ] finish ABL reset
 - [ ] color calibration
   - [ ] from /persist/comma/
   - [ ] directly from panel over sysfs
@@ -26,8 +26,6 @@
 ### ABL
 
 - [ ] fastboot USB enumeration
-- [ ] system reset trigger works
-- [ ] system reset menu times out after 60s
 - [ ] boot time hasn't regressed (3.8s)
 
 ### XBL
