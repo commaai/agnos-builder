@@ -44,17 +44,13 @@ handle_setup_keys () {
 }
 
 # factory reset handling
-if [ -f "$RESET_TRIGGER" ]; then
+if [ -f "$RESET_TRIGGER" ] || (( "$(cat /sys/devices/platform/soc/894000.i2c/i2c-2/2-0017/touch_count)" > 4 )); then
   echo "launching system reset, reset trigger present"
   rm -f $RESET_TRIGGER
   $RESET
 elif ! mountpoint -q /data; then
   echo "userdata not mounted. loading system reset"
-  if [ "$(head -c 15 /dev/disk/by-partlabel/userdata)" == "COMMA_ABL_RESET" ]; then
-    $RESET --format
-  else
-    $RESET --recover
-  fi
+  $RESET --recover
 fi
 
 # symlink vscode to userdata
