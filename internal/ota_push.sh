@@ -39,13 +39,11 @@ process_file() {
   local NAME=$1
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
   upload_file "$NAME-$HASH_RAW.img.xz"
-  upload_file "$NAME-$HASH_RAW.img.gz"
 
   local ALT_URL=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .alt.url")
   if [ "$ALT_URL" != "null" ]; then
     local ALT_FILE_NAME=$(basename $ALT_URL)
     upload_file $ALT_FILE_NAME
-    upload_file ${ALT_FILE_NAME%.xz}.gz
   fi
 
   # if [ "$NAME" == "system" ]; then
