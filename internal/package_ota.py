@@ -21,7 +21,6 @@ def checksum(fn):
 
 def compress(fin, fout) -> None:
   subprocess.check_call(f"xz -T4 -vc {fin} > {fout}", shell=True)
-  subprocess.check_call(f"gzip -vc {fin} > {fout.with_suffix('.gz')}", shell=True)
 
 
 def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None):
