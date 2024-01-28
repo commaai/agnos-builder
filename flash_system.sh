@@ -13,6 +13,6 @@ $EDL_DIR/edl setactive a
 $EDL_DIR/edl e system_a
 $EDL_DIR/edl w system_a $DIR/output/system-skip-chunks.img
 
-fastboot continue
+$EDL_DIR/edl reset
 
 echo "Done!"

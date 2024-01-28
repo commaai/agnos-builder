@@ -18,4 +18,4 @@ done
 ./flash_kernel.sh
 ./flash_system.sh
 
-fastboot continue
+$EDL_DIR/edl reset
