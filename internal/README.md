@@ -2,7 +2,7 @@
 
 ## release checklist
 
-- [ ] openpilot CPU usage unchanged
+- [ ] `test_onroad` passes
 - [ ] wifi
 - [ ] modem
 - [ ] image size
