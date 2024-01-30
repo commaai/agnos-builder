@@ -52,6 +52,30 @@ COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
 
+FROM agnos-compiler as agnos-compiler-weston
+RUN apt-get install --no-install-recommends -yq \
+    meson \
+    ninja-build \
+    libxkbcommon-dev \
+    libinput-dev \
+    libinput10 \
+    libgbm-dev \
+    android-libcutils-dev \
+    android-liblog-dev \
+    libxml2-dev
+# or -Dtest-junit-xml=false instead of libxml2
+# kernel headers for the AGNOS kernel (built on device)
+COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
+RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
+COPY ./userspace/weston /tmp/weston
+RUN /tmp/weston/compile-libdrm.sh
+RUN /tmp/weston/compile-display-commonsys-intf.sh
+RUN /tmp/weston/compile-libgbm.sh
+RUN /tmp/weston/compile-libhardware.sh
+RUN /tmp/weston/compile-display.sh
+RUN /tmp/weston/compile-wayland-protocols.sh
+RUN /tmp/weston/compile-weston.sh
+
 # ################### #
 # ###### AGNOS ###### #
 # ################### #

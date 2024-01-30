@@ -1,0 +1,24 @@
+From ab067856e87fdf7c3b8028cdf660c636e3e7ef5d Mon Sep 17 00:00:00 2001
+From: Avdhesh Singh Chauhan <avdheshs@codeaurora.org>
+Date: Mon, 7 Jun 2021 15:26:35 +0530
+Subject: [PATCH] libdrm: Export libdrm_macros.h header.
+
+---
+ meson.build | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/meson.build b/meson.build
+index 0515866..5bace9a 100644
+--- a/meson.build
++++ b/meson.build
+@@ -331,6 +331,7 @@ install_headers(
+   'include/drm/savage_drm.h', 'include/drm/sis_drm.h',
+   'include/drm/tegra_drm.h', 'include/drm/vc4_drm.h',
+   'include/drm/via_drm.h', 'include/drm/virtgpu_drm.h',
++  'libdrm_macros.h',
+   subdir : 'libdrm',
+ )
+ if with_vmwgfx
+-- 
+2.7.4
+

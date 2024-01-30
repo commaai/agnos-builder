@@ -1,0 +1,42 @@
+From 30132b1b35c92af356a3d4432eb0a66ec5cf7a81 Mon Sep 17 00:00:00 2001
+From: Kai Xing <kxing@codeaurora.org>
+Date: Fri, 11 Dec 2020 13:15:25 +0530
+Subject: [PATCH] wayland-protocols: add custom position support in xdg_shell
+ protocol
+
+Add set_position API in xdg_shell protocol which allows custom
+window positioning by the clients
+
+Signed-off-by: Kai Xing <kxing@codeaurora.org>
+---
+ stable/xdg-shell/xdg-shell.xml | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/stable/xdg-shell/xdg-shell.xml b/stable/xdg-shell/xdg-shell.xml
+index be64354..0cd5a8c 100644
+--- a/stable/xdg-shell/xdg-shell.xml
++++ b/stable/xdg-shell/xdg-shell.xml
+@@ -700,6 +700,20 @@
+       <arg name="serial" type="uint" summary="the serial of the user event"/>
+     </request>
+ 
++    <request name="set_position">
++      <description summary="start with a custom window position">
++       Tell the weston server to place the client at specified position
++
++       There is no user action required to move surface.
++
++       The server may ignore move requests depending on the state
++       of the surface (e.g. fullscreen or maximized).
++      </description>
++
++      <arg name="x" type="uint" summary="new x co-ordinate of surface"/>
++      <arg name="y" type="uint" summary="new y co-ordinate of surface"/>
++    </request>
++
+     <enum name="resize_edge">
+       <description summary="edge values for resizing">
+ 	These values are used to indicate which edge of a surface
+-- 
+2.7.4
+
