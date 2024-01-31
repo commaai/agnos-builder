@@ -7,10 +7,10 @@ cd weston
 git apply /tmp/weston/patches/weston/*.patch
 
 DISPLAY_PATH=/tmp/weston/hardware/qcom/display
-export CPPFLAGS="-I/tmp/weston/libdrm -I/tmp/weston/libdrm/include/drm -I/tmp/weston/vendor/qcom/opensource/commonsys-intf/display/include -I/tmp/weston/libgbm/inc -I$DISPLAY_PATH/sdm/include -I$DISPLAY_PATH/libdebug -I/tmp/weston/system/core/include -I$DISPLAY_PATH/libdrmutils -D__GBM__"
-export CXXFLAGS="-I$DISPLAY_PATH/include -I$DISPLAY_PATH/sdm -D__GBM__"
+export CPPFLAGS="-w -I/tmp/weston/libdrm -I/tmp/weston/libdrm/include/drm -I/tmp/weston/vendor/qcom/opensource/commonsys-intf/display/include -I/tmp/weston/libgbm/inc -I$DISPLAY_PATH/sdm/include -I$DISPLAY_PATH/libdebug -I/tmp/weston/system/core/include -I$DISPLAY_PATH/libdrmutils -D__GBM__"
+export CXXFLAGS="-w -I$DISPLAY_PATH/include -I$DISPLAY_PATH/sdm -D__GBM__"
 
-export LDFLAGS="-L$DISPLAY_PATH/sdm/libs/core/.libs -L$DISPLAY_PATH/sdm/libs/utils/.libs -L$DISPLAY_PATH/libdrmutils/.libs -L/usr/lib/aarch64-linux-gnu/android -L/tmp/weston/libgbm/.libs"
+export LDFLAGS="-Wl,--verbose -L$DISPLAY_PATH/sdm/libs/core/.libs -L$DISPLAY_PATH/sdm/libs/utils/.libs -L$DISPLAY_PATH/libdrmutils/.libs -L/usr/lib/aarch64-linux-gnu/android -L/tmp/weston/libgbm/.libs"
 
 export PKG_CONFIG_PATH=/tmp/weston/libdrm/image/usr/local/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
 

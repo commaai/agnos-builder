@@ -67,13 +67,21 @@ RUN apt-get install --no-install-recommends -yq \
 # kernel headers for the AGNOS kernel (built on device)
 COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
 RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
-COPY ./userspace/weston /tmp/weston
+COPY ./userspace/weston/include /tmp/weston/include
+COPY ./userspace/weston/patches /tmp/weston/patches
+COPY ./userspace/weston/compile-libdrm.sh /tmp/weston/compile-libdrm.sh
 RUN /tmp/weston/compile-libdrm.sh
+COPY ./userspace/weston/compile-display-commonsys-intf.sh /tmp/weston/compile-display-commonsys-intf.sh
 RUN /tmp/weston/compile-display-commonsys-intf.sh
+COPY ./userspace/weston/compile-libgbm.sh /tmp/weston/compile-libgbm.sh
 RUN /tmp/weston/compile-libgbm.sh
+COPY ./userspace/weston/compile-libhardware.sh /tmp/weston/compile-libhardware.sh
 RUN /tmp/weston/compile-libhardware.sh
+COPY ./userspace/weston/compile-display.sh /tmp/weston/compile-display.sh
 RUN /tmp/weston/compile-display.sh
+COPY ./userspace/weston/compile-wayland-protocols.sh /tmp/weston/compile-wayland-protocols.sh
 RUN /tmp/weston/compile-wayland-protocols.sh
+COPY ./userspace/weston/compile-weston.sh /tmp/weston/compile-weston.sh
 RUN /tmp/weston/compile-weston.sh
 
 # ################### #
