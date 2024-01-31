@@ -12,6 +12,6 @@ export CPPFLAGS="-D__user= -I/tmp/weston/include"
 
 ./configure --enable-compilewithdrm --with-glib
 
-make
+make install
 # ls -al /tmp/weston/libgbm
 # exit 1
