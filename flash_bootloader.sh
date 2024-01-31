@@ -8,6 +8,10 @@ BOOTLOADER_IMAGE="abl.elf"
 GREEN="\033[0;32m"
 NO_COLOR='\033[0m'
 
+# Make sure we're in the correct spot
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+cd $DIR
+
 # Flash bootloader
 $EDL w abl_a $OUTPUT_DIR/$BOOTLOADER_IMAGE
 $EDL w abl_b $OUTPUT_DIR/$BOOTLOADER_IMAGE
