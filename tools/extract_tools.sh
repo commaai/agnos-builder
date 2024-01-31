@@ -17,6 +17,7 @@ LINARO_GCC=aarch64-linux-gnu-gcc
 GOOGLE_GCC_4_9=aarch64-linux-android-4.9
 EDK2_LLVM=llvm-arm-toolchain-ship
 SEC_IMAGE=SecImage
+EDL=$DIR/edl/edl
 
 # grep for `-`, which stands for LFS pointer
 git lfs ls-files | awk '{print $2}' | grep "-" &>/dev/null && {
@@ -46,4 +47,13 @@ fi
 
 if [ ! -d $SEC_IMAGE ]; then
   tar -xzf $SEC_IMAGE_TARBALL &>/dev/null
+fi
+
+if [ ! -f $EDL ]; then
+  git clone https://github.com/bkerler/edl $DIR/edl
+  cd $DIR/edl
+  git submodule update --depth=1 --init --recursive
+  python -m pip install -r requirements.txt
+  # sudo apt purge -y modemmanager
+  sudo systemctl stop ModemManager
 fi
