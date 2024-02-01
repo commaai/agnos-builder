@@ -57,7 +57,6 @@ ninja -C build
 ninja -C build install
 
 # remove plugins we don't use, makes probing faster
-cp /usr/
 mkdir -p /tmp/mm-plugins
 mv /usr/lib/aarch64-linux-gnu/ModemManager/libmm-*.so /tmp/mm-plugins
 cp /tmp/mm-plugins/*generic* /usr/lib/aarch64-linux-gnu/ModemManager/
