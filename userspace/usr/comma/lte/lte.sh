@@ -30,7 +30,7 @@ function is_online {
   for i in {0..30}
   do
 
-    if [ -a /dev/cdc-wdm0 ]
+    if [ -a /dev/cdc-wdm0 ] || [ -a /dev/ttyACM0 ]
     then
       echo "  Modem is online!"
       return 0
@@ -48,7 +48,7 @@ function is_offline {
 
   for i in {0..30}
   do
-    if [ ! -e /dev/cdc-wdm0 ]
+    if [ ! -e /dev/cdc-wdm0 ] && [ ! -e /dev/ttyACM0 ]
     then
       echo "  Modem is offline!"
       return 0
