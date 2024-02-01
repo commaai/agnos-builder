@@ -110,8 +110,9 @@ echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
 mkdir /data && chown $USERNAME:$USERNAME /data
 mkdir /persist && chown $USERNAME:$USERNAME /persist
 
+# TODO: this is from 20.04, does it have a replacement?
 # Disable automatic ondemand switching from ubuntu
-systemctl disable ondemand
+#systemctl disable ondemand
 
 # Disable pstore service that moves files out of /sys/fs/pstore
 systemctl disable systemd-pstore.service
@@ -126,7 +127,7 @@ ln -sf /bin/bash /bin/sh
 apt-get update -yq
 apt-get install --no-install-recommends -yq \
     libacl1:armhf \
-    libasan5-armhf-cross \
+    libasan6-armhf-cross \
     libatomic1-armhf-cross \
     libattr1:armhf \
     libaudit1:armhf \
@@ -140,11 +141,11 @@ apt-get install --no-install-recommends -yq \
     libdrm2:armhf \
     libevdev2:armhf \
     libexpat1:armhf \
-    libffi7:armhf \
+    libffi8:armhf \
     libfontconfig1:armhf \
     libfreetype6:armhf \
     libgbm1:armhf \
-    libgcc-9-dev-armhf-cross \
+    libgcc-11-dev-armhf-cross \
     libgcc1:armhf \
     libglib2.0-0:armhf \
     libgomp1-armhf-cross \
@@ -171,7 +172,7 @@ apt-get install --no-install-recommends -yq \
     libudev-dev:armhf \
     libudev1:armhf \
     libuuid1:armhf \
-    libwacom2:armhf \
+    libwacom9:armhf \
     libwayland-client0:armhf \
     libwayland-cursor0:armhf \
     libwayland-server0:armhf \

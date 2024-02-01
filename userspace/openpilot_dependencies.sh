@@ -67,8 +67,11 @@ apt-get install --no-install-recommends -yq \
     libqt5svg5-dev \
     libqt5multimedia5-plugins \
     qml-module-qtquick2 \
-    qt5-default \
+    qt5-qmake \
+    qtbase5-dev \
+    qtbase5-dev-tools \
     qtbase5-private-dev \
+    qtchooser \
     qtdeclarative5-dev \
     qtdeclarative5-private-dev \
     qtlocation5-dev \

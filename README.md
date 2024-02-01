@@ -6,12 +6,13 @@ NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repo
 
 ## Setup
 
-These tools are developed on and targeted for Ubuntu 20.04.
+These tools are developed on and targeted for Ubuntu 24.04.
 
 Run once to set things up:
 ```sh
 git submodule update --init agnos-kernel-sdm845
 ./tools/extract_tools.sh
+sudo apt install img2simg
 ```
 
 ## Build the userspace

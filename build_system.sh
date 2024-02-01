@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
-UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
+UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/daily/current"
+UBUNTU_FILE="noble-base-arm64.tar.gz"
 
 export DOCKER_BUILDKIT=1
 
@@ -45,6 +45,10 @@ fi
 echo "Building image"
 export DOCKER_CLI_EXPERIMENTAL=enabled
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
+# docker build -f Dockerfile.agnos -t agnos-compiler-capnp --target agnos-compiler-capnp $DIR
+# docker build -f Dockerfile.agnos -t agnos-compiler-mapbox-gl-native --target agnos-compiler-mapbox-gl-native $DIR
+# docker build -f Dockerfile.agnos -t agnos-compiler-ffmpeg --target agnos-compiler-ffmpeg $DIR
+# exit 0
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
