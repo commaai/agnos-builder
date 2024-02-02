@@ -26,3 +26,5 @@ done
 TARGET=libgralloc.so
 $CC -shared -o $TARGET $OBJS $LDFLAGS
 rm -f $OBJS
+
+cp libgralloc.so /tmp/libgralloc.so

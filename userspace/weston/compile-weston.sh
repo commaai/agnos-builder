@@ -20,7 +20,7 @@ ln -sf liblog.so.0.0.0 /usr/lib/aarch64-linux-gnu/liblog.so && chown -h comma: /
 
 meson setup -Dbackend-default=auto -Dbackend-rdp=false -Dpipewire=false  -Dsimple-clients=all -Ddemo-clients=true -Dcolor-management-colord=false -Ddisable-power-key=true -Drenderer-gl=true -Dbackend-fbdev=false -Dbackend-headless=false -Dbackend-drm=false -Dweston-launch=false -Dcolor-management-lcms=false -Dmulti-display=false -Dpam=false -Dremoting=false -Dbackend-sdm=true -Dsystemd=false -Dlauncher-logind=false -Dbackend-drm-screencast-vaapi=false -Dbackend-wayland=false -Dimage-webp=false -Dbackend-x11=false -Dxwayland=false build #|| true
 
-export DESTDIR='/tmp/weston/weston/image'
-ninja -v -C build -j$(nproc) install
+ninja -v -C build -j$(nproc)
 
-ls -al $DESTDIR
+checkinstall -yD --install=no --pkgname=weston ninja -v -C build -j$(nproc) install
+mv weston*.deb /tmp/weston.deb

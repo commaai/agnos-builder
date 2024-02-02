@@ -10,4 +10,8 @@ git apply /tmp/weston/patches/wayland-protocols/*.patch
 
 autoreconf --install
 ./configure
-make install
+
+make -j$(nproc)
+
+checkinstall -yD --install=yes --pkgname=wayland-protocols --pkgversion="${VERSION}"
+mv wayland-protocols*.deb /tmp/wayland-protocols.deb

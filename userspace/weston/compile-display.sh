@@ -22,4 +22,7 @@ cp /usr/src/linux-headers-4.9.103+/include/linux/compiler.h /tmp/weston/include/
 
 ./configure --enable-sdmhaldrm
 
-make
+make -j$(nproc)
+
+checkinstall -yD --install=no --pkgname=display
+mv display*.deb /tmp/display.deb
