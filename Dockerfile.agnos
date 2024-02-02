@@ -77,7 +77,6 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 # Use other pre-compiled packages
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
-COPY --from=agnos-compiler-mapbox-gl-native /tmp/libqmapboxgl.so /lib/aarch64-linux-gnu/libqmapboxgl.so
 
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
