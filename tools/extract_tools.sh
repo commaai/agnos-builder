@@ -56,4 +56,5 @@ if [ ! -f $EDL ]; then
   python -m pip install -r requirements.txt
   # sudo apt purge -y modemmanager
   sudo systemctl stop ModemManager
+  cd $ROOT
 fi
