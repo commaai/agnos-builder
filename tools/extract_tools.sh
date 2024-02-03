@@ -17,7 +17,7 @@ LINARO_GCC=aarch64-linux-gnu-gcc
 GOOGLE_GCC_4_9=aarch64-linux-android-4.9
 EDK2_LLVM=llvm-arm-toolchain-ship
 SEC_IMAGE=SecImage
-export EDL=$DIR/edl_repo/edl
+EDL=$DIR/edl_repo/edl
 
 # grep for `-`, which stands for LFS pointer
 git lfs ls-files | awk '{print $2}' | grep "-" &>/dev/null && {
