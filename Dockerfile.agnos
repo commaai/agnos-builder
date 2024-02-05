@@ -76,6 +76,7 @@ RUN /tmp/agnos/hardware_setup.sh
 # Weston compile scripts
 COPY ./userspace/weston/include /tmp/weston/include
 COPY ./userspace/weston/patches /tmp/weston/patches
+COPY ./userspace/weston/files /tmp/weston/files
 COPY ./userspace/weston/compile-libdrm.sh /tmp/weston/compile-libdrm.sh
 RUN /tmp/weston/compile-libdrm.sh
 COPY ./userspace/weston/compile-display-commonsys-intf.sh /tmp/weston/compile-display-commonsys-intf.sh

@@ -1,0 +1,50 @@
+diff --git a/compositor/main.c b/compositor/main.c
+index fca76caf..b55f8146 100644
+--- a/compositor/main.c
++++ b/compositor/main.c
+@@ -3329,6 +3329,7 @@ wet_main(int argc, char *argv[])
+ 		   STAMP_SPACE "%s\n"
+ 		   STAMP_SPACE "Bug reports to: %s\n"
+ 		   STAMP_SPACE "Build: %s\n"
++		   STAMP_SPACE "comma.ai\n",
+ 		   PACKAGE_STRING, PACKAGE_URL, PACKAGE_BUGREPORT,
+ 		   BUILD_ID);
+ 	weston_log("Command line: %s\n", cmdline);
+diff --git a/libweston/input.c b/libweston/input.c
+index e19f67b3..e617c423 100644
+--- a/libweston/input.c
++++ b/libweston/input.c
+@@ -827,6 +827,7 @@ weston_touch_send_down(struct weston_touch *touch, const struct timespec *time,
+ 		return;
+
+ 	weston_view_from_global_fixed(touch->focus, x, y, &sx, &sy);
++	sx = (1080 * 255) - sx;
+
+ 	resource_list = &touch->focus_resource_list;
+ 	serial = wl_display_next_serial(display);
+@@ -837,7 +838,7 @@ weston_touch_send_down(struct weston_touch *touch, const struct timespec *time,
+ 						   time);
+ 		wl_touch_send_down(resource, serial, msecs,
+ 				   touch->focus->surface->resource,
+-				   touch_id, sx, sy);
++				   touch_id, sy, sx);
+ 	}
+ }
+
+@@ -916,6 +917,7 @@ weston_touch_send_motion(struct weston_touch *touch,
+ 		return;
+
+ 	weston_view_from_global_fixed(touch->focus, x, y, &sx, &sy);
++	sx = (1080 * 255) - sx;
+
+ 	resource_list = &touch->focus_resource_list;
+ 	msecs = timespec_to_msec(time);
+@@ -924,7 +926,7 @@ weston_touch_send_motion(struct weston_touch *touch,
+ 						   &touch->timestamps_list,
+ 						   time);
+ 		wl_touch_send_motion(resource, msecs,
+-				     touch_id, sx, sy);
++				     touch_id, sy, sx);
+ 	}
+ }
+
