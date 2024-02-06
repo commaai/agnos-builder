@@ -12,4 +12,5 @@ sudo mount -o rw,remount /
 sudo mv /data/tmp/wlan.ko /usr/comma/wlan.ko
 rm -rf /data/tmp/*
 sudo mount -o ro,remount / || true
+sudo reboot
 EOF
