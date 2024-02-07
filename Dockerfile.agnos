@@ -43,6 +43,10 @@ FROM agnos-compiler as agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
 
+FROM agnos-compiler as agnos-compiler-mapbox-gl-native
+COPY ./userspace/compile-mapbox-gl-native.sh /tmp/agnos/
+RUN /tmp/agnos/compile-mapbox-gl-native.sh
+
 FROM agnos-compiler as agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch /tmp/agnos/
@@ -77,6 +81,7 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 # Use other pre-compiled packages
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
+COPY --from=agnos-compiler-mapbox-gl-native /tmp/libqmapboxgl.so /lib/aarch64-linux-gnu/libqmapboxgl.so
 
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
