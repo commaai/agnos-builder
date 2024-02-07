@@ -74,6 +74,8 @@ pytest-timeout = "*"
 pytest-random-order = "*"
 pytest-mock = "*"
 pytest-repeat = "*"
+pytest-randomly = "*"
+pytest-forked = "*"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "*"

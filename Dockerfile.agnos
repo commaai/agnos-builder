@@ -99,8 +99,7 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     export POETRY_VIRTUALENVS_CREATE=false && \
     MAKEFLAGS="-j$(nproc)" poetry install --no-cache --no-root && \
-    pyenv rehash && \
-    pyclean /usr
+    pyenv rehash
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
