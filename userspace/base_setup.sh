@@ -73,6 +73,7 @@ apt-get install --no-install-recommends -yq \
     libqmi-utils \
     libtool \
     libncursesw5-dev \
+    libnss-myhostname \
     libgdbm-dev \
     libc6-dev \
     libsqlite3-dev \
