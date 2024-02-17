@@ -192,6 +192,9 @@ RUN systemctl enable ModemManager
 # Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
 COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
 
+# Setup hostname resolution for our custom hostname
+RUN sed -i 's/hosts:          files dns/hosts:          files myhostname dns/g' /etc/nsswitch.conf
+
 # TODO: move this to base_setup.sh or build gcc from source
 # Remove unused architectures from arm-none-eabi
 RUN cd /usr/lib/gcc/arm-none-eabi/9.2.1 && \
