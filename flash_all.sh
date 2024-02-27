@@ -11,6 +11,6 @@ done
 
 ./flash_bootloader.sh
 ./flash_kernel.sh
-./flash_system.sh
+#./flash_system.sh
 
-fastboot continue
+#fastboot continue
