@@ -13343,19 +13343,32 @@ conceived.
 	<provider>
 		<name>Verizon</name>
 		<gsm>
+            <network-id mcc="311" mnc="480"/>
 			<network-id mcc="310" mnc="995"/>
+			<network-id mcc="310" mnc="010"/>
+			<network-id mcc="310" mnc="011"/>
+			<network-id mcc="310" mnc="012"/>
 			<network-id mcc="311" mnc="480"/>
-			<apn value="vzwims">
-				<plan type="postpaid"/>
-				<usage type="internet"/>
-				<name>4G LTE Contract</name>
-			</apn>
+			<network-id mcc="311" mnc="481"/>
+			<network-id mcc="311" mnc="482"/>
+			<network-id mcc="311" mnc="483"/>
+			<network-id mcc="311" mnc="484"/>
+			<network-id mcc="311" mnc="485"/>
+			<network-id mcc="311" mnc="486"/>
+			<network-id mcc="311" mnc="487"/>
+			<network-id mcc="311" mnc="488"/>
+			<network-id mcc="311" mnc="489"/>
 			<apn value="vzwinternet">
 				<plan type="postpaid"/>
 				<usage type="internet"/>
 				<name>4G LTE Contract</name>
 				<dns>66.174.92.14</dns>
 				<dns>69.78.96.14</dns>
+			</apn>
+			<apn value="vzwims">
+				<plan type="postpaid"/>
+				<usage type="internet"/>
+				<name>4G LTE Contract</name>
 			</apn>
 			<apn value="vzwapp">
 				<plan type="postpaid"/>
