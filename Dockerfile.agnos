@@ -43,10 +43,6 @@ FROM agnos-compiler as agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
 
-FROM agnos-compiler as agnos-compiler-mapbox-gl-native
-COPY ./userspace/compile-mapbox-gl-native.sh /tmp/agnos/
-RUN /tmp/agnos/compile-mapbox-gl-native.sh
-
 FROM agnos-compiler as agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch /tmp/agnos/
