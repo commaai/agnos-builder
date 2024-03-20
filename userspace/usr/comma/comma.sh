@@ -53,7 +53,11 @@ elif (( "$(cat /sys/devices/platform/soc/894000.i2c/i2c-2/2-0017/touch_count)" >
   $RESET
 elif ! mountpoint -q /data; then
   echo "userdata not mounted. loading system reset"
-  $RESET --recover
+  if [ "$(head -c 15 /dev/disk/by-partlabel/userdata)" == "COMMA_RESET" ]; then
+    $RESET --format
+  else
+    $RESET --recover
+  fi
 fi
 
 # symlink vscode to userdata
