@@ -67,7 +67,7 @@ fi
 if [[ "$OSTYPE" == "darwin"* ]]; then
   echo "Installing libusb for macOS..."
   {
-    brew install libusb git
+    brew install libusb
     ln -s /opt/homebrew/lib ~/lib
   } &> /dev/null
 fi
