@@ -10,10 +10,16 @@ NO_COLOR='\033[0m'
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+EDL=edl/edl
 cd $DIR
 
+flash() {
+  $EDL w $1 $2 --memory=ufs | grep "Progress:"
+}
+
 # Flash bootloader
-$EDL w abl_a $OUTPUT_DIR/$BOOTLOADER_IMAGE
-$EDL w abl_b $OUTPUT_DIR/$BOOTLOADER_IMAGE
+echo "Flashing bootloader..."
+flash abl_a $OUTPUT_DIR/$BOOTLOADER_IMAGE
+flash abl_b $OUTPUT_DIR/$BOOTLOADER_IMAGE
 
 echo -e "${GREEN}Done!"

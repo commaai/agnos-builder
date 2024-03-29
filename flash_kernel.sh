@@ -10,10 +10,16 @@ NO_COLOR='\033[0m'
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+EDL=edl/edl
 cd $DIR
 
+flash() {
+  $EDL w $1 $2 --memory=ufs | grep "Progress:"
+}
+
 # Flash bootloader
-$EDL w boot_a $OUTPUT_DIR/$KERNEL_IMAGE
-$EDL w boot_b $OUTPUT_DIR/$KERNEL_IMAGE
+echo "Flashing kernel..."
+flash boot_a $OUTPUT_DIR/$KERNEL_IMAGE
+flash boot_b $OUTPUT_DIR/$KERNEL_IMAGE
 
 echo -e "${GREEN}Done!"
