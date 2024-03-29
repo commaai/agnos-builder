@@ -2,11 +2,12 @@
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-EDL=edl/edl
 cd $DIR
+EDL=$DIR/edl/edl
 
 flash() {
-  $EDL w $1 $2 --memory=ufs | grep "Progress:"
+  echo "Writing to $1..."
+  $EDL w $1 $2 --memory=ufs
 }
 
 for part in aop xbl xbl_config devcfg; do
@@ -18,4 +19,4 @@ done
 ./flash_kernel.sh
 ./flash_system.sh
 
-$EDL reset > /dev/null
+$EDL reset &> /dev/null

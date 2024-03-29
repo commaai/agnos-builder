@@ -10,11 +10,12 @@ NO_COLOR='\033[0m'
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-EDL=edl/edl
 cd $DIR
+EDL=$DIR/edl/edl
 
 flash() {
-  $EDL w $1 $2 --memory=ufs | grep "Progress:"
+  echo "Writing to $1..."
+  $EDL w $1 $2 --memory=ufs
 }
 
 # Flash bootloader

@@ -52,17 +52,22 @@ fi
 if [ ! -f $EDL ]; then
   echo "Installing edl repo..."
   {
+    cd $ROOT
     git clone https://github.com/bkerler/edl
-    cd $DIR/edl
+    cd $ROOT/edl
     git fetch --all
-    # TODO: git checkout
+    git checkout 81d30c9039faf953881d38013ced01d1a06429db
     git submodule update --depth=1 --init --recursive
     pip3 install -r requirements.txt
-    cd $ROOT
 
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      brew install libusb git
-      lb -s /opt/homebrew/lib ~/lib
-    fi
+    cd $ROOT
+  } &> /dev/null
+fi
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  echo "Installing libusb for macOS..."
+  {
+    brew install libusb git
+    ln -s /opt/homebrew/lib ~/lib
   } &> /dev/null
 fi
