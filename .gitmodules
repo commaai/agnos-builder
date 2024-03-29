@@ -7,3 +7,6 @@
 [submodule "agnos-kernel-sdm845"]
   path = agnos-kernel-sdm845
   url = ../../commaai/agnos-kernel-sdm845.git
+[submodule "agnos-binaries"]
+  path = agnos-binaries
+  url = ../../commaai/agnos-binaries.git

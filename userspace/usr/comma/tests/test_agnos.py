@@ -51,10 +51,6 @@ def test_color_calibration():
 def test_python_shims():
   subprocess.check_call("cd /data/openpilot && scons -h", shell=True, stdout=subprocess.DEVNULL)
 
-def test_set_time():
-  # TODO: ensure time is set from panda RTC
-  pass
-
 def test_dmesg():
   # TODO: ensure no new errors in dmesg. would catch things like the brightness setting bug
   pass
