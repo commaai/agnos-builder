@@ -56,7 +56,7 @@ if [ ! -f $EDL ]; then
     git clone https://github.com/bkerler/edl
     cd $ROOT/edl
     git fetch --all
-    git checkout 81d30c9039faf953881d38013ced01d1a06429db
+    git checkout f58350f78423c0918292b3603e01841bbb8e9280
     git submodule update --depth=1 --init --recursive
     pip3 install -r requirements.txt
 
