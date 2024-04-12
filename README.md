@@ -42,3 +42,13 @@ load:
 # ssh config needs host named 'tici'
 ./load_kernel.sh
 ```
+
+## Build the dcoker image
+
+```sh
+#If your computer is AMD64 platform,run the following cmd.
+docker run --rm --privileged docker/binfmt:a7996909642ee92942dcd6cff44b9b95f08dad64
+docker buildx create --use --name multi-arch-builder
+
+docker build --platform linux/arm64 -f ./Dockerfile.agnos -t agnos:v1 .
+```
