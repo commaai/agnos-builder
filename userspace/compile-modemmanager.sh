@@ -54,3 +54,9 @@ meson setup build \
 
 ninja -C build
 ninja -C build install
+
+# remove plugins we don't use, makes probing faster
+mkdir -p /tmp/mm-plugins
+mv /usr/lib/aarch64-linux-gnu/ModemManager/libmm-*.so /tmp/mm-plugins
+cp /tmp/mm-plugins/*generic* /usr/lib/aarch64-linux-gnu/ModemManager/
+cp /tmp/mm-plugins/*quectel* /usr/lib/aarch64-linux-gnu/ModemManager/

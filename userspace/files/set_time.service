@@ -1,8 +1,0 @@
-[Unit]
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/pyenv/shims/python -u /usr/comma/set_time.py
-
-[Install]
-WantedBy=multi-user.target

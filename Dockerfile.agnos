@@ -101,8 +101,7 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     export POETRY_VIRTUALENVS_CREATE=false && \
     MAKEFLAGS="-j$(nproc)" poetry install --no-cache --no-root && \
-    pyenv rehash && \
-    pyclean /usr
+    pyenv rehash
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
@@ -145,15 +144,6 @@ COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
 COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
-
-# copy of panda python lib
-RUN cd /tmp/ && \
-    git clone https://github.com/commaai/panda.git && \
-    cd panda && \
-    git fetch --all && \
-    git checkout dd78b2bf6c9d63ef59e81d0c400e85c8b477a8be && \
-    mkdir /usr/comma/panda/ && \
-    mv __init__.py python/ /usr/comma/panda/
 
 # kernel headers for the AGNOS kernel (built on device)
 COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
@@ -198,6 +188,9 @@ RUN systemctl enable ModemManager
 # Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
 COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
 
+# Setup hostname resolution for our custom hostname
+RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
+
 # TODO: move this to base_setup.sh or build gcc from source
 # Remove unused architectures from arm-none-eabi
 RUN cd /usr/lib/gcc/arm-none-eabi/* && \
@@ -217,7 +210,7 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
 # Write version file
-RUN echo -n "9.1" > /VERSION
+RUN echo -n "9.7" > /VERSION
 
 # ################## #
 # #### Cleaunup #### #
