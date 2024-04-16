@@ -147,7 +147,7 @@ apt-get install --no-install-recommends -yq \
     libgbm1:armhf \
     libgcc-11-dev-armhf-cross \
     libgcc1:armhf \
-    libglib2.0-0:armhf \
+    libglib2.0-0t64:armhf \
     libgomp1-armhf-cross \
     libgudev-1.0-0:armhf \
     libinput-bin:armhf \
@@ -159,12 +159,12 @@ apt-get install --no-install-recommends -yq \
     libjpeg8:armhf \
     libjpeg8-dev:armhf \
     libkmod2:armhf \
-    libmtdev1:armhf \
+    libmtdev1t64:armhf \
     libpam0g:armhf \
     libpam0g-dev:armhf \
     libpcre3:armhf \
     libpixman-1-0:armhf \
-    libpng16-16:armhf \
+    libpng16-16t64:armhf \
     libselinux1:armhf \
     libstdc++6:armhf \
     libstdc++6-armhf-cross \
