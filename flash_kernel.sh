@@ -11,16 +11,11 @@ NO_COLOR='\033[0m'
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
-EDL=$DIR/edl/edl
-
-flash() {
-  echo "Writing to $1..."
-  $EDL w $1 $2 --memory=ufs
-}
+flash=$DIR/tools/edl_flash.sh
 
 # Flash bootloader
 echo "Flashing kernel..."
-flash boot_a $OUTPUT_DIR/$KERNEL_IMAGE
-flash boot_b $OUTPUT_DIR/$KERNEL_IMAGE
+$flash boot_a $OUTPUT_DIR/$KERNEL_IMAGE
+$flash boot_b $OUTPUT_DIR/$KERNEL_IMAGE
 
 echo -e "${GREEN}Done!"
