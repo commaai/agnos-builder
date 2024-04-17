@@ -1,0 +1,31 @@
+#!/bin/bash
+set -e
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+ROOT=$DIR/../
+
+# just a nice wrapper around the edl python tool
+
+EDL_PATH=$DIR/edl_repo
+VERSION="f58350f78423c0918292b3603e01841bbb8e9280"
+
+if [ ! -d "$EDL_PATH" ]; then
+  rm -rf $EDL_PATH
+  git clone https://github.com/bkerler/edl $EDL_PATH
+fi
+
+pushd $EDL_PATH
+python3 -m venv venv
+source venv/bin/activate
+
+if [ "$(< .git/HEAD)" != "$VERSION" ]; then
+  echo "updating edl..."
+  git fetch origin $VERSION
+  git checkout $VERSION
+  git submodule update --depth=1 --init --recursive
+
+  pip3 install -r requirements.txt
+fi
+popd
+
+$EDL_PATH/edl --memory=ufs "$@"

@@ -48,26 +48,3 @@ fi
 if [ ! -d $SEC_IMAGE ]; then
   tar -xzf $SEC_IMAGE_TARBALL &>/dev/null
 fi
-
-if [ ! -f $EDL ]; then
-  echo "Installing edl repo..."
-  {
-    cd $ROOT
-    git clone https://github.com/bkerler/edl
-    cd $ROOT/edl
-    git fetch --all
-    git checkout f58350f78423c0918292b3603e01841bbb8e9280
-    git submodule update --depth=1 --init --recursive
-    pip3 install -r requirements.txt
-
-    cd $ROOT
-  } &> /dev/null
-fi
-
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  echo "Installing libusb for macOS..."
-  {
-    brew install libusb
-    ln -s /opt/homebrew/lib ~/lib
-  } &> /dev/null
-fi

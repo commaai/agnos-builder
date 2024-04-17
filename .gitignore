@@ -11,5 +11,5 @@ qdl/
 
 .vscode
 
-edl
 edl_config.json
+tools/edl_repo/
