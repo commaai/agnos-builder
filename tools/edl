@@ -28,4 +28,4 @@ if [ "$(< .git/HEAD)" != "$VERSION" ]; then
 fi
 popd
 
-$EDL_PATH/edl --memory=ufs "$@"
+$EDL_PATH/edl "$@"
