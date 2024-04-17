@@ -1,11 +1,9 @@
 #!/bin/bash -e
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-ROOT=$DIR/..
+SETUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+ROOT=$SETUP_DIR/..
 
 EDL=$ROOT/edl/edl
-
-echo "in here"
 
 setactiveslot() {
   if [ "$1" == "a" ]; then
@@ -18,11 +16,10 @@ setactiveslot() {
 
   echo "Setting slot $1 active..."
   {
-    $EDL setactive $1
+    $EDL setactiveslot $1
     $EDL setbootablestoragedrive $BOOT_LUN
   } &> /dev/null
 }
-
 
 flash() {
   $EDL w $1 $2 --memory=ufs

@@ -4,16 +4,11 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-EDL=$DIR/edl/edl
-flash=$DIR/tools/edl_flash.sh
+source $DIR/tools/setup_edl_commands.sh
 
-echo "Setting slot a active..."
-{
-  $EDL setactive a
-  $EDL setbootablestoragedrive 1
-} &> /dev/null
+setactiveslot a
 
 echo "Flashing system..."
-$flash system_a $DIR/output/system-skip-chunks.img
+flash system_a $DIR/output/system-skip-chunks.img
 
 echo "Done!"
