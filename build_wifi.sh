@@ -29,3 +29,9 @@ make drivers || make drivers
 cd $DIR/fc2x
 cp WiFi/cnss_host_LEA/chss_proc/host/AIO/rootfs-te-f30.build/lib/modules/wlan.ko $DIR/userspace/usr/comma/
 
+mkdir -p $DIR/userspace/firmware/wlan/
+cp ./WiFi/meta_build/load_meta/host/wlan_host/sdio/qcom_cfg.ini $DIR/userspace/firmware/wlan/
+
+cp ./WiFi/meta_build/load_meta/wlan_firmware/sdio/*.bin $DIR/userspace/firmware/
+
+cp ./WiFi/meta_build/load_meta/bdf/FC21SA-Q93/bdwlan30.bin $DIR/userspace/firmware/

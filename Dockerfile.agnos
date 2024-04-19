@@ -131,6 +131,7 @@ COPY ./userspace/files/*.service /lib/systemd/system/
 COPY ./userspace/files/*.timer /lib/systemd/system/
 COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
 COPY ./userspace/firmware/* /lib/firmware/
+COPY ./userspace/firmware/wlan/* /lib/firmware/wlan/
 
 # populate /etc
 COPY ./userspace/files/fstab /etc
