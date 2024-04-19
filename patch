@@ -1,0 +1,120 @@
+diff --git a/WiFi/cnss_host_LEA/chss_proc/host/AIO/build/Makefile b/WiFi/cnss_host_LEA/chss_proc/host/AIO/build/Makefile
+index 0b020a3..f16a9e7 100644
+--- a/WiFi/cnss_host_LEA/chss_proc/host/AIO/build/Makefile
++++ b/WiFi/cnss_host_LEA/chss_proc/host/AIO/build/Makefile
+@@ -24,7 +24,7 @@ $(error "Must specify KERNELARCH value")
+ endif
+ 
+ #################################################################################################################################
+-export MAKEARCH=make ARCH=$(KERNELARCH) CROSS_COMPILE=$(TOOLPREFIX)
++export MAKEARCH=make -j40 ARCH=$(KERNELARCH) CROSS_COMPILE=$(TOOLPREFIX)
+ 
+ export INSTALL_ROOT=${ATH_TOPDIR}/rootfs-$(BOARD_TYPE).build
+ export ROOTFS_TOPDIR=${ATH_TOPDIR}/rootfs
+diff --git a/WiFi/cnss_host_LEA/chss_proc/host/AIO/build/scripts/te-f30/config.te-f30 b/WiFi/cnss_host_LEA/chss_proc/host/AIO/build/scripts/te-f30/config.te-f30
+index 9b20be6..660f3b1 100644
+--- a/WiFi/cnss_host_LEA/chss_proc/host/AIO/build/scripts/te-f30/config.te-f30
++++ b/WiFi/cnss_host_LEA/chss_proc/host/AIO/build/scripts/te-f30/config.te-f30
+@@ -1,9 +1,9 @@
+ #
+ # Please modify KERNELPATH, KERNELARCH and TOOLPREFIX to meet your environment
+ #
+-export KERNELPATH=/lib/modules/${shell uname -r}/build
+-export KERNELARCH=i386
+-export TOOLPREFIX=
++export KERNELPATH=/home/batman/agnos-builder/agnos-kernel-sdm845/out
++export KERNELARCH=arm64
++export TOOLPREFIX=${CROSS_COMPILE}
+ 
+ export CONFIG_NO_USE_BACKPORTS=y
+ export CONFIG_CFG80211_DEPEND_ON_KERNEL=y
+diff --git a/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/HDD/inc/wlan_hdd_cfg80211.h b/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/HDD/inc/wlan_hdd_cfg80211.h
+index 677e5bc..11163c2 100644
+--- a/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/HDD/inc/wlan_hdd_cfg80211.h
++++ b/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/HDD/inc/wlan_hdd_cfg80211.h
+@@ -26,6 +26,8 @@
+  * to the Linux Foundation.
+  */
+ 
++#include <linux/version.h>
++
+ #if !defined( HDD_CFG80211_H__ )
+ #define HDD_CFG80211_H__
+ 
+@@ -3217,8 +3219,8 @@ wlan_cfg80211_nla_parse_nested(struct nlattr *tb[],
+ 	return nla_parse_nested(tb, maxtype, nla, policy, NULL);
+ }
+ #endif
+-#define nla_parse(...) (obsolete, use wlan_cfg80211_nla_parse)
+-#define nla_parse_nested(...) (obsolete, use wlan_cfg80211_nla_parse_nested)
++#define nla_parse wlan_cfg80211_nla_parse
++#define nla_parse_nested wlan_cfg80211_nla_parse_nested
+ 
+ void wlan_hdd_cfg80211_aid_req_callback(void *ctx, sir_aid_req_t *pmsg);
+ #endif
+diff --git a/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/HDD/src/wlan_hdd_oemdata.c b/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/HDD/src/wlan_hdd_oemdata.c
+index 2e6072f..6b86c46 100644
+--- a/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/HDD/src/wlan_hdd_oemdata.c
++++ b/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/HDD/src/wlan_hdd_oemdata.c
+@@ -1167,14 +1167,14 @@ static void oem_cmd_handler(const void *data, int data_len, void *ctx, int pid)
+ 
+ 	msg_len = nla_len(tb[CLD80211_ATTR_DATA]);
+ 	if (msg_len < sizeof(*msg_hdr)) {
+-		hdd_err("runt ATTR_DATA size %d", msg_len);
++		pr_err("runt ATTR_DATA size %d", msg_len);
+ 		send_oem_err_rsp_nlink_msg(pid, OEM_ERR_NULL_MESSAGE_HEADER);
+ 		return;
+ 	}
+ 
+ 	msg_hdr = nla_data(tb[CLD80211_ATTR_DATA]);
+ 	if (msg_len < (sizeof(*msg_hdr) + msg_hdr->length)) {
+-		hdd_err("Invalid nl msg len %d, msg hdr len %d",
++		pr_err("Invalid nl msg len %d, msg hdr len %d",
+ 			msg_len, msg_hdr->length);
+ 		send_oem_err_rsp_nlink_msg(pid, OEM_ERR_INVALID_MESSAGE_LENGTH);
+ 		return;
+diff --git a/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/SVC/src/ptt/wlan_ptt_sock_svc.c b/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/SVC/src/ptt/wlan_ptt_sock_svc.c
+index 39d3a4b..e1ef456 100644
+--- a/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/SVC/src/ptt/wlan_ptt_sock_svc.c
++++ b/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/CORE/SVC/src/ptt/wlan_ptt_sock_svc.c
+@@ -263,11 +263,13 @@ static void ptt_cmd_handler(const void *data, int data_len, void *ctx, int pid)
+ 		return;
+ 	}
+ 
++   /*
+ 	if (nla_len(tb[CLD80211_ATTR_DATA]) < sizeof(struct ptt_app_reg_req)) {
+ 		PTT_TRACE(VOS_TRACE_LEVEL_ERROR, "%s:attr length check fails\n",
+ 			__func__);
+ 		return;
+ 	}
++   */
+ 
+ 	payload = (ptt_app_reg_req *)(nla_data(tb[CLD80211_ATTR_DATA]));
+ 	length = be16_to_cpu(payload->wmsg.length);
+diff --git a/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/Makefile b/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/Makefile
+index f78d774..05e3763 100644
+--- a/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/Makefile
++++ b/WiFi/cnss_host_LEA/chss_proc/host/AIO/drivers/qcacld-new/Makefile
+@@ -1,4 +1,4 @@
+-KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
++KERNEL_SRC ?= /home/batman/agnos-builder/agnos-kernel-sdm845/out
+ 
+ KBUILD_OPTIONS := WLAN_ROOT=$(PWD)
+ KBUILD_OPTIONS += MODNAME?=wlan
+diff --git a/WiFi/cnss_host_LEA/chss_proc/host/aio-gen/build/scripts/te-f30/config.te-f30 b/WiFi/cnss_host_LEA/chss_proc/host/aio-gen/build/scripts/te-f30/config.te-f30
+index 9b20be6..d065761 100644
+--- a/WiFi/cnss_host_LEA/chss_proc/host/aio-gen/build/scripts/te-f30/config.te-f30
++++ b/WiFi/cnss_host_LEA/chss_proc/host/aio-gen/build/scripts/te-f30/config.te-f30
+@@ -1,9 +1,9 @@
+ #
+ # Please modify KERNELPATH, KERNELARCH and TOOLPREFIX to meet your environment
+ #
+-export KERNELPATH=/lib/modules/${shell uname -r}/build
+-export KERNELARCH=i386
+-export TOOLPREFIX=
++export KERNELPATH=/home/batman/agnos-builder/agnos-kernel-sdm845
++export KERNELARCH=arm64
++export TOOLPREFIX=${CROSS_COMPILE}
+ 
+ export CONFIG_NO_USE_BACKPORTS=y
+ export CONFIG_CFG80211_DEPEND_ON_KERNEL=y
