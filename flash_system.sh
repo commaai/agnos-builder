@@ -10,4 +10,6 @@ tools/edl w system_a $DIR/output/system-skip-chunks.img
 tools/edl setactiveslot a
 tools/edl setbootablestoragedrive 1
 
+tools/edl reset
+
 echo "Done!"
