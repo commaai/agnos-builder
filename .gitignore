@@ -10,3 +10,6 @@ qdl/
 .qemu_registered
 
 .vscode
+
+edl_config.json
+tools/edl_repo/
