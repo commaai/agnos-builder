@@ -1,19 +1,14 @@
-#!/bin/bash -e
+#!/bin/bash
+set -e
 
-# Config
-OUTPUT_DIR="output"
-KERNEL_IMAGE="boot.img"
-
-# Log colors
 GREEN="\033[0;32m"
 NO_COLOR='\033[0m'
 
-# Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-# Flash bootloader
-fastboot flash boot_a $OUTPUT_DIR/$KERNEL_IMAGE
-fastboot flash boot_b $OUTPUT_DIR/$KERNEL_IMAGE
+echo "Flashing kernel..."
+tools/edl w boot_a output/boot.img
+tools/edl w boot_b output/boot.img
 
-echo -e "${GREEN}Done!"
+echo -e "${GREEN}Flashed boot_a and boot_b!${NO_COLOR}"

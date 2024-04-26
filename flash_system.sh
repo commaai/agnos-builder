@@ -4,9 +4,12 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-fastboot --set-active=a
-fastboot erase system_a
-fastboot flash system_a $DIR/output/system-skip-chunks.img
-fastboot continue
+echo "Flashing system..."
+tools/edl w system_a $DIR/output/system-skip-chunks.img
+
+tools/edl setactiveslot a
+tools/edl setbootablestoragedrive 1
+
+tools/edl reset
 
 echo "Done!"
