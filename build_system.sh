@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/daily/current"
-UBUNTU_FILE="noble-base-arm64.tar.gz"
+UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"
+UBUNTU_FILE="ubuntu-base-24.04-base-arm64.tar.gz"
 
 export DOCKER_BUILDKIT=1
 
