@@ -34,7 +34,7 @@ ninja -C build install
 
 # build ModemManager
 cd /tmp
-apt install -y --no-install-recommends gettext libpolkit-gobject-1-dev libdbus-1-dev libsystemd-dev
+apt install -y --no-install-recommends gettext libpolkit-gobject-1-dev libdbus-1-dev libsystemd-dev polkitd-pkla
 
 git clone -b $MM_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/ModemManager.git
 
