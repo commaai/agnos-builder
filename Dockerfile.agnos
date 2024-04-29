@@ -27,13 +27,13 @@ RUN /tmp/agnos/base_setup.sh
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_dependencies.sh
 
-# Install old Qt 5.12.8 and deps (deb built by andiradulescu from focal qt)
-# Install old libwayland 1.9.0-1
+# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
 RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
+    /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
     libdouble-conversion3
 
 # ################## #
