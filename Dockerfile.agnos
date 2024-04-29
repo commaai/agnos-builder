@@ -27,6 +27,15 @@ RUN /tmp/agnos/base_setup.sh
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_dependencies.sh
 
+# Install old Qt 5.12.8 and deps (deb built by andiradulescu from focal qt)
+# Install old libwayland 1.9.0-1
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    /tmp/agnos/qt-5.12.8.deb \
+    /tmp/agnos/libwayland-1.9.0-1.deb \
+    /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
+    libdouble-conversion3
+
 # ################## #
 # #### Compiler #### #
 # ################## #
@@ -49,7 +58,7 @@ RUN /tmp/agnos/compile-mapbox-gl-native.sh
 
 FROM agnos-compiler as agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
-COPY ./userspace/qtwayland/patch /tmp/agnos/
+COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
 
 # ################### #
@@ -84,7 +93,7 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
-    export MAKEFLAGS="-j40" && \
+    export MAKEFLAGS="-j$(nproc)" && \
     pip install pyqt5-sip==12.12.1 && \
     pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= && \
     pyenv rehash
@@ -106,9 +115,6 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
-
-# Install libwayland-client
-RUN apt-get update && apt-get install --no-install-recommends libwayland-client0
 
 COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb

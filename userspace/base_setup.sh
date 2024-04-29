@@ -147,7 +147,6 @@ apt-get install --no-install-recommends -yq \
     libfreetype6:armhf \
     libgbm1:armhf \
     libgcc-11-dev-armhf-cross \
-    libgcc1:armhf \
     libglib2.0-0t64:armhf \
     libgomp1-armhf-cross \
     libgudev-1.0-0:armhf \
@@ -174,9 +173,6 @@ apt-get install --no-install-recommends -yq \
     libudev1:armhf \
     libuuid1:armhf \
     libwacom9:armhf \
-    libwayland-client0:armhf \
-    libwayland-cursor0:armhf \
-    libwayland-server0:armhf \
     libx11-6:armhf \
     libxau6:armhf \
     libxcb-render0:armhf \
@@ -194,7 +190,6 @@ apt-get install --no-install-recommends -yq \
     libgles1 \
     libgles2 \
     libgles-dev \
-    libwayland-dev \
     openssh-server \
     dnsmasq-base \
     isc-dhcp-client \
@@ -205,3 +200,9 @@ apt-get install --no-install-recommends -yq \
     hostapd \
     libgtk2.0-dev \
     libxml2:armhf \
+
+# TODO: put these back when updating weston & removing old libwayland-1.9.0-1.deb
+    # libwayland-client0:armhf \
+    # libwayland-cursor0:armhf \
+    # libwayland-server0:armhf \
+    # libwayland-dev \
