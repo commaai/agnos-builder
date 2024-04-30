@@ -12,7 +12,7 @@ export CXXFLAGS="-Wno-deprecated-declarations"
 
 # Build mapbox-gl-native
 cd /tmp
-# needs an include to compile on gcc 11
+# TODO: switch back to "https://github.com/commaai/mapbox-gl-native.git" after "https://github.com/commaai/mapbox-gl-native/pull/1" is merged
 git clone --recursive https://github.com/andiradulescu/mapbox-gl-native.git
 cd mapbox-gl-native
 # removed commit pin

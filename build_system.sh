@@ -44,11 +44,6 @@ fi
 # Start docker build
 echo "Building image"
 export DOCKER_CLI_EXPERIMENTAL=enabled
-# TODO: remove these lines before merge
-# docker build -f Dockerfile.agnos --target agnos-compiler-capnp $DIR
-# docker build -f Dockerfile.agnos --target agnos-compiler-ffmpeg $DIR
-# docker build -f Dockerfile.agnos --target agnos-compiler-mapbox-gl-native $DIR
-# docker build -f Dockerfile.agnos --target agnos-compiler-qtwayland5 $DIR
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
 
 # Create filesystem ext4 image
