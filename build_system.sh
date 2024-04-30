@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
-UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
+UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"
+UBUNTU_FILE="ubuntu-base-24.04-base-arm64.tar.gz"
 
 export DOCKER_BUILDKIT=1
 
@@ -64,6 +64,10 @@ docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 docker container rm $CONTAINER_ID > /dev/null
 cd $ROOTFS_DIR
 sudo tar -xf $BUILD_DIR/filesystem.tar > /dev/null
+
+# Remove the .dockerenv file
+echo "Removing .dockerenv file"
+sudo rm -f $ROOTFS_DIR/.dockerenv
 
 # Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"

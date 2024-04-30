@@ -2,7 +2,7 @@
 # ###### Base ###### #
 # ################## #
 FROM scratch AS agnos-base
-ADD ubuntu-base-20.04.1-base-arm64.tar.gz /
+ADD ubuntu-base-24.04-base-arm64.tar.gz /
 
 # Add aarch64 and arm support
 COPY --from=multiarch/qemu-user-static:x86_64-aarch64 /usr/bin/qemu-aarch64-static /usr/bin
@@ -23,16 +23,25 @@ RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-
 COPY ./userspace/base_setup.sh /tmp/agnos
 RUN /tmp/agnos/base_setup.sh
 
+# Install openpilot dependencies
+COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh
+
+# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    /tmp/agnos/qt-5.12.8.deb \
+    /tmp/agnos/libwayland-1.9.0-1.deb \
+    /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
+    /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
+    libdouble-conversion3
+
 # ################## #
 # #### Compiler #### #
 # ################## #
 FROM agnos-base as agnos-compiler
 
 RUN apt-get update && apt-get install --no-install-recommends checkinstall
-# Install openpilot dependencies, probably needed for build,
-# but we don't want these in the base image
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
 
 # Individual compiling images
 FROM agnos-compiler as agnos-compiler-capnp
@@ -49,7 +58,7 @@ RUN /tmp/agnos/compile-mapbox-gl-native.sh
 
 FROM agnos-compiler as agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
-COPY ./userspace/qtwayland/patch /tmp/agnos/
+COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
 
 # ################### #
@@ -72,9 +81,6 @@ RUN /tmp/agnos/compile-modemmanager.sh
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
@@ -87,7 +93,7 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
-    export MAKEFLAGS="-j40" && \
+    export MAKEFLAGS="-j$(nproc)" && \
     pip install pyqt5-sip==12.12.1 && \
     pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= && \
     pyenv rehash
@@ -109,10 +115,6 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
-
-# 16.04 libwayland-client + libffi6
-COPY ./userspace/qtwayland/libffi.so.6 /lib/aarch64-linux-gnu/
-COPY ./userspace/qtwayland/libwayland-client.so.0 /lib/aarch64-linux-gnu/libwayland-client.so.0
 
 COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
@@ -197,7 +199,7 @@ RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostn
 
 # TODO: move this to base_setup.sh or build gcc from source
 # Remove unused architectures from arm-none-eabi
-RUN cd /usr/lib/gcc/arm-none-eabi/9.2.1 && \
+RUN cd /usr/lib/gcc/arm-none-eabi/* && \
     rm -rf arm/ && \
     rm -rf thumb/nofp thumb/v6* thumb/v8* thumb/v7+fp thumb/v7-r+fp.sp
 

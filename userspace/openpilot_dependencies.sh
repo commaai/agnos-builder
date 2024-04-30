@@ -29,7 +29,7 @@ apt-get install --no-install-recommends -yq \
     libffi-dev \
     libfreetype6-dev \
     libglfw3-dev \
-    libglib2.0-0 \
+    libglib2.0-0t64 \
     libi2c-dev \
     libjpeg-dev \
     liblzma-dev \
@@ -61,18 +61,23 @@ apt-get install --no-install-recommends -yq \
     vnstat \
     wget \
     zlib1g-dev \
-    libqt5location5-plugin-mapboxgl \
-    libqt5opengl5-dev \
-    libqt5sql5-sqlite \
-    libqt5svg5-dev \
-    libqt5multimedia5-plugins \
-    qml-module-qtquick2 \
-    qt5-default \
-    qtbase5-private-dev \
-    qtdeclarative5-dev \
-    qtdeclarative5-private-dev \
-    qtlocation5-dev \
-    qtmultimedia5-dev \
-    qtpositioning5-dev \
-    qtwayland5 \
     zstd
+
+# TODO: put these back when updating weston & removing old qt-5.12.8.deb
+    # libqt5location5-plugin-mapboxgl \
+    # libqt5opengl5-dev \
+    # libqt5sql5-sqlite \
+    # libqt5svg5-dev \
+    # libqt5multimedia5-plugins \
+    # qml-module-qtquick2 \
+    # qt5-qmake \
+    # qtbase5-dev \
+    # qtbase5-dev-tools \
+    # qtbase5-private-dev \
+    # qtchooser \
+    # qtdeclarative5-dev \
+    # qtdeclarative5-private-dev \
+    # qtlocation5-dev \
+    # qtmultimedia5-dev \
+    # qtpositioning5-dev \
+    # qtwayland5 \
