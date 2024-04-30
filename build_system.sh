@@ -70,6 +70,10 @@ docker container rm $CONTAINER_ID > /dev/null
 cd $ROOTFS_DIR
 sudo tar -xf $BUILD_DIR/filesystem.tar > /dev/null
 
+# Remove the .dockerenv file
+echo "Removing .dockerenv file"
+sudo rm -f $ROOTFS_DIR/.dockerenv
+
 # Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"
 HOST=comma
