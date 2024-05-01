@@ -18,7 +18,6 @@
   - [ ] from /persist/comma/
   - [ ] directly from panel over sysfs
 - [ ] clean setup
-- [ ] cameras
 - [ ] update works on warm boot
   - [ ] previous -> new
   - [ ] new -> previous
