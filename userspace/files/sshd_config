@@ -71,7 +71,7 @@ ClientAliveCountMax 3
 # The low default DSCP of 0x10 lumps ssh traffic in with all other potentially
 # high bandwidth traffic. Raise the priority to ensure that this interactive traffic
 # remains responsive even when we are bandwidth limited.
-IPQoS 0xb8
+IPQoS af42
 
 #MaxStartups 10:30:60
 #Banner /etc/issue.net
