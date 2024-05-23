@@ -1,20 +1,16 @@
 #!/bin/bash -e
 
-DEFCONFIG=tici_defconfig
+DEFCONFIG="defconfig comma3.config"
 
 # Get directories and make sure we're in the correct spot to start the build
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 TOOLS=$DIR/tools
-TMP_DIR=/tmp/agnos-builder-tmp
+TMP_DIR=/tmp/agnos-builder-new-kernel-tmp
 OUTPUT_DIR=$DIR/output
 BOOT_IMG=./boot.img
-cd $DIR
+KERNEL_DIR=$DIR/kernel/linux
 
-# Clone kernel if not done already
-if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
-  git submodule update --init agnos-kernel-sdm845
-fi
-cd agnos-kernel-sdm845
+cd $KERNEL_DIR
 
 $DIR/tools/extract_tools.sh
 
@@ -31,21 +27,27 @@ export KCFLAGS="-w"
 echo "-- First make --"
 make $DEFCONFIG O=out
 echo "-- Second make: $(nproc --all) cores --"
-make -j$(nproc --all) O=out  # Image.gz-dtb
+make -j$(nproc --all) O=out  # Image.gz
 
 # Turn on if you want perf
 # LDFLAGS=-static make -j$(nproc --all) -C tools/perf
 
+# Create Image.gz-dtb
+cd $KERNEL_DIR/out/arch/arm64/boot/
+# cat Image.gz dts/qcom/comma-*.dtb > Image.gz-dtb
+# cat Image.gz dts/qcom/comma-tici.dtb > Image.gz-dtb
+cat Image.gz dts/qcom/sdm845-comma3.dtb > Image.gz-dtb
+
 # Copy over Image.gz-dtb
 mkdir -p $TMP_DIR
 cd $TMP_DIR
-cp $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image.gz-dtb .
+cp $KERNEL_DIR/out/arch/arm64/boot/Image.gz-dtb .
 
 # Make boot image
 $TOOLS/mkbootimg \
   --kernel Image.gz-dtb \
   --ramdisk /dev/null \
-  --cmdline "console=ttyMSM0,115200n8 quiet loglevel=3 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 ehci-hcd.park=3 lpm_levels.sleep_disabled=1 service_locator.enable=1 androidboot.selinux=permissive firmware_class.path=/lib/firmware/updates net.ifnames=0 dyndbg=\"\"" \
+  --cmdline "console=ttyMSM0,115200n8 earlycon=qcom_geni,0xA84000" \
   --pagesize 4096 \
   --base 0x80000000 \
   --kernel_offset 0x8000 \
@@ -63,6 +65,8 @@ cat $BOOT_IMG.nonsecure $BOOT_IMG.sig.padded > $BOOT_IMG
 # Copy to output dir
 mkdir -p $OUTPUT_DIR
 mv $BOOT_IMG $OUTPUT_DIR/
-cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/snd-soc-sdm845.ko $OUTPUT_DIR/
-cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/codecs/snd-soc-wcd9xxx.ko $OUTPUT_DIR/
-cp $DIR/agnos-kernel-sdm845/out/drivers/staging/qcacld-3.0/wlan.ko $OUTPUT_DIR/
+
+# These will come from the kernel debs
+# cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/snd-soc-sdm845.ko $OUTPUT_DIR/
+# cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/codecs/snd-soc-wcd9xxx.ko $OUTPUT_DIR/
+# cp $DIR/agnos-kernel-sdm845/out/drivers/staging/qcacld-3.0/wlan.ko $OUTPUT_DIR/

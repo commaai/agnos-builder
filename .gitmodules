@@ -10,3 +10,6 @@
 [submodule "agnos-binaries"]
   path = agnos-binaries
   url = ../../commaai/agnos-binaries.git
+[submodule "kernel/linux"]
+	path = kernel/linux
+	url = https://github.com/andiradulescu/linux
