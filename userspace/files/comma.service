@@ -5,7 +5,7 @@ Type=simple
 User=comma
 Restart=always
 ExecStart=/bin/bash -c "/usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh && sleep infinity"
-KillSignal=SIGKILL
+TimeoutStopSec=1
 LimitRTPRIO=100
 LimitNICE=-10
 
