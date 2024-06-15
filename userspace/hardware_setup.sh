@@ -2,6 +2,7 @@
 
 # Install driver deb files (we're fine with overwriting stuff too)
 cd /tmp/agnos/debs
+mkdir /lib64
 apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
   ./agnos-base.deb \
   ./agnos-display_0.0.1.deb \
