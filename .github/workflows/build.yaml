@@ -12,16 +12,11 @@ jobs:
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
-
-    - uses: actions/checkout@v4
       with:
-        repository: commaai/agnos-firmware
-        path: agnos-firmware
-        token: ${{ secrets.SUBMODULE_TOKEN }}
         persist-credentials: true
 
     - name: checkout submodule ref
-      run: git submodule update --init
+      run: git submodule update --init agnos-kernel-sdm845
 
     - uses: actions/setup-python@v5
       with:
