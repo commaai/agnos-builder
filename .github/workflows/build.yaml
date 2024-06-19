@@ -18,9 +18,17 @@ jobs:
     - uses: actions/checkout@v4
       with:
         filter: blob:none
-
     - name: checkout submodule ref
       run: git submodule update --init --filter blob:none agnos-kernel-sdm845
 
     - run: ./build_kernel.sh
+    - uses: actions/upload-artifact@v4
+      with:
+        name: boot.img
+        path: output/boot.img
+
     - run: ./build_system.sh
+    - uses: actions/upload-artifact@v4
+      with:
+        name: system.img
+        path: output/system.img
