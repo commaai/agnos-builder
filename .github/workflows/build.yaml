@@ -13,10 +13,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        persist-credentials: true
+        filter: blob:none
 
     - name: checkout submodule ref
-      run: git submodule update --init agnos-kernel-sdm845
+      run: git submodule update --init --filter blob:none agnos-kernel-sdm845
 
     - uses: actions/setup-python@v5
       with:
