@@ -9,7 +9,10 @@ touch /data/etc/timezone
 touch /data/etc/localtime
 mkdir -p /data/etc/NetworkManager/system-connections
 
-# /data/media - NVME mount point
+# /var
+mkdir -p /data/var/log
+
+# /data/media - Extra storage drive mount point
 mkdir -p /data/media
 
 # /data/ssh
