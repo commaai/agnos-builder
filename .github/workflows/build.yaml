@@ -12,8 +12,17 @@ jobs:
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
+
+    - uses: actions/checkout@v4
       with:
-        submodules: true
+        repository: commaai/agnos-firmware
+        path: agnos-firmware
+        token: ${{ secrets.SUBMODULE_TOKEN }}
+        persist-credentials: true
+
+    - name: checkout submodule ref
+      run: git submodule update --init
+
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
