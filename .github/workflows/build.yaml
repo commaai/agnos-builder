@@ -25,21 +25,14 @@ jobs:
         git submodule update --init --filter blob:none agnos-kernel-sdm845
         echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
 
-    - uses: actions/cache/restore@v4
-      id: restore-cache
+    - uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
       with:
         key: kernel-${{ steps.kernel-submodule.outputs.ref }}
-        path: agnos-kernel-sdm845/out
         restore-keys: |
           kernel-
+        create-symlink: true
 
     - run: ./build_kernel.sh
-
-    - uses: actions/cache/save@v4
-      if: always()
-      with:
-        key: ${{ steps.restore-cache.outputs.cache-primary-key }}
-        path: agnos-kernel-sdm845/out
 
     - uses: actions/upload-artifact@v4
       with:
