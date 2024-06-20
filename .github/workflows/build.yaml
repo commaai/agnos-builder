@@ -31,6 +31,7 @@ jobs:
         restore-keys: |
           kernel-
         create-symlink: true
+        append-timestamp: false
 
     - run: ./build_kernel.sh
       env:
