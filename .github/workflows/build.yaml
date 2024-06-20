@@ -34,6 +34,8 @@ jobs:
 
     - run: ./build_kernel.sh
       env:
+        CROSS_COMPILE: "ccache ${{ github.workspace }}/tools/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-"
+        CC: "ccache ${{ github.workspace }}/tools/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc"
         KBUILD_BUILD_USER: uuuuuuuuuuuuuuuuuuuuuuuuuuuuu
         KBUILD_BUILD_HOST: hhhhhhhhhhhhhhhhhhhhhhhhhhhhh
         KBUILD_BUILD_TIMESTAMP: yyyyyyyyyyyyyyyyyyyyyyyyyyyyy

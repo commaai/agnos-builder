@@ -20,9 +20,9 @@ $DIR/tools/extract_tools.sh
 
 # Build parameters
 export ARCH=arm64
-export CROSS_COMPILE="ccache $TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-"
-# export CC="ccache $TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc"
-# export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
+export CROSS_COMPILE=${CROSS_COMPILE:-"$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-"}
+export CC=${CC:-"$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc"}
+export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
 
 # these do anything?
 export KCFLAGS="-w"
