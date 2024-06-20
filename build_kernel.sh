@@ -24,10 +24,10 @@ export CROSS_COMPILE=${CROSS_COMPILE:-"$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-
 export CC=${CC:-"$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc"}
 export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
 
-# export KBUILD_BUILD_USER=user
-# export KBUILD_BUILD_HOST=host
-# export KBUILD_BUILD_TIMESTAMP=$(TZ=UTC date -d @$(git show -s --format=%ct))
-# export KBUILD_BUILD_VERSION=$(git rev-parse HEAD)
+export KBUILD_BUILD_USER=user
+export KBUILD_BUILD_HOST=host
+export KBUILD_BUILD_TIMESTAMP=$(TZ=UTC date -d @$(git show -s --format=%ct))
+export KBUILD_BUILD_VERSION=$(git rev-parse HEAD)
 
 # these do anything?
 export KCFLAGS="-w"
