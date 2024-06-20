@@ -33,6 +33,11 @@ jobs:
         create-symlink: true
 
     - run: ./build_kernel.sh
+      env:
+        KBUILD_BUILD_USER: uuuuuuuuuuuuuuuuuuuuuuuuuuuuu
+        KBUILD_BUILD_HOST: hhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+        KBUILD_BUILD_TIMESTAMP: yyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+        KBUILD_BUILD_VERSION: vvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
     - uses: actions/upload-artifact@v4
       with:
