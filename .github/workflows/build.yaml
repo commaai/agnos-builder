@@ -39,8 +39,8 @@ jobs:
         name: boot.img
         path: output/boot.img
 
-    - run: ./build_system.sh
-    - uses: actions/upload-artifact@v4
-      with:
-        name: system.img
-        path: output/system.img
+    # - run: ./build_system.sh
+    # - uses: actions/upload-artifact@v4
+    #   with:
+    #     name: system.img
+    #     path: output/system.img
