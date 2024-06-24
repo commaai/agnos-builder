@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: nscloud-ubuntu-20.04-arm64-4x16
+    runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 180
     steps:
     - uses: actions/checkout@v4
@@ -24,23 +24,16 @@ jobs:
 
     - name: checkout kernel submodule
       id: kernel-submodule
-      run: |
-        git submodule update --init --filter blob:none agnos-kernel-sdm845
-        echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
+      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
 
-    - uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
+    - uses: namespacelabs/nscloud-checkout-action@v2
       with:
-        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
-        restore-keys: |
-          kernel-
-        create-symlink: true
-        append-timestamp: false
+        repository: commaai/agnos-kernel-sdm845
+        ref: ${{ steps.kernel-submodule.outputs.ref }}
+        path: agnos-kernel-sdm845
+        filter: blob:none
 
     - run: ./build_kernel.sh
-      env:
-        CROSS_COMPILE: "ccache ${{ github.workspace }}/tools/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-"
-        CC: "ccache ${{ github.workspace }}/tools/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc"
-
     - uses: actions/upload-artifact@v4
       with:
         name: boot.img
