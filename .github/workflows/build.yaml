@@ -38,6 +38,10 @@ jobs:
       with:
         name: boot.img
         path: output/boot.img
+    - uses: actions/upload-artifact@v4
+      with:
+        name: kernel-modules
+        path: output/*.ko
 
     - name: Free build space
       run: rm -rf /opt/hostedtoolcache
