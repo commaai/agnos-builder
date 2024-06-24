@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: nscloud-arm64
+    runs-on: nscloud-ubuntu-20.04-arm64-4x16
     timeout-minutes: 180
     steps:
     - uses: actions/checkout@v4
