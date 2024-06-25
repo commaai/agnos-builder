@@ -20,7 +20,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        filter: blob:none
         lfs: true
 
     - name: checkout kernel submodule
