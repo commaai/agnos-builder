@@ -22,7 +22,7 @@ jobs:
       with:
         lfs: true
 
-    - name: checkout kernel submodule
+    - name: get kernel submodule ref
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
 
