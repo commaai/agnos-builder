@@ -48,45 +48,49 @@ echo "Building image"
 export DOCKER_CLI_EXPERIMENTAL=enabled
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
 
+# Setup mount container
+MOUNT_CONTAINER_ID=$(docker run -d --privileged --volume $BUILD_DIR:$BUILD_DIR ubuntu:latest sleep infinity)
+
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
-fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-mkfs.ext4 $ROOTFS_IMAGE > /dev/null
+docker exec $MOUNT_CONTAINER_ID fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
+docker exec $MOUNT_CONTAINER_ID mkfs.ext4 $ROOTFS_IMAGE > /dev/null
 
 # Mount filesystem
 echo "Mounting empty filesystem"
-mkdir -p $ROOTFS_DIR
-sudo umount -l $ROOTFS_DIR > /dev/null || true
-sudo mount $ROOTFS_IMAGE $ROOTFS_DIR
+docker exec $MOUNT_CONTAINER_ID mkdir -p $ROOTFS_DIR
+docker exec $MOUNT_CONTAINER_ID mount -o loop $ROOTFS_IMAGE $ROOTFS_DIR
 
 # Extract image
 echo "Extracting docker image"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 docker container rm $CONTAINER_ID > /dev/null
+docker exec $MOUNT_CONTAINER_ID tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
+
 cd $ROOTFS_DIR
-sudo tar -xf $BUILD_DIR/filesystem.tar > /dev/null
 
 # Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"
 HOST=comma
-sudo bash -c "ln -sf /proc/sys/kernel/hostname etc/hostname"
-sudo bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
-sudo bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
+bash -c "ln -sf /proc/sys/kernel/hostname etc/hostname"
+bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
+bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
 # Fix resolv config
-sudo bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
+bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
 
 # Write build info
 DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
 GIT_HASH=$(git --git-dir=$DIR/.git rev-parse HEAD)
-sudo bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
-
-cd $DIR
+bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
 
 # Unmount image
 echo "Unmount filesystem"
-sudo umount -l $ROOTFS_DIR
+docker exec $MOUNT_CONTAINER_ID umount -l $ROOTFS_DIR
+docker rm -f $MOUNT_CONTAINER_ID > /dev/null
+
+cd $DIR
 
 # Sparsify
 echo "Sparsify image"
