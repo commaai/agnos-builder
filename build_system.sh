@@ -10,6 +10,8 @@ export DOCKER_BUILDKIT=1
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
+ARCH=$(uname -m)
+
 BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
 
@@ -36,8 +38,8 @@ if [ ! -f $UBUNTU_FILE ]; then
   curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent
 fi
 
-# Register qemu multiarch
-if [ "$(uname -p)" != "aarch64" ]; then
+if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
+  # Register qemu multiarch
   docker run --rm --privileged multiarch/qemu-user-static:register --reset
 fi
 
