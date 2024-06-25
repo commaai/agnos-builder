@@ -32,6 +32,9 @@ jobs:
         ref: ${{ steps.kernel-submodule.outputs.ref }}
         path: agnos-kernel-sdm845
 
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y bc img2simg
+
     - uses: LizardByte/setup-python-action@24f68bb394b3cc9ad84583f60c7b279092cea17d
       with:
         python-version: '2.7'
