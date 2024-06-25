@@ -42,9 +42,6 @@ jobs:
         name: kernel-modules
         path: output/*.ko
 
-    - name: Free build space
-      run: rm -rf /opt/hostedtoolcache
-
     # - uses: docker/setup-qemu-action@v3
     # - uses: docker/setup-buildx-action@v3
 
