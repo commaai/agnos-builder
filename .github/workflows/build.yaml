@@ -31,7 +31,6 @@ jobs:
         repository: commaai/agnos-kernel-sdm845
         ref: ${{ steps.kernel-submodule.outputs.ref }}
         path: agnos-kernel-sdm845
-        filter: blob:none
 
     - run: ./build_kernel.sh
     - uses: actions/upload-artifact@v4
