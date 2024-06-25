@@ -32,7 +32,7 @@ jobs:
         ref: ${{ steps.kernel-submodule.outputs.ref }}
         path: agnos-kernel-sdm845
 
-    - uses: actions/setup-python@v4
+    - uses: LizardByte/setup-python-action@24f68bb394b3cc9ad84583f60c7b279092cea17d
       with:
         python-version: '2.7'
 
