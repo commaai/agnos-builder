@@ -33,7 +33,7 @@ cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
   echo -e "${GREEN}Downloading Ubuntu: $UBUNTU_FILE ${NO_COLOR}"
-  wget -c $UBUNTU_BASE_URL/$UBUNTU_FILE --quiet
+  curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent
 fi
 
 # Register qemu multiarch
