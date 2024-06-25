@@ -17,7 +17,7 @@ if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
 fi
 cd agnos-kernel-sdm845
 
-if [ "$ARCH" != "arm64" ] && [ "$ARCH" !== "aarch64" ]; then
+if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
   $DIR/tools/extract_tools.sh
 
   # Build parameters
