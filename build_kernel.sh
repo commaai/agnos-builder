@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-DEFCONFIG="defconfig comma3.config"
+DEFCONFIG="defconfig sdm845.config"
 
 # Get directories and make sure we're in the correct spot to start the build
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
