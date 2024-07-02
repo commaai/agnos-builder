@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-DEFCONFIG="defconfig comma3.config"
+DEFCONFIG="defconfig sdm845.config"
 
 # Get directories and make sure we're in the correct spot to start the build
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -39,5 +39,5 @@ $ARGS make bindeb-pkg -j$(nproc --all) O=out
 
 # Copy output
 mkdir -p $OUTPUT_DIR
-rm $OUTPUT_DIR/linux-*.deb
+rm -f $OUTPUT_DIR/linux-*.deb || true
 cp *.deb $OUTPUT_DIR
