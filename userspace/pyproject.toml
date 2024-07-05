@@ -5,7 +5,7 @@ authors = ["Vehicle Researcher <user@comma.ai>"]
 description = ""
 
 [tool.poetry.dependencies]
-python = "~3.12"
+python = "~3.11"
 atomicwrites = "*"
 cffi = "*"
 crcmod = "*"
@@ -90,7 +90,7 @@ aenum = "*"
 coverage = "*"
 paramiko = "*"
 lru-dict = "*"
-#pprofile = "*"  # broken on 3.12
+pprofile = "*"
 pyprof2calltree = "*"
 pre-commit = "*"
 mypy = "*"

@@ -8,11 +8,11 @@ curl https://pyenv.run | bash
 export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 
-PYTHON_VERSION="3.12.3"
+PYTHON_VERSION="3.11.4"
 if [ "$(uname -p)" == "aarch64" ]; then
   pyenv install --verbose $PYTHON_VERSION
 else
-  MAKEFLAGS="-j16" MAKE_OPTS="-j16" pyenv install --verbose $PYTHON_VERSION
+  MAKEFLAGS="-j1" MAKE_OPTS="-j1" taskset --cpu-list 0 pyenv install --verbose $PYTHON_VERSION
 fi
 
 echo "Setting global python version"
