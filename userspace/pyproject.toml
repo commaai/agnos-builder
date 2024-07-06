@@ -48,7 +48,7 @@ sentry-sdk = "*"
 markdown-it-py = "*"
 onnx = "*"
 onnxruntime = ">=1.16.3"
-pyopencl = "*"
+#pyopencl = "==2024.1"  # FIXME: has some installation errors
 hatanaka = "==2.4"
 protobuf = "*"
 torch = "*"
