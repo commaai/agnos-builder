@@ -26,7 +26,7 @@ jobs:
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
 
-    - uses: namespacelabs/nscloud-checkout-action@v2
+    - uses: namespacelabs/nscloud-checkout-action@v4
       with:
         repository: commaai/agnos-kernel-sdm845
         ref: ${{ steps.kernel-submodule.outputs.ref }}
