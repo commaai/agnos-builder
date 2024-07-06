@@ -40,12 +40,13 @@ jobs:
       with:
         default: '2.7.18'
 
-    - name: Cache kernel build artifacts
+    - name: Cache kernel build
       uses: actions/cache@v4
       id: cache-kernel
       with:
         key: kernel-${{ steps.kernel-submodule.outputs.ref }}
         path: |
+          agnos-kernel-sdm845/out
           output/*.img
           output/*.ko
         restore-keys: kernel-
