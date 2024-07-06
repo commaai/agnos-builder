@@ -16,7 +16,7 @@ permissions:
 jobs:
   build:
     runs-on: namespace-profile-arm64-8x16-2004-caching
-    timeout-minutes: 180
+    timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
       with:
