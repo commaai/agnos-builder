@@ -47,7 +47,6 @@ jobs:
         path: |
           output/*.img
           output/*.ko
-        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
 
     - name: Build kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
