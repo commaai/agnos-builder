@@ -35,9 +35,10 @@ jobs:
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y bc img2simg
 
-    - uses: LizardByte/setup-python-action@24f68bb394b3cc9ad84583f60c7b279092cea17d
+    - name: Install python2
+      uses: gabrielfalcao/pyenv-action@2f49ca7587f9d0663d13f1147b78d3361417eaf7
       with:
-        python-version: '2.7'
+        default: '2.7.18'
 
     - run: ./build_kernel.sh
     - uses: actions/upload-artifact@v4
