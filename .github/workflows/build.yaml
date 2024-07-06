@@ -41,12 +41,14 @@ jobs:
         default: '2.7.18'
 
     - name: Cache kernel build artifacts
-      uses: namespacelabs/nscloud-cache-action@v1
+      uses: actions/cache@v4
       id: cache-kernel
       with:
+        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
         path: |
           output/*.img
           output/*.ko
+        restore-keys: kernel-
 
     - name: Build kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
