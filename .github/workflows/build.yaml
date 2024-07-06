@@ -45,7 +45,7 @@ jobs:
       id: cache-kernel
       with:
         path: |
-          output/boot.img
+          output/*.img
           output/*.ko
         key: kernel-${{ steps.kernel-submodule.outputs.ref }}
 
