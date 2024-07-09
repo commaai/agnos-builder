@@ -1,8 +1,25 @@
 #!/bin/bash -e
 
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+
+# MESA_REPO="https://gitlab.freedesktop.org/mesa/mesa.git"
+MESA_DIR="$DIR/mesa"
+BUILD_DIR="build"
+INSTALL_DIR="$DIR/mesa_install"
+# INSTALL_DIR="/usr/local"
+# INSTALL_DIR="$(mktemp -d)"
+# https://gitlab.freedesktop.org/mesa/mesa/-/branches/all
+# MESA_VERSION="23.3.0"
+MESA_VERSION="24.0.5"
+MESA_TAR="mesa-${MESA_VERSION}.tar.xz"
+MESA_URL="https://archive.mesa3d.org/${MESA_TAR}"
+
+LLVM_VERSION="17"
+
 # Install dependencies
 sudo apt update
 sudo apt install -y \
+    git \
     build-essential \
     meson \
     cmake \
@@ -13,7 +30,7 @@ sudo apt install -y \
     libva-dev \
     rustc \
     rustfmt \
-    libclc-17-dev \
+    libclc-$LLVM_VERSION-dev \
     python3-mako \
     python3-pycparser \
     zlib1g-dev \
@@ -22,13 +39,13 @@ sudo apt install -y \
     libbsd-dev \
     libdrm-dev \
     libudev-dev \
-    llvm-17-dev \
-    libllvm17 \
-    llvm-spirv-17 \
-    libllvmspirvlib-17-dev \
-    clang-17 \
-    libclang-17-dev \
-    libclang-cpp17-dev \
+    llvm-$LLVM_VERSION-dev \
+    libllvm$LLVM_VERSION \
+    llvm-spirv-$LLVM_VERSION \
+    libllvmspirvlib-$LLVM_VERSION-dev \
+    clang-$LLVM_VERSION \
+    libclang-$LLVM_VERSION-dev \
+    libclang-cpp$LLVM_VERSION-dev \
     libelf-dev \
     valgrind \
     bison \
@@ -48,12 +65,9 @@ sudo apt install -y \
     libxshmfence-dev \
     libxxf86vm-dev \
     libxrandr-dev \
-    bindgen
-
-
-
-
-    
+    bindgen \
+    pkg-config
+    # old deps
     # build-essential \
     # meson \
     # ninja-build \
@@ -96,13 +110,11 @@ sudo apt install -y \
     # python3-mako \
     # libvdpau-dev
 
-# Variables
-MESA_DIR="mesa"
-BUILD_DIR="build"
-INSTALL_DIR="/usr/local"
-MESA_VERSION="24.1.2"
-MESA_TAR="mesa-${MESA_VERSION}.tar.xz"
-MESA_URL="https://archive.mesa3d.org/${MESA_TAR}"
+# if [ ! -d "$MESA_DIR" ]; then
+#   git clone -b $MESA_VERSION_BRANCH --depth 1 --single-branch $MESA_REPO $MESA_DIR
+#   cd $MESA_DIR
+#   git apply $DIR/mesa-patches-$MESA_VERSION_BRANCH/*.patch
+# fi
 
 # Download and extract Mesa
 if [ ! -d "$MESA_DIR" ]; then
@@ -110,37 +122,59 @@ if [ ! -d "$MESA_DIR" ]; then
     tar -xf "$MESA_TAR"
     mv "mesa-${MESA_VERSION}" "$MESA_DIR"
     rm "$MESA_TAR"
+    cd $MESA_DIR
+    for patch in $DIR/mesa-patches-$MESA_VERSION/*.patch; do
+      patch -p1 < "$patch"
+    done
 fi
 
-# Build Mesa with Freedreno and Rusticl support
 cd $MESA_DIR
 
+export CFLAGS="$CFLAGS -O2 -g1"
+export CXXFLAGS="$CXXFLAGS -O2 -g1"
+export CPPFLAGS="$CPPFLAGS -O2 -g1"
+
+# Build Mesa with Freedreno and Rusticl support
+# meson setup $BUILD_DIR --prefix=$INSTALL_DIR \
+#     -Db_ndebug=true \
+#     -Db_lto=true \
+#     -Dgallium-drivers=freedreno \
+#     -Dgallium-opencl=disabled \
+#     -Dvulkan-drivers=freedreno \
+#     -Dplatforms=wayland \
+#     -Dglx=disabled \
+#     -Dllvm=enabled \
+#     -Dshared-llvm=enabled \
+#     -Dgallium-rusticl=true \
+#     -Drust_std=2021
+
 meson setup $BUILD_DIR --prefix=$INSTALL_DIR \
+    -Db_ndebug=true \
+    -Db_lto=false \
     -Dgallium-drivers=freedreno \
-    -Dvulkan-drivers=freedreno \
-    -Dgallium-rusticl=true \
     -Dgallium-opencl=disabled \
-    -Dllvm=enabled \
-    -Drust_std=2021 \
+    -Dvulkan-drivers=freedreno \
     -Dplatforms=wayland \
-    -Dopengl=false \
+    -Dglx=disabled \
+    -Dllvm=enabled \
+    -Dshared-llvm=enabled \
+    -Dgallium-rusticl=true \
+    -Drust_std=2021 \
     -Dgallium-va=disabled \
     -Dgallium-vdpau=disabled \
     -Dgallium-xa=disabled \
-    -Dgallium-nine=false \
-    -Dosmesa=false
-    # -Dglx=disabled \
-    # -Degl=enabled \
-    # -Dgbm=enabled \
-    # -Dgles1=enabled \
-    # -Dgles2=enabled \
-    # -Dshared-glapi=enabled \
-    # -Dgallium-extra-hud=true \
-    # -Dgallium-nine=true \
-    # -Dgallium-opencl=icd \
-    # -Dopencl-spirv=true \
-    # -Dosmesa=true
-ninja -C $BUILD_DIR
-# sudo ninja -C $BUILD_DIR install
+    -Dopengl=false \
+		-Dosmesa=false \
+    -Dgles1=disabled \
+    -Dgles2=disabled \
+    -Degl=disabled \
+    -Dgallium-extra-hud=false \
+    -Dgallium-nine=false
+    # -Dvideo-codecs=disabled
 
-echo "Mesa $MESA_VERSION has been built and installed successfully."
+ninja -C $BUILD_DIR
+
+# mkdir -p $INSTALL_DIR/lib
+sudo ninja -C $BUILD_DIR install
+
+echo "Mesa $MESA_VERSION has been built and installed successfully to $INSTALL_DIR"
