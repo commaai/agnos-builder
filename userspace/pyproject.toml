@@ -39,6 +39,7 @@ dependencies = [
     "pydub",
     "pyjwt",
     "pylint",
+#    "pyopencl == 2024.1", #FIXME: has some installation errors
     "pyserial",
     "pytest",
     "pytest-cov",
