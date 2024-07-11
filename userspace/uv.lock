@@ -2404,7 +2404,7 @@ wheels = [
 [[distribution]]
 name = "sconscontrib"
 version = "1.0"
-source = { git = "https://github.com/SCons/scons-contrib#29cc30e0395eb61028f216f2761f657833883f20" }
+source = { git = "https://github.com/SCons/scons-contrib.git#29cc30e0395eb61028f216f2761f657833883f20" }
 dependencies = [
     { name = "docutils" },
     { name = "panflute" },
