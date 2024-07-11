@@ -57,7 +57,7 @@ dependencies = [
     "pyzstd",
     "requests",
     "scons",
-    "sconscontrib@git+https://github.com/SCons/scons-contrib",
+    "sconscontrib",
     "sentry-sdk",
     "setproctitle",
     "six",
@@ -100,6 +100,9 @@ dev = [
     "tabulate",
     "flaky"
 ]
+
+[tool.uv.sources]
+sconscontrib = { git = "https://github.com/SCons/scons-contrib.git" }
 
 [build-system]
 requires = ["hatchling"]
