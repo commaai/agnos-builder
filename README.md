@@ -1,6 +1,6 @@
 # agnos-builder
 
-This is the tool to build AGNOS, our Ubuntu based OS. AGNOS runs on the [comma three devkit](https://comma.ai/shop/products/three).
+This is the buidler repo for AGNOS, our Ubuntu based OS. AGNOS runs on the comma three devkit and [comma 3X](https://comma.ai/shop/comma-3x).
 
 NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repos.
 
