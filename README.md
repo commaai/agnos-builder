@@ -4,7 +4,7 @@ This is the buidler repo for AGNOS, our Ubuntu based OS. AGNOS runs on the comma
 
 NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repos.
 
-## Setup
+## Development
 
 These tools are developed on and targeted for Ubuntu 20.04.
 
@@ -49,14 +49,16 @@ Join us on [Discord](https://discord.comma.ai).
 
 A comma 3/3X is helpful for working on AGNOS, but not required for a lot of interesting work.
 
+### Roadmap
+
 AGNOS's main priority is to prove a stable platform to [openpilot](https://github.com/commaai/openpilot).
 The second priority is to be a good platform for all sorts of [robotics development](https://blog.comma.ai/a-drive-in-the-office/).
 
-### Roadmap
-
-Some nice to haves:
-* make the image tiny
-* boot super fast
-* update to Ubuntu 24.04 from 20.04
-* use a mainline kernel for SnapDragon 845
-* replace `agnos-firmware` will all open source
+Now that AGNOS is good at running openpilot, we're focused on speedups, cleanups, and moving to open source.
+- [ ] <10s boot time https://github.com/commaai/agnos-builder/issues/110, https://github.com/commaai/openpilot/issues/30894
+- [ ] make the image tiny, for fast updating and flashing https://github.com/commaai/agnos-builder/issues/225
+- [ ] update to Ubuntu 24.04 from 20.04 https://github.com/commaai/openpilot/issues/32386
+- [ ] mainline Linux kernel https://github.com/commaai/openpilot/issues/32386
+- [ ] fully open source 
+  - [ ] anything from `agnos-firmware`: XBL, ABL, etc.
+  - [ ] Weston https://github.com/commaai/agnos-builder/issues/16
