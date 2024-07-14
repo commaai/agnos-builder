@@ -10,6 +10,7 @@ qdl/
 .qemu_registered
 
 .vscode
+.vscode-ctags
 
 edl_config.json
 tools/edl_repo/

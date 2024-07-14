@@ -1,0 +1,246 @@
+From 5b90fd8e295383448f005b2de3bb473658cb4bd7 Mon Sep 17 00:00:00 2001
+From: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+Date: Sat, 21 Oct 2023 14:36:00 +0000
+Subject: [PATCH 1/6] freedreno/a6xx: provide clear_buffer implementation
+
+Provide default unoptimized clear_buffer implementation, required for
+rusticl.
+
+Signed-off-by: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+---
+ src/gallium/drivers/freedreno/a6xx/fd6_blitter.cc | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/gallium/drivers/freedreno/a6xx/fd6_blitter.cc b/src/gallium/drivers/freedreno/a6xx/fd6_blitter.cc
+index 65264cb..bb3e04f 100644
+--- a/src/gallium/drivers/freedreno/a6xx/fd6_blitter.cc
++++ b/src/gallium/drivers/freedreno/a6xx/fd6_blitter.cc
+@@ -32,6 +32,7 @@
+ #include "util/u_dump.h"
+ #include "util/u_log.h"
+ #include "util/u_surface.h"
++#include "util/u_transfer.h"
+ 
+ #include "freedreno_blitter.h"
+ #include "freedreno_fence.h"
+@@ -1404,6 +1405,7 @@ fd6_blitter_init(struct pipe_context *pctx)
+       return;
+ 
+    pctx->clear_texture = fd6_clear_texture<CHIP>;
++   pctx->clear_buffer = u_default_clear_buffer;
+    ctx->blit = fd6_blit<CHIP>;
+ }
+ 
+-- 
+2.43.0
+
+
+From a2bede2791f887e2679bd1db7f9cc0c261e24409 Mon Sep 17 00:00:00 2001
+From: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+Date: Sat, 21 Oct 2023 14:39:49 +0000
+Subject: [PATCH 2/6] freedreno/a6xx: implement get_compute_state_info
+
+Provide get_compute_state_info() implementation for rusticl.
+
+Signed-off-by: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+---
+ .../drivers/freedreno/a6xx/fd6_compute.cc     | 21 +++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/src/gallium/drivers/freedreno/a6xx/fd6_compute.cc b/src/gallium/drivers/freedreno/a6xx/fd6_compute.cc
+index 5b94f45..c325891 100644
+--- a/src/gallium/drivers/freedreno/a6xx/fd6_compute.cc
++++ b/src/gallium/drivers/freedreno/a6xx/fd6_compute.cc
+@@ -259,6 +259,26 @@ fd6_compute_state_delete(struct pipe_context *pctx, void *_hwcso)
+    free(hwcso);
+ }
+ 
++static void
++fd6_get_compute_state_info(struct pipe_context *pctx, void *cso, struct pipe_compute_state_object_info *info)
++{
++   static struct ir3_shader_key key; /* static is implicitly zeroed */
++   struct fd6_compute_state *cs = (struct fd6_compute_state *)cso;
++   struct ir3_shader_state *hwcso = (struct ir3_shader_state *)cs->hwcso;
++   struct ir3_shader_variant *v = ir3_shader_variant(ir3_get_shader(hwcso), key, false, &pctx->debug);
++   struct fd_context *ctx = fd_context(pctx);
++
++   if (ctx->screen->info->a6xx.supports_double_threadsize) {
++      info->max_threads = 2048;
++      info->preferred_simd_size = 128;
++   } else {
++      info->max_threads = 1024;
++      info->preferred_simd_size = 64;
++   }
++   info->private_memory = v->pvtmem_size;
++   info->simd_sizes = info->preferred_simd_size;
++}
++
+ template <chip CHIP>
+ void
+ fd6_compute_init(struct pipe_context *pctx)
+@@ -269,6 +289,7 @@ fd6_compute_init(struct pipe_context *pctx)
+    ctx->launch_grid = fd6_launch_grid<CHIP>;
+    pctx->create_compute_state = fd6_compute_state_create;
+    pctx->delete_compute_state = fd6_compute_state_delete;
++   pctx->get_compute_state_info = fd6_get_compute_state_info;
+ }
+ 
+ /* Teach the compiler about needed variants: */
+-- 
+2.43.0
+
+
+From c493536a694e0c61ea6952e2fd3787b3f8224b48 Mon Sep 17 00:00:00 2001
+From: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+Date: Sat, 21 Oct 2023 14:44:04 +0000
+Subject: [PATCH 3/6] freedreno/ir3: treat MESA_SHADER_KERNEL in the same way
+ as compute
+
+In ir3_shader_descriptor_set() tread MESA_SHADER_KERNEL shaders in the
+same way, as PIPE_SHADER_COMPUTE shaders, return 0.
+
+Signed-off-by: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+---
+ src/gallium/drivers/freedreno/ir3/ir3_descriptor.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/gallium/drivers/freedreno/ir3/ir3_descriptor.h b/src/gallium/drivers/freedreno/ir3/ir3_descriptor.h
+index fa14f85..8f72961 100644
+--- a/src/gallium/drivers/freedreno/ir3/ir3_descriptor.h
++++ b/src/gallium/drivers/freedreno/ir3/ir3_descriptor.h
+@@ -59,6 +59,7 @@ ir3_shader_descriptor_set(enum pipe_shader_type shader)
+    case PIPE_SHADER_GEOMETRY:  return 3;
+    case PIPE_SHADER_FRAGMENT:  return 4;
+    case PIPE_SHADER_COMPUTE:   return 0;
++   case MESA_SHADER_KERNEL:   return 0;
+    default:
+       unreachable("bad shader stage");
+       return ~0;
+-- 
+2.43.0
+
+
+From 874478a15f7aac8d9a319abf2bb3993ee4cd0baf Mon Sep 17 00:00:00 2001
+From: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+Date: Sat, 30 Sep 2023 10:36:19 +0000
+Subject: [PATCH 4/6] rusticl: enable freedreno
+
+To really use the driver, specify the environment variable:
+
+  export RUSTICL_ENABLE=msm
+
+Signed-off-by: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+---
+ src/gallium/targets/rusticl/meson.build | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/gallium/targets/rusticl/meson.build b/src/gallium/targets/rusticl/meson.build
+index 8853625..d7bc2e5 100644
+--- a/src/gallium/targets/rusticl/meson.build
++++ b/src/gallium/targets/rusticl/meson.build
+@@ -34,6 +34,7 @@ librusticl = shared_library(
+   ],
+   dependencies : [
+     driver_asahi,
++    driver_freedreno,
+     driver_iris,
+     driver_nouveau,
+     driver_r600,
+-- 
+2.43.0
+
+
+From 4d0c32c3dfbf52988314989b771593895be72b95 Mon Sep 17 00:00:00 2001
+From: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+Date: Sun, 22 Oct 2023 01:59:12 +0000
+Subject: [PATCH 5/6] ir3: lower the hadd operations
+
+There do not seem to be instructions for the ihadd/uhadd NIR operations.
+Lower them to simpler ops.
+
+Signed-off-by: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+---
+ src/freedreno/ir3/ir3_compiler.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/freedreno/ir3/ir3_compiler.c b/src/freedreno/ir3/ir3_compiler.c
+index 6a2a2eb..71ceab6 100644
+--- a/src/freedreno/ir3/ir3_compiler.c
++++ b/src/freedreno/ir3/ir3_compiler.c
+@@ -124,6 +124,9 @@ static const nir_shader_compiler_options ir3_base_options = {
+    .lower_cs_local_index_to_id = true,
+    .lower_wpos_pntc = true,
+ 
++   .lower_hadd = true,
++   .lower_hadd64 = true,
++
+    .lower_int64_options = (nir_lower_int64_options)~0,
+    .lower_doubles_options = (nir_lower_doubles_options)~0,
+ 
+-- 
+2.43.0
+
+
+From b97baaacb0ee44c478af5f0d0d8b29b424878492 Mon Sep 17 00:00:00 2001
+From: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+Date: Sun, 22 Oct 2023 04:01:23 +0000
+Subject: [PATCH 6/6] ir3: handle nir_intrinsic_load_ubo in
+ lower_wide_load_store()
+
+Unlike other load intrinsics, which use simple address as the only source, the
+load_ubo intrinsic uses index and offset sources. Modify lower_wide_load_store
+accordingly, to handle the load_ubo intrinsic.
+
+Signed-off-by: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
+---
+ .../ir3/ir3_nir_lower_wide_load_store.c       | 34 +++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+diff --git a/src/freedreno/ir3/ir3_nir_lower_wide_load_store.c b/src/freedreno/ir3/ir3_nir_lower_wide_load_store.c
+index a3fb2ee..8b36ef5 100644
+--- a/src/freedreno/ir3/ir3_nir_lower_wide_load_store.c
++++ b/src/freedreno/ir3/ir3_nir_lower_wide_load_store.c
+@@ -79,6 +79,40 @@ lower_wide_load_store(nir_builder *b, nir_instr *instr, void *unused)
+       }
+ 
+       return NIR_LOWER_INSTR_PROGRESS_REPLACE;
++   } else if (intr->intrinsic == nir_intrinsic_load_ubo) {
++      unsigned num_comp = nir_intrinsic_dest_components(intr);
++      unsigned bit_size = intr->def.bit_size;
++      nir_def *offset = intr->src[1].ssa;
++      nir_def *components[num_comp];
++
++      for (unsigned off = 0; off < num_comp;) {
++         unsigned c = MIN2(num_comp - off, 4);
++
++         nir_intrinsic_instr *load =
++            nir_intrinsic_instr_create(b->shader, intr->intrinsic);
++         load->num_components = c;
++         load->src[0] = intr->src[0];
++         load->src[1] = nir_src_for_ssa(offset);
++         nir_intrinsic_set_align(load, nir_intrinsic_align(intr), 0);
++         nir_def_init(&load->instr, &load->def, c, bit_size);
++         if (nir_intrinsic_has_range(intr))
++            nir_intrinsic_set_range(load, nir_intrinsic_range(intr));
++         if (nir_intrinsic_has_range_base(intr))
++            nir_intrinsic_set_range_base(load, nir_intrinsic_range_base(intr));
++         if (nir_intrinsic_has_base(intr))
++            nir_intrinsic_set_base(load, nir_intrinsic_base(intr));
++         nir_builder_instr_insert(b, &load->instr);
++
++         offset = nir_iadd(b,
++               nir_imm_intN_t(b, (c * bit_size) / 8, offset->bit_size),
++               offset);
++
++         for (unsigned i = 0; i < c; i++) {
++            components[off++] = nir_channel(b, &load->def, i);
++         }
++      }
++
++      return nir_build_alu_src_arr(b, nir_op_vec(num_comp), components);
+    } else {
+       unsigned num_comp = nir_intrinsic_dest_components(intr);
+       unsigned bit_size = intr->def.bit_size;
+-- 
+2.43.0
+
