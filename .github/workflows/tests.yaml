@@ -1,17 +1,17 @@
 name: tests
 on:
   push:
+    branches: [ master ]
   pull_request:
 
 jobs:
   precommit:
     name: pre-commit
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 1
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/setup-python@v4
       with:
-        python-version: '3.11.4'
-    - run: 'pip install pre-commit'
-    - run: 'pre-commit run --all'
+        python-version: '3.11'
+    - uses: pre-commit/action@v3.0.1
