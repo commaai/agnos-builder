@@ -1,104 +1,113 @@
-[tool.poetry]
+[project]
 name = "agnos"
 version = "0.1.0"
-authors = ["Vehicle Researcher <user@comma.ai>"]
+authors = [{name = "Vehicle Researcher", email = "user@comma.ai"}]
+requires-python = "~=3.11"
 description = ""
+dependencies = [
+  "aiohttp",
+  "aiortc",
+  "atomicwrites",
+  "casadi",
+  "cffi",
+  "crcmod",
+  "cryptography",
+  "cython",
+  "dbus-python",
+  "evdev",
+  "flake8",
+  "flask",
+  "gunicorn",
+  "hatanaka == 2.4",
+  "hexdump",
+  "hypothesis",
+  "jinja2",
+  "json-rpc",
+  "libusb1",
+  "markdown-it-py",
+  "nose",
+  "numpy",
+  "onnx",
+  "onnxruntime >= 1.16.3",
+  "pillow",
+  "protobuf",
+  "psutil",
+  "pyaudio",
+  "pycapnp",
+  "pyclean",
+  "pycryptodome",
+  "pydub",
+  "pyjwt",
+  "pylint",
+#"pyopencl == 2024.1", #FIXME: has some installation errors
+  "pyserial",
+  "pytest",
+  "pytest-cov",
+  "pytest-cpp",
+  "pytest-forked",
+  "pytest-mock",
+  "pytest-random-order",
+  "pytest-randomly",
+  "pytest-repeat",
+  "pytest-subtests",
+  "pytest-timeout",
+  "pytest-xdist",
+  "python-dateutil",
+  "pyyaml",
+  "pyzmq",
+  "pyzstd",
+  "requests",
+  "scons",
+  "sconscontrib",
+  "sentry-sdk",
+  "setproctitle",
+  "six",
+  "smbus2",
+  "sounddevice",
+  "spidev",
+  "spidev2",
+  "sympy != 1.6.1",
+  "timezonefinder",
+  "torch",
+  "tqdm",
+  "urllib3",
+  "utm",
+  "websocket-client",
+  "zstandard",
+  "zstd"
+]
 
-[tool.poetry.dependencies]
-python = "~3.11"
-atomicwrites = "*"
-cffi = "*"
-crcmod = "*"
-hexdump = "*"
-libusb1 = "*"
-numpy = "*"
-psutil = "*"
-pycapnp = "*"
-cryptography = "*"
-python-dateutil = "*"
-pyzmq = "*"
-requests = "*"
-setproctitle = "*"
-six = "*"
-smbus2 = "*"
-sympy = "!=1.6.1"
-tqdm = "*"
-Cython = "*"
-PyYAML = "*"
-websocket_client = "*"
-urllib3 = "*"
-gunicorn = "*"
-utm = "*"
-json-rpc = "*"
-Flask = "*"
-nose = "*"
-flake8 = "*"
-pyclean = "*"
-pylint = "*"
-pillow = "*"
-scons = "*"
-sconscontrib = {git = "https://github.com/SCons/scons-contrib"}
-pycryptodome = "*"
-Jinja2 = "*"
-PyJWT = "*"
-pyserial = "*"
-dbus-python = "*"
-timezonefinder = "*"
-sentry-sdk = "*"
-markdown-it-py = "*"
-onnx = "*"
-onnxruntime = ">=1.16.3"
-#pyopencl = "==2024.1"  # FIXME: has some installation errors
-hatanaka = "==2.4"
-protobuf = "*"
-torch = "*"
-spidev = "*"
-spidev2 = "*"
-sounddevice = "*"
-zstandard = "*"
-zstd = "*"
-pyzstd = "*"
-casadi = "*"
-pyaudio = "*"
-pydub = "*"
-aiohttp = "*"
-aiortc = "*"
-evdev = "*"
-hypothesis = "*"
-pytest = "*"
-pytest-cov = "*"
-pytest-cpp = "*"
-pytest-subtests = "*"
-pytest-xdist = "*"
-pytest-timeout = "*"
-pytest-random-order = "*"
-pytest-mock = "*"
-pytest-repeat = "*"
-pytest-randomly = "*"
-pytest-forked = "*"
+[project.optional-dependencies]
+dev = [
+  "ipython",
+  "azure-identity",
+  "azure-storage-blob",
+  "pycurl",
+  "git-pylint-commit-hook",
+  "tenacity",
+  "mock",
+  "dictdiffer",
+  "aenum",
+  "coverage",
+  "paramiko",
+  "lru-dict",
+  "pprofile",
+  "pyprof2calltree",
+  "pre-commit",
+  "mypy",
+  "parameterized",
+  "inputs",
+  "future-fstrings",
+  "tabulate",
+  "flaky"
+]
 
-[tool.poetry.group.dev.dependencies]
-ipython = "*"
-azure-identity = "*"
-azure-storage-blob = "*"
-pycurl = "*"
-git-pylint-commit-hook = "*"
-tenacity = "*"
-mock = "*"
-dictdiffer = "*"
-aenum = "*"
-coverage = "*"
-paramiko = "*"
-lru-dict = "*"
-pprofile = "*"
-pyprof2calltree = "*"
-pre-commit = "*"
-mypy = "*"
-parameterized = "*"
-inputs = "*"
-future-fstrings = "*"
-tabulate = "*"
-flaky = "*"
+[tool.uv.sources]
+sconscontrib = { git = "https://github.com/SCons/scons-contrib.git" }
+
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [ "." ]

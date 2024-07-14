@@ -93,18 +93,14 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     pyenv rehash
 
 # Install openpilot python packages
-COPY ./userspace/pyproject.toml ./userspace/poetry.lock /tmp/agnos/
+COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
     cd /tmp/agnos && \
-    poetry config virtualenvs.prefer-active-python true --local && \
-    poetry config virtualenvs.create false --local && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    export POETRY_VIRTUALENVS_CREATE=false && \
-    MAKEFLAGS="-j$(nproc)" poetry install --no-cache --no-root && \
-    pyenv rehash
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir --system .
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
