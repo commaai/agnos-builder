@@ -45,9 +45,13 @@ load:
 
 ## Contributing
 
-Join us on [Discord](https://discord.comma.ai).
+Join us in the `#dev-agnos` channel on [Discord](https://discord.comma.ai).
 
-A comma 3/3X is helpful for working on AGNOS, but not required for a lot of interesting work.
+A comma 3/3X is helpful for working on AGNOS, but there's still lots of interesting work to do without one.
+
+* [Discord](https://discord.comma.ai)
+* [openpilot Docs](https://docs.comma.ai)
+* [Bounties](https://comma.ai/bounties)
 
 ### Roadmap
 
