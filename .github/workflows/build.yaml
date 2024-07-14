@@ -1,0 +1,70 @@
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.run_id || github.head_ref || github.ref }}-${{ github.workflow }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build kernel #and system
+    runs-on: namespace-profile-arm64-8x16-2004-caching
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: get kernel submodule ref
+      id: kernel-submodule
+      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
+
+    - name: Checkout agnos-kernel-sdm845
+      uses: actions/checkout@v4
+      with:
+        repository: commaai/agnos-kernel-sdm845
+        ref: ${{ steps.kernel-submodule.outputs.ref }}
+        path: agnos-kernel-sdm845
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y bc img2simg
+
+    - name: Install python2
+      uses: gabrielfalcao/pyenv-action@2f49ca7587f9d0663d13f1147b78d3361417eaf7
+      with:
+        default: '2.7.18'
+
+    - name: Cache kernel build
+      uses: actions/cache@v4
+      id: cache-kernel
+      with:
+        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
+        path: |
+          agnos-kernel-sdm845/out
+        restore-keys: kernel-
+
+    - name: Build kernel
+      run: ./build_kernel.sh
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: boot.img
+        path: output/boot.img
+    - uses: actions/upload-artifact@v4
+      with:
+        name: kernel-modules
+        path: output/*.ko
+
+    #- run: ./build_system.sh
+    #- uses: actions/upload-artifact@v4
+    #  with:
+    #    name: system.img
+    #    path: output/system.img
