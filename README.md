@@ -30,6 +30,11 @@ Flashing to a comma 3/3X:
 ./flash_system.sh
 ```
 
+Validating changes:
+* Running openpilot is a good smoketest for general AGNOS functionality
+* [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the build still works
+* [this](https://github.com/commaai/agnos-builder/blob/master/internal/README.md) is the checklist we go through before shipping new AGNOS releases to openpilot
+
 ## Contributing
 
 Join us in the `#dev-agnos` channel on [Discord](https://discord.comma.ai).
