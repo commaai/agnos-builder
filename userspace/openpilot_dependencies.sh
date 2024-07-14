@@ -61,7 +61,6 @@ apt-get install --no-install-recommends -yq \
     vnstat \
     wget \
     zlib1g-dev \
-    libqt5location5-plugin-mapboxgl \
     libqt5opengl5-dev \
     libqt5sql5-sqlite \
     libqt5svg5-dev \
