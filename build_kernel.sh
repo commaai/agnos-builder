@@ -4,7 +4,6 @@ DEFCONFIG=tici_defconfig
 
 # Get directories and make sure we're in the correct spot to start the build
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-ARCH=$(uname -m)
 TOOLS=$DIR/tools
 TMP_DIR=/tmp/agnos-builder-tmp
 OUTPUT_DIR=$DIR/output
@@ -18,7 +17,7 @@ fi
 cd agnos-kernel-sdm845
 
 # Build parameters
-export ARCH=arm64
+ARCH=$(uname -m)
 if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
   export CROSS_COMPILE=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-
   export CC=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc
@@ -26,6 +25,7 @@ if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
 
   $DIR/tools/extract_tools.sh
 fi
+export ARCH=arm64
 
 # these do anything?
 export KCFLAGS="-w"
