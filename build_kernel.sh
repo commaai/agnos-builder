@@ -35,7 +35,7 @@ docker container rm -f $CONTAINER_ID" EXIT
 
 USERNAME=$(whoami)
 
-docker exec $CONTAINER_ID bash -c "useradd --uid $(id -u) --gid $(id -g) -m $USERNAME"
+docker exec $CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME"
 
 # Load defconfig and build kernel
 docker exec -u $USERNAME $CONTAINER_ID bash -c "echo '-- First make --' && make $DEFCONFIG O=out"
