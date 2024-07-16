@@ -44,16 +44,6 @@ jobs:
         ref: ${{ steps.kernel-submodule.outputs.ref }}
         path: agnos-kernel-sdm845
 
-    - name: Install dependencies
-      if: steps.cache-output.outputs.cache-hit != 'true'
-      run: sudo apt-get update && sudo apt-get install -y bc
-
-    - name: Install python2
-      if: steps.cache-output.outputs.cache-hit != 'true'
-      uses: gabrielfalcao/pyenv-action@2f49ca7587f9d0663d13f1147b78d3361417eaf7
-      with:
-        default: '2.7.18'
-
     - name: Cache kernel build
       if: steps.cache-output.outputs.cache-hit != 'true'
       uses: actions/cache@v4
