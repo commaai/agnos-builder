@@ -56,13 +56,15 @@ jobs:
       if: steps.cache-output.outputs.cache-hit != 'true'
       run: ./build_kernel.sh
 
-    - uses: actions/cache/save@v4
+    - name: Save cache kernel build
+      uses: actions/cache/save@v4
       if: steps.cache-output.outputs.cache-hit != 'true'
       with:
         key: kernel-out
         path: agnos-kernel-sdm845/out
 
-    - uses: actions/cache/save@v4
+    - name: Save cache output boot.img and *.ko
+      uses: actions/cache/save@v4
       if: steps.cache-output.outputs.cache-hit != 'true'
       with:
         key: output-${{ steps.kernel-submodule.outputs.ref }}
@@ -70,13 +72,15 @@ jobs:
           output/boot.img
           output/*.ko
 
-    - uses: actions/upload-artifact@v4
+    - name: Upload artifact boot.img
+      uses: actions/upload-artifact@v4
       if: steps.cache-output.outputs.cache-hit != 'true'
       with:
         name: boot.img
         path: output/boot.img
 
-    - uses: actions/upload-artifact@v4
+    - name: Upload artifact kernel modules
+      uses: actions/upload-artifact@v4
       if: steps.cache-output.outputs.cache-hit != 'true'
       with:
         name: kernel-modules
@@ -85,7 +89,8 @@ jobs:
     - name: Build system
       run: ./build_system.sh
 
-    - uses: actions/upload-artifact@v4
+    - name: Upload artifact system.img
+      uses: actions/upload-artifact@v4
       with:
         name: system.img
         path: output/system.img
