@@ -104,18 +104,18 @@ docker exec $MOUNT_CONTAINER_ID tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR
 # Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"
 HOST=comma
-docker exec -u ubuntu -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "\
+docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "\
 ln -sf /proc/sys/kernel/hostname etc/hostname; \
 echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts; \
 echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
 # Fix resolv config
-docker exec -u ubuntu -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
+docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
 
 # Write build info
 DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
 GIT_HASH=$(git --git-dir=$DIR/.git rev-parse HEAD)
-docker exec -u ubuntu -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
+docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
 
 # Sparsify
 echo "Sparsify image $(basename $SPARSE_IMAGE)"
