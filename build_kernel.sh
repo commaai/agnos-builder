@@ -33,6 +33,11 @@ CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR -w $DIR/agnos-kernel-sdm8
 trap "echo \"Cleaning up container:\"; \
 docker container rm -f $CONTAINER_ID" EXIT
 
+echo "ls -al $DIR/agnos-kernel-sdm845"
+ls -al $DIR/agnos-kernel-sdm845
+echo "id -u && id -g"
+id -u && id -g
+
 # Load defconfig and build kernel
 docker exec -u ubuntu $CONTAINER_ID bash -c "echo '-- First make --' && make $DEFCONFIG O=out"
 docker exec -u ubuntu $CONTAINER_ID bash -c "echo '-- Second make: $(nproc --all) cores --' && KCFLAGS='-w' make -j$(nproc --all) O=out"
