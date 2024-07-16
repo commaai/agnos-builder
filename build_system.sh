@@ -76,7 +76,7 @@ docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
 docker exec $MOUNT_CONTAINER_ID fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-docker exec $MOUNT_CONTAINER_ID mkfs.ext4 $ROOTFS_IMAGE > /dev/null
+docker exec -u ubuntu $MOUNT_CONTAINER_ID mkfs.ext4 $ROOTFS_IMAGE > /dev/null
 
 # Mount filesystem
 echo "Mounting empty filesystem"
@@ -115,14 +115,14 @@ docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "printf \"$GIT_HASH\n$DAT
 
 # Sparsify
 echo "Sparsify image $(basename $SPARSE_IMAGE)"
-docker exec $MOUNT_CONTAINER_ID bash -c "\
+docker exec -u ubuntu $MOUNT_CONTAINER_ID bash -c "\
 TMP_SPARSE=\$(mktemp); \
 img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
 mv \$TMP_SPARSE $SPARSE_IMAGE"
 
 # Make image with skipped chunks
 echo "Sparsify image $(basename $SKIP_CHUNKS_IMAGE)"
-docker exec $MOUNT_CONTAINER_ID bash -c "\
+docker exec -u ubuntu $MOUNT_CONTAINER_ID bash -c "\
 TMP_SKIP=\$(mktemp); \
 $DIR/tools/simg2dontcare.py $SPARSE_IMAGE \$TMP_SKIP; \
 mv \$TMP_SKIP $SKIP_CHUNKS_IMAGE"
