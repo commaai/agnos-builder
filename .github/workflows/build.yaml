@@ -19,17 +19,18 @@ jobs:
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 20
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
       with:
         lfs: true
 
-    - name: get kernel submodule ref
+    - name: Get kernel submodule ref
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
 
-    - name: Cache output boot.img and *.ko
+    - name: Restore cache output boot.img and *.ko
       id: cache-output
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         key: output-${{ steps.kernel-submodule.outputs.ref }}
         path: |
@@ -44,9 +45,9 @@ jobs:
         ref: ${{ steps.kernel-submodule.outputs.ref }}
         path: agnos-kernel-sdm845
 
-    - name: Cache kernel build
+    - name: Restore cache kernel build
       if: steps.cache-output.outputs.cache-hit != 'true'
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         key: kernel-out
         path: agnos-kernel-sdm845/out
@@ -54,6 +55,20 @@ jobs:
     - name: Build kernel
       if: steps.cache-output.outputs.cache-hit != 'true'
       run: ./build_kernel.sh
+
+    - uses: actions/cache/save@v4
+      if: steps.cache-output.outputs.cache-hit != 'true'
+      with:
+        key: kernel-out
+        path: agnos-kernel-sdm845/out
+
+    - uses: actions/cache/save@v4
+      if: steps.cache-output.outputs.cache-hit != 'true'
+      with:
+        key: output-${{ steps.kernel-submodule.outputs.ref }}
+        path: |
+          output/boot.img
+          output/*.ko
 
     - uses: actions/upload-artifact@v4
       if: steps.cache-output.outputs.cache-hit != 'true'
