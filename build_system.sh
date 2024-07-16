@@ -75,7 +75,7 @@ docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 USERNAME=$(whoami)
 
-docker exec $CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME"
+docker exec $MOUNT_CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME"
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
