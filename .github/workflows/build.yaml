@@ -27,7 +27,17 @@ jobs:
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
 
+    - name: Cache output boot.img and *.ko
+      id: cache-output
+      uses: actions/cache@v4
+      with:
+        key: output-${{ steps.kernel-submodule.outputs.ref }}
+        path: |
+          output/boot.img
+          output/*.ko
+
     - name: Checkout agnos-kernel-sdm845
+      if: steps.cache-output.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
       with:
         repository: commaai/agnos-kernel-sdm845
@@ -35,30 +45,34 @@ jobs:
         path: agnos-kernel-sdm845
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y bc img2simg
+      if: steps.cache-output.outputs.cache-hit != 'true'
+      run: sudo apt-get update && sudo apt-get install -y bc
 
     - name: Install python2
+      if: steps.cache-output.outputs.cache-hit != 'true'
       uses: gabrielfalcao/pyenv-action@2f49ca7587f9d0663d13f1147b78d3361417eaf7
       with:
         default: '2.7.18'
 
     - name: Cache kernel build
+      if: steps.cache-output.outputs.cache-hit != 'true'
       uses: actions/cache@v4
-      id: cache-kernel
       with:
-        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
-        path: |
-          agnos-kernel-sdm845/out
-        restore-keys: kernel-
+        key: kernel-out
+        path: agnos-kernel-sdm845/out
 
     - name: Build kernel
+      if: steps.cache-output.outputs.cache-hit != 'true'
       run: ./build_kernel.sh
 
     - uses: actions/upload-artifact@v4
+      if: steps.cache-output.outputs.cache-hit != 'true'
       with:
         name: boot.img
         path: output/boot.img
+
     - uses: actions/upload-artifact@v4
+      if: steps.cache-output.outputs.cache-hit != 'true'
       with:
         name: kernel-modules
         path: output/*.ko
