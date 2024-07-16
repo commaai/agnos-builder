@@ -38,7 +38,7 @@ USERNAME=$(whoami)
 docker exec $CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME"
 
 # Load defconfig and build kernel
-docker exec -u $USERNAME $CONTAINER_ID bash -c "echo '-- First make --' && make $DEFCONFIG O=out"
+docker exec -u $USERNAME $CONTAINER_ID bash -c "echo '-- First make --' && KCFLAGS='-w' make $DEFCONFIG O=out"
 docker exec -u $USERNAME $CONTAINER_ID bash -c "echo '-- Second make: $(nproc --all) cores --' && KCFLAGS='-w' make -j$(nproc --all) O=out"
 
 # Copy over Image.gz-dtb
