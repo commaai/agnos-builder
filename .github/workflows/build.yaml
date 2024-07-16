@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: build kernel #and system
+    name: build kernel and system
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 20
     steps:
@@ -63,8 +63,10 @@ jobs:
         name: kernel-modules
         path: output/*.ko
 
-    #- run: ./build_system.sh
-    #- uses: actions/upload-artifact@v4
-    #  with:
-    #    name: system.img
-    #    path: output/system.img
+    - name: Build system
+      run: ./build_system.sh
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: system.img
+        path: output/system.img
