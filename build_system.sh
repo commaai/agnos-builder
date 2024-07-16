@@ -24,13 +24,24 @@ SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
 
-# Copy kernel modules over
+# Check if kernel modules are built
 if ! ls $OUTPUT_DIR/*.ko >/dev/null 2>&1; then
-  echo "kernel modules missing. run ./build_kernel.sh first"
+  echo "Kernel modules missing. Run ./build_kernel.sh first"
   exit 1
 fi
-cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
-cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
+
+# Copy kernel modules over only if updated - otherwise prevents proper caching later
+if ! cmp -s $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma/wlan.ko; then
+  echo "Copying wlan.ko"
+  cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
+fi
+for ko_file in $OUTPUT_DIR/snd*.ko; do
+  target_file="$DIR/userspace/usr/comma/sound/$(basename $ko_file)"
+  if ! cmp -s $ko_file $target_file; then
+    echo "Copying $(basename $ko_file)"
+    cp $ko_file $target_file
+  fi
+done
 
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
@@ -43,13 +54,24 @@ if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static:register --reset
 fi
 
-# Start docker build
-echo "Building image"
-export DOCKER_CLI_EXPERIMENTAL=enabled
+# Start agnos-builder docker build and create container
+echo "Building agnos-builder docker image"
+export DOCKER_CLI_EXPERIMENTAL=enabled # deprecated since v19.03
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
+echo "Creating agnos-builder container"
+CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
-# Setup mount container
-MOUNT_CONTAINER_ID=$(docker run -d --privileged --volume $BUILD_DIR:$BUILD_DIR ubuntu:latest sleep infinity)
+# Setup mount container for macOS and CI support (namespace.so)
+if ! docker inspect agnos-mount &>/dev/null; then
+  echo "Building agnos-mount docker image"
+  docker build -f Dockerfile.sparsify -t agnos-mount $DIR
+fi
+echo "Starting agnos-mount container"
+MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-mount)
+
+# Cleanup containers on possible exit
+trap "echo \"Cleaning up containers:\"; \
+docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
@@ -58,17 +80,22 @@ docker exec $MOUNT_CONTAINER_ID mkfs.ext4 $ROOTFS_IMAGE > /dev/null
 
 # Mount filesystem
 echo "Mounting empty filesystem"
+LOOP_DEV=$(docker exec $MOUNT_CONTAINER_ID losetup -f --show $ROOTFS_IMAGE)
+echo "Using loop device: $LOOP_DEV"
 docker exec $MOUNT_CONTAINER_ID mkdir -p $ROOTFS_DIR
-docker exec $MOUNT_CONTAINER_ID mount -o loop $ROOTFS_IMAGE $ROOTFS_DIR
+docker exec $MOUNT_CONTAINER_ID mount $LOOP_DEV $ROOTFS_DIR
+
+# Cleanup containers on final exit (overwrite previous intermediate trap)
+trap "echo \"Unmounting filesystem\"; \
+docker exec $MOUNT_CONTAINER_ID umount -l $ROOTFS_DIR; \
+docker exec $MOUNT_CONTAINER_ID losetup -d $LOOP_DEV; \
+echo \"Cleaning up containers:\"; \
+docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Extract image
 echo "Extracting docker image"
-CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
-docker container rm $CONTAINER_ID > /dev/null
 docker exec $MOUNT_CONTAINER_ID tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
-
-cd $ROOTFS_DIR
 
 # Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"
@@ -86,22 +113,18 @@ DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
 GIT_HASH=$(git --git-dir=$DIR/.git rev-parse HEAD)
 docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
 
-# Unmount image
-echo "Unmount filesystem"
-docker exec $MOUNT_CONTAINER_ID umount -l $ROOTFS_DIR
-docker rm -f $MOUNT_CONTAINER_ID > /dev/null
-
-cd $DIR
-
 # Sparsify
-echo "Sparsify image"
-TMP_SPARSE="$(mktemp)"
-img2simg $ROOTFS_IMAGE $TMP_SPARSE
-mv $TMP_SPARSE $SPARSE_IMAGE
+echo "Sparsify image $(basename $SPARSE_IMAGE)"
+docker exec $MOUNT_CONTAINER_ID bash -c "\
+TMP_SPARSE=\$(mktemp); \
+img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
+mv \$TMP_SPARSE $SPARSE_IMAGE"
 
 # Make image with skipped chunks
-TMP_SKIP="$(mktemp)"
-$DIR/tools/simg2dontcare.py $SPARSE_IMAGE $TMP_SKIP
-mv $TMP_SKIP $SKIP_CHUNKS_IMAGE
+echo "Sparsify image $(basename $SKIP_CHUNKS_IMAGE)"
+docker exec $MOUNT_CONTAINER_ID bash -c "\
+TMP_SKIP=\$(mktemp); \
+$DIR/tools/simg2dontcare.py $SPARSE_IMAGE \$TMP_SKIP; \
+mv \$TMP_SKIP $SKIP_CHUNKS_IMAGE"
 
 echo "Done!"
