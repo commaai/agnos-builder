@@ -46,7 +46,7 @@ done
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
   echo -e "${GREEN}Downloading Ubuntu: $UBUNTU_FILE ${NO_COLOR}"
-  curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent
+  curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time
 fi
 
 if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
