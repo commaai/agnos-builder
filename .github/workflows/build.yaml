@@ -28,15 +28,14 @@ jobs:
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
 
-    # temp don't restore cache until we see it working
-    # - name: Restore cache output boot.img and *.ko
-    #   id: cache-output
-    #   uses: actions/cache/restore@v4
-    #   with:
-    #     key: output-${{ steps.kernel-submodule.outputs.ref }}
-    #     path: |
-    #       output/boot.img
-    #       output/*.ko
+    - name: Restore cache output boot.img and *.ko
+      id: cache-output
+      uses: actions/cache/restore@v4
+      with:
+        key: output-${{ steps.kernel-submodule.outputs.ref }}
+        path: |
+          output/boot.img
+          output/*.ko
 
     - name: Checkout agnos-kernel-sdm845
       if: steps.cache-output.outputs.cache-hit != 'true'
