@@ -75,7 +75,7 @@ docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
-docker exec $MOUNT_CONTAINER_ID fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
+docker exec -u ubuntu $MOUNT_CONTAINER_ID fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
 docker exec -u ubuntu $MOUNT_CONTAINER_ID mkfs.ext4 $ROOTFS_IMAGE > /dev/null
 
 # Mount filesystem
