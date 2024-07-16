@@ -17,7 +17,5 @@ RUN apt-get update && \
     python-is-python2 \
     openssl
 
-RUN useradd -u 1000 -o -m ubuntu -d /home/ubuntu -s /bin/bash
-
 # Set entrypoint to keep container running
 ENTRYPOINT ["tail", "-f", "/dev/null"]
