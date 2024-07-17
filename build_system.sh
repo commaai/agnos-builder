@@ -1,10 +1,10 @@
-#!/bin/bash
-set -e
+#!/bin/bash -e
 
 UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
 UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
 
-export DOCKER_BUILDKIT=1
+# https://docs.docker.com/build/buildkit/
+export DOCKER_BUILDKIT=1 # default from v23.0 and later
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -20,6 +20,19 @@ ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
 ROOTFS_IMAGE_SIZE=10G
 SPARSE_IMAGE="$OUTPUT_DIR/system.img"
 SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
+
+if ! command -v docker &> /dev/null; then
+  echo "Docker is not installed. Please install Docker and try again."
+  echo "https://docs.docker.com/engine/install/"
+  echo "Don't forget to run `sudo usermod -aG docker $USER` after Docker instalation is complete."
+  exit 1
+fi
+
+if ! command -v git &> /dev/null; then
+  echo "Git is not installed. Please install Git and try again."
+  echo "https://www.atlassian.com/git/tutorials/install-git"
+  exit 1
+fi
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR

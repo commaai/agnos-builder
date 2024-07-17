@@ -9,6 +9,7 @@ cd $DIR
 if ! command -v docker &> /dev/null; then
   echo "Docker is not installed. Please install Docker and try again."
   echo "https://docs.docker.com/engine/install/"
+  echo "Don't forget to run `sudo usermod -aG docker $USER` after Docker instalation is complete."
   exit 1
 fi
 
