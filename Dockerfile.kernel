@@ -1,9 +1,5 @@
 FROM ubuntu:20.04
 
-# Add aarch64 and arm support
-COPY --from=multiarch/qemu-user-static:x86_64-aarch64 /usr/bin/qemu-aarch64-static /usr/bin
-COPY --from=multiarch/qemu-user-static:x86_64-arm /usr/bin/qemu-arm-static /usr/bin
-
 # Set non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -15,7 +11,8 @@ RUN apt-get update && \
     libssl-dev \
     bc \
     python-is-python2 \
-    openssl
+    openssl&& \
+    rm -rf /var/lib/apt/lists/*
 
 # Set entrypoint to keep container running
 ENTRYPOINT ["tail", "-f", "/dev/null"]
