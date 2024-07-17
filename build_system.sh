@@ -24,7 +24,7 @@ SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 if ! command -v docker &> /dev/null; then
   echo "Docker is not installed. Please install Docker and try again."
   echo "https://docs.docker.com/engine/install/"
-  echo "Don't forget to run `sudo usermod -aG docker $USER` after Docker instalation is complete."
+  echo "Don't forget to run `sudo usermod -aG docker $USER` after Docker installation is complete."
   exit 1
 fi
 
