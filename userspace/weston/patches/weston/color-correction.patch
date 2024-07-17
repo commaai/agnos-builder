@@ -1,0 +1,68 @@
+diff --git a/libweston/renderer-gl/gl-renderer.c b/libweston/renderer-gl/gl-renderer.c
+index 32916368..1756fc91 100644
+--- a/libweston/renderer-gl/gl-renderer.c
++++ b/libweston/renderer-gl/gl-renderer.c
+@@ -59,6 +59,7 @@
+ #include "shared/weston-egl-ext.h"
+ #include "gbm-buffer-backend.h"
+ #include "gbm_priv.h"
++#include "color-correction.h"
+ 
+ 
+ #define GR_GL_VERSION(major, minor) \
+@@ -3233,6 +3234,8 @@ static const char texture_fragment_shader_xyuv[] =
+ 
+ static const char solid_fragment_shader[] =
+ 	"precision mediump float;\n"
++	"uniform sampler2D tex;\n"
++	"varying vec2 v_texcoord;\n"
+ 	"uniform vec4 color;\n"
+ 	"uniform float alpha;\n"
+ 	"void main()\n"
+@@ -3266,22 +3269,24 @@ shader_init(struct gl_shader *shader, struct gl_renderer *renderer,
+ {
+ 	char msg[512];
+ 	GLint status;
+-	int count;
+-	const char *sources[3];
++	int count = 0;
++	const char *sources[4];
+ 
+ 	shader->vertex_shader =
+ 		compile_shader(GL_VERTEX_SHADER, 1, &vertex_source);
+ 
++	sources[count++] = fragment_source;
+ 	if (renderer->fragment_shader_debug) {
+-		sources[0] = fragment_source;
+-		sources[1] = fragment_debug;
+-		sources[2] = fragment_brace;
+-		count = 3;
+-	} else {
+-		sources[0] = fragment_source;
+-		sources[1] = fragment_brace;
+-		count = 2;
++		sources[count++] = fragment_debug;
++	}
++	sources[count++] = color_correction_get_shader();
++	sources[count++] = fragment_brace;
++
++	printf("Compiling shader:\n");
++	for(int i=0; i<count; i++){
++		printf("%s", sources[i]);
+ 	}
++	printf("\n");
+ 
+ 	shader->fragment_shader =
+ 		compile_shader(GL_FRAGMENT_SHADER, count, sources);
+diff --git a/libweston/renderer-gl/meson.build b/libweston/renderer-gl/meson.build
+index fb622728..e63b81d2 100644
+--- a/libweston/renderer-gl/meson.build
++++ b/libweston/renderer-gl/meson.build
+@@ -7,6 +7,7 @@ config_h.set('ENABLE_EGL', '1')
+ srcs_renderer_gl = [
+ 	'egl-glue.c',
+ 	'gl-renderer.c',
++	'color-correction.c',
+ 	linux_dmabuf_unstable_v1_protocol_c,
+ 	linux_dmabuf_unstable_v1_server_protocol_h,
+ ]

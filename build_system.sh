@@ -46,7 +46,9 @@ fi
 # Start docker build
 echo "Building image"
 export DOCKER_CLI_EXPERIMENTAL=enabled
-docker build -f Dockerfile.agnos -t agnos-builder $DIR
+# docker build -f Dockerfile.agnos -t agnos-builder $DIR
+docker build -f Dockerfile.agnos -t agnos-compiler-weston --target agnos-compiler-weston $DIR
+exit 0
 
 # Setup mount container
 MOUNT_CONTAINER_ID=$(docker run -d --privileged --volume $BUILD_DIR:$BUILD_DIR ubuntu:latest sleep infinity)

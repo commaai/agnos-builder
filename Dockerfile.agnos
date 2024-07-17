@@ -48,6 +48,47 @@ COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
 
+FROM agnos-compiler as agnos-compiler-weston
+# Install weston dependencies
+RUN apt-get update && apt-get install --no-install-recommends -yq \
+    meson \
+    ninja-build \
+    libxkbcommon-dev \
+    libinput-dev \
+    libinput10 \
+    libgbm-dev \
+    libxml2-dev
+# or -Dtest-junit-xml=false instead of libxml2
+    # android-libcutils-dev \
+    # android-liblog-dev \
+# kernel headers for the AGNOS kernel (built on device)
+COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
+RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
+# Hardware setup
+RUN mkdir -p /tmp/agnos/debs
+COPY ./userspace/debs /tmp/agnos/debs
+COPY ./userspace/hardware_setup.sh /tmp/agnos
+RUN /tmp/agnos/hardware_setup.sh
+# Weston compile scripts
+COPY ./userspace/weston/include /tmp/weston/include
+COPY ./userspace/weston/patches /tmp/weston/patches
+COPY ./userspace/weston/files /tmp/weston/files
+COPY ./userspace/weston/compile-libdrm.sh /tmp/weston/compile-libdrm.sh
+RUN /tmp/weston/compile-libdrm.sh
+COPY ./userspace/weston/compile-display-commonsys-intf.sh /tmp/weston/compile-display-commonsys-intf.sh
+RUN /tmp/weston/compile-display-commonsys-intf.sh
+COPY ./userspace/weston/compile-libgbm.sh /tmp/weston/compile-libgbm.sh
+RUN /tmp/weston/compile-libgbm.sh
+COPY ./userspace/weston/compile-libhardware.sh /tmp/weston/compile-libhardware.sh
+RUN /tmp/weston/compile-libhardware.sh
+COPY ./userspace/weston/compile-display.sh /tmp/weston/compile-display.sh
+RUN /tmp/weston/compile-display.sh
+COPY ./userspace/weston/compile-wayland-protocols.sh /tmp/weston/compile-wayland-protocols.sh
+RUN /tmp/weston/compile-wayland-protocols.sh
+COPY ./userspace/weston/compile-weston.sh /tmp/weston/compile-weston.sh
+COPY ./userspace/qtwayland/libffi.so.6 /lib/aarch64-linux-gnu/
+RUN /tmp/weston/compile-weston.sh
+
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
