@@ -1,0 +1,18 @@
+FROM ubuntu:20.04
+
+# Set non-interactive installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and install necessary packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python2 \
+    build-essential \
+    libssl-dev \
+    bc \
+    python-is-python2 \
+    openssl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set entrypoint to keep container running
+ENTRYPOINT ["tail", "-f", "/dev/null"]
