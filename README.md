@@ -41,6 +41,13 @@ Building the kernel on macOS requires the volume you work in to be [Case-sensiti
 
 The recommended way is to create an [APFS (Case-sensitive)](https://support.apple.com/lv-lv/guide/disk-utility/add-delete-or-erase-apfs-volumes-dskua9e6a110/22..6/mac/14.0) volume and checkout `agnos-builder` in that specific volume. Not setting "Reserve Size" and "Quota Size" will make the volume dynamically allocate the space, which is also recommended.
 
+The same thing can be accomplished with the following command:
+```
+diskutil apfs addVolume disk3 "Case-sensitive APFS" agnos
+```
+* Replace `disk3` with the `synthesized` disk in `diskutil list` that includes your main volume (e.g. Macintosh HD) - e.g. `disk3` on macOS 14.5
+* `agnos` is the name of the new volume - can be replaced with an arbitrary name
+
 ## Contributing
 
 Join us in the `#dev-agnos` channel on [Discord](https://discord.comma.ai).
