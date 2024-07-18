@@ -1,10 +1,11 @@
-#!/bin/bash
-set -e
+#!/bin/bash -e
 
 UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
 UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
 
-export DOCKER_BUILDKIT=1
+# TODO: remove in another PR
+export DOCKER_BUILDKIT=1 # default from v23.0 and later
+export DOCKER_CLI_EXPERIMENTAL=enabled # deprecated since v19.03
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -20,6 +21,19 @@ ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
 ROOTFS_IMAGE_SIZE=10G
 SPARSE_IMAGE="$OUTPUT_DIR/system.img"
 SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
+
+if ! command -v docker &> /dev/null; then
+  echo "Docker is not installed. Please install Docker and try again."
+  echo "https://docs.docker.com/engine/install/"
+  echo "Don't forget to run 'sudo usermod -aG docker \$USER' after Docker installation is complete."
+  exit 1
+fi
+
+if ! command -v git &> /dev/null; then
+  echo "Git is not installed. Please install Git and try again."
+  echo "https://www.atlassian.com/git/tutorials/install-git"
+  exit 1
+fi
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -38,37 +52,53 @@ if [ ! -f $UBUNTU_FILE ]; then
   curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent
 fi
 
-if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
-  # Register qemu multiarch
-  docker run --rm --privileged multiarch/qemu-user-static:register --reset
+# Register qemu multiarch
+if [ "$ARCH" = "x86_64" ]; then
+  echo "Registering qemu-user-static"
+  docker run --rm --privileged multiarch/qemu-user-static:register --reset > /dev/null
 fi
 
-# Start docker build
-echo "Building image"
-export DOCKER_CLI_EXPERIMENTAL=enabled
+# Start agnos-builder docker build and create container
+echo "Building agnos-builder docker image"
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
+echo "Creating agnos-builder container"
+CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
-# Setup mount container
-MOUNT_CONTAINER_ID=$(docker run -d --privileged --volume $BUILD_DIR:$BUILD_DIR ubuntu:latest sleep infinity)
+# Setup mount container for macOS and CI support (namespace.so)
+if ! docker inspect agnos-mount &>/dev/null; then
+  echo "Building agnos-mount docker image"
+  docker build -f Dockerfile.sparsify -t agnos-mount $DIR
+fi
+echo "Starting agnos-mount container"
+MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-mount)
+
+# Cleanup containers on possible exit
+trap "echo \"Cleaning up containers:\"; \
+docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
+
+# Create host user in container (fixes namespace.so error)
+USERNAME=$(whoami)
+docker exec $MOUNT_CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME" &> /dev/null
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
-docker exec $MOUNT_CONTAINER_ID fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-docker exec $MOUNT_CONTAINER_ID mkfs.ext4 $ROOTFS_IMAGE > /dev/null
+docker exec -u $USERNAME $MOUNT_CONTAINER_ID fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
+docker exec -u $USERNAME $MOUNT_CONTAINER_ID mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
 
 # Mount filesystem
 echo "Mounting empty filesystem"
 docker exec $MOUNT_CONTAINER_ID mkdir -p $ROOTFS_DIR
-docker exec $MOUNT_CONTAINER_ID mount -o loop $ROOTFS_IMAGE $ROOTFS_DIR
+docker exec $MOUNT_CONTAINER_ID mount $ROOTFS_IMAGE $ROOTFS_DIR
+
+# Also unmount filesystem (overwrite previous trap)
+trap "docker exec $MOUNT_CONTAINER_ID umount -l $ROOTFS_DIR &> /dev/null || true; \
+echo \"Cleaning up containers:\"; \
+docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Extract image
 echo "Extracting docker image"
-CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
-docker container rm $CONTAINER_ID > /dev/null
 docker exec $MOUNT_CONTAINER_ID tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
-
-cd $ROOTFS_DIR
 
 # Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"
@@ -89,19 +119,19 @@ docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "printf \"$GIT_HASH\n$DAT
 # Unmount image
 echo "Unmount filesystem"
 docker exec $MOUNT_CONTAINER_ID umount -l $ROOTFS_DIR
-docker rm -f $MOUNT_CONTAINER_ID > /dev/null
-
-cd $DIR
 
 # Sparsify
-echo "Sparsify image"
-TMP_SPARSE="$(mktemp)"
-img2simg $ROOTFS_IMAGE $TMP_SPARSE
-mv $TMP_SPARSE $SPARSE_IMAGE
+echo "Sparsify image $(basename $SPARSE_IMAGE)"
+docker exec -u $USERNAME $MOUNT_CONTAINER_ID bash -c "\
+TMP_SPARSE=\$(mktemp); \
+img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
+mv \$TMP_SPARSE $SPARSE_IMAGE"
 
 # Make image with skipped chunks
-TMP_SKIP="$(mktemp)"
-$DIR/tools/simg2dontcare.py $SPARSE_IMAGE $TMP_SKIP
-mv $TMP_SKIP $SKIP_CHUNKS_IMAGE
+echo "Sparsify image $(basename $SKIP_CHUNKS_IMAGE)"
+docker exec -u $USERNAME $MOUNT_CONTAINER_ID bash -c "\
+TMP_SKIP=\$(mktemp); \
+$DIR/tools/simg2dontcare.py $SPARSE_IMAGE \$TMP_SKIP; \
+mv \$TMP_SKIP $SKIP_CHUNKS_IMAGE"
 
 echo "Done!"
