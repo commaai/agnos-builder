@@ -10,19 +10,6 @@ OUTPUT_DIR=$DIR/output
 BOOT_IMG=./boot.img
 cd $DIR
 
-if ! command -v docker &> /dev/null; then
-  echo "Docker is not installed. Please install Docker and try again."
-  echo "https://docs.docker.com/engine/install/"
-  echo "Don't forget to run 'sudo usermod -aG docker \$USER' after Docker installation is complete."
-  exit 1
-fi
-
-if ! command -v git &> /dev/null; then
-  echo "Git is not installed. Please install Git and try again."
-  echo "https://www.atlassian.com/git/tutorials/install-git"
-  exit 1
-fi
-
 if [[ "$(uname)" == 'Darwin' ]]; then
   echo "---------------   macOS support   ---------------"
   echo "Ensure you are in a Case-sensitive APFS volume to build the AGNOS kernel."
