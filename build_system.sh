@@ -33,7 +33,7 @@ fi
 # Copy kernel modules over only if updated - otherwise prevents proper caching later
 if ! cmp -s $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma/wlan.ko; then
   echo "Copying wlan.ko"
-cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
+  cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
 fi
 for ko_file in $OUTPUT_DIR/snd*.ko; do
   target_file="$DIR/userspace/usr/comma/sound/$(basename $ko_file)"
