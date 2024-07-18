@@ -45,7 +45,7 @@ The same thing can be accomplished with the following command:
 ```
 diskutil apfs addVolume disk3 "Case-sensitive APFS" agnos
 ```
-* Replace `disk3` with the `synthesized` disk in `diskutil list` that includes your main volume (e.g. Macintosh HD) - e.g. `disk3` on macOS 14.5
+* replace `disk3` with the `synthesized` disk in `diskutil list` that includes your main volume (e.g. Macintosh HD) - usually `disk3` on M-series Macs, `disk1` on Intel Macs
 * `agnos` is the name of the new volume - can be replaced with an arbitrary name
 * the volume is mounted automatically in `/Volumes/agnos`
 
