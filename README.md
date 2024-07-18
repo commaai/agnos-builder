@@ -8,9 +8,10 @@ NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repo
 
 These tools are developed on and targeted for Ubuntu 20.04.
 
+Building requires Docker v23.0 or later and should work on any system that supports it.
+
 Run once to set things up:
 ```sh
-cd ~
 git clone https://github.com/commaai/agnos-builder.git
 
 cd agnos-builder
