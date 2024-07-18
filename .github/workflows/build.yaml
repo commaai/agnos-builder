@@ -27,15 +27,6 @@ jobs:
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
 
-    - name: Restore cache output boot.img and *.ko
-      id: cache-output
-      uses: actions/cache/restore@v4
-      with:
-        key: output-${{ steps.kernel-submodule.outputs.ref }}
-        path: |
-          output/boot.img
-          output/*.ko
-
     - name: Checkout agnos-kernel-sdm845
       uses: actions/checkout@v4
       with:
@@ -52,27 +43,22 @@ jobs:
         default: '2.7.18'
 
     - name: Restore cache kernel build
+      id: cache-kernel-out
       uses: actions/cache/restore@v4
       with:
-        key: kernel-out
+        key: kernel-out-${{ steps.kernel-submodule.outputs.ref }}
         path: agnos-kernel-sdm845/out
+        restore-keys: kernel-out-
 
     - name: Build kernel
       run: ./build_kernel.sh
 
     - name: Save cache kernel build
       uses: actions/cache/save@v4
+      if: always()
       with:
-        key: kernel-out
+        key: ${{ steps.cache-kernel-out.outputs.cache-primary-key }}
         path: agnos-kernel-sdm845/out
-
-    - name: Save cache output boot.img and *.ko
-      uses: actions/cache/save@v4
-      with:
-        key: output-${{ steps.kernel-submodule.outputs.ref }}
-        path: |
-          output/boot.img
-          output/*.ko
 
     - name: Upload artifact boot.img
       uses: actions/upload-artifact@v4
