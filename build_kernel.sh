@@ -19,11 +19,6 @@ if ! command -v git &> /dev/null; then
   exit 1
 fi
 
-# Clone kernel if not done already
-if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
-  git submodule update --init agnos-kernel-sdm845
-fi
-
 # Setup kernel build container
 if ! docker inspect agnos-kernel &>/dev/null; then
   echo "Building agnos-kernel docker image"
@@ -35,6 +30,11 @@ CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR -w $DIR/agnos-kernel-sdm8
 # Cleanup container on exit
 trap "echo \"Cleaning up container:\"; \
 docker container rm -f $CONTAINER_ID" EXIT
+
+# Clone kernel if not done already
+if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
+  git submodule update --init agnos-kernel-sdm845
+fi
 
 # Actual build_kernel steps
 build_kernel() {
