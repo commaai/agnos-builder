@@ -4,10 +4,6 @@ set -e
 UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
 UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
 
-# TODO: remove in another PR
-export DOCKER_BUILDKIT=1 # default from v23.0 and later
-export DOCKER_CLI_EXPERIMENTAL=enabled # deprecated since v19.03
-
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
