@@ -58,60 +58,72 @@ MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-mount)
 trap "echo \"Cleaning up containers:\"; \
 docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
+# Define functions for docker execution
+exec_as_user() {
+  docker exec -u $USERNAME $MOUNT_CONTAINER_ID "$@"
+}
+
+exec_as_root() {
+  docker exec $MOUNT_CONTAINER_ID "$@"
+}
+
 # Create host user in container (fixes namespace.so error)
 USERNAME=$(whoami)
-docker exec $MOUNT_CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME" &> /dev/null
+exec_as_root useradd --uid $(id -u) -U -m $USERNAME &> /dev/null
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
-docker exec -u $USERNAME $MOUNT_CONTAINER_ID fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-docker exec -u $USERNAME $MOUNT_CONTAINER_ID mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
+exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
+exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
 
 # Mount filesystem
 echo "Mounting empty filesystem"
-docker exec $MOUNT_CONTAINER_ID mkdir -p $ROOTFS_DIR
-docker exec $MOUNT_CONTAINER_ID mount $ROOTFS_IMAGE $ROOTFS_DIR
+exec_as_root mkdir -p $ROOTFS_DIR
+exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
 
 # Also unmount filesystem (overwrite previous trap)
-trap "docker exec $MOUNT_CONTAINER_ID umount -l $ROOTFS_DIR &> /dev/null || true; \
+trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
 docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Extract image
 echo "Extracting docker image"
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
-docker exec $MOUNT_CONTAINER_ID tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
+exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
 
-# Add hostname and hosts. This cannot be done in the docker container...
 echo "Setting network stuff"
-HOST=comma
-docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "\
-ln -sf /proc/sys/kernel/hostname etc/hostname; \
-echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts; \
-echo \"127.0.0.1    $HOST\" >> etc/hosts"
+set_network_stuff() {
+  cd $ROOTFS_DIR
+  # Add hostname and hosts. This cannot be done in the docker container...
+  HOST=comma
+  bash -c "ln -sf /proc/sys/kernel/hostname etc/hostname"
+  bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
+  bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
-# Fix resolv config
-docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
+  # Fix resolv config
+  bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
 
-# Write build info
-DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
+  # Write build info
+  DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
+  bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
+}
 GIT_HASH=$(git --git-dir=$DIR/.git rev-parse HEAD)
-docker exec -w $ROOTFS_DIR $MOUNT_CONTAINER_ID bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
+exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; $(declare -f set_network_stuff); set_network_stuff"
 
 # Unmount image
 echo "Unmount filesystem"
-docker exec $MOUNT_CONTAINER_ID umount -l $ROOTFS_DIR
+exec_as_root umount -l $ROOTFS_DIR
 
 # Sparsify
 echo "Sparsify image $(basename $SPARSE_IMAGE)"
-docker exec -u $USERNAME $MOUNT_CONTAINER_ID bash -c "\
+exec_as_user bash -c "\
 TMP_SPARSE=\$(mktemp); \
 img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
 mv \$TMP_SPARSE $SPARSE_IMAGE"
 
 # Make image with skipped chunks
 echo "Sparsify image $(basename $SKIP_CHUNKS_IMAGE)"
-docker exec -u $USERNAME $MOUNT_CONTAINER_ID bash -c "\
+exec_as_user bash -c "\
 TMP_SKIP=\$(mktemp); \
 $DIR/tools/simg2dontcare.py $SPARSE_IMAGE \$TMP_SKIP; \
 mv \$TMP_SKIP $SKIP_CHUNKS_IMAGE"
