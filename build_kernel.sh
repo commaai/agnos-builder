@@ -38,7 +38,7 @@ if ! docker inspect agnos-kernel &>/dev/null; then
   docker build -f Dockerfile.kernel -t agnos-kernel $DIR
 fi
 echo "Starting agnos-kernel container"
-CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR -w $DIR agnos-kernel)
+CONTAINER_ID=$(docker run -d -v $DIR:$DIR -w $DIR agnos-kernel)
 
 # Cleanup container on exit
 trap "echo \"Cleaning up container:\"; \
