@@ -21,4 +21,4 @@ uv venv --python-preference only-system
 # error: No virtual or system environment found for path ...
 source .venv/bin/activate
 # install dependencies using system python 
-uv pip install --python=$(which python) --no-cache-dir --upgrade pip uv
+uv pip install --python=$(which python) --no-cache-dir --upgrade pip
