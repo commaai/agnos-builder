@@ -22,19 +22,6 @@ ROOTFS_IMAGE_SIZE=10G
 SPARSE_IMAGE="$OUTPUT_DIR/system.img"
 SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 
-if ! command -v docker &> /dev/null; then
-  echo "Docker is not installed. Please install Docker and try again."
-  echo "https://docs.docker.com/engine/install/"
-  echo "Don't forget to run 'sudo usermod -aG docker \$USER' after Docker installation is complete."
-  exit 1
-fi
-
-if ! command -v git &> /dev/null; then
-  echo "Git is not installed. Please install Git and try again."
-  echo "https://www.atlassian.com/git/tutorials/install-git"
-  exit 1
-fi
-
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
 
