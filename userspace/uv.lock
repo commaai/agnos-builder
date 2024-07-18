@@ -27,6 +27,7 @@ dependencies = [
     { name = "evdev" },
     { name = "flake8" },
     { name = "flask" },
+    { name = "future-fstrings" },
     { name = "gunicorn" },
     { name = "hatanaka" },
     { name = "hexdump" },

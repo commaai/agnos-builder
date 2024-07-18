@@ -17,6 +17,7 @@ dependencies = [
   "evdev",
   "flake8",
   "flask",
+  "future-fstrings",
   "gunicorn",
   "hatanaka == 2.4",
   "hexdump",
