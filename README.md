@@ -8,9 +8,10 @@ NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repo
 
 These tools are developed on and targeted for Ubuntu 20.04.
 
+Building requires Docker v23.0 or later and should work on any system that supports it.
+
 Run once to set things up:
 ```sh
-cd ~
 git clone https://github.com/commaai/agnos-builder.git
 
 cd agnos-builder
@@ -32,7 +33,7 @@ Flashing to a comma 3/3X:
 
 Validating changes:
 * Running openpilot is a good smoketest for general AGNOS functionality
-* [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the build still works
+* [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the kernel and system builds work (and pushes the images for you to download)
 * [this](https://github.com/commaai/agnos-builder/blob/master/internal/README.md) is the checklist we go through before shipping new AGNOS releases to openpilot
 
 ## Contributing
@@ -52,7 +53,7 @@ The second priority is to be a good platform for all sorts of [robotics developm
 
 Now that AGNOS is good at running openpilot, the next things up are:
 * speedups: build system, CI, boot time, etc.
-* cleanups: Android kernel to mainline kernel
+* cleanups: Android kernel to mainline kernel, simplify the build system, etc.
 * open source: AGNOS started with a bunch blobs for various things, like the bootloaders and weston. We want to move everything we can to open source versions built in this repo.
 
 Some concrete things on the roadmap:
