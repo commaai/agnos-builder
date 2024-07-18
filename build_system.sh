@@ -53,10 +53,8 @@ echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
 # Setup mount container for macOS and CI support (namespace.so)
-if ! docker inspect agnos-mount &>/dev/null; then
-  echo "Building agnos-mount docker image"
-  docker build -f Dockerfile.sparsify -t agnos-mount $DIR
-fi
+echo "Building agnos-mount docker image"
+docker build -f Dockerfile.sparsify -t agnos-mount $DIR
 echo "Starting agnos-mount container"
 MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-mount)
 
