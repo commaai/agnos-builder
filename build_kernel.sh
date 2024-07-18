@@ -37,8 +37,11 @@ docker container rm -f $CONTAINER_ID" EXIT
 
 # Clone kernel if not done already
 if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
+  echo "Cloning agnos-kernel-sdm845"
   git submodule update --init agnos-kernel-sdm845
 fi
+
+$DIR/tools/extract_tools.sh
 
 build_kernel() {
   cd agnos-kernel-sdm845
@@ -49,8 +52,6 @@ build_kernel() {
     export CROSS_COMPILE=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-
     export CC=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc
     export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
-
-    $DIR/tools/extract_tools.sh
   fi
 
   # Build arm64 arch
@@ -105,4 +106,4 @@ USERNAME=$(whoami)
 docker exec $CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME"
 
 # Run build_kernel in container
-docker exec -u $USERNAME $CONTAINER_ID bash -c "export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
+docker exec -u $USERNAME $CONTAINER_ID bash -c "set -e; export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
