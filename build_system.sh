@@ -24,18 +24,29 @@ SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
 
-# Copy kernel modules over
+# Check if kernel modules are built
 if ! ls $OUTPUT_DIR/*.ko >/dev/null 2>&1; then
-  echo "kernel modules missing. run ./build_kernel.sh first"
+  echo "Kernel modules missing. Run ./build_kernel.sh first"
   exit 1
 fi
+
+# Copy kernel modules over only if updated - otherwise prevents proper caching later
+if ! cmp -s $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma/wlan.ko; then
+  echo "Copying wlan.ko"
 cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
-cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
+fi
+for ko_file in $OUTPUT_DIR/snd*.ko; do
+  target_file="$DIR/userspace/usr/comma/sound/$(basename $ko_file)"
+  if ! cmp -s $ko_file $target_file; then
+    echo "Copying $(basename $ko_file)"
+    cp $ko_file $target_file
+  fi
+done
 
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
   echo -e "${GREEN}Downloading Ubuntu: $UBUNTU_FILE ${NO_COLOR}"
-  curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent
+  curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time
 fi
 
 if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
