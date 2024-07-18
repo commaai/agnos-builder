@@ -26,7 +26,7 @@ dependencies = [
   "libusb1",
   "markdown-it-py",
   "nose",
-  "numpy",
+  "numpy < 2.0.0",
   "onnx",
   "onnxruntime >= 1.16.3",
   "pillow",
@@ -39,7 +39,7 @@ dependencies = [
   "pydub",
   "pyjwt",
   "pylint",
-#"pyopencl == 2024.1", #FIXME: has some installation errors
+  "pyopencl == 2024.1",
   "pyserial",
   "pytest",
   "pytest-cov",
