@@ -4,6 +4,10 @@ DEFCONFIG=tici_defconfig
 
 # Get directories and make sure we're in the correct spot to start the build
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+TOOLS=$DIR/tools
+TMP_DIR=/tmp/agnos-builder-tmp
+OUTPUT_DIR=$DIR/output
+BOOT_IMG=./boot.img
 cd $DIR
 
 if ! command -v docker &> /dev/null; then
@@ -38,11 +42,6 @@ fi
 
 # Actual build_kernel steps
 build_kernel() {
-  TOOLS=$DIR/tools
-  TMP_DIR=/tmp/agnos-builder-tmp
-  OUTPUT_DIR=$DIR/output
-  BOOT_IMG=./boot.img
-
   # Build parameters
   ARCH=$(uname -m)
   if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
@@ -105,4 +104,4 @@ USERNAME=$(whoami)
 docker exec $CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME"
 
 # Run build_kernel in container
-docker exec -u $USERNAME $CONTAINER_ID bash -c "export DEFCONFIG=$DEFCONFIG; export DIR=$DIR; $(declare -f build_kernel); build_kernel"
+docker exec -u $USERNAME $CONTAINER_ID bash -c "export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
