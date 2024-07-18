@@ -35,6 +35,12 @@ Validating changes:
 * [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the build still works
 * [this](https://github.com/commaai/agnos-builder/blob/master/internal/README.md) is the checklist we go through before shipping new AGNOS releases to openpilot
 
+## Development - macOS
+
+Building the kernel on macOS requires the volume you work in to be [Case-sensitive](https://support.apple.com/lv-lv/guide/disk-utility/dsku19ed921c/mac).
+
+The recommended way is to create an [APFS (Case-sensitive)](https://support.apple.com/lv-lv/guide/disk-utility/add-delete-or-erase-apfs-volumes-dskua9e6a110/22..6/mac/14.0) volume and checkout `agnos-builder` in that specific volume. Not setting "Reserve Size" and "Quota Size" will make the volume dynamically allocate the space, which is also recommended.
+
 ## Contributing
 
 Join us in the `#dev-agnos` channel on [Discord](https://discord.comma.ai).
