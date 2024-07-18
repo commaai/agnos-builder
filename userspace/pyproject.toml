@@ -40,7 +40,7 @@ dependencies = [
   "pydub",
   "pyjwt",
   "pylint",
-  "pyopencl == 2024.1",  # pending cmake update coming with 24.04
+  "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
   "pyserial",
   "pytest",
   "pytest-cov",
