@@ -13,7 +13,7 @@ cd $DIR
 if ! command -v docker &> /dev/null; then
   echo "Docker is not installed. Please install Docker and try again."
   echo "https://docs.docker.com/engine/install/"
-  echo "Don't forget to run `sudo usermod -aG docker $USER` after Docker installation is complete."
+  echo "Don't forget to run 'sudo usermod -aG docker \$USER' after Docker installation is complete."
   exit 1
 fi
 
@@ -29,7 +29,7 @@ if ! docker inspect agnos-kernel &>/dev/null; then
   docker build -f Dockerfile.kernel -t agnos-kernel $DIR
 fi
 echo "Starting agnos-kernel container"
-CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR -w $DIR/agnos-kernel-sdm845 agnos-kernel)
+CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR -w $DIR agnos-kernel)
 
 # Cleanup container on exit
 trap "echo \"Cleaning up container:\"; \
@@ -40,8 +40,9 @@ if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
   git submodule update --init agnos-kernel-sdm845
 fi
 
-# Actual build_kernel steps
 build_kernel() {
+  cd agnos-kernel-sdm845
+
   # Build parameters
   ARCH=$(uname -m)
   if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
