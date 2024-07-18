@@ -23,6 +23,15 @@ if ! command -v git &> /dev/null; then
   exit 1
 fi
 
+if [[ "$(uname)" == 'Darwin' ]]; then
+  echo "---------------   macOS support   ---------------"
+  echo "Ensure you are in a Case-sensitive APFS volume to build the AGNOS kernel."
+  echo "https://github.com/commaai/agnos-builder?tab=readme-ov-file#development---macos"
+  echo "-------------------------------------------------"
+  echo "Press any key to continue or CTRL+C to abort..."
+  read -n 1 -s
+fi
+
 # Setup kernel build container
 if ! docker inspect agnos-kernel &>/dev/null; then
   echo "Building agnos-kernel docker image"

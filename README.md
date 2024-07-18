@@ -39,7 +39,7 @@ Validating changes:
 
 Building the kernel on macOS requires the volume you work in to be [Case-sensitive](https://support.apple.com/lv-lv/guide/disk-utility/dsku19ed921c/mac).
 
-The recommended way is to create an [APFS (Case-sensitive)](https://support.apple.com/lv-lv/guide/disk-utility/add-delete-or-erase-apfs-volumes-dskua9e6a110/22..6/mac/14.0) volume and checkout `agnos-builder` in that specific volume (or move it there). Not setting "Reserve Size" and "Quota Size" will make the volume dynamically allocate the space, which is also recommended.
+The recommended way is to create an APFS (Case-sensitive) volume following these [instructions](https://support.apple.com/lv-lv/guide/disk-utility/add-delete-or-erase-apfs-volumes-dskua9e6a110/22..6/mac/14.0) and checkout `agnos-builder` in that specific volume (or move it there). Not setting "Reserve Size" and "Quota Size" will make the volume dynamically allocate the space, which is also recommended.
 
 The same thing can be accomplished with the following command:
 ```
