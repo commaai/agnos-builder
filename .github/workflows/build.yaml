@@ -23,9 +23,20 @@ jobs:
       with:
         lfs: true
 
-    - name: get kernel submodule ref
+    - name: Get commit message
+      if: github.event_name == 'pull_request'
+      run: |
+        if [ "${{ github.event_name }}" == "push" ]; then
+          echo "LAST_COMMIT_MESSAGE='${{ github.event.head_commit.message }}'" | tee -a $GITHUB_ENV
+        elif [ "${{ github.event_name }}" == "workflow_run" ]; then
+          echo "LAST_COMMIT_MESSAGE='${{ github.event.workflow_run.head_commit.message }}'" | tee -a $GITHUB_ENV
+        elif [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "LAST_COMMIT_MESSAGE=$(curl -s '${{ github.event.pull_request.commits_url }}' | jq -r '.[-1].commit.message')" | tee -a $GITHUB_ENV
+        fi
+
+    - name: Get kernel submodule ref
       id: kernel-submodule
-      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> "$GITHUB_OUTPUT"
+      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
 
     - name: Checkout agnos-kernel-sdm845
       uses: actions/checkout@v4
@@ -33,6 +44,11 @@ jobs:
         repository: commaai/agnos-kernel-sdm845
         ref: ${{ steps.kernel-submodule.outputs.ref }}
         path: agnos-kernel-sdm845
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        create-symlink: true
 
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y bc img2simg
@@ -42,32 +58,19 @@ jobs:
       with:
         default: '2.7.18'
 
-    - name: Restore cache kernel build
-      id: cache-kernel-out
-      uses: actions/cache/restore@v4
-      with:
-        key: kernel-out-${{ steps.kernel-submodule.outputs.ref }}
-        path: agnos-kernel-sdm845/out
-        restore-keys: kernel-out-
-
     - name: Build kernel
       run: ./build_kernel.sh
 
-    - name: Save cache kernel build
-      uses: actions/cache/save@v4
-      if: always()
-      with:
-        key: ${{ steps.cache-kernel-out.outputs.cache-primary-key }}
-        path: agnos-kernel-sdm845/out
-
     - name: Upload artifact boot.img
       uses: actions/upload-artifact@v4
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       with:
         name: boot.img
         path: output/boot.img
 
     - name: Upload artifact kernel modules
       uses: actions/upload-artifact@v4
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       with:
         name: kernel-modules
         path: output/*.ko
@@ -77,6 +80,7 @@ jobs:
 
     - name: Upload artifact system.img
       uses: actions/upload-artifact@v4
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       with:
         name: system.img
         path: output/system.img
