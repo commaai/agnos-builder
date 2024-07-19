@@ -50,7 +50,11 @@ CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:late
 
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-mount docker image"
-docker build -f Dockerfile.sparsify -t agnos-mount $DIR
+docker build -f Dockerfile.sparsify -t agnos-mount $DIR \
+  --build-arg UNAME=$(id -nu) \
+  --build-arg UID=$(id -u) \
+  --build-arg GID=$(id -g)
+
 echo "Starting agnos-mount container"
 MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-mount)
 
@@ -66,10 +70,6 @@ exec_as_user() {
 exec_as_root() {
   docker exec $MOUNT_CONTAINER_ID "$@"
 }
-
-# Create host user in container (fixes namespace.so error)
-USERNAME=$(whoami)
-exec_as_root useradd --uid $(id -u) -U -m $USERNAME &> /dev/null
 
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
