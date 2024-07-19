@@ -64,7 +64,7 @@ docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Define functions for docker execution
 exec_as_user() {
-  docker exec -u $USERNAME $MOUNT_CONTAINER_ID "$@"
+  docker exec -u $(id -nu) $MOUNT_CONTAINER_ID "$@"
 }
 
 exec_as_root() {
