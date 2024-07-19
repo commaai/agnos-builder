@@ -21,7 +21,10 @@ if [[ "$(uname)" == 'Darwin' ]]; then
 fi
 
 # Setup kernel build container
-docker build -f Dockerfile.kernel -t agnos-kernel $DIR
+docker build -f Dockerfile.kernel -t agnos-kernel $DIR \
+   --build-arg UNAME=$(id -nu) \
+   --build-arg UID=$(id -u) \
+   --build-arg GID=$(id -g)
 echo "Starting agnos-kernel container"
 CONTAINER_ID=$(docker run -d -v $DIR:$DIR -w $DIR agnos-kernel)
 
@@ -95,9 +98,5 @@ build_kernel() {
   cp $DIR/agnos-kernel-sdm845/out/drivers/staging/qcacld-3.0/wlan.ko $OUTPUT_DIR/
 }
 
-# Create host user in container (fixes namespace.so error)
-USERNAME=$(whoami)
-docker exec $CONTAINER_ID bash -c "useradd --uid $(id -u) -U -m $USERNAME"
-
 # Run build_kernel in container
-docker exec -u $USERNAME $CONTAINER_ID bash -c "set -e; export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
+docker exec -u $(id -nu) $CONTAINER_ID bash -c "set -e; export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
