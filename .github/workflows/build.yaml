@@ -49,6 +49,8 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         create-symlink: true
+        key: kernel-ccache-${{ steps.kernel-submodule.outputs.ref }}
+        restore-keys: kernel-ccache-
 
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y bc img2simg
