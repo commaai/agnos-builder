@@ -21,10 +21,7 @@ if [[ "$(uname)" == 'Darwin' ]]; then
 fi
 
 # Setup kernel build container
-if ! docker inspect agnos-kernel &>/dev/null; then
-  echo "Building agnos-kernel docker image"
-  docker build -f Dockerfile.kernel -t agnos-kernel $DIR
-fi
+docker build -f Dockerfile.kernel -t agnos-kernel $DIR
 echo "Starting agnos-kernel container"
 CONTAINER_ID=$(docker run -d -v $DIR:$DIR -w $DIR agnos-kernel)
 
