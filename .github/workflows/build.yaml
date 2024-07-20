@@ -24,7 +24,6 @@ jobs:
         lfs: true
 
     - name: Get commit message
-      if: github.event_name == 'pull_request'
       run: |
         if [ "${{ github.event_name }}" == "push" ]; then
           echo "LAST_COMMIT_MESSAGE='${{ github.event.head_commit.message }}'" | tee -a $GITHUB_ENV
