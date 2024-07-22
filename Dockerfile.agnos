@@ -93,7 +93,7 @@ RUN export PATH="$HOME/.cargo/bin:$PATH" && \
     source .venv/bin/activate && \
     cd /tmp/agnos && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \    
-    pc="$(find /usr/lib/ -name python-3.12.pc) " && \
+    pc="$(find /usr/lib/ -name python3.pc) " && \
     pcpath=${pc%/*} && \
     export PKG_CONFIG_PATH=$pcpath && \
     cp $pcpath"/python3.pc" $pcpath"/python-3.11.pc" && \
