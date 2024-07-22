@@ -100,7 +100,6 @@ RUN export PATH="$HOME/.cargo/bin:$PATH" && \
     export PKG_CONFIG_PATH=$pcpath && \
     cp $pcpath"/python-3.12.pc" $pcpath"/python-3.11.pc" && \
     cp $pcpath"/python-3.12-embed.pc" $pcpath"/python-3.11-embed.pc" && \
-    # export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir .
 
 # Install nice to haves
