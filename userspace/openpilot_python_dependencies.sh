@@ -20,5 +20,5 @@ uv venv --python-preference only-managed
 # need to activate virtual env otherwise call to uv pip install throws error,
 # error: No virtual or system environment found for path ...
 source .venv/bin/activate
-# install dependencies using system python 
+# install dependencies using managed python
 uv pip install --python=$(which python) --no-cache-dir --upgrade pip
