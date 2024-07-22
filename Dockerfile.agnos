@@ -97,8 +97,8 @@ RUN export PATH="$HOME/.cargo/bin:$PATH" && \
     pc="$(find /usr/lib/ -name python-3.12.pc) " && \
     pcpath=${pc%/*} && \
     export PKG_CONFIG_PATH=$pcpath && \
-    cp $pcpath"/python-3.12.pc" $pcpath"/python-3.11.pc" && \
-    cp $pcpath"/python-3.12-embed.pc" $pcpath"/python-3.11-embed.pc" && \
+    cp $pcpath"/python3.pc" $pcpath"/python-3.11.pc" && \
+    cp $pcpath"/python3-embed.pc" $pcpath"/python-3.11-embed.pc" && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir .
 
 # Install nice to haves
