@@ -24,8 +24,21 @@ if [ "$(< .git/HEAD)" != "$VERSION" ]; then
   git checkout $VERSION
   git submodule update --depth=1 --init --recursive
 
-  pip3 install -r requirements.txt
+  # TODO: remove "--no-binary capstone" when capstone v5.0.2 is released
+  # https://github.com/capstone-engine/capstone/issues/2301#issuecomment-2026835275
+  pip3 install -r requirements.txt --no-binary capstone
 fi
 popd > /dev/null
 
 $EDL_PATH/edl "$@"
+
+################################################################################
+# On M-series macs, if you get "No backend available"
+# where python is installed with pyenv and libusb with brew
+# try this:
+#
+# brew install libusb
+# sudo mkdir -p /usr/local/lib
+# sudo ln -s /opt/homebrew/lib/libusb-1.0.0.dylib /usr/local/lib/libusb.dylib
+#
+################################################################################
