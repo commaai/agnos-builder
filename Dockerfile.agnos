@@ -92,7 +92,8 @@ RUN export PATH="$HOME/.cargo/bin:$PATH" && \
     export UV_BIN="$HOME/.cargo/bin" && \
     source .venv/bin/activate && \
     cd /tmp/agnos && \
-    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \    
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
+    
     pc="$(find /usr/lib/ -name python3.pc) " && \
     pcpath=${pc%/*} && \
     export PKG_CONFIG_PATH=$pcpath && \
