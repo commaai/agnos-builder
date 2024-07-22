@@ -55,9 +55,6 @@ jobs:
         key: kernel-ccache-${{ steps.kernel-submodule.outputs.ref }}
         restore-keys: kernel-ccache-
 
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y img2simg
-
     - name: Build kernel
       run: ./build_kernel.sh
 
