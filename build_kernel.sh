@@ -21,12 +21,13 @@ if [[ "$(uname)" == 'Darwin' ]]; then
 fi
 
 # Setup kernel build container
-docker build -f Dockerfile.kernel -t agnos-kernel $DIR \
-   --build-arg UNAME=$(id -nu) \
-   --build-arg UID=$(id -u) \
-   --build-arg GID=$(id -g)
-echo "Starting agnos-kernel container"
-CONTAINER_ID=$(docker run -d -v $DIR:$DIR -w $DIR agnos-kernel)
+echo "Building agnos-meta-builder docker image"
+docker build -f Dockerfile.builder -t agnos-meta-builder $DIR \
+  --build-arg UNAME=$(id -nu) \
+  --build-arg UID=$(id -u) \
+  --build-arg GID=$(id -g)
+echo "Starting agnos-meta-builder container"
+CONTAINER_ID=$(docker run -d -v $DIR:$DIR -w $DIR agnos-meta-builder)
 
 # Cleanup container on exit
 trap "echo \"Cleaning up container:\"; \

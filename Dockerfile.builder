@@ -4,10 +4,8 @@ ARG UNAME
 ARG UID
 ARG GID
 
-# Set non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update and install necessary packages
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     python2 \
@@ -15,8 +13,9 @@ RUN apt-get update && \
     libssl-dev \
     bc \
     python-is-python2 \
-    openssl && \
-    rm -rf /var/lib/apt/lists/*
+    openssl \
+    android-sdk-libsparse-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN if [ ${UID:-0} -ne 0 ] && [ ${GID:-0} -ne 0 ]; then \
     userdel -r `getent passwd ${UID} | cut -d : -f 1` > /dev/null 2>&1; \
@@ -25,5 +24,4 @@ RUN if [ ${UID:-0} -ne 0 ] && [ ${GID:-0} -ne 0 ]; then \
     useradd -u $UID -g $GID ${UNAME} \
 ;fi
 
-# Set entrypoint to keep container running
 ENTRYPOINT ["tail", "-f", "/dev/null"]
