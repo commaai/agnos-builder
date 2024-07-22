@@ -3,6 +3,7 @@
 echo "Installing openpilot dependencies"
 
 # Install necessary libs
+add-apt-repository ppa:deadsnakes/ppa -y 
 apt-get update
 apt-get install --no-install-recommends -yq \
     autoconf \
@@ -56,6 +57,10 @@ apt-get install --no-install-recommends -yq \
     ocl-icd-opencl-dev \
     opencl-headers \
     pkg-config \
+    libdbus-glib-1-dev \
+    libgirepository1.0-dev \
+    python3.12-dev \
+    python3-dev \
     portaudio19-dev \
     texinfo \
     vnstat \

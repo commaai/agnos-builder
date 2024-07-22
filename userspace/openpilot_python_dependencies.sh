@@ -16,7 +16,7 @@ else
 fi
 
 # uv requires virtual env either managed or system before installing dependencies
-uv venv --python-preference only-system
+uv venv --python-preference only-managed
 # need to activate virtual env otherwise call to uv pip install throws error,
 # error: No virtual or system environment found for path ...
 source .venv/bin/activate
