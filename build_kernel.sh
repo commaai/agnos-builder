@@ -16,10 +16,9 @@ if [[ "$(uname)" == 'Darwin' ]]; then
   if ! diskutil info -plist $BASE_VOLUME_PATH | grep -q "<string>Case-sensitive APFS</string>"; then
     echo "---------------   macOS support   ---------------"
     echo "Ensure you are in a Case-sensitive APFS volume to build the AGNOS kernel."
-    echo "https://github.com/commaai/agnos-builder?tab=readme-ov-file#development---macos"
+    echo "https://github.com/commaai/agnos-builder?tab=readme-ov-file#macos"
     echo "-------------------------------------------------"
-    echo "Press any key to continue or CTRL+C to abort..."
-    read -n 1 -s
+    exit 1
   fi
 fi
 
