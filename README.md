@@ -36,17 +36,15 @@ Validating changes:
 * [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the kernel and system builds work (and pushes the images for you to download)
 * [this](https://github.com/commaai/agnos-builder/blob/master/internal/README.md) is the checklist we go through before shipping new AGNOS releases to openpilot
 
-## Development - macOS
+### macOS
 
-Building the kernel on macOS requires the volume you work in to be [Case-sensitive](https://support.apple.com/lv-lv/guide/disk-utility/dsku19ed921c/mac).
+Building the kernel on macOS requires `agnos-builder` to be in a [Case-sensitive](https://support.apple.com/lv-lv/guide/disk-utility/dsku19ed921c/mac) filesystem.
 
-The recommended way is to create an APFS (Case-sensitive) volume following these [instructions](https://support.apple.com/lv-lv/guide/disk-utility/add-delete-or-erase-apfs-volumes-dskua9e6a110/22..6/mac/14.0) and checkout `agnos-builder` in that specific volume (or move it there). Not setting "Reserve Size" and "Quota Size" will make the volume dynamically allocate the space, which is also recommended.
-
-The same thing can be accomplished with the following command:
+Use this to set it up:
 ```
-diskutil apfs addVolume disk3 "Case-sensitive APFS" agnos
+diskutil apfs addVolume <disk> "Case-sensitive APFS" agnos
 ```
-* replace `disk3` with the `synthesized` disk in `diskutil list` that includes your main volume (e.g. Macintosh HD) - usually `disk3` on M-series Macs, `disk1` on Intel Macs
+* replace `<disk>` with the `synthesized` disk in `diskutil list` that includes your main volume (e.g. Macintosh HD) - usually `disk3` on M-series Macs, `disk1` on Intel Macs
 * `agnos` is the name of the new volume - can be replaced with an arbitrary name
 * the volume is mounted automatically in `/Volumes/agnos`
 
