@@ -82,9 +82,8 @@ RUN export PATH="$HOME/.cargo/bin:$PATH" && \
     export UV_BIN="$HOME/.cargo/bin" && \
     export MAKEFLAGS="-j$(nproc)" && \
     source .venv/bin/activate && \
-    .venv/bin/python --version && \
-    uv pip install pyqt6-sip==13.8.0 && \
-    uv pip install pyqt6==6.7.1 --verbose --config-settings="--confirm-license="
+    pip install pyqt5-sip==12.12.1 && \
+    pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= 
 
 # Install openpilot python packages
 COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/
@@ -94,12 +93,14 @@ RUN export PATH="$HOME/.cargo/bin:$PATH" && \
     cd /tmp/agnos && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     
-    pc="$(find /usr/lib/ -name python3.pc) " && \
-    pcpath=${pc%/*} && \
-    export PKG_CONFIG_PATH=$pcpath && \
-    cp $pcpath"/python3.pc" $pcpath"/python-3.11.pc" && \
-    cp $pcpath"/python3-embed.pc" $pcpath"/python-3.11-embed.pc" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir .
+    pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
+    pcpath=$pc"/lib/pkgconfig" && \
+    export PKG_CONFIG_PATH="$pcpath:$PKG_CONFIG_PATH" && \
+    pypcpath=$pcpath"/python-3.11.pc" && \
+    sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
+    pypcpathembed=$pcpath"/python-3.11-embed.pc" && \
+    sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir . 
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
