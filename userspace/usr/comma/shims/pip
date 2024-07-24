@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-PIP_PATH=/usr/local/pyenv/shims/pip
+PIP_PATH=/.venv/bin/pip
 export TMPDIR=/tmp/pip-tmp
 
 # setup large tmp for install

@@ -58,7 +58,6 @@ apt-get install --no-install-recommends -yq \
     pkg-config \
     libdbus-glib-1-dev \
     libgirepository1.0-dev \
-    python3-dev \
     portaudio19-dev \
     texinfo \
     vnstat \

@@ -37,11 +37,6 @@ jobs:
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y bc img2simg
 
-    - name: Install python2
-      uses: gabrielfalcao/pyenv-action@2f49ca7587f9d0663d13f1147b78d3361417eaf7
-      with:
-        default: '2.7.18'
-
     - name: Cache kernel build
       uses: actions/cache@v4
       id: cache-kernel
