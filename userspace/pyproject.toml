@@ -17,6 +17,7 @@ dependencies = [
   "evdev",
   "flake8",
   "flask",
+  "future-fstrings",  # needed for acados
   "gunicorn",
   "hatanaka == 2.4",
   "hexdump",
@@ -26,7 +27,7 @@ dependencies = [
   "libusb1",
   "markdown-it-py",
   "nose",
-  "numpy",
+  "numpy < 2.0.0",  # pending bumping in openpilot
   "onnx",
   "onnxruntime >= 1.16.3",
   "pillow",
@@ -39,7 +40,7 @@ dependencies = [
   "pydub",
   "pyjwt",
   "pylint",
-#"pyopencl == 2024.1", #FIXME: has some installation errors
+  "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
   "pyserial",
   "pytest",
   "pytest-cov",
