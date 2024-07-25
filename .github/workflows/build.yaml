@@ -55,13 +55,6 @@ jobs:
         key: kernel-ccache-${{ steps.kernel-submodule.outputs.ref }}
         restore-keys: kernel-ccache-
 
-    - name: Cache kernel out
-      uses: actions/cache@v4
-      with:
-        path: agnos-kernel-sdm845/out
-        key: kernel-out-${{ steps.kernel-submodule.outputs.ref }}
-        restore-keys: kernel-out-
-
     - name: Build kernel
       run: ./build_kernel.sh
 
