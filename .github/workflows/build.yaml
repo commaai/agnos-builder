@@ -1,0 +1,84 @@
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.run_id || github.head_ref || github.ref }}-${{ github.workflow }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build kernel and system
+    runs-on: namespace-profile-arm64-8x16-2004-caching
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: Get commit message
+      run: |
+        {
+          echo 'LAST_COMMIT_MESSAGE<<EOF'
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "${{ github.event.head_commit.message }}"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.sha }}|")
+            echo "$(curl -s "$COMMIT_URL" | jq -r '.commit.message')"
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            PR_COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.event.pull_request.head.sha }}|")
+            echo "$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')"
+          fi
+          echo EOF
+        } | tee -a $GITHUB_ENV
+
+    - name: Get kernel submodule ref
+      id: kernel-submodule
+      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
+
+    - name: Checkout agnos-kernel-sdm845
+      uses: actions/checkout@v4
+      with:
+        repository: commaai/agnos-kernel-sdm845
+        ref: ${{ steps.kernel-submodule.outputs.ref }}
+        path: agnos-kernel-sdm845
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
+      with:
+        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
+        restore-keys: kernel-
+
+    - name: Build kernel
+      run: ./build_kernel.sh
+
+    - name: Upload artifact boot.img
+      uses: actions/upload-artifact@v4
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      with:
+        name: boot.img
+        path: output/boot.img
+
+    - name: Upload artifact kernel modules
+      uses: actions/upload-artifact@v4
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      with:
+        name: kernel-modules
+        path: output/*.ko
+
+    - name: Build system
+      run: ./build_system.sh
+
+    - name: Upload artifact system.img
+      uses: actions/upload-artifact@v4
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      with:
+        name: system.img
+        path: output/system.img
