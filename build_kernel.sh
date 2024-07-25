@@ -72,8 +72,8 @@ build_kernel() {
   echo "OUT=$OUT"
 
   # TEMP - REMOVE
-  ls -al $OUT
-  ls -al ../.ccache
+  ls -al $OUT || true
+  ls -al ../.ccache || true
   ccache -s
   echo "cat out/include/generated/compile.h"
   cat out/include/generated/compile.h || true
