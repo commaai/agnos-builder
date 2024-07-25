@@ -15,7 +15,6 @@ git clone https://github.com/commaai/agnos-builder.git
 cd agnos-builder
 git submodule update --init agnos-kernel-sdm845
 ./tools/extract_tools.sh
-sudo apt install img2simg
 ```
 
 Building
@@ -72,6 +71,6 @@ Some concrete things on the roadmap:
 - [ ] make the image tiny, for fast updating and flashing https://github.com/commaai/agnos-builder/issues/225
 - [ ] update to Ubuntu 24.04 https://github.com/commaai/openpilot/issues/32386
 - [ ] mainline Linux kernel https://github.com/commaai/openpilot/issues/32386
-- [ ] fully open source
+- [ ] fully open source 
   - [ ] anything from `agnos-firmware`: XBL, ABL, etc.
   - [ ] open source Weston https://github.com/commaai/agnos-builder/issues/16
