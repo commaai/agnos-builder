@@ -72,6 +72,7 @@ build_kernel() {
   echo "OUT=$OUT"
 
   # TEMP - REMOVE
+  ls -al $OUT
   ls -al ../.ccache
   ccache -s
   echo "cat out/include/generated/compile.h"
@@ -84,6 +85,7 @@ build_kernel() {
   make -j$(nproc --all) O=$OUT  # Image.gz-dtb
 
   # TEMP - REMOVE
+  ls -al $OUT
   ls -al ../.ccache
   ccache -s
   echo "cat out/include/generated/compile.h"
