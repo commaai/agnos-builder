@@ -51,8 +51,8 @@ jobs:
     - name: ccache
       uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
       with:
-        key: kernel-ccache-${{ steps.kernel-submodule.outputs.ref }}
-        restore-keys: kernel-ccache-
+        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
+        restore-keys: kernel-
 
     - name: Build kernel
       run: ./build_kernel.sh
