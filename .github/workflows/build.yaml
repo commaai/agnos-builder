@@ -29,10 +29,12 @@ jobs:
           echo 'LAST_COMMIT_MESSAGE<<EOF'
           if [ "${{ github.event_name }}" == "push" ]; then
             echo "${{ github.event.head_commit.message }}"
-          elif [ "${{ github.event_name }}" == "workflow_run" ]; then
-            echo "${{ github.event.workflow_run.head_commit.message }}"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.sha }}|")
+            echo "$(curl -s "$COMMIT_URL" | jq -r '.commit.message')"
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "$(curl -s '${{ github.event.pull_request.commits_url }}' | jq -r '.[-1].commit.message')"
+            PR_COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.event.pull_request.head.sha }}|")
+            echo "$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')"
           fi
           echo EOF
         } | tee -a $GITHUB_ENV
