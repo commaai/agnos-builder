@@ -68,7 +68,6 @@ dependencies = [
   "spidev",
   "spidev2",
   "sympy != 1.6.1",
-  "timezonefinder",
   "torch",
   "tqdm",
   "urllib3",

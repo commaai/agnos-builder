@@ -78,7 +78,6 @@ dependencies = [
     { name = "spidev" },
     { name = "spidev2" },
     { name = "sympy" },
-    { name = "timezonefinder" },
     { name = "torch" },
     { name = "tqdm" },
     { name = "urllib3" },
@@ -2688,22 +2687,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a3/4d/6a19536c50b849338fcbe9290d562b52cbdcf30d8963d3588a68a4107df1/tenacity-8.5.0.tar.gz", hash = "sha256:8bc6c0c8a09b31e6cad13c47afbed1a567518250a9a171418582ed8d9c20ca78", size = 47309 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl", hash = "sha256:b594c2a5945830c267ce6b79a166228323ed52718f30302c1359836112346687", size = 28165 },
-]
-
-[[distribution]]
-name = "timezonefinder"
-version = "6.5.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cffi" },
-    { name = "h3" },
-    { name = "numpy" },
-    { name = "setuptools" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/20/ca/8d1f93b92b032c8196fd24ea8c5c1c3678ccaae27848ac0cf1314ef3694d/timezonefinder-6.5.2.tar.gz", hash = "sha256:3279e67d5b1b9a54d1a16f3bd4234169f14e2b90c0f58ed37bcfa7303645d610", size = 49406251 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5f/dc/d713708212c50b2724557882d7e327393f0dfedfdd10486e25a5fa9d9140/timezonefinder-6.5.2-cp311-cp311-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c4a3bca9933ea165380d54b336227def58e62682968437cd44223a065ecff7e9", size = 49413134 },
-    { url = "https://files.pythonhosted.org/packages/b8/a0/ef787af6bd2e48febed4eb0d533d17bb0748a3de04cfe2c1302988984065/timezonefinder-6.5.2-cp312-cp312-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2ac4ef31d379c7ba54710462857bea36a9630ea23550ffb15550322e6988efbd", size = 49413388 },
 ]
 
 [[distribution]]
