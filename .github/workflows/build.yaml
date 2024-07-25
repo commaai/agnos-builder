@@ -36,7 +36,7 @@ jobs:
           fi
           echo EOF
         } | tee -a $GITHUB_ENV
-    
+
     - name: Get kernel submodule ref
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
@@ -51,17 +51,8 @@ jobs:
     - name: ccache
       uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
       with:
-        create-symlink: true
-        key: kernel-ccache-${{ steps.kernel-submodule.outputs.ref }}
-        restore-keys: kernel-ccache-
-
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y bc img2simg
-
-    - name: Install python2
-      uses: gabrielfalcao/pyenv-action@2f49ca7587f9d0663d13f1147b78d3361417eaf7
-      with:
-        default: '2.7.18'
+        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
+        restore-keys: kernel-
 
     - name: Build kernel
       run: ./build_kernel.sh
