@@ -14,6 +14,7 @@ RUN apt-get update && \
     bc \
     python-is-python2 \
     openssl \
+    ccache \
     android-sdk-libsparse-utils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,5 +24,12 @@ RUN if [ ${UID:-0} -ne 0 ] && [ ${GID:-0} -ne 0 ]; then \
     groupadd -g ${GID} -o ${UNAME} && \
     useradd -u $UID -g $GID ${UNAME} \
 ;fi
+
+RUN CCACHE_PATH=$(which ccache) && \
+    ln -s $CCACHE_PATH /usr/local/bin/gcc && \
+    ln -s $CCACHE_PATH /usr/local/bin/g++ && \
+    ln -s $CCACHE_PATH /usr/local/bin/cc && \
+    ln -s $CCACHE_PATH /usr/local/bin/c++ && \
+    ln -s $CCACHE_PATH /usr/local/bin/clang
 
 ENTRYPOINT ["tail", "-f", "/dev/null"]

@@ -36,7 +36,7 @@ jobs:
           fi
           echo EOF
         } | tee -a $GITHUB_ENV
-    
+
     - name: Get kernel submodule ref
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
@@ -52,6 +52,7 @@ jobs:
       uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
       with:
         create-symlink: true
+        append-timestamp: false
         key: kernel-ccache-${{ steps.kernel-submodule.outputs.ref }}
         restore-keys: kernel-ccache-
 
