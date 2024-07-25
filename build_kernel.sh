@@ -44,15 +44,7 @@ fi
 $DIR/tools/extract_tools.sh
 
 build_kernel() {
-  export CCACHE_DIR=$DIR/.ccache
-
   cd agnos-kernel-sdm845
-
-  # TEMP - REMOVE
-  ls -al ../.ccache
-  ccache -s
-  echo "cat out/include/generated/compile.h"
-  cat out/include/generated/compile.h || true
 
   # Build parameters
   ARCH=$(uname -m)
@@ -62,19 +54,28 @@ build_kernel() {
     export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
   fi
 
+  # Set ccache dir
+  export CCACHE_DIR=$DIR/.ccache
+
   # Build arm64 arch
   export ARCH=arm64
 
   # Disable all warnings
   export KCFLAGS="-w"
 
-  # avoid LINUX_COMPILE_HOST to change on every run, invalidating cache
+  # Avoid LINUX_COMPILE_HOST to change on every run, invalidating cache
   # https://patchwork.kernel.org/project/linux-kbuild/patch/1302015561-21047-8-git-send-email-mmarek@suse.cz/
   export KBUILD_BUILD_HOST="docker"
 
   # Absolute path for OUT folder
   OUT=$DIR/agnos-kernel-sdm845/out
   echo "OUT=$OUT"
+
+  # TEMP - REMOVE
+  ls -al ../.ccache
+  ccache -s
+  echo "cat out/include/generated/compile.h"
+  cat out/include/generated/compile.h || true
 
   # Load defconfig and build kernel
   echo "-- First make --"
