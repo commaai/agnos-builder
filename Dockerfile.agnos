@@ -88,12 +88,13 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     pyenv rehash
 
 # Install openpilot python packages
-COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/
+RUN mkdir -p /tmp/agnos/uv
+COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/uv
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
-    cd /tmp/agnos && \
+    cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir --system .
 
