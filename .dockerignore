@@ -7,3 +7,4 @@ build/
 output/
 edk2_tici/
 agnos-kernel-sdm845/
+.ccache/

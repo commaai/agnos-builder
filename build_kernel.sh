@@ -54,42 +54,24 @@ build_kernel() {
     export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
   fi
 
+  # Build arm64 arch
+  export ARCH=arm64
+
   # Set ccache dir
   export CCACHE_DIR=$DIR/.ccache
 
-  # Build arm64 arch
-  export ARCH=arm64
+  # Avoid LINUX_COMPILE_HOST to change on every run thus invalidating cache
+  # https://patchwork.kernel.org/project/linux-kbuild/patch/1302015561-21047-8-git-send-email-mmarek@suse.cz/
+  export KBUILD_BUILD_HOST="docker"
 
   # Disable all warnings
   export KCFLAGS="-w"
 
-  # Avoid LINUX_COMPILE_HOST to change on every run, invalidating cache
-  # https://patchwork.kernel.org/project/linux-kbuild/patch/1302015561-21047-8-git-send-email-mmarek@suse.cz/
-  export KBUILD_BUILD_HOST="docker"
-
-  # Absolute path for OUT folder
-  OUT=$DIR/agnos-kernel-sdm845/out
-  echo "OUT=$OUT"
-
-  # TEMP - REMOVE
-  ls -al $OUT || true
-  ls -al ../.ccache || true
-  ccache -s
-  echo "cat out/include/generated/compile.h"
-  cat out/include/generated/compile.h || true
-
   # Load defconfig and build kernel
   echo "-- First make --"
-  make $DEFCONFIG O=$OUT
+  make $DEFCONFIG O=out
   echo "-- Second make: $(nproc --all) cores --"
-  make -j$(nproc --all) O=$OUT  # Image.gz-dtb
-
-  # TEMP - REMOVE
-  ls -al $OUT
-  ls -al ../.ccache
-  ccache -s
-  echo "cat out/include/generated/compile.h"
-  cat out/include/generated/compile.h
+  make -j$(nproc --all) O=out  # Image.gz-dtb
 
   # Turn on if you want perf
   # LDFLAGS=-static make -j$(nproc --all) -C tools/perf
@@ -97,7 +79,7 @@ build_kernel() {
   # Copy over Image.gz-dtb
   mkdir -p $TMP_DIR
   cd $TMP_DIR
-  cp $OUT/arch/arm64/boot/Image.gz-dtb .
+  cp $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image.gz-dtb .
 
   # Make boot image
   $TOOLS/mkbootimg \
@@ -121,9 +103,9 @@ build_kernel() {
   # Copy to output dir
   mkdir -p $OUTPUT_DIR
   mv $BOOT_IMG $OUTPUT_DIR/
-  cp $OUT/techpack/audio/asoc/snd-soc-sdm845.ko $OUTPUT_DIR/
-  cp $OUT/techpack/audio/asoc/codecs/snd-soc-wcd9xxx.ko $OUTPUT_DIR/
-  cp $OUT/drivers/staging/qcacld-3.0/wlan.ko $OUTPUT_DIR/
+  cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/snd-soc-sdm845.ko $OUTPUT_DIR/
+  cp $DIR/agnos-kernel-sdm845/out/techpack/audio/asoc/codecs/snd-soc-wcd9xxx.ko $OUTPUT_DIR/
+  cp $DIR/agnos-kernel-sdm845/out/drivers/staging/qcacld-3.0/wlan.ko $OUTPUT_DIR/
 }
 
 # Run build_kernel in container
