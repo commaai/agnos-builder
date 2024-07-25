@@ -19,7 +19,7 @@ repos:
     rev: v2.2.4
     hooks:
     -   id: codespell
-        exclude: '^(userspace/files/serviceproviders.xml)|(tools/)|(userspace/poetry.lock)'
+        exclude: '^(userspace/files/serviceproviders.xml)|(tools/)|(userspace/uv.lock)'
         args:
         # if you've got a short variable name that's getting flagged, add it here
         - -L bu,ro,te,ue,alo,hda,ois,nam,nams,ned,som,parm,setts,inout,warmup
@@ -36,11 +36,3 @@ repos:
         - --select=F,E112,E113,E304,E502,E701,E702,E703,E71,E72,E731,W191,W6
         - --statistics
         - -j4
--   repo: https://github.com/python-poetry/poetry
-    rev: '1.6.0'
-    hooks:
-    -   id: poetry-check
-        entry: bash -c "cd userspace && poetry check"
-        name: validate poetry lock
-        args:
-        - --lock

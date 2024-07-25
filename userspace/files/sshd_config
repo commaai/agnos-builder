@@ -2,7 +2,6 @@
 # See the sshd_config(5) manpage for details
 
 # Comma
-Port 8022
 StrictModes no
 AuthorizedKeysFile /data/params/d/GithubSshKeys
 PermitRootLogin no
@@ -67,6 +66,11 @@ TCPKeepAlive yes
 
 ClientAliveInterval 10
 ClientAliveCountMax 3
+
+# The default DSCP of 0x10 lumps ssh traffic in with all other potentially high
+# bandwidth traffic. Raise the priority to ensure that this interactive traffic
+# remains responsive even when we are bandwidth limited.
+IPQoS af42 # 36, HDD_LINUX_AC_VI with the minimum delay flag
 
 #MaxStartups 10:30:60
 #Banner /etc/issue.net
