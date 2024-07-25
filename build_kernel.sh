@@ -52,7 +52,7 @@ build_kernel() {
   ls -al ../.ccache
   ccache -s
   echo "cat out/include/generated/compile.h"
-  cat out/include/generated/compile.h
+  cat out/include/generated/compile.h || true
 
   # Build parameters
   ARCH=$(uname -m)
@@ -72,8 +72,9 @@ build_kernel() {
   # https://patchwork.kernel.org/project/linux-kbuild/patch/1302015561-21047-8-git-send-email-mmarek@suse.cz/
   export KBUILD_BUILD_HOST="docker"
 
-  # Absolut path for OUT folder
+  # Absolute path for OUT folder
   OUT=$DIR/agnos-kernel-sdm845/out
+  echo "OUT=$OUT"
 
   # Load defconfig and build kernel
   echo "-- First make --"
