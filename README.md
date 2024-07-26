@@ -1,6 +1,6 @@
 # agnos-builder
 
-This is the buidler repo for AGNOS, our Ubuntu based OS. AGNOS runs on the comma three devkit and [comma 3X](https://comma.ai/shop/comma-3x).
+This is the builder repo for AGNOS, our Ubuntu based OS. AGNOS runs on the comma three devkit and [comma 3X](https://comma.ai/shop/comma-3x).
 
 NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repos.
 
@@ -71,6 +71,6 @@ Some concrete things on the roadmap:
 - [ ] make the image tiny, for fast updating and flashing https://github.com/commaai/agnos-builder/issues/225
 - [ ] update to Ubuntu 24.04 https://github.com/commaai/openpilot/issues/32386
 - [ ] mainline Linux kernel https://github.com/commaai/openpilot/issues/32386
-- [ ] fully open source 
+- [ ] fully open source
   - [ ] anything from `agnos-firmware`: XBL, ABL, etc.
   - [ ] open source Weston https://github.com/commaai/agnos-builder/issues/16
