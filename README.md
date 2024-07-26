@@ -6,9 +6,7 @@ NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repo
 
 ## Development
 
-These tools are developed on and targeted for Ubuntu 20.04.
-
-Building requires Docker v23.0 or later and should work on any system that supports it.
+Any system that supports a recent [Docker](https://docs.docker.com/get-docker/) should work.
 
 Run once to set things up:
 ```sh
@@ -35,6 +33,18 @@ Validating changes:
 * Running openpilot is a good smoketest for general AGNOS functionality
 * [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the kernel and system builds work (and pushes the images for you to download)
 * [this](https://github.com/commaai/agnos-builder/blob/master/internal/README.md) is the checklist we go through before shipping new AGNOS releases to openpilot
+
+### macOS
+
+Building the kernel on macOS requires `agnos-builder` to be in a [Case-sensitive](https://support.apple.com/lv-lv/guide/disk-utility/dsku19ed921c/mac) filesystem.
+
+Use this to set it up:
+```
+diskutil apfs addVolume <disk> "Case-sensitive APFS" agnos
+```
+* replace `<disk>` with the `synthesized` disk in `diskutil list` that includes your main volume (e.g. Macintosh HD) - usually `disk3` on M-series Macs, `disk1` on Intel Macs
+* `agnos` is the name of the new volume - can be replaced with an arbitrary name
+* the volume is mounted automatically in `/Volumes/agnos`
 
 ## Contributing
 
