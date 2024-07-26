@@ -6,6 +6,10 @@ requires-python = "~=3.11"
 description = ""
 dependencies = [
   "openpilot@file:///tmp/agnos/uv-openpilot",
+  # required
+  "dbus-python",
+  # tinygrad
+  "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
 ]
 
 [project.optional-dependencies]

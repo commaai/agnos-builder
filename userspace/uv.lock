@@ -15,7 +15,9 @@ name = "agnos"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "dbus-python" },
     { name = "openpilot" },
+    { name = "pyopencl" },
 ]
 
 [distribution.optional-dependencies]
@@ -497,6 +499,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2f/59/6669edfd1fad83ee18d698b897f25871b5296e258f74964a003d50d003fe/Cython-3.0.10-cp312-cp312-win_amd64.whl", hash = "sha256:6c5af936940a38c300977b81598d9c0901158f220a58c177820e17e1774f1cf1", size = 2795667 },
     { url = "https://files.pythonhosted.org/packages/b6/83/b0a63fc7b315edd46821a1a381d18765c1353d201246da44558175cddd56/Cython-3.0.10-py2.py3-none-any.whl", hash = "sha256:fcbb679c0b43514d591577fd0d20021c55c240ca9ccafbdb82d3fb95e5edfee2", size = 1170278 },
 ]
+
+[[distribution]]
+name = "dbus-python"
+version = "1.3.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/d3/6be85a9c772d6ebba0cc3ab37390dd6620006dcced758667e0217fb13307/dbus-python-1.3.2.tar.gz", hash = "sha256:ad67819308618b5069537be237f8e68ca1c7fcc95ee4a121fe6845b1418248f8", size = 605495 }
 
 [[distribution]]
 name = "decorator"
@@ -1062,7 +1070,7 @@ wheels = [
 [[distribution]]
 name = "openpilot"
 version = "0.1.0"
-source = { directory = "/data/openpilot" }
+source = { directory = "/tmp/agnos/uv-openpilot" }
 dependencies = [
     { name = "aiohttp" },
     { name = "aiortc" },
@@ -1446,6 +1454,29 @@ wheels = [
 ]
 
 [[distribution]]
+name = "pyopencl"
+version = "2024.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "platformdirs" },
+    { name = "pytools" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/c5/6c35b54896484c98d0375190fa81448e2a0638fced6680ff8afcc2941065/pyopencl-2024.1.tar.gz", hash = "sha256:ecd572ee940ad8bda1639c3a7beb68834fc9a98ad7eb3f6e01aac4f7d9d4bac1", size = 473860 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/91/50832bd95fa4137c65ef050b6f518247f901f6e43b3f0895ade91ace4bcb/pyopencl-2024.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:aa2cf8f4c05245de8360151107357f765408421d1e4e0b785ec9d3b106d0f13f", size = 646303 },
+    { url = "https://files.pythonhosted.org/packages/9d/06/4bb407632b9d28c9ec1f7371d31735e7bc287e82f0147126606e562ad19f/pyopencl-2024.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:ba574103bad5338fa6cf0dfe5f53edf0abb3d4b963fc7c69f347f69419fed419", size = 617313 },
+    { url = "https://files.pythonhosted.org/packages/85/07/ec2b37022869f2e1f9ad17770b2eb123ee097756be4ad6278393dc76a001/pyopencl-2024.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ad5c462e8e32b4004fd1507d2c7359873453bed8734198c8d6dfd89a066be721", size = 944383 },
+    { url = "https://files.pythonhosted.org/packages/07/92/34aa3653094898b34f23d5d7e595289f3e3e5292d82c393aa4537c8e6b43/pyopencl-2024.1-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:69161052f2bcf05fecceec0efed306e5231e96da536affad4203645e836db59f", size = 1463983 },
+    { url = "https://files.pythonhosted.org/packages/d2/c4/8fc562404465965401b177fd9f5056b48442587bbd7baa79134a2f1692d7/pyopencl-2024.1-cp311-cp311-win_amd64.whl", hash = "sha256:c989f4d40e1dbaaa713349a6112fd3f022918c75f1466c62685f30b874ff2ede", size = 562121 },
+    { url = "https://files.pythonhosted.org/packages/53/fa/5e379ad3fa766e0f4cf641d755897cc3b2c3344d16e374c6b72378e06427/pyopencl-2024.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:382b996d9928afe12d45a559b43cc1d6f90a08066b684c6d004d978abd05015e", size = 655849 },
+    { url = "https://files.pythonhosted.org/packages/02/4d/706e985a0b7e1de7fb63e32a57b0b81930ec7434aade2a515ef36f5638f5/pyopencl-2024.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1fc08f0f1e940b59d5768959d38972d2d6d41776acb85036678057502ad21997", size = 619177 },
+    { url = "https://files.pythonhosted.org/packages/08/ee/4728417f4bfeb3fd010d355b6a5963d2729552d64787ade3eeec2de9e181/pyopencl-2024.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a2aadbd401862396a3ad5fb21df516c04e952c707c6c42dfb014a79b8726f046", size = 941796 },
+    { url = "https://files.pythonhosted.org/packages/d4/02/d231d6b5a8872eefb8584654ae65b24e9605b619c4f3d042cd0494feb113/pyopencl-2024.1-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:83ddcd972fc77f1e434a4f024bb3d4a09099105ebae1751cc1c0724fb891f7da", size = 1464064 },
+    { url = "https://files.pythonhosted.org/packages/2f/d3/f527ad4a966967685d1e3bf55081945d5aa669f3eb5523af7a2c1383ae39/pyopencl-2024.1-cp312-cp312-win_amd64.whl", hash = "sha256:e3477c703ee2537e80425b09f2b3306128b0be7b8d5ab3792636b8828e4f2abb", size = 563364 },
+]
+
+[[distribution]]
 name = "pyopenssl"
 version = "24.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1479,6 +1510,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/1e/7d/ae3f0a63f41e4d2f6cb66a5b57197850f919f59e558159a4dd3a818f5082/pyserial-3.5.tar.gz", hash = "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb", size = 159125 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/07/bc/587a445451b253b285629263eb51c2d8e9bcea4fc97826266d186f96f558/pyserial-3.5-py2.py3-none-any.whl", hash = "sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0", size = 90585 },
+]
+
+[[distribution]]
+name = "pytools"
+version = "2024.1.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "platformdirs" },
+    { name = "typing-extensions", marker = "python_version < '3.13'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b7/80/188130dc3d1238f35a8a1ed788c42bdf00b9fd00f03a03b150778ceb846f/pytools-2024.1.11.tar.gz", hash = "sha256:fa966e09857bcd9299f961d58fc128e8333e4ac5fcea52473af5aae88f814e38", size = 81917 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/60/83/df2f2e6de93798cfd1432aafaad6f23c80a217983b022d0b4bd739194072/pytools-2024.1.11-py3-none-any.whl", hash = "sha256:b3f254dcd6986426c21fcd52803a248e837a34b78a8c4abe09724cb60e0901ea", size = 88206 },
 ]
 
 [[distribution]]
