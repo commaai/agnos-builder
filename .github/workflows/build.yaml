@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build Kernel and System
+  build_kernel:
+    name: Build Kernel
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 60
     steps:
@@ -73,7 +73,7 @@ jobs:
     name: Build System
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 60
-    needs: build
+    needs: build_kernel
     steps:
     - uses: actions/checkout@v4
       with:
