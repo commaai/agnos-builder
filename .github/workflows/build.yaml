@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: build kernel and system
+    name: Build Kernel and System
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 60
     steps:
@@ -25,23 +25,19 @@ jobs:
 
     - name: Get commit message
       run: |
-        {
-          echo 'LAST_COMMIT_MESSAGE<<EOF'
-          if [ "${{ github.event_name }}" == "push" ]; then
-            echo "${{ github.event.head_commit.message }}"
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.sha }}|")
-            echo "$(curl -s "$COMMIT_URL" | jq -r '.commit.message')"
-          elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            PR_COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.event.pull_request.head.sha }}|")
-            echo "$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')"
-          fi
-          echo EOF
-        } | tee -a $GITHUB_ENV
+        echo 'LAST_COMMIT_MESSAGE<<EOF' >> $GITHUB_ENV
+        if [ "${{ github.event_name }}" == "push" ]; then
+          echo "${{ github.event.head_commit.message }}" >> $GITHUB_ENV
+        elif [ "${{ github.event_name }}" == "workflow_run" ]; then
+          echo "${{ github.event.workflow_run.head_commit.message }}" >> $GITHUB_ENV
+        elif [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "$(curl -s '${{ github.event.pull_request.commits_url }}' | jq -r '.[-1].commit.message')" >> $GITHUB_ENV
+        fi
+        echo 'EOF' >> $GITHUB_ENV
 
     - name: Get kernel submodule ref
       id: kernel-submodule
-      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
+      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" >> $GITHUB_OUTPUT
 
     - name: Checkout agnos-kernel-sdm845
       uses: actions/checkout@v4
@@ -72,6 +68,22 @@ jobs:
       with:
         name: kernel-modules
         path: output/*.ko
+
+  build_system:
+    name: Build System
+    runs-on: namespace-profile-arm64-8x16-2004-caching
+    timeout-minutes: 60
+    needs: build
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
+      with:
+        key: system-${{ steps.kernel-submodule.outputs.ref }}
+        restore-keys: system-
 
     - name: Build system
       run: ./build_system.sh
