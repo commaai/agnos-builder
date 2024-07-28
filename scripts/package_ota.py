@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import hashlib
 import subprocess
 from copy import deepcopy
 from pathlib import Path
@@ -13,10 +14,12 @@ OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
 AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate")
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
 
-
 def checksum(fn):
-  return subprocess.check_output(["sha256sum", fn]).decode().split()[0]
-
+  sha256 = hashlib.sha256()
+  with open(fn, 'rb') as f:
+    for chunk in iter(lambda: f.read(4096), b""):
+      sha256.update(chunk)
+  return sha256.hexdigest()
 
 def compress(fin, fout) -> None:
   subprocess.check_call(f"xz -T4 -vc {fin} > {fout}", shell=True)
@@ -91,7 +94,7 @@ if __name__ == "__main__":
         "url": fw["url"],
         "hash": fw["hash"],
         "hash_raw": fw["hash"],
-        "size": fw["size",
+        "size": fw["size"],
         "sparse": False,
         "full_check": True,
         "has_ab": True,
