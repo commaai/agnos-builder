@@ -2,9 +2,11 @@
 
 This is the builder repo for AGNOS, our Ubuntu based OS. AGNOS runs on the comma three devkit and [comma 3X](https://comma.ai/shop/comma-3x).
 
-NOTE #1: the `edk2_tici` and `agnos-firmware` submodules are internal, private repos. 
+> [!NOTE]
+> Use https://flash.comma.ai if you're looking to reflash your device to a clean factory state.
 
-NOTE #2: Use https://flash.comma.ai if you just want to reflash your device with latest AGNOS version
+AGNOS includes all the software to boot and run a comma 3/3X.
+This repo builds the two main parts of that (system and kernel) and packages it all up into a "release".
 
 ## Development
 
@@ -34,7 +36,7 @@ Flashing to a comma 3/3X:
 Validating changes:
 * Running openpilot is a good smoketest for general AGNOS functionality
 * [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the kernel and system builds work (and pushes the images for you to download)
-* [this](https://github.com/commaai/agnos-builder/blob/master/internal/README.md) is the checklist we go through before shipping new AGNOS releases to openpilot
+* [this](https://github.com/commaai/agnos-builder/blob/master/TESTING.md) is the checklist we go through before shipping new AGNOS releases to openpilot
 
 ### macOS
 
@@ -74,5 +76,5 @@ Some concrete things on the roadmap:
 - [ ] update to Ubuntu 24.04 https://github.com/commaai/openpilot/issues/32386
 - [ ] mainline Linux kernel https://github.com/commaai/openpilot/issues/32386
 - [ ] fully open source
-  - [ ] anything from `agnos-firmware`: XBL, ABL, etc.
-  - [ ] open source Weston https://github.com/commaai/agnos-builder/issues/16
+  - [ ] anything from [firmware.json](firmware.json): XBL, ABL, etc.
+  - [ ] Weston https://github.com/commaai/agnos-builder/issues/16
