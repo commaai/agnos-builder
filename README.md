@@ -37,7 +37,7 @@ Flashing to a comma 3/3X:
 Validating changes:
 * Running openpilot is a good smoketest for general AGNOS functionality
 * [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the kernel and system builds work (and pushes the images for you to download)
-* [this](https://github.com/commaai/agnos-builder/blob/master/internal/README.md) is the checklist we go through before shipping new AGNOS releases to openpilot
+* [this](https://github.com/commaai/agnos-builder/blob/master/TESTING.md) is the checklist we go through before shipping new AGNOS releases to openpilot
 
 ### macOS
 
