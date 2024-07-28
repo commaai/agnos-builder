@@ -22,7 +22,6 @@ jobs:
     - uses: actions/checkout@v4
       with:
         lfs: true
-        submodules: true
 
     - name: Get commit message
       run: |
@@ -39,6 +38,10 @@ jobs:
           fi
           echo EOF
         } | tee -a $GITHUB_ENV
+
+    - name: Get kernel submodule ref
+      id: kernel-submodule
+      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
 
     - name: ccache
       uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92

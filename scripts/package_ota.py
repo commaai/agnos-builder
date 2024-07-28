@@ -9,7 +9,6 @@ from tempfile import NamedTemporaryFile
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
 OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
-FIRMWARE_DIR = ROOT / "agnos-firmware"
 
 AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate")
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
@@ -76,17 +75,27 @@ if __name__ == "__main__":
 
   files = [
     process_file(OUTPUT_DIR / "boot.img", "boot"),
-    process_file(FIRMWARE_DIR / "abl.bin", "abl"),
-    process_file(FIRMWARE_DIR / "xbl.bin", "xbl"),
-    process_file(FIRMWARE_DIR / "xbl_config.bin", "xbl_config"),
-    process_file(FIRMWARE_DIR / "devcfg.bin", "devcfg"),
-    process_file(FIRMWARE_DIR / "aop.bin", "aop"),
     process_file(OUTPUT_DIR / "system.img", "system", sparse=True, full_check=False, alt=OUTPUT_DIR / "system-skip-chunks.img"),
   ]
   configs = [
     (AGNOS_UPDATE_URL, "ota.json"),
     (AGNOS_STAGING_UPDATE_URL, "ota-staging.json"),
   ]
+
+  # pull in firmware not built in this repo
+  with open(ROOT/"firmware.json") as f:
+    fws = json.loads(f.read())
+    for fw in fws:
+      ret.append({
+        "name": fw["name"],
+        "url": fw["url"],
+        "hash": fw["hash"],
+        "hash_raw": fw["hash"],
+        "size": fw["size",
+        "sparse": False,
+        "full_check": True,
+        "has_ab": True,
+      })
 
   for remote_url, output_fn in configs:
     processed_files = []
