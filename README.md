@@ -2,7 +2,9 @@
 
 This is the builder repo for AGNOS, our Ubuntu based OS. AGNOS runs on the comma three devkit and [comma 3X](https://comma.ai/shop/comma-3x).
 
-NOTE: the `edk2_tici` and `agnos-firmware` submodules are internal, private repos.
+NOTE #1: the `edk2_tici` and `agnos-firmware` submodules are internal, private repos. 
+
+NOTE #2: Use https://flash.comma.ai if you just want to reflash your device with latest AGNOS version
 
 ## Development
 
