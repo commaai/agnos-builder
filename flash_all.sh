@@ -4,11 +4,10 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-for part in aop xbl xbl_config devcfg; do
+for part in aop abl xbl xbl_config devcfg; do
   tools/edl w ${part}_a $DIR/agnos-firmware/$part.bin
   tools/edl w ${part}_b $DIR/agnos-firmware/$part.bin
 done
 
-./flash_bootloader.sh
 ./flash_kernel.sh
 ./flash_system.sh
