@@ -34,7 +34,7 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
   if sparse:
     with NamedTemporaryFile() as tmp_f:
       print("  converting sparse image to raw")
-      subprocess.check_call(["simg2img", fn, tmp_f.name])
+      subprocess.check_call(["simg2img", fn, tmp_f.name], shell=True)
       hash_raw = checksum(tmp_f.name)
       size = Path(tmp_f.name).stat().st_size
       print(f"  {size} bytes, hash {hash} (raw)")
@@ -89,7 +89,7 @@ if __name__ == "__main__":
   with open(ROOT/"firmware.json") as f:
     fws = json.loads(f.read())
     for fw in fws:
-      ret.append({
+      files.append({
         "name": fw["name"],
         "url": fw["url"],
         "hash": fw["hash"],
