@@ -68,3 +68,8 @@ systemctl disable remote-fs-pre.target
 # this service fails in 24.04, while failing silently on 20.04
 # no influence on C3 NVMe nor nvme smart-log, which work fine
 systemctl disable nvmf-autoconnect.service
+
+# Service is from ifupdown but ifupdown is managed by NetworkManager
+# networking service fails with "ifup: failed to bring up lo"
+# no influence on any interface, all interfaces work fine
+systemctl disable networking.service
