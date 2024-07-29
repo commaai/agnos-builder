@@ -63,7 +63,7 @@ fi
 # symlink vscode to userdata
 mkdir -p /data/tmp/vscode-server
 ln -s /data/tmp/vscode-server ~/.vscode-server
-
+ln -s /data/tmp/vscode-server ~/.cursor-server
 
 while true; do
   pkill -f "$SETUP"

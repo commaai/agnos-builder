@@ -43,13 +43,6 @@ jobs:
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
 
-    - name: Checkout agnos-kernel-sdm845
-      uses: actions/checkout@v4
-      with:
-        repository: commaai/agnos-kernel-sdm845
-        ref: ${{ steps.kernel-submodule.outputs.ref }}
-        path: agnos-kernel-sdm845
-
     - name: ccache
       uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
       with:
