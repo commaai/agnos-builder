@@ -61,7 +61,7 @@ if [[ "$(uname)" == 'Darwin' ]]; then
     if [[ $ARCH == "arm64" ]]; then
       # https://github.com/pyusb/pyusb/issues/520
       # https://github.com/pyusb/pyusb/issues/355#issuecomment-974726078
-      ln -s $BREW_PREFIX/lib/libusb-1.0.0.dylib /usr/local/lib/libusb.dylib
+      sudo ln -s $BREW_PREFIX/lib/libusb-1.0.0.dylib /usr/local/lib/libusb.dylib
     fi
   fi
 fi
