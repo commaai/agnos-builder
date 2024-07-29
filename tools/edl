@@ -30,15 +30,40 @@ if [ "$(< .git/HEAD)" != "$VERSION" ]; then
 fi
 popd > /dev/null
 
-$EDL_PATH/edl "$@"
+if [[ "$(uname)" == 'Darwin' ]]; then
+  ARCH=$(uname -m)
 
-################################################################################
-# On M-series macs, if you get "No backend available"
-# where python is installed with pyenv and libusb with brew
-# try this:
-#
-# brew install libusb
-# sudo mkdir -p /usr/local/lib
-# sudo ln -s /opt/homebrew/lib/libusb-1.0.0.dylib /usr/local/lib/libusb.dylib
-#
-################################################################################
+  # install brew if required
+  if [[ $(command -v brew) == "" ]]; then
+    echo "Installing Homebrew"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    if [[ $SHELL == "/bin/zsh" ]]; then
+      RC_FILE="$HOME/.zprofile"
+    elif [[ $SHELL == "/bin/bash" ]]; then
+      RC_FILE="$HOME/.bash_profile"
+    fi
+    # make brew available now
+    if [[ $ARCH == "x86_64" ]]; then
+      echo 'eval "$(/usr/local/bin/brew shellenv)"' >> $RC_FILE
+      eval "$(/usr/local/bin/brew shellenv)"
+    else
+      echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $RC_FILE
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+  fi
+
+  BREW_PREFIX=$(brew --prefix)
+
+  # install libusb
+  if [ ! -f $BREW_PREFIX/lib/libusb-1.0.0.dylib ]; then
+    echo "Installing libusb"
+    brew install libusb
+    if [[ $ARCH == "arm64" ]]; then
+      # https://github.com/pyusb/pyusb/issues/520
+      # https://github.com/pyusb/pyusb/issues/355#issuecomment-974726078
+      ln -s $BREW_PREFIX/lib/libusb-1.0.0.dylib /usr/local/lib/libusb.dylib
+    fi
+  fi
+fi
+
+$EDL_PATH/edl "$@"
