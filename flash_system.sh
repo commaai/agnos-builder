@@ -4,11 +4,17 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-echo "Flashing system..."
-tools/edl w system_a $DIR/output/system.img
+echo "Checking active slot..."
+ACTIVE_SLOT=$(tools/edl getactiveslot | grep "Current active slot:" | awk '{print $NF}')
 
-tools/edl setactiveslot a
-tools/edl setbootablestoragedrive 1
+if [[ "$ACTIVE_SLOT" != "a" && "$ACTIVE_SLOT" != "b" ]]; then
+  echo "Invalid active slot: '$ACTIVE_SLOT'"
+  exit 1
+fi
+
+echo "Active slot: $ACTIVE_SLOT"
+echo "Flashing system_$ACTIVE_SLOT..."
+tools/edl w system_$ACTIVE_SLOT $DIR/output/system.img
 
 tools/edl reset
 
