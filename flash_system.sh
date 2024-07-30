@@ -18,4 +18,4 @@ tools/edl w system_$ACTIVE_SLOT $DIR/output/system.img
 
 tools/edl reset
 
-echo "Done!"
+echo "Flashed system_$ACTIVE_SLOT!"

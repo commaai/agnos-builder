@@ -16,4 +16,4 @@ echo "Active slot: $ACTIVE_SLOT"
 echo "Flashing boot_$ACTIVE_SLOT..."
 tools/edl w boot_$ACTIVE_SLOT $DIR/output/boot.img
 
-echo "Done!"
+echo "Flashed boot_$ACTIVE_SLOT!"
