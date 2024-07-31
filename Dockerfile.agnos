@@ -78,19 +78,18 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
-RUN export PATH="$HOME/.cargo/bin:$PATH" && \
-    export UV_BIN="$HOME/.cargo/bin" && \
-    export MAKEFLAGS="-j$(nproc)" && \
-    source .venv/bin/activate && \
+ENV XDG_DATA_HOME="/usr/local"
+ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
+
+RUN export MAKEFLAGS="-j$(nproc)" && \
+    source $XDG_DATA_HOME/venv/bin/activate && \
     pip install pyqt5-sip==12.12.1 && \
     pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= 
 
 # Install openpilot python packages
 RUN mkdir -p /tmp/agnos/uv
 COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/uv
-RUN export PATH="$HOME/.cargo/bin:$PATH" && \
-    export UV_BIN="$HOME/.cargo/bin" && \
-    source .venv/bin/activate && \
+RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \    
     pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \

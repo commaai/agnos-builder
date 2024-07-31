@@ -32,12 +32,10 @@ export QT_QPA_PLATFORM="wayland-egl"
 
 # python setup
 export PYTHONPATH="/data/pythonpath"
-export PATH="$HOME/.cargo/bin:$PATH"
-export PYENV_VERSION="3.11.4"
 
-# custom shims
-export PATH="/usr/comma/shims:${PATH}"
-
+export PATH="/usr/local/.cargo/bin:$PATH"
+export XDG_DATA_HOME="/usr/local"
+source $XDG_DATA_HOME/venv/bin/activate
 
 # nice AT command helper
 atc() {

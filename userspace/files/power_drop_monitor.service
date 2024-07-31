@@ -3,7 +3,7 @@ After=multi-user.target
 
 [Service]
 Restart=always
-ExecStart=/.venv/bin/python -u /usr/comma/power_drop_monitor.py
+ExecStart=/usr/local/venv/bin/python -u /usr/comma/power_drop_monitor.py
 
 [Install]
 WantedBy=multi-user.target

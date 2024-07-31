@@ -3,7 +3,7 @@ Description=Limit display brightness with uptime
 
 [Service]
 Restart=on-failure
-ExecStart=/.venv/bin/python -u /usr/comma/brightnessd.py
+ExecStart=/usr/local/venv/bin/python -u /usr/comma/brightnessd.py
 
 [Install]
 WantedBy=multi-user.target

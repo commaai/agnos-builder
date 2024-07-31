@@ -16,4 +16,4 @@ echo "sound card online"
 /usr/comma/sound/tinymix set "TERT_MI2S_TX Channels" Two
 
 # setup the amplifier registers
-/.venv/bin/python /usr/comma/sound/amplifier.py
+/usr/local/venv/bin/python /usr/comma/sound/amplifier.py

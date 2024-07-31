@@ -1,14 +1,17 @@
 #!/bin/bash -e
 
-echo "Installing python for openpilot"
-
 echo "installing uv..."
+
+export XDG_DATA_HOME="/usr/local"
+export CARGO_HOME="$XDG_DATA_HOME/.cargo"
+
 curl -LsSf https://astral.sh/uv/install.sh | sh
-UV_BIN='$HOME/.cargo/env'
-ADD_PATH_CMD=". \"$UV_BIN\""
-eval $ADD_PATH_CMD
+eval ". $CARGO_HOME/env"
 
 PYTHON_VERSION="3.11.4"
+
+echo "Installing python for openpilot"
+
 if [ "$(uname -p)" == "aarch64" ]; then
   uv python install $PYTHON_VERSION
 else
@@ -16,9 +19,4 @@ else
 fi
 
 # uv requires virtual env either managed or system before installing dependencies
-uv venv --python-preference only-managed
-# need to activate virtual env otherwise call to uv pip install throws error,
-# error: No virtual or system environment found for path ...
-source .venv/bin/activate
-# install dependencies using managed python
-uv pip install --python=$(which python) --no-cache-dir --upgrade pip
+uv venv $XDG_DATA_HOME/venv --python-preference only-managed --python=$PYTHON_VERSION
