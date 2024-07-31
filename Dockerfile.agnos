@@ -26,7 +26,7 @@ RUN /tmp/agnos/base_setup.sh
 # ################## #
 # #### Compiler #### #
 # ################## #
-FROM agnos-base as agnos-compiler
+FROM agnos-base AS agnos-compiler
 
 RUN apt-get update && apt-get install --no-install-recommends checkinstall
 # Install openpilot dependencies, probably needed for build,
@@ -35,15 +35,15 @@ COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_dependencies.sh
 
 # Individual compiling images
-FROM agnos-compiler as agnos-compiler-capnp
+FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN /tmp/agnos/compile-capnp.sh
 
-FROM agnos-compiler as agnos-compiler-ffmpeg
+FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
 
-FROM agnos-compiler as agnos-compiler-qtwayland5
+FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
@@ -92,8 +92,7 @@ RUN export PATH="$HOME/.cargo/bin:$PATH" && \
     export UV_BIN="$HOME/.cargo/bin" && \
     source .venv/bin/activate && \
     cd /tmp/agnos/uv && \
-    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \    
     pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
     pcpath=$pc"/lib/pkgconfig" && \
     export PKG_CONFIG_PATH="$pcpath:$PKG_CONFIG_PATH" && \
