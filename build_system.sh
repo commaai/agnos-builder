@@ -44,7 +44,7 @@ fi
 
 # Start agnos-builder docker build and create container
 echo "Building agnos-builder docker image"
-docker build -f Dockerfile.agnos -t agnos-builder $DIR
+docker build -f Dockerfile.agnos -t agnos-builder $DIR --no-cache
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
