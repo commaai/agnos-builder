@@ -39,20 +39,20 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
 # ################## #
 # #### Compiler #### #
 # ################## #
-FROM agnos-base as agnos-compiler
+FROM agnos-base AS agnos-compiler
 
 RUN apt-get update && apt-get install --no-install-recommends checkinstall
 
 # Individual compiling images
-FROM agnos-compiler as agnos-compiler-capnp
+FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN /tmp/agnos/compile-capnp.sh
 
-FROM agnos-compiler as agnos-compiler-ffmpeg
+FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
 
-FROM agnos-compiler as agnos-compiler-qtwayland5
+FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
