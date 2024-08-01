@@ -75,9 +75,7 @@ dependencies = [
   "utm",
   "websocket-client",
   "zstandard",
-  "zstd",
-  "pyqt5==5.15.9",
-  "pyqt5-sip==12.12.1",  
+  "zstd"
 ]
 
 [project.optional-dependencies]
