@@ -175,9 +175,6 @@ apt-get install --no-install-recommends -yq \
     libwacom9:armhf \
     libx11-6:armhf \
     libxau6:armhf \
-    libxcb-render0:armhf \
-    libxcb-shm0:armhf \
-    libxcb1:armhf \
     libxdmcp6:armhf \
     libxext6:armhf \
     libxkbcommon0:armhf \

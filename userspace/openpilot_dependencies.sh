@@ -44,9 +44,6 @@ apt-get install --no-install-recommends -yq \
     libva-dev \
     libvdpau-dev \
     libvorbis-dev \
-    libxcb-shm0-dev \
-    libxcb-xfixes0-dev \
-    libxcb1-dev \
     libzmq3-dev \
     libzstd-dev \
     locales \
