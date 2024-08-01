@@ -29,6 +29,7 @@ apt-get install --no-install-recommends -yq \
     libffi-dev \
     libfreetype6-dev \
     libglib2.0-0t64 \
+    libglvnd0 \
     libi2c-dev \
     libjpeg-dev \
     liblzma-dev \
