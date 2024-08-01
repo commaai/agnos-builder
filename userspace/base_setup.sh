@@ -173,12 +173,7 @@ apt-get install --no-install-recommends -yq \
     libudev1:armhf \
     libuuid1:armhf \
     libwacom9:armhf \
-    libx11-6:armhf \
-    libxau6:armhf \
-    libxdmcp6:armhf \
-    libxext6:armhf \
     libxkbcommon0:armhf \
-    libxrender1:armhf \
     linux-libc-dev:armhf \
     linux-libc-dev-armhf-cross \
     zlib1g:armhf \
