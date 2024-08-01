@@ -79,6 +79,7 @@ apt-get install --no-install-recommends -yq \
     libsqlite3-dev \
     libssl-dev \
     libffi-dev \
+    libxkbcommon-dev \
     llvm \
     nano \
     net-tools \
