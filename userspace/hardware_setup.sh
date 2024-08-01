@@ -7,10 +7,7 @@ cd /tmp/agnos/debs
 sudo mkdir /usr/lib64
 sudo ln -s usr/lib64 /lib64
 
-apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
-  ./agnos-base.deb \
-  ./agnos-display_0.0.1.deb \
-  ./agnos-wlan_0.0.3.deb
+apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./*.deb
 
 # Install 16.04 version of libjson-c2
 cd /tmp
