@@ -11,10 +11,14 @@ touch /AGNOS
 # Add armhf as supported architecture
 dpkg --add-architecture armhf
 
+# Install apt-fast
+apt-get update
+apt-get install -yq curl sudo wget
+bash -c "$(curl -sL https://git.io/vokNn)"
+
 # Install packages
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -yq locales systemd adduser
+apt-fast install --no-install-recommends -yq locales systemd adduser
 
 # Create privileged user
 useradd -G sudo -m -s /bin/bash $USERNAME
@@ -46,8 +50,8 @@ echo "comma - nice -10" >> /etc/security/limits.conf
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8
 
-apt-get upgrade -yq
-apt-get install --no-install-recommends -yq \
+apt-fast upgrade -yq
+apt-fast install --no-install-recommends -yq \
     alsa-utils \
     apport-retrace \
     bc \
@@ -124,8 +128,8 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 ln -sf /bin/bash /bin/sh
 
 # Install necessary libs
-apt-get update -yq
-apt-get install --no-install-recommends -yq \
+apt-fast update -yq
+apt-fast install --no-install-recommends -yq \
     libacl1:armhf \
     libasan5-armhf-cross \
     libatomic1-armhf-cross \
