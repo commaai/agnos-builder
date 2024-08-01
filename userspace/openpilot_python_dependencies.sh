@@ -20,3 +20,5 @@ fi
 
 # uv requires virtual env either managed or system before installing dependencies
 uv venv $XDG_DATA_HOME/venv --python-preference only-managed --python=$PYTHON_VERSION
+source $XDG_DATA_HOME/venv/bin/activate
+uv pip install --python=$(which python) --no-cache-dir --upgrade pip
