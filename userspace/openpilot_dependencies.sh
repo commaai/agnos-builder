@@ -40,7 +40,6 @@ apt-get install --no-install-recommends -yq \
     libtool \
     libusb-1.0-0-dev \
     libuv1-dev \
-    libva-dev \
     libvdpau-dev \
     libvorbis-dev \
     libzmq3-dev \
