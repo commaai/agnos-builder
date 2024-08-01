@@ -34,7 +34,6 @@ apt-get install --no-install-recommends -yq \
     liblzma-dev \
     libomp-dev \
     libportaudio2 \
-    libsdl2-dev \
     libsqlite3-dev \
     libssl-dev \
     libsystemd-dev \
