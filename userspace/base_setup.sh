@@ -185,8 +185,6 @@ apt-get install --no-install-recommends -yq \
     linux-libc-dev:armhf \
     linux-libc-dev-armhf-cross \
     zlib1g:armhf \
-    libegl1 \
-    libegl-dev \
     libgles1 \
     libgles2 \
     libgles-dev \
