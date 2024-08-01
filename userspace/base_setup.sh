@@ -185,9 +185,6 @@ apt-get install --no-install-recommends -yq \
     linux-libc-dev:armhf \
     linux-libc-dev-armhf-cross \
     zlib1g:armhf \
-    libgles1 \
-    libgles2 \
-    libgles-dev \
     openssh-server \
     dnsmasq-base \
     isc-dhcp-client \
