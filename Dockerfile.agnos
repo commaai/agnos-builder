@@ -36,6 +36,13 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
     libdouble-conversion3
 
+# Hardware setup
+RUN mkdir -p /tmp/agnos/debs
+COPY ./userspace/debs /tmp/agnos/debs
+COPY ./userspace/hardware_setup.sh /tmp/agnos
+RUN /tmp/agnos/hardware_setup.sh
+RUN mv /data/persist /system/ && rm -rf /data/*
+
 # ################## #
 # #### Compiler #### #
 # ################## #
@@ -61,13 +68,6 @@ RUN /tmp/agnos/compile-qtwayland5.sh
 # ###### AGNOS ###### #
 # ################### #
 FROM agnos-base
-
-# Hardware setup
-RUN mkdir -p /tmp/agnos/debs
-COPY ./userspace/debs /tmp/agnos/debs
-COPY ./userspace/hardware_setup.sh /tmp/agnos
-RUN /tmp/agnos/hardware_setup.sh
-RUN mv /data/persist /system/ && rm -rf /data/*
 
 # Build ModemManager
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
