@@ -49,7 +49,6 @@ apt-get install --no-install-recommends -yq \
     locales \
     nethogs \
     ocl-icd-libopencl1 \
-    ocl-icd-opencl-dev \
     opencl-headers \
     pkg-config \
     portaudio19-dev \
