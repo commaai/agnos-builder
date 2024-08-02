@@ -111,10 +111,6 @@ echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
 mkdir /data && chown $USERNAME:$USERNAME /data
 mkdir /persist && chown $USERNAME:$USERNAME /persist
 
-# TODO: this is from 20.04, does it have a replacement?
-# Disable automatic ondemand switching from ubuntu
-#systemctl disable ondemand
-
 # Disable pstore service that moves files out of /sys/fs/pstore
 systemctl disable systemd-pstore.service
 
