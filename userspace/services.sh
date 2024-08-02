@@ -59,8 +59,6 @@ systemctl mask systemd-backlight@.service
 systemctl disable rpcbind
 systemctl disable nfs-client.target
 systemctl disable remote-fs-pre.target
-# Failed to disable unit, unit run-rpc_pipefs.mount does not exist.
-# systemctl disable run-rpc_pipefs.mount
 
 # Disable nvmf service since no NVMe-oF in the old kernel
 # this service fails in 24.04, while failing silently on 20.04
