@@ -10,6 +10,6 @@ CXXFLAGS="-fPIC -O2" ./configure
 
 make -j$(nproc)
 
-# TODO remove "--fstrans=no" when checkinstall is fixed
+# remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)
 checkinstall -yD --install=no --fstrans=no --pkgname=capnproto
 mv capnproto*.deb /tmp/capnproto.deb
