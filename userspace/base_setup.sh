@@ -57,6 +57,7 @@ apt-fast install --no-install-recommends -yq \
     bc \
     build-essential \
     bzip2 \
+    curl \
     chrony \
     cpuset \
     dfu-util \
@@ -93,6 +94,7 @@ apt-fast install --no-install-recommends -yq \
     speedtest-cli \
     ssh \
     sshfs \
+    sudo \
     traceroute \
     tk-dev \
     ubuntu-minimal \
@@ -100,8 +102,34 @@ apt-fast install --no-install-recommends -yq \
     ubuntu-standard \
     udev \
     udhcpc \
+    wget \
     wireless-tools \
-    zlib1g-dev \
+    zlib1g-dev
+
+rm -rf /var/lib/apt/lists/*
+
+# Allow chrony to make a big adjustment to system time on boot
+echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
+
+# Create dirs
+mkdir /data && chown $USERNAME:$USERNAME /data
+mkdir /persist && chown $USERNAME:$USERNAME /persist
+
+# Disable automatic ondemand switching from ubuntu
+systemctl disable ondemand
+
+# Disable pstore service that moves files out of /sys/fs/pstore
+systemctl disable systemd-pstore.service
+
+# Nopasswd sudo
+echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# setup /bin/sh symlink
+ln -sf /bin/bash /bin/sh
+
+# Install necessary libs
+apt-fast update -yq
+apt-fast install --no-install-recommends -yq \
     libacl1:armhf \
     libasan5-armhf-cross \
     libatomic1-armhf-cross \
@@ -179,25 +207,4 @@ apt-fast install --no-install-recommends -yq \
     wpasupplicant \
     hostapd \
     libgtk2.0-dev \
-    libxml2:armhf
-
-rm -rf /var/lib/apt/lists/*
-
-# Allow chrony to make a big adjustment to system time on boot
-echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
-
-# Create dirs
-mkdir /data && chown $USERNAME:$USERNAME /data
-mkdir /persist && chown $USERNAME:$USERNAME /persist
-
-# Disable automatic ondemand switching from ubuntu
-systemctl disable ondemand
-
-# Disable pstore service that moves files out of /sys/fs/pstore
-systemctl disable systemd-pstore.service
-
-# Nopasswd sudo
-echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
-# setup /bin/sh symlink
-ln -sf /bin/bash /bin/sh
+    libxml2:armhf \
