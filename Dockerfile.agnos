@@ -1,7 +1,7 @@
 # ################## #
 # ###### Base ###### #
 # ################## #
-FROM scratch AS agnos-base
+FROM scratch AS agnos-base-step1
 ADD ubuntu-base-20.04.1-base-arm64.tar.gz /
 
 # Add aarch64 and arm support
@@ -18,32 +18,23 @@ ENV USERNAME=comma
 ENV PASSWD=comma
 ENV HOST=comma
 
-# Base system setup
-RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/base_setup.sh /tmp/agnos
-RUN /tmp/agnos/base_setup.sh
+COPY ./userspace/compiler_setup.sh /tmp/agnos
+RUN /tmp/agnos/compiler_setup.sh
 
 # ################## #
 # #### Compiler #### #
 # ################## #
-FROM agnos-base AS agnos-compiler
-
-RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
-# Install openpilot dependencies, probably needed for build,
-# but we don't want these in the base image
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
 
 # Individual compiling images
-FROM agnos-compiler AS agnos-compiler-capnp
+FROM agnos-base-step1 AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN /tmp/agnos/compile-capnp.sh
 
-FROM agnos-compiler AS agnos-compiler-ffmpeg
+FROM agnos-base-step1 AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
 
-FROM agnos-compiler AS agnos-compiler-qtwayland5
+FROM agnos-base-step1 AS agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
@@ -51,7 +42,14 @@ RUN /tmp/agnos/compile-qtwayland5.sh
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
-FROM agnos-base
+FROM agnos-base-step1 as agnos-base-step2
+
+# Base system setup
+RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
+COPY ./userspace/base_setup.sh /tmp/agnos
+RUN /tmp/agnos/base_setup.sh
+
+FROM agnos-base-step2 as agnos
 
 # Hardware setup
 RUN mkdir -p /tmp/agnos/debs
