@@ -2,6 +2,7 @@
 # install pyproject.toml dependencies
 apt-get install portaudio19-dev -y
 apt-get install opencl-headers -y
+apt-get install gcc-arm-none-eabi -y
 
 echo "installing uv..."
 
