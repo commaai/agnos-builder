@@ -1,4 +1,6 @@
 #!/bin/bash -e
+# install pyproject.toml dependencies
+apt-get install portaudio19-dev
 
 echo "installing uv..."
 
