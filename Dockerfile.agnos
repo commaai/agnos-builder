@@ -217,5 +217,4 @@ RUN rm -rf /usr/share/icons/* && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /home/$USERNAME/.cache && \
     rm -rf /root/.cache && \
-    apt-get autoremove && \
     apt-get clean
