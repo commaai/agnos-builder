@@ -218,4 +218,5 @@ RUN rm -rf /usr/share/icons/* && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /home/$USERNAME/.cache && \
     rm -rf /root/.cache && \
+    apt list --installed -a '*-dev' | grep "^[^\ ]*/" -o | sed 's/\///' | xargs -I '{}' apt remove -y '{}' && \
     apt-get clean
