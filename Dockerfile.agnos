@@ -69,8 +69,6 @@ COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
 # Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
@@ -81,11 +79,11 @@ RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmp
 ENV XDG_DATA_HOME="/usr/local"
 ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
 
+COPY ./userspace/files/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/agnos/
 RUN export MAKEFLAGS="-j$(nproc)" && \
     source $XDG_DATA_HOME/venv/bin/activate && \
     uv pip install pyqt5-sip==12.12.1 && \
-    uv pip install pyqt5==5.15.9 --verbose --config-settings="--confirm-license=" --no-deps
-    # pip install pyqt5==5.15.9 --verbose --config-settings="--confirm-license=" 
+    uv pip install /tmp/agnos/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
 
 # Install openpilot python packages
 RUN mkdir -p /tmp/agnos/uv
@@ -220,4 +218,5 @@ RUN rm -rf /usr/share/icons/* && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /home/$USERNAME/.cache && \
     rm -rf /root/.cache && \
+    apt-get purge lib*-dev -y && \
     apt-get clean
