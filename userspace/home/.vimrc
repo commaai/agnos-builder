@@ -12,6 +12,9 @@ highlight Comment ctermfg=green
 highlight ExtraWhitespace ctermbg=red guibg=red
 match ExtraWhitespace /\s\+$/
 
+" fix certain escape sequences
+set term=xterm-256color
+
 " syntax highlighting for scons files
 au BufRead,BufNewFile SConstruct set filetype=python
 au BufRead,BufNewFile SConscript set filetype=python
