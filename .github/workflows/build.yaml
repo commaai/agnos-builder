@@ -87,10 +87,11 @@ jobs:
         # TODO: remove DATA_ACCOUNT - just for testing
         DATA_ACCOUNT: openpilot
       run: |
-        sudo apt-get install -y azure-cli android-sdk-libsparse-utils
-        ./scripts/package_ota.py
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        sudo apt-get install -y android-sdk-libsparse-utils
+        scripts/package_ota.py
         az login --service-principal -u $(jq -r .appId <<< $AZURE_CREDENTIALS) -p $(jq -r .password <<< $AZURE_CREDENTIALS) -t $(jq -r .tenant <<< $AZURE_CREDENTIALS)
-        ./scripts/ota_push.sh ci ${{ github.run_id }}
+        scripts/ota_push.sh ci ${{ github.run_id }}
 
     - name: Upload agnos.json
       uses: actions/upload-artifact@v4

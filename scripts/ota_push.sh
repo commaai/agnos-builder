@@ -72,7 +72,7 @@ process_file() {
 }
 
 # Upload
-for name in $(cat $OTA_JSON | jq -r ".[] .name"); do
+for name in boot system; do
   process_file $name
 done
 

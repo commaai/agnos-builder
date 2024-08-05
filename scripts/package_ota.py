@@ -34,7 +34,10 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
   if sparse:
     with NamedTemporaryFile() as tmp_f:
       print("  converting sparse image to raw")
-      subprocess.check_call(["simg2img", fn, tmp_f.name], shell=True)
+      result = subprocess.run(["simg2img", str(fn), tmp_f.name], capture_output=True, text=True)
+      if result.returncode != 0:
+          print(f"Error converting sparse image:\n{result.stderr}")
+          raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
       hash_raw = checksum(tmp_f.name)
       size = Path(tmp_f.name).stat().st_size
       print(f"  {size} bytes, hash {hash} (raw)")
