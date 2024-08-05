@@ -77,22 +77,19 @@ jobs:
         name: system.img
         path: output/system.img
 
-    - name: Azure Login
-      uses: azure/login@v2
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[release]')"
-      with:
-        # TODO: switch to comma creds json https://github.com/marketplace/actions/azure-login#creds
-        creds: '{"clientSecret": "Hvk8Q~LJ3ozFdGm91x6ygkuDrwBpgA4x50kKabOL", "subscriptionId": "4338b670-e37b-4212-8b72-eec520b88051", "tenantId": "499a1903-3119-470b-9dd4-d4f436586f25", "clientId": "6316da0d-22c2-4141-bde6-5674553be414"}'
-        # creds: ${{ secrets.AZURE_CREDENTIALS }}
-
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[release]')"
       env:
         AGNOS_UPDATE_URL: https://openpilot.blob.core.windows.net/agnosupdate-ci/${{ github.run_id }}
+        # TODO: switch to comma credentials: https://learn.microsoft.com/en-us/cli/azure/ad/sp?view=azure-cli-latest#az-ad-sp-create-for-rbac-examples
+        AZURE_CREDENTIALS: '{"appId": "fd6e3414-7fee-4bf3-bd85-dd36d3d03bd2", "password": "Xs-8Q~uaKQaqhGdggDyLmTkwjIa3lNzh2B9AKboR", "tenant": "499a1903-3119-470b-9dd4-d4f436586f25"}'
+        # AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
         # TODO: remove DATA_ACCOUNT - just for testing
         DATA_ACCOUNT: openpilot
       run: |
+        sudo apt-get install -y azure-cli android-sdk-libsparse-utils
         ./scripts/package_ota.py
+        az login --service-principal -u $(jq -r .appId <<< $AZURE_CREDENTIALS) -p $(jq -r .password <<< $AZURE_CREDENTIALS) -t $(jq -r .tenant <<< $AZURE_CREDENTIALS)
         ./scripts/ota_push.sh ci ${{ github.run_id }}
 
     - name: Upload agnos.json
