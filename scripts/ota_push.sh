@@ -6,29 +6,27 @@ cd $DIR
 
 # Constants
 OTA_DIR="$DIR/../output/ota"
-DATA_ACCOUNT="commadist"
+DATA_ACCOUNT="${DATA_ACCOUNT:-commadist}"
 
 # Parse input
-FOUND=0
 if [ "$1" == "production" ]; then
   OTA_JSON="$OTA_DIR/ota.json"
   DATA_CONTAINER="agnosupdate"
-  FOUND=1
-fi
-if [ "$1" == "staging" ]; then
+elif [ "$1" == "staging" ]; then
   OTA_JSON="$OTA_DIR/ota-staging.json"
   DATA_CONTAINER="agnosupdate-staging"
-  FOUND=1
-fi
-
-if [ $FOUND == 0 ]; then
-  echo "Supply either 'production' or 'staging' as first argument!"
+elif [ "$1" == "ci" ] && [ -n "$2" ]; then
+  OTA_JSON="$OTA_DIR/ota.json"
+  DATA_CONTAINER="agnosupdate-ci"
+  FOLDER_NAME="$2/"
+else
+  echo "Supply either 'production' or 'staging' or 'ci' as first argument!"
   exit 1
 fi
 
 upload_file() {
   local FILE_NAME=$1
-  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FILE_NAME"
+  local CLOUD_PATH="https://$DATA_ACCOUNT.blob.core.windows.net/$DATA_CONTAINER/$FOLDER_NAME$FILE_NAME"
 
   echo "Copying $FILE_NAME to the cloud..."
   azcopy cp --log-level ERROR --overwrite=false $OTA_DIR/$FILE_NAME "$CLOUD_PATH?$DATA_SAS_TOKEN"

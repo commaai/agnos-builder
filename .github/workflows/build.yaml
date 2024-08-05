@@ -76,3 +76,28 @@ jobs:
       with:
         name: system.img
         path: output/system.img
+
+    - name: Azure Login
+      uses: azure/login@v2
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[release]')"
+      with:
+        # TODO: switch to comma creds json https://github.com/marketplace/actions/azure-login#creds
+        creds: '{"clientSecret": "Hvk8Q~LJ3ozFdGm91x6ygkuDrwBpgA4x50kKabOL", "subscriptionId": "4338b670-e37b-4212-8b72-eec520b88051", "tenantId": "499a1903-3119-470b-9dd4-d4f436586f25", "clientId": "6316da0d-22c2-4141-bde6-5674553be414"}'
+        # creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Package and OTA push
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[release]')"
+      env:
+        AGNOS_UPDATE_URL: https://openpilot.blob.core.windows.net/agnosupdate-ci/${{ github.run_id }}
+        # TODO: remove DATA_ACCOUNT - just for testing
+        DATA_ACCOUNT: openpilot
+      run: |
+        ./scripts/package_ota.py
+        ./scripts/ota_push.sh ci ${{ github.run_id }}
+
+    - name: Upload agnos.json
+      uses: actions/upload-artifact@v4
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[release]')"
+      with:
+        name: agnos.json
+        path: output/ota/ota.json
