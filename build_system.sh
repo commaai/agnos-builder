@@ -14,9 +14,8 @@ BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
-ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
+ROOTFS_IMAGE="$BUILD_DIR/system.img"
 ROOTFS_IMAGE_SIZE=10G
-SPARSE_IMAGE="$OUTPUT_DIR/system.img"
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -127,12 +126,5 @@ exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; 
 # Unmount image
 echo "Unmount filesystem"
 exec_as_root umount -l $ROOTFS_DIR
-
-# Sparsify
-echo "Sparsify image $(basename $SPARSE_IMAGE)"
-exec_as_user bash -c "\
-TMP_SPARSE=\$(mktemp); \
-img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
-mv \$TMP_SPARSE $SPARSE_IMAGE"
 
 echo "Done!"

@@ -25,22 +25,11 @@ def compress(fin, fout) -> None:
   subprocess.check_call(f"xz -T4 -vc {fin} > {fout}", shell=True)
 
 
-def process_file(fn, name, sparse=False, full_check=True, has_ab=True):
+def process_file(fn, name, full_check=True, has_ab=True):
   print(name)
   hash_raw = hash = checksum(fn)
   size = fn.stat().st_size
   print(f"  {size} bytes, hash {hash}")
-
-  if sparse:
-    raw_img = BUILD_DIR / "system.img.raw"
-    if raw_img.exists():
-      print("  using existing raw image")
-      hash_raw = checksum(raw_img)
-      size = raw_img.stat().st_size
-    else:
-      print("Error: existing raw image not found")
-      exit(1)
-    print(f"  {size} bytes, hash {hash_raw} (raw)")
 
   print("  compressing")
   xz_fn = OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img.xz"
@@ -52,7 +41,6 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True):
     "hash": hash,
     "hash_raw": hash_raw,
     "size": size,
-    "sparse": sparse,
     "full_check": full_check,
     "has_ab": has_ab,
   }
@@ -65,7 +53,7 @@ if __name__ == "__main__":
 
   files = [
     process_file(OUTPUT_DIR / "boot.img", "boot"),
-    process_file(OUTPUT_DIR / "system.img", "system", sparse=True, full_check=False),
+    process_file(OUTPUT_DIR / "system.img", "system", full_check=False),
   ]
   configs = [
     (AGNOS_UPDATE_URL, "ota.json"),
@@ -82,7 +70,6 @@ if __name__ == "__main__":
         "hash": fw["hash"],
         "hash_raw": fw["hash"],
         "size": fw["size"],
-        "sparse": False,
         "full_check": True,
         "has_ab": True,
       })
