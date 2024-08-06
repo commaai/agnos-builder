@@ -14,9 +14,7 @@ RUN mkdir -p /tmp/agnos
 # Stop on error
 RUN set -xe
 
-ENV USERNAME=comma
-ENV PASSWD=comma
-ENV HOST=comma
+ARG USERNAME=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
