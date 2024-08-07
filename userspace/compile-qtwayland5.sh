@@ -2,11 +2,10 @@
 
 # Patched qtwayland that outputs a fixed screen size
 # Clone qtwayland submodule, checkout, apply patch, qmake, make
-# VERSION=5.15.13-lts-lgpl
 VERSION=5.12.9
 
 cd /tmp
-git clone --branch v${VERSION} https://github.com/qt/qtwayland.git
+git clone --branch v${VERSION} --depth 1 https://github.com/qt/qtwayland.git
 cd qtwayland
 
 git apply /tmp/agnos/patch-qtwayland-v5.12
