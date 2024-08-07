@@ -76,8 +76,8 @@ jobs:
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       working-directory: ${{ github.workspace }}/ci-artifacts
       run: |
-        cp ${{ github.workspace }}/agnos-builder/output/ota/*.img.xz .
-        cp ${{ github.workspace }}/agnos-builder/output/ota/ota.json agnos.json
+        cp ${{ github.workspace }}/output/ota/*.img.xz .
+        cp ${{ github.workspace }}/output/ota/ota.json agnos.json
         git checkout -b agnos-builder/pr-${{ github.event.number }}
         git config user.name "GitHub Actions Bot"
         git config user.email "<>"
