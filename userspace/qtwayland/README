@@ -14,7 +14,7 @@ The "old" weston is built with:
 
 These are roughly from Xenial (16.04 - https://launchpad.net/ubuntu/xenial/arm64/libwayland-dev/1.9.0-1).
 
-In Ubuntu 20.04 (focal) even if libwayland is 1.18.0-1, the protocol betweeen
+In Ubuntu 20.04 (focal) even if libwayland is 1.18.0-1, the protocol between
 the server (1.9.0-1) and client (1.18.0-1) was still compatible. Unfortunately,
 this is not the case anymore in Ubuntu 24.04 (noble), where libwayland 1.22.0
 is not compatible anymore with 1.9.0.
