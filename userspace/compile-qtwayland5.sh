@@ -18,5 +18,6 @@ export MAKEFLAGS="-j$(nproc)"
 make
 
 # remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)
+# # https://bugs.launchpad.net/ubuntu/+source/checkinstall/+bug/78455
 checkinstall -yD --install=no --fstrans=no --pkgversion="${VERSION}" --pkgname=qtwayland5 --pkgarch=arm64 --replaces=qtwayland5,libqt5waylandclient5,libqt5waylandcompositor5
 mv qtwayland5*.deb /tmp/qtwayland5.deb
