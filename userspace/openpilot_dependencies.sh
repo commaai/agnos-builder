@@ -62,28 +62,3 @@ apt-get install --no-install-recommends -yq \
     wget \
     zlib1g-dev \
     zstd
-
-# TODO: put these back when updating weston & removing old qt-5.12.8.deb
-    # libqt5opengl5-dev \
-    # libqt5sql5-sqlite \
-    # libqt5svg5-dev \
-    # libqt5multimedia5-plugins \
-    # qml-module-qtquick2 \
-    # qtbase5-dev \
-    # qtchooser \
-    # qt5-qmake \
-    # qtbase5-dev-tools \
-    # qtbase5-private-dev \
-    # qtdeclarative5-dev \
-    # qtdeclarative5-private-dev \
-    # qtlocation5-dev \
-    # qtmultimedia5-dev \
-    # qtpositioning5-dev \
-    # qtwayland5 \
-
-# in case of uncertainty, qt5-default was a metapackage for:
-    # qtbase5-dev
-    # qtchooser
-    # qt5-qmake
-    # qtbase5-dev-tools
-# more info: https://packages.ubuntu.com/focal/qt5-default

@@ -196,9 +196,3 @@ apt-get install --no-install-recommends -yq \
     hostapd \
     libgtk2.0-dev \
     libxml2:armhf \
-
-# TODO: put these back when updating weston & removing old libwayland-1.9.0-1.deb
-    # libwayland-client0:armhf \
-    # libwayland-cursor0:armhf \
-    # libwayland-server0:armhf \
-    # libwayland-dev \
