@@ -4,19 +4,13 @@
 FROM scratch AS agnos-base
 ADD ubuntu-base-24.04-base-arm64.tar.gz /
 
-# Add aarch64 and arm support
-COPY --from=multiarch/qemu-user-static:x86_64-aarch64 /usr/bin/qemu-aarch64-static /usr/bin
-COPY --from=multiarch/qemu-user-static:x86_64-arm /usr/bin/qemu-arm-static /usr/bin
-
 # Build folder
 RUN mkdir -p /tmp/agnos
 
 # Stop on error
 RUN set -xe
 
-ENV USERNAME=comma
-ENV PASSWD=comma
-ENV HOST=comma
+ARG USERNAME=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
@@ -41,7 +35,7 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
 # ################## #
 FROM agnos-base AS agnos-compiler
 
-RUN apt-get update && apt-get install --no-install-recommends checkinstall
+RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
 
 # Individual compiling images
 FROM agnos-compiler AS agnos-compiler-capnp
