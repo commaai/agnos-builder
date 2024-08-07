@@ -3,7 +3,9 @@
 # Install driver deb files (we're fine with overwriting stuff too)
 cd /tmp/agnos/debs
 
-# Fixing issue with missing /lib64
+# Setting up usr merged lib64 since it's not done by default (in 24.04-base)
+# https://wiki.debian.org/UsrMerge
+# https://www.freedesktop.org/wiki/Software/systemd/TheCaseForTheUsrMerge/
 sudo mkdir /usr/lib64
 sudo ln -s usr/lib64 /lib64
 
