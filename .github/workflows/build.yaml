@@ -73,7 +73,7 @@ jobs:
         scripts/package_ota.py
 
     - name: Copy and push boot, system and agnos.json
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      if: false
       working-directory: ${{ github.workspace }}/ci-artifacts
       run: |
         cp ${{ github.workspace }}/output/ota/*.img.xz .
@@ -86,7 +86,7 @@ jobs:
         git push origin agnos-builder/pr-${{ github.event.number }} --force
 
     - name: Comment on PR
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      if: false
       uses: thollander/actions-comment-pull-request@v2
       with:
         message: |
