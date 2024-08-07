@@ -82,7 +82,7 @@ jobs:
         git config user.name "GitHub Actions Bot"
         git config user.email "<>"
         git add ${{ github.workspace }}/ci-artifacts/*
-        git commit -m "artifacts for PR #${{ github.event.number }}"
+        git commit -m "build artifacts for PR #${{ github.event.number }}"
         git push origin agnos-builder/pr-${{ github.event.number }} --force
 
     - name: Comment on PR
