@@ -5,7 +5,6 @@ import hashlib
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -37,12 +36,6 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
       print("  using existing raw image")
       hash_raw = checksum(raw_img)
       size = raw_img.stat().st_size
-    else:
-      print("  converting sparse image to raw")
-      with NamedTemporaryFile() as tmp_f:
-        subprocess.check_call(["simg2img", fn, tmp_f.name])
-        hash_raw = checksum(tmp_f.name)
-        size = Path(tmp_f.name).stat().st_size
     print(f"  {size} bytes, hash {hash_raw} (raw)")
 
   print("  compressing")
