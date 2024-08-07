@@ -75,3 +75,5 @@ apt-fast install --no-install-recommends -yq \
     qtpositioning5-dev \
     qtwayland5 \
     zstd
+
+rm -rf /var/lib/apt/lists/*
