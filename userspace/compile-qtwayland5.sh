@@ -10,6 +10,10 @@ cd qtwayland
 
 git apply /tmp/agnos/patch-qtwayland-v5.12
 
+# qtwayland is incorrectly built against libdl.so instead of libdl.so.2
+# https://stackoverflow.com/a/75855054/639708
+ln -s /usr/aarch64-linux-gnu/lib/libdl.so.2 /usr/aarch64-linux-gnu/lib/libdl.so
+
 mkdir /tmp/build && cd /tmp/build
 qmake /tmp/qtwayland
 
