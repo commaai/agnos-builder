@@ -61,3 +61,5 @@ mkdir -p /tmp/mm-plugins
 mv /usr/lib/aarch64-linux-gnu/ModemManager/libmm-*.so /tmp/mm-plugins
 cp /tmp/mm-plugins/*generic* /usr/lib/aarch64-linux-gnu/ModemManager/
 cp /tmp/mm-plugins/*quectel* /usr/lib/aarch64-linux-gnu/ModemManager/
+
+rm -rf /var/lib/apt/lists/*
