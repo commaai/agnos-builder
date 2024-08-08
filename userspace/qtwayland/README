@@ -21,16 +21,17 @@ is not compatible anymore with 1.9.0.
 
 Because of this:
 - libwayland-*_1.9.0-1 packages can't be installed anymore from noble, but a
-custom deb has been built manually (libwayland-1.9.0-1.deb) - this includes all
-libwayland packages in one package - there is no source for this deb
-- libwayland-*_1.9.0-1 packages has a dependency (libffi6)
+custom deb has been built (libwayland-1.9.0-1.deb) - this includes all
+libwayland packages in one package
+- libwayland has a dependency (libffi6)
+- libwayland-1.9.0-1.deb can be rebuilt with `build-libwayland-deb.sh`
 
 Also, Qt 5.15 from Ubuntu 24.04 (noble) doesn't compile with these old
 dependencies, 5.12 being the last major being able to be compiled, so:
-- a custom qt-5.12.8.deb has been built manually, since qt from focal has a lot
-of dependencies not existing in Ubuntu 24.04 (noble) - there is no source for
-this deb
+- a custom qt-5.12.8.deb has been built, since qt from focal has a lot of
+dependencies not existing in Ubuntu 24.04 (noble)
 - qt has two non-qt related dependencies (libicu66, libssl1.1)
+- qt-5.12.8.deb can be rebuilt with `build-qt-deb.sh`
 
 The dependencies for the two custom debs can be downloaded from Launchpad:
 ```
