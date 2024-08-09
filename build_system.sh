@@ -103,9 +103,6 @@ set_network_stuff() {
   bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
   bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
-  # Fix resolv config
-  bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
-
   # Write build info
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
   bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
