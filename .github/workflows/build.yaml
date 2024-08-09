@@ -70,7 +70,6 @@ jobs:
       env:
         AGNOS_UPDATE_URL: https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ github.event.number }}/
       run: |
-        sudo apt-get install -y android-sdk-libsparse-utils
         scripts/package_ota.py
 
     - name: Upload artifacts
