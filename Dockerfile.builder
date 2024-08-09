@@ -1,3 +1,5 @@
+# check=error=true
+
 FROM ubuntu:20.04
 
 ARG UNAME
