@@ -54,6 +54,12 @@ systemctl disable multipathd.socket
 systemctl disable chgrp-diag.service
 systemctl disable lvm2-monitor.service
 systemctl mask systemd-backlight@.service
+systemctl disable dpkg-db-backup.timer
+systemctl disable nvmefc-boot-connections.service
+systemctl disable update-notifier-download.timer
+systemctl disable update-notifier-download.service
+systemctl disable update-notifier-motd.timer
+systemctl disable update-notifier-motd.service
 
 # Disable NFS stuff by default
 systemctl disable rpcbind
