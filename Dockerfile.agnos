@@ -20,7 +20,7 @@ RUN /tmp/agnos/compiler_setup.sh
 # ################## #
 FROM agnos-base AS agnos-compiler
 
-RUN apt-get update && apt-get install --no-install-recommends checkinstall
+RUN apt-fast update && apt-fast install --no-install-recommends checkinstall
 # Install openpilot dependencies, probably needed for build,
 # but we don't want these in the base image
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
