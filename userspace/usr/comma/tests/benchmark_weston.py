@@ -11,7 +11,7 @@ def timestamp_cmd(cmd):
   while True:
     cnt += 1
     print("try ", cnt)
-    run("sudo chmod -R 770 /var/tmp/weston/")
+    run("sudo chmod -R 700 /var/tmp/weston/")
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     t = time.monotonic()
     time.sleep(0.5)
