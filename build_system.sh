@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
-UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
+UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"
+UBUNTU_FILE="ubuntu-base-24.04-base-arm64.tar.gz"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -90,6 +90,10 @@ echo "Extracting docker image"
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
 
+# Avoid detecting as container
+echo "Removing .dockerenv file"
+exec_as_root rm -f $ROOTFS_DIR/.dockerenv
+
 echo "Setting network stuff"
 set_network_stuff() {
   cd $ROOTFS_DIR
@@ -98,9 +102,6 @@ set_network_stuff() {
   bash -c "ln -sf /proc/sys/kernel/hostname etc/hostname"
   bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
   bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
-
-  # Fix resolv config
-  bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
 
   # Write build info
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
