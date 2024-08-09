@@ -71,32 +71,26 @@ RUN /tmp/agnos/compile-modemmanager.sh
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
-
 # Use other pre-compiled packages
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
-RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
-    export PYENV_ROOT="/usr/local/pyenv" && \
-    eval "$(pyenv init -)" && \
-    eval "$(pyenv virtualenv-init -)" && \
-    export MAKEFLAGS="-j$(nproc)" && \
-    pip install pyqt5-sip==12.12.1 && \
-    pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= && \
-    pyenv rehash
+ENV XDG_DATA_HOME="/usr/local"
+ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
+
+COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # Install openpilot python packages
 RUN mkdir -p /tmp/agnos/uv
 COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/uv
-RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
-    export PYENV_ROOT="/usr/local/pyenv" && \
-    eval "$(pyenv init -)" && \
-    eval "$(pyenv virtualenv-init -)" && \
+RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir --system .
+    export MAKEFLAGS="-j$(nproc)" && \
+    UV_NO_CACHE=1 uv pip install --no-cache-dir . && \
+    uv pip install pyqt5-sip==12.12.1 && \
+    uv pip install pyqt5==5.15.9 --config-settings="--confirm-license=" --no-deps
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
