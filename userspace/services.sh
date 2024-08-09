@@ -42,7 +42,6 @@ systemctl disable apt-daily.service
 systemctl disable apt-daily-upgrade.timer
 systemctl disable apt-daily.timer
 systemctl disable serial-getty@ttyS0.service
-systemctl disable snapd.service
 systemctl disable wlan_daemon.service
 systemctl disable remote-fs.target
 systemctl disable remote-fs-pre.target
@@ -60,4 +59,13 @@ systemctl mask systemd-backlight@.service
 systemctl disable rpcbind
 systemctl disable nfs-client.target
 systemctl disable remote-fs-pre.target
-systemctl disable run-rpc_pipefs.mount
+
+# Disable nvmf service since no NVMe-oF in the old kernel
+# this service fails in 24.04, while failing silently on 20.04
+# no influence on C3 NVMe nor nvme smart-log, which work fine
+systemctl disable nvmf-autoconnect.service
+
+# Service is from ifupdown but ifupdown is managed by NetworkManager
+# networking service fails with "ifup: failed to bring up lo"
+# no influence on any interface, all interfaces work fine
+systemctl disable networking.service

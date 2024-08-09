@@ -29,7 +29,7 @@ apt-fast install --no-install-recommends -yq \
     libffi-dev \
     libfreetype6-dev \
     libglfw3-dev \
-    libglib2.0-0 \
+    libglib2.0-0t64 \
     libi2c-dev \
     libjpeg-dev \
     liblzma-dev \
@@ -61,17 +61,4 @@ apt-fast install --no-install-recommends -yq \
     vnstat \
     wget \
     zlib1g-dev \
-    libqt5opengl5-dev \
-    libqt5sql5-sqlite \
-    libqt5svg5-dev \
-    libqt5multimedia5-plugins \
-    qml-module-qtquick2 \
-    qt5-default \
-    qtbase5-private-dev \
-    qtdeclarative5-dev \
-    qtdeclarative5-private-dev \
-    qtlocation5-dev \
-    qtmultimedia5-dev \
-    qtpositioning5-dev \
-    qtwayland5 \
     zstd
