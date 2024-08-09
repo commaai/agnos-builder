@@ -4,19 +4,13 @@
 FROM scratch AS agnos-base-step1
 ADD ubuntu-base-20.04.1-base-arm64.tar.gz /
 
-# Add aarch64 and arm support
-COPY --from=multiarch/qemu-user-static:x86_64-aarch64 /usr/bin/qemu-aarch64-static /usr/bin
-COPY --from=multiarch/qemu-user-static:x86_64-arm /usr/bin/qemu-arm-static /usr/bin
-
 # Build folder
 RUN mkdir -p /tmp/agnos
 
 # Stop on error
 RUN set -xe
 
-ENV USERNAME=comma
-ENV PASSWD=comma
-ENV HOST=comma
+ARG USERNAME=comma
 
 COPY ./userspace/compiler_setup.sh /tmp/agnos
 RUN /tmp/agnos/compiler_setup.sh
@@ -24,6 +18,13 @@ RUN /tmp/agnos/compiler_setup.sh
 # ################## #
 # #### Compiler #### #
 # ################## #
+FROM agnos-base AS agnos-compiler
+
+RUN apt-get update && apt-get install --no-install-recommends checkinstall
+# Install openpilot dependencies, probably needed for build,
+# but we don't want these in the base image
+COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh
 
 # Individual compiling images
 FROM agnos-base-step1 AS agnos-compiler-capnp
