@@ -35,7 +35,7 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
 # ################## #
 FROM agnos-base AS agnos-compiler
 
-apt-fast install --no-install-recommends -yq checkinstall
+RUN apt-fast install --no-install-recommends -yq checkinstall
 
 # Individual compiling images
 FROM agnos-compiler AS agnos-compiler-capnp
