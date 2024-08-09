@@ -73,31 +73,12 @@ jobs:
         sudo apt-get install -y android-sdk-libsparse-utils
         scripts/package_ota.py
 
-    - name: Copy and push boot, system and agnos.json
+    - name: Upload artifacts
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      working-directory: ${{ github.workspace }}/ci-artifacts
-      run: |
-        cp ${{ github.workspace }}/output/ota/*.img.xz .
-        cp ${{ github.workspace }}/output/ota/ota.json agnos.json
-        git checkout -b agnos-builder/pr-${{ github.event.number }}
-        git config user.name "GitHub Actions Bot"
-        git config user.email "<>"
-        git add ${{ github.workspace }}/ci-artifacts/*
-        git commit -m "build artifacts for PR #${{ github.event.number }}"
-        git push origin agnos-builder/pr-${{ github.event.number }} --force
-
-    - name: Comment on PR
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      uses: thollander/actions-comment-pull-request@v2
+      uses: actions/upload-artifact@v4
       with:
-        message: |
-          <!-- _(run_id **${{ github.run_id }}**)_ -->
-          ## Build agnos.json
-          Download <a href="https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ github.event.number }}/agnos.json" target="_blank">agnos.json</a> and replace `openpilot/system/hardware/tici/agnos.json` in your openpilot branch.
-
-          If you need to flash locally, you can download the <a href="https://github.com/commaai/ci-artifacts/tree/agnos-builder/pr-${{ github.event.number }}" target="_blank">images</a> and unarchive them in `agnos-builder/output` and flash with `./flash_all.sh`.
-
-          ---
-        comment_tag: run_id
-        pr_number: ${{ github.event.number }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: agnos-artifacts-${{ github.event.number }}
+        path: |
+          ${{ github.workspace }}/output/ota/*.img.xz
+          ${{ github.workspace }}/output/ota/ota.json
+        compression-level: 0
