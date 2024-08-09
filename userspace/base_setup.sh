@@ -201,6 +201,3 @@ apt-fast install --no-install-recommends -yq \
     hostapd \
     libgtk2.0-dev \
     libxml2:armhf \
-
-# Set capability for ping
-setcap cap_net_raw+ep /bin/ping
