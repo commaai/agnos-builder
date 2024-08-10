@@ -2,12 +2,14 @@ name: build
 
 on:
   push:
-    branches: [ master ]
+    # branches: [ master ]
+    branches: [ pyenvtouv ]
   pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.run_id || github.head_ref || github.ref }}-${{ github.workflow }}-${{ github.event_name }}
+  # group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.run_id || github.head_ref || github.ref }}-${{ github.workflow }}-${{ github.event_name }}
+  group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/pyenvtouv' && github.run_id || github.head_ref || github.ref }}-${{ github.workflow }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
@@ -16,7 +18,8 @@ permissions:
 jobs:
   build:
     name: build kernel and system
-    runs-on: namespace-profile-arm64-8x16-2004-caching
+    # runs-on: namespace-profile-arm64-8x16-2004-caching
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
