@@ -38,6 +38,14 @@ FROM agnos-base AS agnos-compiler
 RUN apt-fast install --no-install-recommends -yq checkinstall
 
 # Individual compiling images
+FROM agnos-compiler AS agnos-compiler-pyqt5
+ENV XDG_DATA_HOME="/usr/local"
+ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
+COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_python_dependencies.sh
+COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
+RUN /tmp/agnos/compile-pyqt5.sh
+
 FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN /tmp/agnos/compile-capnp.sh
@@ -75,6 +83,9 @@ RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capn
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
+# Use pre-compiled PyQt5 wheel
+COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
+
 ENV XDG_DATA_HOME="/usr/local"
 ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
 
@@ -90,7 +101,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     export MAKEFLAGS="-j$(nproc)" && \
     UV_NO_CACHE=1 uv pip install --no-cache-dir . && \
     uv pip install pyqt5-sip==12.12.1 && \
-    uv pip install pyqt5==5.15.9 --config-settings="--confirm-license=" --no-deps
+    pip install /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl --verbose --config-settings --confirm-license=
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
