@@ -36,10 +36,10 @@ if [ ! -f $UBUNTU_FILE ]; then
   curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time
 fi
 
-# Register qemu multiarch
+# Setup qemu multiarch
 if [ "$ARCH" = "x86_64" ]; then
   echo "Registering qemu-user-static"
-  docker run --rm --privileged multiarch/qemu-user-static:register --reset > /dev/null
+  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
 # Start agnos-builder docker build and create container
