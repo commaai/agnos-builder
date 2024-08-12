@@ -15,10 +15,6 @@ jobs:
     name: build kernel and system
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 60
-    permissions:
-      contents: read
-      pull-requests: write
-      actions: read
     steps:
     - uses: actions/checkout@v4
       with:
@@ -41,14 +37,6 @@ jobs:
           echo EOF
         } | tee -a $GITHUB_ENV
 
-    - name: Checkout ci-artifacts
-      uses: actions/checkout@v4
-      with:
-        repository: commaai/ci-artifacts
-        ssh-key: ${{ secrets.CI_ARTIFACTS_DEPLOY_KEY }}
-        path: ${{ github.workspace }}/ci-artifacts
-        ref: master
-
     - name: Get kernel submodule ref
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
@@ -68,16 +56,20 @@ jobs:
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       env:
-        AGNOS_UPDATE_URL: https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ github.event.number }}/
+        AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}/
       run: |
         scripts/package_ota.py
+
+    - name: Save PR number and VERSION
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      run: |
+        echo ${{ github.event.number }} > output/ota/PR
+        cp VERSION output/ota
 
     - name: Upload artifacts
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       uses: actions/upload-artifact@v4
       with:
-        name: agnos-artifacts-${{ github.event.number }}
-        path: |
-          ${{ github.workspace }}/output/ota/*.img.xz
-          ${{ github.workspace }}/output/ota/ota.json
+        name: agnos-artifacts
+        path: output/ota
         compression-level: 0
