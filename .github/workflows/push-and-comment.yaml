@@ -6,23 +6,14 @@ on:
     types:
       - completed
 
-env:
-  BUILD_JOB_NAME: "build kernel and system"
-
 jobs:
-  preview:
-    name: push and comment
+  push-and-comment:
     runs-on: ubuntu-latest
     if: >
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success'
     timeout-minutes: 15
     steps:
-      - name: Get workflow run ID
-        id: get_run_id
-        run: |
-          echo "run_id=$(curl https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/check-runs | jq -r '.check_runs[] | select(.name == "${{ env.BUILD_JOB_NAME }}") | .html_url | capture("(?<number>[0-9]+)") | .number')" >> $GITHUB_OUTPUT
-
       - name: Checkout ci-artifacts
         uses: actions/checkout@v4
         with:
@@ -33,36 +24,55 @@ jobs:
 
       - name: Download artifact
         id: download-artifact
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ steps.get_run_id.outputs.run_id }}
-          search_artifacts: true
-          name: agnos-artifacts-${{ github.event.number }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: agnos-artifacts
           path: ${{ github.workspace }}/ci-artifacts
+
+      - name: 'Read PR number'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = require('fs').readFileSync('${{ github.workspace }}/ci-artifacts/PR', 'utf8').trim();
+            core.exportVariable('PR_NUMBER', prNumber);
 
       - name: Push boot, system and agnos.json
         working-directory: ${{ github.workspace }}/ci-artifacts
         run: |
           mv ota.json agnos.json
-          git checkout -b agnos-builder/pr-${{ github.event.number }}
+          git checkout -b agnos-builder/pr-${{ env.PR_NUMBER }}
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
+          git lfs track "*.xz"
           git add .
-          git commit -m "build artifacts for PR #${{ github.event.number }}"
-          git push origin agnos-builder/pr-${{ github.event.number }} --force
+          git commit -m "build artifacts for PR #${{ env.PR_NUMBER }}"
+          git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force
+
+      - name: List .xz files with links
+        id: list_xz
+        working-directory: ${{ github.workspace }}/ci-artifacts
+        run: |
+          {
+            echo 'XZ_FILES<<EOF'
+            for file in *.xz; do
+              echo "* [$file](https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
+            done
+            echo EOF
+          } | tee -a $GITHUB_ENV
 
       - name: Comment on PR
-        uses: thollander/actions-comment-pull-request@v2
+        uses: thollander/actions-comment-pull-request@fabd468d3a1a0b97feee5f6b9e499eab0dd903f6
         with:
           message: |
-            <!-- _(run_id **${{ github.run_id }}**)_ -->
-            ## Build agnos.json
-            Download <a href="https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ github.event.number }}/agnos.json" target="_blank">agnos.json</a> and replace `openpilot/system/hardware/tici/agnos.json` in your openpilot branch.
+            <!-- _(run_id **${{ github.event.workflow_run.id }}**)_ -->
+            ## :white_check_mark: AGNOS update ready
+            Download <a href="https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `openpilot/system/hardware/tici/`.
 
-            If you need to flash locally, you can download the <a href="https://github.com/commaai/ci-artifacts/tree/agnos-builder/pr-${{ github.event.number }}" target="_blank">images</a> and unarchive them in `agnos-builder/output` and flash with `./flash_all.sh`.
+            For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
 
-            ---
+            ### Images:
+            ${{ env.XZ_FILES }}
+          pr_number: ${{ env.PR_NUMBER }}
           comment_tag: run_id
-          pr_number: ${{ github.event.number }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          mode: recreate

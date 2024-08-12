@@ -15,10 +15,6 @@ jobs:
     name: build kernel and system
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 60
-    permissions:
-      contents: read
-      pull-requests: write
-      actions: read
     steps:
     - uses: actions/checkout@v4
       with:
@@ -40,14 +36,6 @@ jobs:
           fi
           echo EOF
         } | tee -a $GITHUB_ENV
-
-    - name: Checkout ci-artifacts
-      uses: actions/checkout@v4
-      with:
-        repository: commaai/ci-artifacts
-        ssh-key: ${{ secrets.CI_ARTIFACTS_DEPLOY_KEY }}
-        path: ${{ github.workspace }}/ci-artifacts
-        ref: master
 
     - name: Get kernel submodule ref
       id: kernel-submodule
@@ -72,12 +60,14 @@ jobs:
       run: |
         scripts/package_ota.py
 
+    - name: Save PR number
+      run: |
+        echo ${{ github.event.number }} | tee output/ota/PR
+
     - name: Upload artifacts
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       uses: actions/upload-artifact@v4
       with:
-        name: agnos-artifacts-${{ github.event.number }}
-        path: |
-          ${{ github.workspace }}/output/ota/*.img.xz
-          ${{ github.workspace }}/output/ota/ota.json
+        name: agnos-artifacts
+        path: output/ota
         compression-level: 0
