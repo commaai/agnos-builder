@@ -1,0 +1,87 @@
+name: push and comment
+
+on:
+  workflow_run:
+    workflows: ["build"]
+    types:
+      - completed
+
+jobs:
+  push-and-comment:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
+        with:
+          ssh-private-key: ${{ secrets.CI_ARTIFACTS_GITLAB_DEPLOY_KEY }}
+
+      - name: Checkout ci-artifacts
+        run: |
+          ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+          git clone -b master git@gitlab.com:commaai/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
+
+      - name: Download artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+          name: agnos-artifacts
+          path: ${{ github.workspace }}/ci-artifacts
+
+      - name: Read PR number and VERSION
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const prNumber = fs.readFileSync('${{ github.workspace }}/ci-artifacts/PR', 'utf8').trim();
+            core.exportVariable('PR_NUMBER', prNumber);
+            const version = fs.readFileSync('${{ github.workspace }}/ci-artifacts/VERSION', 'utf8').trim();
+            core.exportVariable('VERSION', version);
+
+      - name: Push boot, system and agnos.json
+        working-directory: ${{ github.workspace }}/ci-artifacts
+        run: |
+          mv ota.json agnos.json && rm ota-staging.json system-skip-chunks-*.img.xz
+          git checkout -b agnos-builder/pr-${{ env.PR_NUMBER }}
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git lfs track "*.xz"
+          git add .
+          git commit -m "build artifacts for PR #${{ env.PR_NUMBER }}"
+          git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force
+
+      - name: List .xz files with links
+        id: list_xz
+        working-directory: ${{ github.workspace }}/ci-artifacts
+        run: |
+          {
+            echo 'XZ_FILES<<EOF'
+            for file in *.xz; do
+              echo "* [$file](https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
+            done
+            echo EOF
+          } >> $GITHUB_ENV
+
+      - name: Comment on PR
+        uses: thollander/actions-comment-pull-request@fabd468d3a1a0b97feee5f6b9e499eab0dd903f6
+        with:
+          message: |
+            <!-- _(run_id **${{ github.event.workflow_run.id }}**)_ -->
+            ## :white_check_mark: AGNOS update ${{ env.VERSION }} ready
+            In an openpilot branch, download <a href="https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `system/hardware/tici/` and update `AGNOS_VERSION` to **${{ env.VERSION }}** in `launch_env.sh`.
+
+            For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
+
+            ### Images:
+            ${{ env.XZ_FILES }}
+          pr_number: ${{ env.PR_NUMBER }}
+          comment_tag: run_id
+          mode: recreate

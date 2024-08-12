@@ -1,3 +1,5 @@
+# check=error=true
+
 # ################## #
 # ###### Base ###### #
 # ################## #
@@ -206,8 +208,8 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 # copy at the end, after all apt usage
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
-# Write version file
-RUN echo -n "2404-1" > /VERSION
+# copy version file
+COPY VERSION /VERSION
 
 # ################## #
 # #### Cleaunup #### #

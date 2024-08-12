@@ -10,9 +10,6 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.run_id || github.head_ref || github.ref }}-${{ github.workflow }}-${{ github.event_name }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
   build:
     name: build kernel and system
@@ -53,26 +50,26 @@ jobs:
     - name: Build kernel
       run: ./build_kernel.sh
 
-    - name: Upload artifact boot.img
-      uses: actions/upload-artifact@v4
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      with:
-        name: boot.img
-        path: output/boot.img
-
-    - name: Upload artifact kernel modules
-      uses: actions/upload-artifact@v4
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      with:
-        name: kernel-modules
-        path: output/*.ko
-
     - name: Build system
       run: ./build_system.sh
 
-    - name: Upload artifact system.img
-      uses: actions/upload-artifact@v4
+    - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      env:
+        AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}/
+      run: |
+        scripts/package_ota.py
+
+    - name: Save PR number and VERSION
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      run: |
+        echo ${{ github.event.number }} > output/ota/PR
+        cp VERSION output/ota
+
+    - name: Upload artifacts
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/upload-artifact@v4
       with:
-        name: system.img
-        path: output/system.img
+        name: agnos-artifacts
+        path: output/ota
+        compression-level: 0
