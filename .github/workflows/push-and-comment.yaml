@@ -60,7 +60,7 @@ jobs:
           {
             echo 'XZ_FILES<<EOF'
             for file in *.xz; do
-              echo "* [$file](https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
+              echo "* [$file](https://github.com/commaai/ci-artifacts/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file?download=)"
             done
             echo EOF
           } | tee -a $GITHUB_ENV
@@ -71,7 +71,7 @@ jobs:
           message: |
             <!-- _(run_id **${{ github.event.workflow_run.id }}**)_ -->
             ## :white_check_mark: AGNOS update ready
-            Download <a href="https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `openpilot/system/hardware/tici/`.
+            Download <a href="https://github.com/commaai/ci-artifacts/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json?download=">agnos.json</a> in `openpilot/system/hardware/tici/`.
 
             For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
 
