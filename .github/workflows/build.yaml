@@ -61,6 +61,7 @@ jobs:
         scripts/package_ota.py
 
     - name: Save PR number
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       run: |
         echo ${{ github.event.number }} | tee output/ota/PR
 
