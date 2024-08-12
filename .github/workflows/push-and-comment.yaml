@@ -26,7 +26,7 @@ jobs:
       - name: Checkout ci-artifacts
         run: |
           ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-          git clone -b main git@gitlab.com:commaai/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
+          git clone -b master git@gitlab.com:commaai/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
 
       - name: Download artifact
         id: download-artifact
