@@ -37,6 +37,15 @@ jobs:
           echo EOF
         } | tee -a $GITHUB_ENV
 
+    - name: Compare VERSION with master
+      run: |
+        git fetch origin master:master
+        if ! git diff --quiet master -- VERSION; then
+          echo "VERSION_CHANGED=true" >> $GITHUB_ENV
+        else
+          echo "VERSION_CHANGED=false" >> $GITHUB_ENV
+        fi
+
     - name: Get kernel submodule ref
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
@@ -54,20 +63,20 @@ jobs:
       run: ./build_system.sh
 
     - name: Package and OTA push
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      if: contains(env.LAST_COMMIT_MESSAGE, '[upload]') || env.VERSION_CHANGED == 'true'
       env:
         AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}/
       run: |
         scripts/package_ota.py
 
     - name: Save PR number and VERSION
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      if: contains(env.LAST_COMMIT_MESSAGE, '[upload]') || env.VERSION_CHANGED == 'true'
       run: |
         echo ${{ github.event.number }} > output/ota/PR
         cp VERSION output/ota
 
     - name: Upload artifacts
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      if: contains(env.LAST_COMMIT_MESSAGE, '[upload]') || env.VERSION_CHANGED == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: agnos-artifacts
