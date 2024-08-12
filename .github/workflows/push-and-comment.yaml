@@ -12,19 +12,21 @@ jobs:
     if: >
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success'
-    timeout-minutes: 15
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
       actions: read
     steps:
-      - name: Checkout ci-artifacts
-        uses: actions/checkout@v4
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
         with:
-          repository: commaai/ci-artifacts
-          ssh-key: ${{ secrets.CI_ARTIFACTS_DEPLOY_KEY }}
-          path: ${{ github.workspace }}/ci-artifacts
-          ref: master
+          ssh-private-key: ${{ secrets.CI_ARTIFACTS_GITLAB_DEPLOY_KEY }}
+
+      - name: Checkout ci-artifacts
+        run: |
+          ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+          git clone -b main git@gitlab.com:commaai/ci-artifacts.git ${{ github.workspace }}/ci-artifacts
 
       - name: Download artifact
         id: download-artifact
@@ -60,7 +62,7 @@ jobs:
           {
             echo 'XZ_FILES<<EOF'
             for file in *.xz; do
-              echo "* [$file](https://github.com/commaai/ci-artifacts/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file?download=)"
+              echo "* [$file](https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
             done
             echo EOF
           } | tee -a $GITHUB_ENV
@@ -71,7 +73,7 @@ jobs:
           message: |
             <!-- _(run_id **${{ github.event.workflow_run.id }}**)_ -->
             ## :white_check_mark: AGNOS update ready
-            Download <a href="https://github.com/commaai/ci-artifacts/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json?download=">agnos.json</a> in `openpilot/system/hardware/tici/`.
+            Download <a href="https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `openpilot/system/hardware/tici/`.
 
             For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
 

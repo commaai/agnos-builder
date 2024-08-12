@@ -56,7 +56,7 @@ jobs:
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       env:
-        AGNOS_UPDATE_URL: https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ github.event.number }}/
+        AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}/
       run: |
         scripts/package_ota.py
 
