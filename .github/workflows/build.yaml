@@ -60,10 +60,11 @@ jobs:
       run: |
         scripts/package_ota.py
 
-    - name: Save PR number
+    - name: Save PR number and VERSION
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       run: |
-        echo ${{ github.event.number }} | tee output/ota/PR
+        echo ${{ github.event.number }} > output/ota/PR
+        cp VERSION output/ota
 
     - name: Upload artifacts
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"

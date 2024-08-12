@@ -36,12 +36,15 @@ jobs:
           name: agnos-artifacts
           path: ${{ github.workspace }}/ci-artifacts
 
-      - name: 'Read PR number'
+      - name: Read PR number and VERSION
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = require('fs').readFileSync('${{ github.workspace }}/ci-artifacts/PR', 'utf8').trim();
+            const fs = require('fs');
+            const prNumber = fs.readFileSync('${{ github.workspace }}/ci-artifacts/PR', 'utf8').trim();
             core.exportVariable('PR_NUMBER', prNumber);
+            const version = fs.readFileSync('${{ github.workspace }}/ci-artifacts/VERSION', 'utf8').trim();
+            core.exportVariable('VERSION', version);
 
       - name: Push boot, system and agnos.json
         working-directory: ${{ github.workspace }}/ci-artifacts
@@ -65,15 +68,15 @@ jobs:
               echo "* [$file](https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
             done
             echo EOF
-          } | tee -a $GITHUB_ENV
+          } >> $GITHUB_ENV
 
       - name: Comment on PR
         uses: thollander/actions-comment-pull-request@fabd468d3a1a0b97feee5f6b9e499eab0dd903f6
         with:
           message: |
             <!-- _(run_id **${{ github.event.workflow_run.id }}**)_ -->
-            ## :white_check_mark: AGNOS update ready
-            Download <a href="https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `openpilot/system/hardware/tici/`.
+            ## :white_check_mark: AGNOS update ${{ env.VERSION }} ready
+            In an openpilot branch, download <a href="https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `system/hardware/tici/` and update `AGNOS_VERSION` to **${{ env.VERSION }}** in `launch_env.sh`.
 
             For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
 
