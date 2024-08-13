@@ -42,11 +42,20 @@ if [ "$ARCH" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
+# Check agnos-builder Dockerfile
+docker build -f Dockerfile.agnos --check $DIR
+
 # Start agnos-builder docker build and create container
 echo "Building agnos-builder docker image"
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
+
+# Check agnos-meta-builder Dockerfile
+docker build -f Dockerfile.builder --check $DIR \
+  --build-arg UNAME=$(id -nu) \
+  --build-arg UID=$(id -u) \
+  --build-arg GID=$(id -g)
 
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-meta-builder docker image"
