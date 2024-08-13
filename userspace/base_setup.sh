@@ -107,8 +107,6 @@ apt-fast install --no-install-recommends -yq \
     wireless-tools \
     zlib1g-dev
 
-rm -rf /var/lib/apt/lists/*
-
 # Allow chrony to make a big adjustment to system time on boot
 echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
 
@@ -126,7 +124,6 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 ln -sf /bin/bash /bin/sh
 
 # Install necessary libs
-apt-fast update -yq
 apt-fast install --no-install-recommends -yq \
     libacl1:armhf \
     libasan6-armhf-cross \
