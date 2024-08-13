@@ -75,8 +75,8 @@ jobs:
         with:
           message: |
             <!-- _(run_id **${{ github.event.workflow_run.id }}**)_ -->
-            ## :white_check_mark: AGNOS update ${{ env.VERSION }} ready
-            In an openpilot branch, download <a href="https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `system/hardware/tici/` and update `AGNOS_VERSION` to **${{ env.VERSION }}** in `launch_env.sh`.
+            ## :white_check_mark: AGNOS update ready
+            In an openpilot branch, download <a href="https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/agnos.json">agnos.json</a> in `system/hardware/tici/` and update `AGNOS_VERSION` to "${{ env.VERSION }}" in `launch_env.sh`.
 
             For flashing locally, download and unarchive the images in `agnos-builder/output` and flash with `./flash_all.sh`.
 
