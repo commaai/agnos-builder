@@ -75,3 +75,6 @@ systemctl disable nvmf-autoconnect.service
 # networking service fails with "ifup: failed to bring up lo"
 # no influence on any interface, all interfaces work fine
 systemctl disable networking.service
+
+systemctl disable console-setup.service
+systemctl disable sfsconfig.service
