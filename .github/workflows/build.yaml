@@ -10,9 +10,6 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.run_id || github.head_ref || github.ref }}-${{ github.workflow }}-${{ github.event_name }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
   build:
     name: build kernel and system
@@ -40,14 +37,6 @@ jobs:
           echo EOF
         } | tee -a $GITHUB_ENV
 
-    - name: Checkout ci-artifacts
-      uses: actions/checkout@v4
-      with:
-        repository: commaai/ci-artifacts
-        ssh-key: ${{ secrets.CI_ARTIFACTS_DEPLOY_KEY }}
-        path: ${{ github.workspace }}/ci-artifacts
-        ref: master
-
     - name: Get kernel submodule ref
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
@@ -67,35 +56,20 @@ jobs:
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       env:
-        AGNOS_UPDATE_URL: https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ github.event.number }}/
+        AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}/
       run: |
         scripts/package_ota.py
 
-    - name: Copy and push boot, system and agnos.json
-      if: false
-      working-directory: ${{ github.workspace }}/ci-artifacts
+    - name: Save PR number and VERSION
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       run: |
-        cp ${{ github.workspace }}/output/ota/*.img.xz .
-        cp ${{ github.workspace }}/output/ota/ota.json agnos.json
-        git checkout -b agnos-builder/pr-${{ github.event.number }}
-        git config user.name "GitHub Actions Bot"
-        git config user.email "<>"
-        git add ${{ github.workspace }}/ci-artifacts/*
-        git commit -m "build artifacts for PR #${{ github.event.number }}"
-        git push origin agnos-builder/pr-${{ github.event.number }} --force
+        echo ${{ github.event.number }} > output/ota/PR
+        cp VERSION output/ota
 
-    - name: Comment on PR
-      if: false
-      uses: thollander/actions-comment-pull-request@v2
+    - name: Upload artifacts
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/upload-artifact@v4
       with:
-        message: |
-          <!-- _(run_id **${{ github.run_id }}**)_ -->
-          ## Build agnos.json
-          Download <a href="https://raw.githubusercontent.com/commaai/ci-artifacts/agnos-builder/pr-${{ github.event.number }}/agnos.json" target="_blank">agnos.json</a> and replace `openpilot/system/hardware/tici/agnos.json` in your openpilot branch.
-
-          If you need to flash locally, you can download the <a href="https://github.com/commaai/ci-artifacts/tree/agnos-builder/pr-${{ github.event.number }}" target="_blank">images</a> and unarchive them in `agnos-builder/output` and flash with `./flash_all.sh`.
-
-          ---
-        comment_tag: run_id
-        pr_number: ${{ github.event.number }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: agnos-artifacts
+        path: output/ota
+        compression-level: 0
