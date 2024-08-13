@@ -106,6 +106,9 @@ set_network_stuff() {
   # Fix resolv config
   bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
 
+  # Set capability for ping
+  bash -c "setcap cap_net_raw+ep bin/ping"
+
   # Write build info
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
   bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
