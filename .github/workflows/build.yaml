@@ -59,6 +59,7 @@ jobs:
         AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}/
       run: |
         scripts/package_ota.py
+        touch output/ota/system-skip-chunks-dummy.img.xz
 
     - name: Save PR number and VERSION
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
