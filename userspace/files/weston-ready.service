@@ -14,7 +14,8 @@ ExecStart=/bin/bash -c "while [ ! -e \"$XDG_RUNTIME_DIR/wayland-0\" ]; do sleep 
 ExecStart=/bin/sleep 0.5
 
 ExecStart=/bin/echo "fixing permissions"
-ExecStart=/bin/bash -c "chmod -R 770 $XDG_RUNTIME_DIR"
+ExecStart=/bin/bash -c "chown -R comma: $XDG_RUNTIME_DIR"
+ExecStart=/bin/bash -c "chmod -R 700 $XDG_RUNTIME_DIR"
 
 # these are set by udev rules, but udev is slow
 ExecStart=/bin/bash -c "chgrp gpu /dev/ion /dev/kgsl-3d0"
