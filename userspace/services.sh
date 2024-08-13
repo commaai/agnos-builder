@@ -56,6 +56,8 @@ systemctl disable lvm2-monitor.service
 systemctl mask systemd-backlight@.service
 systemctl disable dpkg-db-backup.timer
 systemctl disable nvmefc-boot-connections.service
+systemctl disable ua-reboot-cmds.service
+systemctl disable ubuntu-advantage.service
 systemctl disable update-notifier-download.timer
 systemctl disable update-notifier-download.service
 systemctl disable update-notifier-motd.timer
@@ -75,6 +77,9 @@ systemctl disable nvmf-autoconnect.service
 # networking service fails with "ifup: failed to bring up lo"
 # no influence on any interface, all interfaces work fine
 systemctl disable networking.service
+
+# Service fails with Status: "No devices to monitor"
+systemctl disable smartd.service
 
 systemctl disable console-setup.service
 systemctl disable sfsconfig.service
