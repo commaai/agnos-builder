@@ -16,10 +16,12 @@ jobs:
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v4
+    - uses: namespacelabs/nscloud-checkout-action@v5
       with:
         lfs: true
         submodules: true
+
+    - run: git lfs pull
 
     - name: Get commit message
       run: |
