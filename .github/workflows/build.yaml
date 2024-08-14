@@ -56,6 +56,8 @@ jobs:
         echo -n ${{ github.event.pull_request.head.sha }} > VERSION
 
     - name: Build system
+      env:
+        GIT_HASH: ${{ github.event.pull_request.head.sha }}
       run: ./build_system.sh
 
     - name: Statistics
