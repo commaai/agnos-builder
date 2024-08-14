@@ -13,6 +13,7 @@ RUN mkdir -p /tmp/agnos
 RUN set -xe
 
 ARG USERNAME=comma
+ARG invalidate_cache=1
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
