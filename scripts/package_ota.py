@@ -41,6 +41,7 @@ def process_file(fn, name, full_check=True, has_ab=True):
     "hash": hash,
     "hash_raw": hash_raw,
     "size": size,
+    "sparse": False,
     "full_check": full_check,
     "has_ab": has_ab,
   }
@@ -70,6 +71,7 @@ if __name__ == "__main__":
         "hash": fw["hash"],
         "hash_raw": fw["hash"],
         "size": fw["size"],
+        "sparse": False,
         "full_check": True,
         "has_ab": True,
       })
