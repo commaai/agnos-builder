@@ -15,7 +15,7 @@ OUTPUT_DIR="$DIR/output"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img"
-ROOTFS_IMAGE_SIZE=10G
+ROOTFS_IMAGE_SIZE=5G
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
