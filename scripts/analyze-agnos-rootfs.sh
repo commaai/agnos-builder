@@ -23,10 +23,7 @@ trap "docker container rm -f $MOUNT_CONTAINER_ID > /dev/null" EXIT
 exec mount "$ROOTFS_IMAGE" "$ROOTFS_DIR"
 
 # Stats
-echo "Total size:"
-exec du -sh "$ROOTFS_DIR" | sed "s|$ROOTFS_DIR|agnos-rootfs|"
-echo "Directories with largest size:"
-exec bash -c "du -h \"$ROOTFS_DIR\"/* | sort -rh | head -n 50 | sed 's|$ROOTFS_DIR/||'"
+exec bash -c "du -h \"$ROOTFS_DIR\"/* | sort -rh | head -n 20 | sed 's|$ROOTFS_DIR/||'"
 
 # Unmount image
 exec umount -l "$ROOTFS_DIR"

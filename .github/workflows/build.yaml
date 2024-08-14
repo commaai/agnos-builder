@@ -54,7 +54,7 @@ jobs:
       run: ./build_system.sh
 
     - name: Statistics
-      run: scripts/analyze-agnos-rootfs.sh
+      run: scripts/analyze-agnos-rootfs.sh | tee output/ota/agnos_stats.txt
 
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
