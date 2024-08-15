@@ -1,2 +1,0 @@
-libffi.so.6 filter=lfs diff=lfs merge=lfs -text
-libwayland-client.so.0 filter=lfs diff=lfs merge=lfs -text

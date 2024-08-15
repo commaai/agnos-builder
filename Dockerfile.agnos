@@ -1,8 +1,10 @@
+# check=error=true
+
 # ################## #
 # ###### Base ###### #
 # ################## #
 FROM scratch AS agnos-base
-ADD ubuntu-base-20.04.1-base-arm64.tar.gz /
+ADD ubuntu-base-24.04-base-arm64.tar.gz /
 
 # Build folder
 RUN mkdir -p /tmp/agnos
@@ -17,18 +19,33 @@ RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-
 COPY ./userspace/base_setup.sh /tmp/agnos
 RUN /tmp/agnos/base_setup.sh
 
+# Install openpilot dependencies
+COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh
+COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_python_dependencies.sh
+
+# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    /tmp/agnos/qt-5.12.8.deb \
+    /tmp/agnos/libwayland-1.9.0-1.deb \
+    /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
+    /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+
 # ################## #
 # #### Compiler #### #
 # ################## #
 FROM agnos-base AS agnos-compiler
 
 RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
-# Install openpilot dependencies, probably needed for build,
-# but we don't want these in the base image
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
 
 # Individual compiling images
+FROM agnos-compiler AS agnos-compiler-pyqt5
+COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
+RUN /tmp/agnos/compile-pyqt5.sh
+
 FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN /tmp/agnos/compile-capnp.sh
@@ -39,7 +56,7 @@ RUN /tmp/agnos/compile-ffmpeg.sh
 
 FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
-COPY ./userspace/qtwayland/patch /tmp/agnos/
+COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
 
 # ################### #
@@ -62,15 +79,12 @@ RUN /tmp/agnos/compile-modemmanager.sh
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
-
 # Use other pre-compiled packages
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
+
+# Use pre-compiled PyQt5 wheel
+COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
 
 ENV XDG_DATA_HOME="/usr/local"
 ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
@@ -99,10 +113,6 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
-
-# 16.04 libwayland-client + libffi6
-COPY ./userspace/qtwayland/libffi.so.6 /lib/aarch64-linux-gnu/
-COPY ./userspace/qtwayland/libwayland-client.so.0 /lib/aarch64-linux-gnu/libwayland-client.so.0
 
 COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
@@ -187,7 +197,7 @@ RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostn
 
 # TODO: move this to base_setup.sh or build gcc from source
 # Remove unused architectures from arm-none-eabi
-RUN cd /usr/lib/gcc/arm-none-eabi/9.2.1 && \
+RUN cd /usr/lib/gcc/arm-none-eabi/* && \
     rm -rf arm/ && \
     rm -rf thumb/nofp thumb/v6* thumb/v8* thumb/v7+fp thumb/v7-r+fp.sp
 
@@ -203,8 +213,8 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 # copy at the end, after all apt usage
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
-# Write version file
-RUN echo -n "10.1" > /VERSION
+# copy version file
+COPY VERSION /VERSION
 
 # ################## #
 # #### Cleaunup #### #

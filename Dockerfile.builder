@@ -1,3 +1,5 @@
+# check=error=true
+
 FROM ubuntu:20.04
 
 ARG UNAME
@@ -16,6 +18,7 @@ RUN apt-get update && \
     openssl \
     ccache \
     android-sdk-libsparse-utils \
+    libcap2-bin \
     && rm -rf /var/lib/apt/lists/*
 
 RUN if [ ${UID:-0} -ne 0 ] && [ ${GID:-0} -ne 0 ]; then \

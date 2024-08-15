@@ -95,6 +95,7 @@ apt-fast install --no-install-recommends -yq \
     ssh \
     sshfs \
     sudo \
+    systemd-resolved \
     traceroute \
     tk-dev \
     ubuntu-minimal \
@@ -115,9 +116,6 @@ echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
 mkdir /data && chown $USERNAME:$USERNAME /data
 mkdir /persist && chown $USERNAME:$USERNAME /persist
 
-# Disable automatic ondemand switching from ubuntu
-systemctl disable ondemand
-
 # Disable pstore service that moves files out of /sys/fs/pstore
 systemctl disable systemd-pstore.service
 
@@ -131,7 +129,7 @@ ln -sf /bin/bash /bin/sh
 apt-fast update -yq
 apt-fast install --no-install-recommends -yq \
     libacl1:armhf \
-    libasan5-armhf-cross \
+    libasan6-armhf-cross \
     libatomic1-armhf-cross \
     libattr1:armhf \
     libaudit1:armhf \
@@ -145,13 +143,12 @@ apt-fast install --no-install-recommends -yq \
     libdrm2:armhf \
     libevdev2:armhf \
     libexpat1:armhf \
-    libffi7:armhf \
+    libffi8:armhf \
     libfontconfig1:armhf \
     libfreetype6:armhf \
     libgbm1:armhf \
-    libgcc-9-dev-armhf-cross \
-    libgcc1:armhf \
-    libglib2.0-0:armhf \
+    libgcc-11-dev-armhf-cross \
+    libglib2.0-0t64:armhf \
     libgomp1-armhf-cross \
     libgudev-1.0-0:armhf \
     libinput-bin:armhf \
@@ -163,12 +160,12 @@ apt-fast install --no-install-recommends -yq \
     libjpeg8:armhf \
     libjpeg8-dev:armhf \
     libkmod2:armhf \
-    libmtdev1:armhf \
+    libmtdev1t64:armhf \
     libpam0g:armhf \
     libpam0g-dev:armhf \
     libpcre3:armhf \
     libpixman-1-0:armhf \
-    libpng16-16:armhf \
+    libpng16-16t64:armhf \
     libselinux1:armhf \
     libstdc++6:armhf \
     libstdc++6-armhf-cross \
@@ -176,10 +173,7 @@ apt-fast install --no-install-recommends -yq \
     libudev-dev:armhf \
     libudev1:armhf \
     libuuid1:armhf \
-    libwacom2:armhf \
-    libwayland-client0:armhf \
-    libwayland-cursor0:armhf \
-    libwayland-server0:armhf \
+    libwacom9:armhf \
     libx11-6:armhf \
     libxau6:armhf \
     libxcb-render0:armhf \
@@ -197,7 +191,6 @@ apt-fast install --no-install-recommends -yq \
     libgles1 \
     libgles2 \
     libgles-dev \
-    libwayland-dev \
     openssh-server \
     dnsmasq-base \
     isc-dhcp-client \

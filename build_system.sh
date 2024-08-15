@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
-UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
+UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"
+UBUNTU_FILE="ubuntu-base-24.04-base-arm64.tar.gz"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -42,11 +42,20 @@ if [ "$ARCH" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
+# Check agnos-builder Dockerfile
+docker build -f Dockerfile.agnos --check $DIR
+
 # Start agnos-builder docker build and create container
 echo "Building agnos-builder docker image"
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
+
+# Check agnos-meta-builder Dockerfile
+docker build -f Dockerfile.builder --check $DIR \
+  --build-arg UNAME=$(id -nu) \
+  --build-arg UID=$(id -u) \
+  --build-arg GID=$(id -g)
 
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-meta-builder docker image"
@@ -90,6 +99,10 @@ echo "Extracting docker image"
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
 
+# Avoid detecting as container
+echo "Removing .dockerenv file"
+exec_as_root rm -f $ROOTFS_DIR/.dockerenv
+
 echo "Setting network stuff"
 set_network_stuff() {
   cd $ROOTFS_DIR
@@ -101,6 +114,9 @@ set_network_stuff() {
 
   # Fix resolv config
   bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
+
+  # Set capability for ping
+  bash -c "setcap cap_net_raw+ep bin/ping"
 
   # Write build info
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
