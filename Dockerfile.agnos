@@ -97,7 +97,7 @@ RUN export MAKEFLAGS="-j$(nproc)" && \
     if [ "$rebuildpyqt5" -eq "0" ]; then \
         uv pip install /tmp/agnos/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl; \
     else \
-        uv pip install pyqt5==5.15.9 --verbose --config-settings="--confirm-license="; \
+        pip wheel pyqt5==5.15.9 --verbose --config-settings --confirm-license=; \
     fi
 
 # Install openpilot python packages
