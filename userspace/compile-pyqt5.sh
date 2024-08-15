@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-export rebuildpyqt5='0'
+export rebuildpyqt5='1'
 
 if [[ "$(rebuildpyqt5)" == '1' ]]; then
   echo "rebuilding pyqt5"
