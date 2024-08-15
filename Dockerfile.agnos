@@ -88,7 +88,7 @@ RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmp
 
 ENV XDG_DATA_HOME="/usr/local"
 ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
-ARG rebuildpyqt5=0
+ARG rebuildpyqt5=1
 
 COPY ./userspace/files/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/agnos/
 RUN export MAKEFLAGS="-j$(nproc)" && \
@@ -97,7 +97,7 @@ RUN export MAKEFLAGS="-j$(nproc)" && \
     if [ "$rebuildpyqt5" -eq "0" ]; then \
         uv pip install /tmp/agnos/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl; \
     else \
-        uv pip install pyqt5=5.15.9; \
+        uv pip install pyqt5=5.15.9 --verbose --config-settings="--confirm-license="; \
     fi
 
 # Install openpilot python packages
