@@ -12,9 +12,9 @@ highlight Comment ctermfg=green
 highlight ExtraWhitespace ctermbg=red guibg=red
 match ExtraWhitespace /\s\+$/
 
-  " fix Ctrl+left/right escape sequences in tmux
-  nnoremap <esc>[1;5D b
-  nnoremap <esc>[1;5C w
+" fix Ctrl+left/right escape sequences in tmux
+nnoremap <esc>[1;5D b
+nnoremap <esc>[1;5C w
 
 " syntax highlighting for scons files
 au BufRead,BufNewFile SConstruct set filetype=python
