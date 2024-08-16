@@ -42,9 +42,6 @@ FROM agnos-base AS agnos-compiler
 RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
 
 # Individual compiling images
-# FROM agnos-compiler AS agnos-compiler-pyqt5
-# COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
-# RUN /tmp/agnos/compile-pyqt5.sh
 
 FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
@@ -83,12 +80,9 @@ RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capn
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
-# Use pre-compiled PyQt5 wheel
-#COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
-
 ENV XDG_DATA_HOME="/usr/local"
 ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
-ARG rebuildpyqt5=1
+ARG rebuildpyqt5=0
 
 COPY ./userspace/files/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/agnos/
 RUN export MAKEFLAGS="-j$(nproc)" && \
