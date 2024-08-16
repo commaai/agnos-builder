@@ -13,6 +13,7 @@ highlight ExtraWhitespace ctermbg=red guibg=red
 match ExtraWhitespace /\s\+$/
 
 " fix Ctrl+left/right escape sequences in tmux
+term=xterm-256color
 nnoremap <esc>[1;5D b
 nnoremap <esc>[1;5C w
 
