@@ -12,6 +12,7 @@ ARCH=$(uname -m)
 
 BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
+CACHE_DIR="$DIR/cache"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
@@ -20,7 +21,7 @@ SPARSE_IMAGE="$OUTPUT_DIR/system.img"
 SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 
 # Create temp dir if non-existent
-mkdir -p $BUILD_DIR $OUTPUT_DIR
+mkdir -p $BUILD_DIR $OUTPUT_DIR $CACHE_DIR/var_lib_apt/lists $CACHE_DIR/var_cache_apt/archives
 
 # Copy kernel modules
 if ! ls $OUTPUT_DIR/*.ko >/dev/null 2>&1; then
@@ -47,9 +48,13 @@ docker build -f Dockerfile.agnos --check $DIR
 
 # Start agnos-builder docker build and create container
 echo "Building agnos-builder docker image"
+# Docker image for agnos
 docker build -f Dockerfile.agnos -t agnos-builder $DIR
+# Cache image that skips the last cache deletion step
+docker build -f Dockerfile.agnos --target agnos -t agnos-builder-cache $DIR
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
+CACHE_CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder-cache:latest)
 
 # Check agnos-meta-builder Dockerfile
 docker build -f Dockerfile.builder --check $DIR \
@@ -92,12 +97,17 @@ exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
 # Also unmount filesystem (overwrite previous trap)
 trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
-docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
+docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID $CACHE_CONTAINER_ID" EXIT
 
 # Extract image
 echo "Extracting docker image"
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
+
+# Extract cache
+echo "Extracting cache"
+docker cp $CACHE_CONTAINER_ID:/var/cache/apt/archives $CACHE_DIR/var_cache_apt/
+docker cp $CACHE_CONTAINER_ID:/var/lib/apt/lists/ $CACHE_DIR/var_lib_apt/
 
 # Avoid detecting as container
 echo "Removing .dockerenv file"
