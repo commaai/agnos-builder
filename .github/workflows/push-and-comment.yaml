@@ -49,7 +49,7 @@ jobs:
       - name: Push boot, system and agnos.json
         working-directory: ${{ github.workspace }}/ci-artifacts
         run: |
-          mv ota.json agnos.json && rm ota-staging.json system-skip-chunks-*.img.xz
+          mv ota.json agnos.json && rm ota-staging.json
           git checkout -b agnos-builder/pr-${{ env.PR_NUMBER }}
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"

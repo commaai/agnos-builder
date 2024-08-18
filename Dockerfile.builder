@@ -17,8 +17,9 @@ RUN apt-get update && \
     python-is-python2 \
     openssl \
     ccache \
-    android-sdk-libsparse-utils \
     libcap2-bin \
+    android-sdk-libsparse-utils \
+    e2fsprogs \
     && rm -rf /var/lib/apt/lists/*
 
 RUN if [ ${UID:-0} -ne 0 ] && [ ${GID:-0} -ne 0 ]; then \

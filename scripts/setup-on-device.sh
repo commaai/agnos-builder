@@ -10,6 +10,7 @@ if [ ! -f /AGNOS ]; then
 fi
 
 sudo mount -o rw,remount /
+sudo resize2fs $(findmnt -n -o SOURCE /)
 
 echo "symlink /usr/comma"
 sudo rm -rf /usr/comma
