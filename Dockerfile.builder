@@ -18,6 +18,7 @@ RUN apt-get update && \
     openssl \
     ccache \
     libcap2-bin \
+    android-sdk-libsparse-utils \
     e2fsprogs \
     && rm -rf /var/lib/apt/lists/*
 
