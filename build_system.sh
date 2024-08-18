@@ -15,7 +15,8 @@ OUTPUT_DIR="$DIR/output"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img"
-SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
+OUT_IMAGE="$OUTPUT_DIR/system.img"
+OUT_SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 
 # the partition is 10G, but openpilot's updater didn't always handle the full size
 # - the size will also get shrunk with "resize2fs -M"
@@ -132,20 +133,21 @@ exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; 
 echo "Unmount filesystem"
 exec_as_root umount -l $ROOTFS_DIR
 
-# Make image with skipped chunks
-echo "Sparsify image $(basename $SKIP_CHUNKS_IMAGE)"
+# Make system image with skipped chunks
+echo "Sparsifying image $(basename $OUT_SKIP_CHUNKS_IMAGE)"
 exec_as_user bash -c "\
-TMP_SPARSE=\$(mktemp); \
+TMP_SPARSE=\$(mktemp); TMP_SKIP=\$(mktemp); \
 img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
-TMP_SKIP=\$(mktemp); \
-$DIR/tools/simg2dontcare.py $TMP_SPARSE \$TMP_SKIP; \
-mv \$TMP_SKIP $SKIP_CHUNKS_IMAGE"
+$DIR/tools/simg2dontcare.py \$TMP_SPARSE \$TMP_SKIP; \
+mv \$TMP_SKIP $OUT_SKIP_CHUNKS_IMAGE"
 
-# Reduce system image to the minimum size
-exec_as_user e2fsck -fy $ROOTFS_IMAGE
-exec_as_user resize2fs -M $ROOTFS_IMAGE
-
-# Copy system image to output
-cp $ROOTFS_IMAGE $OUTPUT_DIR
+# Make system image with minimum size
+echo "Shrinking image $(basename $OUT_IMAGE)"
+exec_as_user bash -c "\
+TMP_RAW=\$(mktemp); \
+cp $ROOTFS_IMAGE \$TMP_RAW; \
+e2fsck -fy \$TMP_RAW; \
+resize2fs -M \$TMP_RAW; \
+mv \$TMP_RAW $OUT_IMAGE"
 
 echo "Done!"
