@@ -15,8 +15,12 @@ OUTPUT_DIR="$DIR/output"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img"
-ROOTFS_IMAGE_SIZE=10G
 SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
+
+# the partition is 10G, but openpilot's updater didn't always handle the full size
+# - the size will also get shrunk with "resize2fs -M"
+# - openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
+ROOTFS_IMAGE_SIZE=5G
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
