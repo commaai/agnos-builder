@@ -19,7 +19,6 @@ RUN apt-get update && \
     ccache \
     libcap2-bin \
     android-sdk-libsparse-utils \
-    e2fsprogs \
     && rm -rf /var/lib/apt/lists/*
 
 RUN if [ ${UID:-0} -ne 0 ] && [ ${GID:-0} -ne 0 ]; then \

@@ -136,18 +136,13 @@ exec_as_root umount -l $ROOTFS_DIR
 # Make system image with skipped chunks
 echo "Sparsifying image $(basename $OUT_SKIP_CHUNKS_IMAGE)"
 exec_as_user bash -c "\
-TMP_SPARSE=\$(mktemp); TMP_SKIP=\$(mktemp); \
+TMP_SPARSE=\$(mktemp); \
 img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
+TMP_SKIP=\$(mktemp); \
 $DIR/tools/simg2dontcare.py \$TMP_SPARSE \$TMP_SKIP; \
 mv \$TMP_SKIP $OUT_SKIP_CHUNKS_IMAGE"
 
-# Make system image with minimum size
-echo "Shrinking image $(basename $OUT_IMAGE)"
-exec_as_user bash -c "\
-TMP_RAW=\$(mktemp); \
-cp $ROOTFS_IMAGE \$TMP_RAW; \
-e2fsck -fy \$TMP_RAW; \
-resize2fs -M \$TMP_RAW; \
-mv \$TMP_RAW $OUT_IMAGE"
+# Copy system image to output
+cp $ROOTFS_IMAGE $OUT_IMAGE
 
 echo "Done!"
