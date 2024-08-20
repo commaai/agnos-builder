@@ -56,8 +56,6 @@ apt-fast install --no-install-recommends -yq \
     ocl-icd-opencl-dev \
     opencl-headers \
     pkg-config \
-    libdbus-glib-1-dev \
-    libgirepository1.0-dev \
     portaudio19-dev \
     texinfo \
     vnstat \
