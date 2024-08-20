@@ -104,7 +104,8 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     eval "$(pyenv virtualenv-init -)" && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir --system .
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir --system . && \
+    pyenv rehash
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
