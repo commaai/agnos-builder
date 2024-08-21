@@ -28,6 +28,7 @@ COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     /tmp/agnos/openpilot_dependencies.sh
+COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
