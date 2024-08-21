@@ -13,6 +13,7 @@ RUN mkdir -p /tmp/agnos
 RUN set -xe
 
 ARG USERNAME=comma
+ARG INVALIDATE_CACHE=1
 
 # Restore apt cache
 COPY ./cache/var_lib_apt/lists /var/lib/apt/lists
