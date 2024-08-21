@@ -27,37 +27,32 @@ function power_button {
 function is_online {
   echo " Waiting until the modem comes online..."
 
-  for i in {0..30}
-  do
-
-    if [ -a /dev/cdc-wdm0 ] || [ -a /dev/ttyACM0 ]
-    then
+  for i in {0..30}; do
+    if lsusb | grep -q "Quectel"; then
       echo "  Modem is online!"
       return 0
     fi
 
     echo "  Waiting..."
     sleep 1
-
   done
+
   return 1
 }
 
 function is_offline {
   echo " Waiting until the modem goes offline..."
 
-  for i in {0..30}
-  do
-    if [ ! -e /dev/cdc-wdm0 ] && [ ! -e /dev/ttyACM0 ]
-    then
+  for i in {0..30}; do
+    if ! lsusb | grep -q "Quectel"; then
       echo "  Modem is offline!"
       return 0
     fi
 
     echo "  Waiting..."
     sleep 1
-
   done
+
   return 1
 }
 
@@ -70,8 +65,7 @@ case "$1" in
 
     reset
     power_button
-    until is_online
-    do
+    until is_online; do
       reset
       power_button
     done
@@ -80,8 +74,7 @@ case "$1" in
   stop)
     echo "Stopping LTE..."
 
-    if is_online
-    then
+    if is_online; then
       power_button
     fi
 
@@ -89,13 +82,11 @@ case "$1" in
   stop_blocking)
     echo "Stopping LTE..."
 
-    if is_online
-    then
+    if is_online; then
       power_button
     fi
 
-    until is_offline
-    do
+    until is_offline; do
       power_button
     done
 
