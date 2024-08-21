@@ -20,6 +20,7 @@
 - [ ] AGNOS update works on warm boot
   - [ ] previous -> new
   - [ ] new -> previous
+- [ ] comma three: NVMe works
 
 ### ABL
 

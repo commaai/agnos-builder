@@ -9,6 +9,7 @@ sudo dd if=/data/tmp/boot.img of=/dev/disk/by-partlabel/boot_a
 sudo dd if=/data/tmp/boot.img of=/dev/disk/by-partlabel/boot_b
 
 sudo mount -o rw,remount /
+sudo resize2fs $(findmnt -n -o SOURCE /)
 sudo mv /data/tmp/wlan.ko /usr/comma/wlan.ko
 rm -rf /data/tmp/*
 sudo mount -o ro,remount / || true

@@ -50,13 +50,18 @@ jobs:
     - name: Build kernel
       run: ./build_kernel.sh
 
+    - name: Update VERSION
+      if: github.event_name == 'pull_request'
+      run: |
+        echo -n ${{ github.event.pull_request.head.sha }} > VERSION
+
     - name: Build system
       run: ./build_system.sh
 
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       env:
-        AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}/
+        AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}
       run: |
         scripts/package_ota.py
 

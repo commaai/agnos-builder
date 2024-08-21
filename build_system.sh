@@ -14,10 +14,13 @@ BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
-ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
-ROOTFS_IMAGE_SIZE=10G
-SPARSE_IMAGE="$OUTPUT_DIR/system.img"
-SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
+ROOTFS_IMAGE="$BUILD_DIR/system.img"
+OUT_IMAGE="$OUTPUT_DIR/system.img"
+OUT_SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
+
+# the partition is 10G, but openpilot's updater didn't always handle the full size
+# openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
+ROOTFS_IMAGE_SIZE=5G
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -129,18 +132,16 @@ exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; 
 echo "Unmount filesystem"
 exec_as_root umount -l $ROOTFS_DIR
 
-# Sparsify
-echo "Sparsify image $(basename $SPARSE_IMAGE)"
+# Make system image with skipped chunks
+echo "Sparsifying image $(basename $OUT_SKIP_CHUNKS_IMAGE)"
 exec_as_user bash -c "\
 TMP_SPARSE=\$(mktemp); \
 img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
-mv \$TMP_SPARSE $SPARSE_IMAGE"
-
-# Make image with skipped chunks
-echo "Sparsify image $(basename $SKIP_CHUNKS_IMAGE)"
-exec_as_user bash -c "\
 TMP_SKIP=\$(mktemp); \
-$DIR/tools/simg2dontcare.py $SPARSE_IMAGE \$TMP_SKIP; \
-mv \$TMP_SKIP $SKIP_CHUNKS_IMAGE"
+$DIR/tools/simg2dontcare.py \$TMP_SPARSE \$TMP_SKIP; \
+mv \$TMP_SKIP $OUT_SKIP_CHUNKS_IMAGE"
+
+# Copy system image to output
+cp $ROOTFS_IMAGE $OUT_IMAGE
 
 echo "Done!"
