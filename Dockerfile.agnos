@@ -14,8 +14,6 @@ RUN set -xe
 
 ARG USERNAME=comma
 
-RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
-
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh /tmp/agnos
