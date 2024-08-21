@@ -34,8 +34,7 @@ export QT_QPA_PLATFORM="wayland-egl"
 export PYTHONPATH="/data/pythonpath"
 
 export PATH="/usr/local/.cargo/bin:$PATH"
-export XDG_DATA_HOME="/usr/local"
-source $XDG_DATA_HOME/venv/bin/activate
+source /usr/local/venv/bin/activate
 
 # nice AT command helper
 atc() {

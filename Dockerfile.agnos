@@ -80,8 +80,8 @@ RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capn
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
-ENV XDG_DATA_HOME="/usr/local"
-ENV PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
+ARG XDG_DATA_HOME="/usr/local"
+ARG PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
 ARG rebuildpyqt5=0
 
 COPY ./userspace/files/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/agnos/
