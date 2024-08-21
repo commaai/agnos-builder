@@ -55,14 +55,13 @@ jobs:
       run: |
         echo -n ${{ github.event.pull_request.head.sha }} > VERSION
 
-    - name: Create cache folder
-      run: mkdir ./cache
-    
     - name: Setup cache
-      uses: namespacelabs/nscloud-cache-action@v1
-      with:
-        path: |
-          ./cache
+      steps:
+        - run: mkdir ./cache
+        - uses: namespacelabs/nscloud-cache-action@v1
+          with:
+            path: |
+              ./cache
 
     - name: Build system
       run: ./build_system.sh
