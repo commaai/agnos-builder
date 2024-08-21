@@ -54,6 +54,9 @@ jobs:
       if: github.event_name == 'pull_request'
       run: |
         echo -n ${{ github.event.pull_request.head.sha }} > VERSION
+
+    - name: Create cache folder
+      run: mkdir ./cache
     
     - name: Setup cache
       uses: namespacelabs/nscloud-cache-action@v1
