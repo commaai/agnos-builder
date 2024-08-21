@@ -46,6 +46,9 @@ def download_and_decompress(url, expected_hash, filename):
   assert(sha256.hexdigest().lower() == expected_hash.lower())
 
 def load_manifest(url):
+  if Path(url).is_file():
+    with open(url) as f:
+      return json.loads(f.read())
   r = requests.get(url)
   r.raise_for_status()
   return json.loads(r.content.decode())
