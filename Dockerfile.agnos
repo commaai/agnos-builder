@@ -14,6 +14,8 @@ RUN set -xe
 
 ARG USERNAME=comma
 
+ARG INVALIDATE_CACHE=1
+
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh /tmp/agnos
