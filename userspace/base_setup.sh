@@ -90,6 +90,7 @@ apt-fast install --no-install-recommends -yq \
     network-manager \
     nvme-cli \
     openssl \
+    ppp \
     smartmontools \
     speedtest-cli \
     ssh \
