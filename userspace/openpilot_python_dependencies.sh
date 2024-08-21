@@ -2,12 +2,6 @@
 
 echo "installing uv..."
 
-#install dbus-python dependencies
-
-# apt-get install -yq \
-# libdbus-glib-1-dev \
-# libgirepository1.0-dev
-
 export XDG_DATA_HOME="/usr/local"
 export CARGO_HOME="$XDG_DATA_HOME/.cargo"
 
