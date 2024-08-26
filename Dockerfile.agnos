@@ -126,6 +126,7 @@ COPY ./userspace/files/*.path /lib/systemd/system/
 COPY ./userspace/files/*.mount /lib/systemd/system/
 COPY ./userspace/files/*.service /lib/systemd/system/
 COPY ./userspace/files/*.timer /lib/systemd/system/
+COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
 COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
 COPY ./userspace/firmware/* /lib/firmware/
 
