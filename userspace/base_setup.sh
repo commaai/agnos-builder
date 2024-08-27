@@ -17,7 +17,6 @@ apt-get install -yq curl sudo wget
 bash -c "$(curl -sL https://git.io/vokNn)"
 
 # Install packages
-export DEBIAN_FRONTEND=noninteractive
 apt-fast install --no-install-recommends -yq locales systemd adduser
 
 # Create privileged user
