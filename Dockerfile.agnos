@@ -21,6 +21,10 @@ RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-
 COPY ./userspace/base_setup.sh /tmp/agnos
 RUN /tmp/agnos/base_setup.sh
 
+# Additional libraries
+COPY ./userspace/install_libraries.sh /tmp/agnos
+RUN /tmp/agnos/install_libraries.sh
+
 # Install openpilot dependencies
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_dependencies.sh
