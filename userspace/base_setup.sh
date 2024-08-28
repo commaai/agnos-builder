@@ -10,8 +10,8 @@ touch /AGNOS
 
 # Install apt-fast
 apt-get update
-apt-get install -yq curl sudo wget
-bash -c "$(curl -sL https://git.io/vokNn)"
+apt-get install --no-install-recommends -yq ca-certificates wget
+bash -c "$(wget -qO- https://git.io/vokNn)"
 
 # Install packages
 apt-fast install --no-install-recommends -yq locales systemd adduser
