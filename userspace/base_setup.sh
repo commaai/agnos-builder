@@ -13,6 +13,10 @@ apt-get update
 apt-get install --no-install-recommends -yq ca-certificates wget
 bash -c "$(wget -qO- https://git.io/vokNn)"
 
+apt-get upgrade -yq
+
+apt-fast install -yq --no-install-recommends ubuntu-minimal
+
 # Install packages
 apt-fast install --no-install-recommends -yq locales systemd adduser
 
@@ -46,7 +50,6 @@ echo "comma - nice -10" >> /etc/security/limits.conf
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8
 
-apt-fast upgrade -yq
 apt-fast install --no-install-recommends -yq \
     alsa-utils \
     apport-retrace \
@@ -87,7 +90,6 @@ apt-fast install --no-install-recommends -yq \
     systemd-resolved \
     traceroute \
     tk-dev \
-    ubuntu-minimal \
     ubuntu-server \
     ubuntu-standard \
     udev \
