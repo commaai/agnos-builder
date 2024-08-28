@@ -36,6 +36,9 @@ export PYTHONPATH="/data/pythonpath"
 export PATH="/usr/local/.cargo/bin:$PATH"
 source /usr/local/venv/bin/activate
 
+# custom shims
+export PATH="/usr/comma/shims:${PATH}"
+
 # nice AT command helper
 atc() {
   mmcli -m any --command="${@}"
