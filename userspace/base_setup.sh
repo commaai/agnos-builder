@@ -17,9 +17,6 @@ apt-get upgrade -yq
 
 apt-fast install -yq --no-install-recommends ubuntu-minimal
 
-# Install packages
-apt-fast install --no-install-recommends -yq locales systemd adduser
-
 # Create privileged user
 useradd -G sudo -m -s /bin/bash $USERNAME
 echo "$USERNAME:$PASSWD" | chpasswd
