@@ -1,6 +1,8 @@
 #!/bin/bash -e
 
-source $XDG_DATA_HOME/venv/bin/activate && \
+export XDG_DATA_HOME="/usr/local"
+export CARGO_HOME="$XDG_DATA_HOME/.cargo"
+source $XDG_DATA_HOME/venv/bin/activate 
 
 # Build PyQt5 wheel
 cd /tmp
