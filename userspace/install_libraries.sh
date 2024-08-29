@@ -6,56 +6,61 @@ export DEBIAN_FRONTEND=noninteractive
 dpkg --add-architecture armhf
 
 apt-fast update && apt-fast install --no-install-recommends -yq \
-    libi2c-dev \
-    libncursesw5-dev \
-    libnss-myhostname \
-    libgdbm-dev \
-    libc6-dev \
-    libsqlite3-dev \
-    libssl-dev \
-    libffi-dev \
-    zlib1g-dev \
     libacl1:armhf \
     libasan6-armhf-cross \
     libatomic1-armhf-cross \
     libattr1:armhf \
     libaudit1:armhf \
     libblkid1:armhf \
-    libc6:armhf \
     libc6-armhf-cross \
-    libc6-dev:armhf \
+    libc6-dev \
     libc6-dev-armhf-cross \
+    libc6-dev:armhf \
+    libc6:armhf \
     libcairo2:armhf \
     libcap2:armhf \
     libdrm2:armhf \
+    libegl-dev \
+    libegl1 \
     libevdev2:armhf \
     libexpat1:armhf \
+    libffi-dev \
     libffi8:armhf \
     libfontconfig1:armhf \
     libfreetype6:armhf \
     libgbm1:armhf \
     libgcc-11-dev-armhf-cross \
+    libgdbm-dev \
+    libgles-dev \
+    libgles1 \
+    libgles2 \
     libglib2.0-0t64:armhf \
     libgomp1-armhf-cross \
+    libgtk2.0-dev \
     libgudev-1.0-0:armhf \
+    libi2c-dev \
     libinput-bin:armhf \
     libinput-dev:armhf \
     libinput10:armhf \
     libjpeg-dev:armhf \
-    libjpeg-turbo8:armhf \
     libjpeg-turbo8-dev:armhf \
-    libjpeg8:armhf \
+    libjpeg-turbo8:armhf \
     libjpeg8-dev:armhf \
+    libjpeg8:armhf \
     libkmod2:armhf \
     libmtdev1t64:armhf \
-    libpam0g:armhf \
+    libncursesw5-dev \
+    libnss-myhostname \
     libpam0g-dev:armhf \
+    libpam0g:armhf \
     libpcre3:armhf \
     libpixman-1-0:armhf \
     libpng16-16t64:armhf \
     libselinux1:armhf \
-    libstdc++6:armhf \
+    libsqlite3-dev \
+    libssl-dev \
     libstdc++6-armhf-cross \
+    libstdc++6:armhf \
     libubsan1-armhf-cross \
     libudev-dev:armhf \
     libudev1:armhf \
@@ -69,14 +74,9 @@ apt-fast update && apt-fast install --no-install-recommends -yq \
     libxdmcp6:armhf \
     libxext6:armhf \
     libxkbcommon0:armhf \
-    libxrender1:armhf \
-    linux-libc-dev:armhf \
-    linux-libc-dev-armhf-cross \
-    zlib1g:armhf \
-    libegl1 \
-    libegl-dev \
-    libgles1 \
-    libgles2 \
-    libgles-dev \
-    libgtk2.0-dev \
     libxml2:armhf \
+    libxrender1:armhf \
+    linux-libc-dev-armhf-cross \
+    linux-libc-dev:armhf \
+    zlib1g-dev \
+    zlib1g:armhf
