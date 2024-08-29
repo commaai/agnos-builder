@@ -36,11 +36,11 @@ apt-fast update && apt-fast install --no-install-recommends -yq \
     libgles2 \
     libglib2.0-0t64:armhf \
     libgomp1-armhf-cross \
-    libgtk2.0-dev \
     libgudev-1.0-0:armhf \
     libi2c-dev \
     libinput-bin:armhf \
     libinput-dev:armhf \
+    libgtk2.0-dev \
     libinput10:armhf \
     libjpeg-dev:armhf \
     libjpeg-turbo8-dev:armhf \
