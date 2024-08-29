@@ -1,6 +1,5 @@
 #!/bin/bash -e
 
-export XDG_DATA_HOME="/usr/local"
 source /usr/local/venv/bin/activate 
 
 # Build PyQt5 wheel
