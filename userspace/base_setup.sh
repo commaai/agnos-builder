@@ -53,46 +53,54 @@ apt-fast install --no-install-recommends -yq \
     bc \
     build-essential \
     bzip2 \
-    curl \
     chrony \
     cpuset \
+    curl \
     dfu-util \
+    dnsmasq-base \
     evtest \
+    gdb \
     git \
     git-core \
     git-lfs \
-    gdb \
+    hostapd \
     htop \
     i2c-tools \
     ifmetric \
     ifupdown \
     iptables-persistent \
+    iputils-ping \
+    isc-dhcp-client \
     jq \
+    kmod \
     landscape-common \
     libqmi-utils \
     libtool \
     llvm \
     nano \
     net-tools \
-    nload \
     network-manager \
+    nload \
     nvme-cli \
+    openssh-server \
     openssl \
     ppp \
+    rsyslog \
     smartmontools \
     speedtest-cli \
     ssh \
     sshfs \
     sudo \
     systemd-resolved \
-    traceroute \
     tk-dev \
+    traceroute \
     ubuntu-server \
     ubuntu-standard \
     udev \
     udhcpc \
     wget \
-    wireless-tools
+    wireless-tools \
+    wpasupplicant
 
 rm -rf /var/lib/apt/lists/*
 
@@ -111,15 +119,3 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # setup /bin/sh symlink
 ln -sf /bin/bash /bin/sh
-
-# Install necessary libs
-apt-fast update -yq
-apt-fast install --no-install-recommends -yq \
-    openssh-server \
-    dnsmasq-base \
-    isc-dhcp-client \
-    iputils-ping \
-    rsyslog \
-    kmod \
-    wpasupplicant \
-    hostapd
