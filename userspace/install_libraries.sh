@@ -14,6 +14,7 @@ apt-fast update && apt-fast install --no-install-recommends -yq \
     libsqlite3-dev \
     libssl-dev \
     libffi-dev \
+    zlib1g-dev \
     libacl1:armhf \
     libasan6-armhf-cross \
     libatomic1-armhf-cross \

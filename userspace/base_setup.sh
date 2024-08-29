@@ -92,8 +92,7 @@ apt-fast install --no-install-recommends -yq \
     udev \
     udhcpc \
     wget \
-    wireless-tools \
-    zlib1g-dev
+    wireless-tools
 
 rm -rf /var/lib/apt/lists/*
 
