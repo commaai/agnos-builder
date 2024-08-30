@@ -61,7 +61,6 @@ apt-fast install --no-install-recommends -yq \
     evtest \
     gdb \
     git \
-    git-core \
     git-lfs \
     hostapd \
     htop \
@@ -69,10 +68,8 @@ apt-fast install --no-install-recommends -yq \
     ifmetric \
     ifupdown \
     iptables-persistent \
-    iputils-ping \
     isc-dhcp-client \
     jq \
-    kmod \
     landscape-common \
     libqmi-utils \
     libtool \
@@ -83,22 +80,18 @@ apt-fast install --no-install-recommends -yq \
     nload \
     nvme-cli \
     openssh-server \
-    openssl \
     ppp \
     rsyslog \
     smartmontools \
     speedtest-cli \
     ssh \
     sshfs \
-    sudo \
     systemd-resolved \
     tk-dev \
     traceroute \
     ubuntu-server \
     ubuntu-standard \
-    udev \
     udhcpc \
-    wget \
     wireless-tools \
     wpasupplicant
 
