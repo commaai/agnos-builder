@@ -49,7 +49,6 @@ update-locale LANG=en_US.UTF-8
 
 apt-fast install --no-install-recommends -yq \
     alsa-utils \
-    apport-retrace \
     bc \
     build-essential \
     bzip2 \
@@ -83,7 +82,6 @@ apt-fast install --no-install-recommends -yq \
     ppp \
     rsyslog \
     smartmontools \
-    speedtest-cli \
     ssh \
     sshfs \
     systemd-resolved \
