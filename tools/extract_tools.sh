@@ -1,4 +1,5 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+set -e
 
 git lfs &> /dev/null || {
   echo "ERROR: git lfs not installed"
