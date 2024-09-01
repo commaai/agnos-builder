@@ -1,0 +1,18 @@
+#!/usr/bin/bash
+
+UV_PATH=/usr/local/.cargo/bin/uv
+export TMPDIR=/tmp/uv-tmp
+
+# setup large tmp for install
+mkdir -p $TMPDIR
+sudo mount -o remount,size=2G /tmp
+sudo mount -o rw,remount /
+sudo resize2fs $(findmnt -n -o SOURCE /) &>/dev/null || sudo resize2fs $(findmnt -n -o SOURCE /)
+
+# run command
+sudo TMPDIR=$TMPDIR PIP_NO_CACHE_DIR=1 $UV_PATH "$@"
+
+# cleanup
+sudo mount -o ro,remount /
+rm -rf $TMPDIR
+sudo mount -o remount /tmp
