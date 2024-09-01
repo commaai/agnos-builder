@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-source /usr/local/venv/bin/activate 
+source /usr/local/venv/bin/activate
 
 # Build PyQt5 wheel
 cd /tmp

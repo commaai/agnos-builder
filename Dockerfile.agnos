@@ -99,7 +99,7 @@ RUN mkdir -p /tmp/agnos/uv
 COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
-    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \    
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
     pcpath=$pc"/lib/pkgconfig" && \
     export PKG_CONFIG_PATH="$pcpath:$PKG_CONFIG_PATH" && \
@@ -107,7 +107,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
     pypcpathembed=$pcpath"/python-3.12-embed.pc" && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir . 
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir .
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
