@@ -2,6 +2,7 @@
 set -e
 
 UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
+UBUNTU_FILE="ubuntu-base-24.04.1-base-arm64.tar.gz"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -31,13 +32,6 @@ if ! ls $OUTPUT_DIR/*.ko >/dev/null 2>&1; then
 fi
 cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
 cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
-
-# Fetch the latest Ubuntu Base filename
-UBUNTU_FILE=$(curl -sL $UBUNTU_BASE_URL | grep -oE 'ubuntu-base-[0-9]+\.[0-9]+(\.[0-9]+)?-base-arm64\.tar\.gz' | head -1)
-if [ -z "$UBUNTU_FILE" ]; then
-  echo "Failed to fetch the latest Ubuntu Base filename"
-  exit 1
-fi
 
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
