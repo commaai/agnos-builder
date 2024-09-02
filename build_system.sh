@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"
-UBUNTU_FILE="ubuntu-base-24.04-base-arm64.tar.gz"
+UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -33,10 +32,20 @@ fi
 cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
 cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
 
+# Fetch the latest Ubuntu Base filename
+UBUNTU_FILE=$(curl -sL $UBUNTU_BASE_URL | grep -oE 'ubuntu-base-[0-9]+\.[0-9]+(\.[0-9]+)?-base-arm64\.tar\.gz' | head -1)
+if [ -z "$UBUNTU_FILE" ]; then
+  echo "Failed to fetch the latest Ubuntu Base filename"
+  exit 1
+fi
+
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
-  echo -e "${GREEN}Downloading Ubuntu: $UBUNTU_FILE ${NO_COLOR}"
-  curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time
+  echo -e "Downloading Ubuntu Base: $UBUNTU_FILE"
+  if ! curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time --fail; then
+    echo "Download failed, please check URL: $UBUNTU_BASE_URL/$UBUNTU_FILE"
+    exit 1
+  fi
 fi
 
 # Setup qemu multiarch
