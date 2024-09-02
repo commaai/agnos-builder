@@ -37,7 +37,7 @@ cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
 if [ ! -f $UBUNTU_FILE ]; then
   echo -e "Downloading Ubuntu Base: $UBUNTU_FILE"
   if ! curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time --fail; then
-    echo "Download failed, please check URL: $UBUNTU_BASE_URL/$UBUNTU_FILE"
+    echo "Download failed, please check Ubuntu releases: $UBUNTU_BASE_URL"
     exit 1
   fi
 fi
@@ -46,9 +46,7 @@ fi
 EXPECTED_SHA256=$(grep "$UBUNTU_FILE" SHA256SUMS | awk '{print $1}')
 ACTUAL_SHA256=$(sha256sum "$UBUNTU_FILE" | awk '{print $1}')
 if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
-  echo "SHA256 checksum mismatch for $UBUNTU_FILE"
-  echo "Expected: $EXPECTED_SHA256"
-  echo "Actual:   $ACTUAL_SHA256"
+  echo "Checksum mismatch, please check Ubuntu releases: $UBUNTU_BASE_URL"
   exit 1
 fi
 
