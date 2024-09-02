@@ -46,6 +46,7 @@ if [ "$ARCH" = "x86_64" ]; then
 fi
 
 # Check agnos-builder Dockerfile
+export DOCKER_BUILDKIT=1
 docker build -f Dockerfile.agnos --check $DIR
 
 # Start agnos-builder docker build and create container

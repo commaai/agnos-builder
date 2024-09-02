@@ -24,6 +24,7 @@ fi
 
 # Setup kernel build container
 echo "Building agnos-meta-builder docker image"
+export DOCKER_BUILDKIT=1
 docker build -f Dockerfile.builder -t agnos-meta-builder $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
