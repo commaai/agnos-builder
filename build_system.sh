@@ -3,6 +3,7 @@ set -e
 
 UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
 UBUNTU_FILE="ubuntu-base-24.04.1-base-arm64.tar.gz"
+UBUNTU_FILE_CHECKSUM="7700539236d24c31c3eea1d5345eba5ee0353a1bac7d91ea5720b399b27f3cb4"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -43,9 +44,7 @@ if [ ! -f $UBUNTU_FILE ]; then
 fi
 
 # Check SHA256 sum
-EXPECTED_SHA256=$(grep "$UBUNTU_FILE" SHA256SUMS | awk '{print $1}')
-ACTUAL_SHA256=$(sha256sum "$UBUNTU_FILE" | awk '{print $1}')
-if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+if [ "$(sha256sum "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECKSUM" ]; then
   echo "Checksum mismatch, please check Ubuntu releases: $UBUNTU_BASE_URL"
   exit 1
 fi
