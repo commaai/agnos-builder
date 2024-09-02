@@ -14,5 +14,5 @@ sudo TMPDIR=$TMPDIR PIP_NO_CACHE_DIR=1 $PIP_PATH "$@"
 
 # cleanup
 sudo mount -o ro,remount /
-rm -rf $TMPDIR
+sudo rm -rf $TMPDIR
 sudo mount -o remount /tmp

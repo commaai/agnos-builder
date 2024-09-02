@@ -34,6 +34,9 @@ export QT_QPA_PLATFORM="wayland-egl"
 export PYTHONPATH="/data/pythonpath"
 
 export PATH="/usr/local/.cargo/bin:$PATH"
+export UV_PYTHON_INSTALL_DIR="/usr/local/uv/python"
+export UV_PYTHON_PREFERENCE=only-managed
+export UV_LINK_MODE=copy
 source /usr/local/venv/bin/activate
 
 # custom shims
