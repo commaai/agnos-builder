@@ -42,6 +42,16 @@ if [ ! -f $UBUNTU_FILE ]; then
   fi
 fi
 
+# Check SHA256 sum
+EXPECTED_SHA256=$(grep "$UBUNTU_FILE" SHA256SUMS | awk '{print $1}')
+ACTUAL_SHA256=$(sha256sum "$UBUNTU_FILE" | awk '{print $1}')
+if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+  echo "SHA256 checksum mismatch for $UBUNTU_FILE"
+  echo "Expected: $EXPECTED_SHA256"
+  echo "Actual:   $ACTUAL_SHA256"
+  exit 1
+fi
+
 # Setup qemu multiarch
 if [ "$ARCH" = "x86_64" ]; then
   echo "Registering qemu-user-static"
