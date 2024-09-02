@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"
-UBUNTU_FILE="ubuntu-base-24.04-base-arm64.tar.gz"
+UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
+UBUNTU_FILE="ubuntu-base-24.04.1-base-arm64.tar.gz"
+UBUNTU_FILE_CHECKSUM="7700539236d24c31c3eea1d5345eba5ee0353a1bac7d91ea5720b399b27f3cb4"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -35,8 +36,17 @@ cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
 
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
-  echo -e "${GREEN}Downloading Ubuntu: $UBUNTU_FILE ${NO_COLOR}"
-  curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time
+  echo -e "Downloading Ubuntu Base: $UBUNTU_FILE"
+  if ! curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time --fail; then
+    echo "Download failed, please check Ubuntu releases: $UBUNTU_BASE_URL"
+    exit 1
+  fi
+fi
+
+# Check SHA256 sum
+if [ "$(sha256sum "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECKSUM" ]; then
+  echo "Checksum mismatch, please check Ubuntu releases: $UBUNTU_BASE_URL"
+  exit 1
 fi
 
 # Setup qemu multiarch
@@ -51,7 +61,7 @@ docker build -f Dockerfile.agnos --check $DIR
 
 # Start agnos-builder docker build and create container
 echo "Building agnos-builder docker image"
-docker build -f Dockerfile.agnos -t agnos-builder $DIR
+docker build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
