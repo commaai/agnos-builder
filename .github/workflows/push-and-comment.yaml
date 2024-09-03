@@ -91,7 +91,7 @@ jobs:
             ### Images:
             ${{ env.XZ_FILES }}
 
-            ### AGNOS Stats:
+            ### Stats:
             ```
             ${{ env.AGNOS_STATS }}
             ```
