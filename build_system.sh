@@ -55,9 +55,21 @@ if [ "$ARCH" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
+# Compare docker buildx versions
+version_greater_equal() {
+    [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
+}
+
+docker_buildx_version=$(docker buildx version | awk '{print $2}')
+docker_buildx_min_version="v0.15.0"
+
 # Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
-docker build -f Dockerfile.agnos --check $DIR
+if version_greater_equal "$docker_buildx_version" "$docker_buildx_min_version"; then
+  docker build -f Dockerfile.agnos --check $DIR
+else
+  echo "Docker buildx version too old. Skipping check."
+fi
 
 # Start agnos-builder docker build and create container
 echo "Building agnos-builder docker image"
@@ -66,10 +78,14 @@ echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
 # Check agnos-meta-builder Dockerfile
-docker build -f Dockerfile.builder --check $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+if version_greater_equal "$docker_buildx_version" "$docker_buildx_min_version"; then
+  docker build -f Dockerfile.builder --check $DIR \
+    --build-arg UNAME=$(id -nu) \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g)
+else
+  echo "Docker buildx version too old. Skipping check."
+fi
 
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-meta-builder docker image"
