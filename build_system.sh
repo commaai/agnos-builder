@@ -44,7 +44,7 @@ if [ ! -f $UBUNTU_FILE ]; then
 fi
 
 # Check SHA256 sum
-if [ "$(sha256sum "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECKSUM" ]; then
+if [ "$(shasum -a 256 "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECKSUM" ]; then
   echo "Checksum mismatch, please check Ubuntu releases: $UBUNTU_BASE_URL"
   exit 1
 fi
