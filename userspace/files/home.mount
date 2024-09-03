@@ -11,4 +11,4 @@ Type=overlay
 Options=lowerdir=/usr/default/home,upperdir=/tmp/rw/home_upper,workdir=/tmp/rw/home_work
 
 [Install]
-WantedBy = multi-user.target
+WantedBy=local-fs.target

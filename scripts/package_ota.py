@@ -1,41 +1,36 @@
 #!/usr/bin/env python3
+import sys
 import json
 import os
+import hashlib
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
 OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
-FIRMWARE_DIR = ROOT / "agnos-firmware"
+BUILD_DIR = ROOT / "build"
 
 AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate")
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
 
-
 def checksum(fn):
-  return subprocess.check_output(["sha256sum", fn]).decode().split()[0]
-
+  sha256 = hashlib.sha256()
+  with open(fn, 'rb') as f:
+    for chunk in iter(lambda: f.read(4096), b""):
+      sha256.update(chunk)
+  return sha256.hexdigest()
 
 def compress(fin, fout) -> None:
   subprocess.check_call(f"xz -T4 -vc {fin} > {fout}", shell=True)
 
 
-def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None):
+def process_file(fn, name, full_check=True, has_ab=True, alt=None):
   print(name)
   hash_raw = hash = checksum(fn)
   size = fn.stat().st_size
   print(f"  {size} bytes, hash {hash}")
-
-  if sparse:
-    with NamedTemporaryFile() as tmp_f:
-      print("  converting sparse image to raw")
-      subprocess.check_call(["simg2img", fn, tmp_f.name])
-      hash_raw = checksum(tmp_f.name)
-      size = Path(tmp_f.name).stat().st_size
-      print(f"  {size} bytes, hash {hash} (raw)")
 
   print("  compressing")
   xz_fn = OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img.xz"
@@ -47,7 +42,7 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
     "hash": hash,
     "hash_raw": hash_raw,
     "size": size,
-    "sparse": sparse,
+    "sparse": False,
     "full_check": full_check,
     "has_ab": has_ab,
   }
@@ -74,20 +69,33 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
 if __name__ == "__main__":
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-  files = [
-    process_file(OUTPUT_DIR / "boot.img", "boot"),
-    process_file(FIRMWARE_DIR / "abl.bin", "abl"),
-    process_file(FIRMWARE_DIR / "xbl.bin", "xbl"),
-    process_file(FIRMWARE_DIR / "xbl_config.bin", "xbl_config"),
-    process_file(FIRMWARE_DIR / "devcfg.bin", "devcfg"),
-    process_file(FIRMWARE_DIR / "aop.bin", "aop"),
-    process_file(OUTPUT_DIR / "system.img", "system", sparse=True, full_check=False, alt=OUTPUT_DIR / "system-skip-chunks.img"),
-  ]
+  if len(sys.argv[1:]):
+    files = [process_file(Path(fn), Path(fn).stem) for fn in sys.argv[1:]]
+  else:
+    files = [
+      process_file(OUTPUT_DIR / "boot.img", "boot"),
+      process_file(OUTPUT_DIR / "system.img", "system", full_check=False, alt=OUTPUT_DIR / "system-skip-chunks.img"),
+    ]
+
+    # pull in firmware not built in this repo
+    with open(ROOT/"firmware.json") as f:
+      fws = json.loads(f.read())
+      for fw in fws:
+        files.append({
+          "name": fw["name"],
+          "url": fw["url"],
+          "hash": fw["hash"],
+          "hash_raw": fw["hash"],
+          "size": fw["size"],
+          "sparse": False,
+          "full_check": True,
+          "has_ab": True,
+        })
+
   configs = [
     (AGNOS_UPDATE_URL, "ota.json"),
     (AGNOS_STAGING_UPDATE_URL, "ota-staging.json"),
   ]
-
   for remote_url, output_fn in configs:
     processed_files = []
     for f in deepcopy(files):

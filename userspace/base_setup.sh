@@ -11,10 +11,14 @@ touch /AGNOS
 # Add armhf as supported architecture
 dpkg --add-architecture armhf
 
+# Install apt-fast
+apt-get update
+apt-get install -yq curl sudo wget
+bash -c "$(curl -sL https://git.io/vokNn)"
+
 # Install packages
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -yq locales systemd adduser
+apt-fast install --no-install-recommends -yq locales systemd adduser
 
 # Create privileged user
 useradd -G sudo -m -s /bin/bash $USERNAME
@@ -46,8 +50,8 @@ echo "comma - nice -10" >> /etc/security/limits.conf
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8
 
-apt-get upgrade -yq
-apt-get install --no-install-recommends -yq \
+apt-fast upgrade -yq
+apt-fast install --no-install-recommends -yq \
     alsa-utils \
     apport-retrace \
     bc \
@@ -86,11 +90,13 @@ apt-get install --no-install-recommends -yq \
     network-manager \
     nvme-cli \
     openssl \
+    ppp \
     smartmontools \
     speedtest-cli \
     ssh \
     sshfs \
     sudo \
+    systemd-resolved \
     traceroute \
     tk-dev \
     ubuntu-minimal \
@@ -111,9 +117,6 @@ echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
 mkdir /data && chown $USERNAME:$USERNAME /data
 mkdir /persist && chown $USERNAME:$USERNAME /persist
 
-# Disable automatic ondemand switching from ubuntu
-systemctl disable ondemand
-
 # Disable pstore service that moves files out of /sys/fs/pstore
 systemctl disable systemd-pstore.service
 
@@ -124,10 +127,10 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 ln -sf /bin/bash /bin/sh
 
 # Install necessary libs
-apt-get update -yq
-apt-get install --no-install-recommends -yq \
+apt-fast update -yq
+apt-fast install --no-install-recommends -yq \
     libacl1:armhf \
-    libasan5-armhf-cross \
+    libasan6-armhf-cross \
     libatomic1-armhf-cross \
     libattr1:armhf \
     libaudit1:armhf \
@@ -141,13 +144,12 @@ apt-get install --no-install-recommends -yq \
     libdrm2:armhf \
     libevdev2:armhf \
     libexpat1:armhf \
-    libffi7:armhf \
+    libffi8:armhf \
     libfontconfig1:armhf \
     libfreetype6:armhf \
     libgbm1:armhf \
-    libgcc-9-dev-armhf-cross \
-    libgcc1:armhf \
-    libglib2.0-0:armhf \
+    libgcc-11-dev-armhf-cross \
+    libglib2.0-0t64:armhf \
     libgomp1-armhf-cross \
     libgudev-1.0-0:armhf \
     libinput-bin:armhf \
@@ -159,12 +161,12 @@ apt-get install --no-install-recommends -yq \
     libjpeg8:armhf \
     libjpeg8-dev:armhf \
     libkmod2:armhf \
-    libmtdev1:armhf \
+    libmtdev1t64:armhf \
     libpam0g:armhf \
     libpam0g-dev:armhf \
     libpcre3:armhf \
     libpixman-1-0:armhf \
-    libpng16-16:armhf \
+    libpng16-16t64:armhf \
     libselinux1:armhf \
     libstdc++6:armhf \
     libstdc++6-armhf-cross \
@@ -172,10 +174,7 @@ apt-get install --no-install-recommends -yq \
     libudev-dev:armhf \
     libudev1:armhf \
     libuuid1:armhf \
-    libwacom2:armhf \
-    libwayland-client0:armhf \
-    libwayland-cursor0:armhf \
-    libwayland-server0:armhf \
+    libwacom9:armhf \
     libx11-6:armhf \
     libxau6:armhf \
     libxcb-render0:armhf \
@@ -193,7 +192,6 @@ apt-get install --no-install-recommends -yq \
     libgles1 \
     libgles2 \
     libgles-dev \
-    libwayland-dev \
     openssh-server \
     dnsmasq-base \
     isc-dhcp-client \

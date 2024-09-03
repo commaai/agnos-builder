@@ -1,12 +1,13 @@
+# check=error=true
+
 # ################## #
 # ###### Base ###### #
 # ################## #
 FROM scratch AS agnos-base
-ADD ubuntu-base-20.04.1-base-arm64.tar.gz /
 
-# Add aarch64 and arm support
-COPY --from=multiarch/qemu-user-static:x86_64-aarch64 /usr/bin/qemu-aarch64-static /usr/bin
-COPY --from=multiarch/qemu-user-static:x86_64-arm /usr/bin/qemu-arm-static /usr/bin
+# Add Ubuntu Base image files
+ARG UBUNTU_BASE_IMAGE
+ADD ${UBUNTU_BASE_IMAGE} /
 
 # Build folder
 RUN mkdir -p /tmp/agnos
@@ -14,38 +15,51 @@ RUN mkdir -p /tmp/agnos
 # Stop on error
 RUN set -xe
 
-ENV USERNAME=comma
-ENV PASSWD=comma
-ENV HOST=comma
+ARG USERNAME=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh /tmp/agnos
 RUN /tmp/agnos/base_setup.sh
 
+# Install openpilot dependencies
+COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh
+COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_python_dependencies.sh
+
+# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    /tmp/agnos/qt-5.12.8.deb \
+    /tmp/agnos/libwayland-1.9.0-1.deb \
+    /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
+    /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+
 # ################## #
 # #### Compiler #### #
 # ################## #
-FROM agnos-base as agnos-compiler
+FROM agnos-base AS agnos-compiler
 
-RUN apt-get update && apt-get install --no-install-recommends checkinstall
-# Install openpilot dependencies, probably needed for build,
-# but we don't want these in the base image
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
+RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
 
 # Individual compiling images
-FROM agnos-compiler as agnos-compiler-capnp
+FROM agnos-compiler AS agnos-compiler-pyqt5
+COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
+RUN /tmp/agnos/compile-pyqt5.sh
+
+FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN /tmp/agnos/compile-capnp.sh
 
-FROM agnos-compiler as agnos-compiler-ffmpeg
+FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
 
-FROM agnos-compiler as agnos-compiler-qtwayland5
+FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
-COPY ./userspace/qtwayland/patch /tmp/agnos/
+COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN /tmp/agnos/compile-qtwayland5.sh
 
 # ################### #
@@ -68,15 +82,12 @@ RUN /tmp/agnos/compile-modemmanager.sh
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
-
 # Use other pre-compiled packages
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
+
+# Use pre-compiled PyQt5 wheel
+COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
 
 RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     export PYENV_ROOT="/usr/local/pyenv" && \
@@ -84,7 +95,7 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     eval "$(pyenv virtualenv-init -)" && \
     export MAKEFLAGS="-j$(nproc)" && \
     pip install pyqt5-sip==12.12.1 && \
-    pip install pyqt5==5.15.9 --verbose --config-settings --confirm-license= && \
+    pip install /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl --verbose --config-settings --confirm-license= && \
     pyenv rehash
 
 # Install openpilot python packages
@@ -99,15 +110,12 @@ RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
     eval "$(pyenv virtualenv-init -)" && \
     cd /tmp/agnos/uv-agnos && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir --system .
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir --system . && \
+    pyenv rehash
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
-
-# 16.04 libwayland-client + libffi6
-COPY ./userspace/qtwayland/libffi.so.6 /lib/aarch64-linux-gnu/
-COPY ./userspace/qtwayland/libwayland-client.so.0 /lib/aarch64-linux-gnu/libwayland-client.so.0
 
 COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
@@ -124,6 +132,7 @@ COPY ./userspace/files/*.path /lib/systemd/system/
 COPY ./userspace/files/*.mount /lib/systemd/system/
 COPY ./userspace/files/*.service /lib/systemd/system/
 COPY ./userspace/files/*.timer /lib/systemd/system/
+COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
 COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
 COPY ./userspace/firmware/* /lib/firmware/
 
@@ -192,7 +201,7 @@ RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostn
 
 # TODO: move this to base_setup.sh or build gcc from source
 # Remove unused architectures from arm-none-eabi
-RUN cd /usr/lib/gcc/arm-none-eabi/9.2.1 && \
+RUN cd /usr/lib/gcc/arm-none-eabi/* && \
     rm -rf arm/ && \
     rm -rf thumb/nofp thumb/v6* thumb/v8* thumb/v7+fp thumb/v7-r+fp.sp
 
@@ -208,8 +217,8 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 # copy at the end, after all apt usage
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
-# Write version file
-RUN echo -n "10.1" > /VERSION
+# copy version file
+COPY VERSION /VERSION
 
 # ################## #
 # #### Cleaunup #### #

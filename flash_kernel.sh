@@ -1,14 +1,19 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
-
-GREEN="\033[0;32m"
-NO_COLOR='\033[0m'
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-echo "Flashing kernel..."
-tools/edl w boot_a output/boot.img
-tools/edl w boot_b output/boot.img
+echo "Checking active slot..."
+ACTIVE_SLOT=$(tools/edl getactiveslot | grep "Current active slot:" | awk '{print $NF}')
 
-echo -e "${GREEN}Flashed boot_a and boot_b!${NO_COLOR}"
+if [[ "$ACTIVE_SLOT" != "a" && "$ACTIVE_SLOT" != "b" ]]; then
+  echo "Invalid active slot: '$ACTIVE_SLOT'"
+  exit 1
+fi
+
+echo "Active slot: $ACTIVE_SLOT"
+echo "Flashing boot_$ACTIVE_SLOT..."
+tools/edl w boot_$ACTIVE_SLOT $DIR/output/boot.img
+
+echo "Flashed boot_$ACTIVE_SLOT!"

@@ -10,9 +10,6 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.run_id || github.head_ref || github.ref }}-${{ github.workflow }}-${{ github.event_name }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
   build:
     name: build kernel and system
@@ -22,6 +19,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         lfs: true
+        submodules: true
 
     - name: Get commit message
       run: |
@@ -43,13 +41,6 @@ jobs:
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
 
-    - name: Checkout agnos-kernel-sdm845
-      uses: actions/checkout@v4
-      with:
-        repository: commaai/agnos-kernel-sdm845
-        ref: ${{ steps.kernel-submodule.outputs.ref }}
-        path: agnos-kernel-sdm845
-
     - name: ccache
       uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
       with:
@@ -59,26 +50,31 @@ jobs:
     - name: Build kernel
       run: ./build_kernel.sh
 
-    - name: Upload artifact boot.img
-      uses: actions/upload-artifact@v4
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      with:
-        name: boot.img
-        path: output/boot.img
-
-    - name: Upload artifact kernel modules
-      uses: actions/upload-artifact@v4
-      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
-      with:
-        name: kernel-modules
-        path: output/*.ko
+    - name: Update VERSION
+      if: github.event_name == 'pull_request'
+      run: |
+        echo -n ${{ github.event.pull_request.head.sha }} > VERSION
 
     - name: Build system
       run: ./build_system.sh
 
-    - name: Upload artifact system.img
-      uses: actions/upload-artifact@v4
+    - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      env:
+        AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}
+      run: |
+        scripts/package_ota.py
+
+    - name: Save PR number and VERSION
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      run: |
+        echo ${{ github.event.number }} > output/ota/PR
+        cp VERSION output/ota
+
+    - name: Upload artifacts
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/upload-artifact@v4
       with:
-        name: system.img
-        path: output/system.img
+        name: agnos-artifacts
+        path: output/ota
+        compression-level: 0
