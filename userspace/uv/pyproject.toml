@@ -12,31 +12,6 @@ dependencies = [
   "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
 ]
 
-[project.optional-dependencies]
-dev = [
-  "ipython",
-  "azure-identity",
-  "azure-storage-blob",
-  "pycurl",
-  "git-pylint-commit-hook",
-  "tenacity",
-  "mock",
-  "dictdiffer",
-  "aenum",
-  "coverage",
-  "paramiko",
-  "lru-dict",
-  "pprofile",
-  "pyprof2calltree",
-  "pre-commit",
-  "mypy",
-  "parameterized",
-  "inputs",
-  "future-fstrings",
-  "tabulate",
-  "flaky"
-]
-
 [tool.uv.sources]
 openpilot = { workspace = true }
 sconscontrib = { git = "https://github.com/SCons/scons-contrib.git" }
