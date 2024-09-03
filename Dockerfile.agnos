@@ -99,8 +99,7 @@ RUN export MAKEFLAGS="-j$(nproc)" && \
 
 # Install openpilot python packages
 COPY ./userspace/uv /tmp/agnos/uv
-RUN source $XDG_DATA_HOME/venv/bin/activate && \
-    cd /tmp/agnos/uv && \
+RUN cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
     pcpath=$pc"/lib/pkgconfig" && \
@@ -109,7 +108,9 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
     pypcpathembed=$pcpath"/python-3.12-embed.pc" && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir .
+    export MAKEFLAGS="-j$(nproc)" && export UV_NO_CACHE=1 && \
+    uv sync --frozen && \
+    uv pip install --extra testing -r openpilot/pyproject.toml
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
