@@ -1,10 +1,6 @@
 #!/bin/bash -e
 
-# Use pyenv venv
-export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH"
-export PYENV_ROOT="/usr/local/pyenv"
-eval "$(pyenv init -)"
-eval "$(pyenv virtualenv-init -)"
+source /usr/local/venv/bin/activate
 
 # Build PyQt5 wheel
 cd /tmp

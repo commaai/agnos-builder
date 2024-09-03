@@ -86,29 +86,31 @@ RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capn
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
+ARG XDG_DATA_HOME="/usr/local"
+ARG PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
+
 # Use pre-compiled PyQt5 wheel
 COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
 
-RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
-    export PYENV_ROOT="/usr/local/pyenv" && \
-    eval "$(pyenv init -)" && \
-    eval "$(pyenv virtualenv-init -)" && \
-    export MAKEFLAGS="-j$(nproc)" && \
-    pip install pyqt5-sip==12.12.1 && \
-    pip install /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl --verbose --config-settings --confirm-license= && \
-    pyenv rehash
+RUN export MAKEFLAGS="-j$(nproc)" && \
+    source $XDG_DATA_HOME/venv/bin/activate && \
+    uv pip install pyqt5-sip==12.12.1 && \
+    uv pip install /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl --verbose --config-settings="--confirm-license="
 
 # Install openpilot python packages
 RUN mkdir -p /tmp/agnos/uv
 COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/uv
-RUN export PATH="/usr/local/pyenv/bin:/usr/local/pyenv/shims:$PATH" && \
-    export PYENV_ROOT="/usr/local/pyenv" && \
-    eval "$(pyenv init -)" && \
-    eval "$(pyenv virtualenv-init -)" && \
+RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir --system . && \
-    pyenv rehash
+    pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
+    pcpath=$pc"/lib/pkgconfig" && \
+    export PKG_CONFIG_PATH="$pcpath:$PKG_CONFIG_PATH" && \
+    pypcpath=$pcpath"/python-3.12.pc" && \
+    sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
+    pypcpathembed=$pcpath"/python-3.12-embed.pc" && \
+    sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir .
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
