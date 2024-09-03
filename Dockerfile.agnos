@@ -99,7 +99,8 @@ RUN export MAKEFLAGS="-j$(nproc)" && \
 
 # Install openpilot python packages
 COPY ./userspace/uv /tmp/agnos/uv
-RUN cd /tmp/agnos/uv && \
+RUN source $XDG_DATA_HOME/venv/bin/activate && \
+    cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
     pcpath=$pc"/lib/pkgconfig" && \
