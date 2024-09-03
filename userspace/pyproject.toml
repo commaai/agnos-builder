@@ -5,7 +5,6 @@ authors = [{name = "Vehicle Researcher", email = "user@comma.ai"}]
 requires-python = "~=3.11"
 description = ""
 dependencies = [
-  "openpilot@file:///tmp/agnos/uv-openpilot",
   # required
   "dbus-python",
   # tinygrad
