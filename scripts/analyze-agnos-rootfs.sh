@@ -6,7 +6,7 @@ cd $DIR
 
 BUILD_DIR="$DIR/build"
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
-ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
+ROOTFS_IMAGE="$BUILD_DIR/system.img"
 
 # Setup mount container for macOS and CI support (namespace.so)
 docker build -f $DIR/Dockerfile.builder -t agnos-mount $DIR > /dev/null 2>&1
