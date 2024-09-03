@@ -17,6 +17,7 @@ RUN apt-get update && \
     python-is-python2 \
     openssl \
     ccache \
+    libcap2-bin \
     android-sdk-libsparse-utils \
     && rm -rf /var/lib/apt/lists/*
 

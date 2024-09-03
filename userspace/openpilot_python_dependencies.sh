@@ -1,21 +1,14 @@
 #!/bin/bash -e
 
-echo "Installing python for openpilot"
+echo "installing uv..."
 
-# Install pyenv
-export PYENV_ROOT="/usr/local/pyenv"
-curl https://pyenv.run | bash
-export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
+export XDG_DATA_HOME="/usr/local"
+export CARGO_HOME="$XDG_DATA_HOME/.cargo"
 
-PYTHON_VERSION="3.11.4"
-if [ "$(uname -p)" == "aarch64" ]; then
-  pyenv install --verbose $PYTHON_VERSION
-else
-  MAKEFLAGS="-j1" MAKE_OPTS="-j1" taskset --cpu-list 0 pyenv install --verbose $PYTHON_VERSION
-fi
+curl -LsSf https://astral.sh/uv/install.sh | sh
+eval ". $CARGO_HOME/env"
 
-echo "Setting global python version"
-pyenv global $PYTHON_VERSION
+PYTHON_VERSION="3.12.3"
 
-pip3 install --no-cache-dir --upgrade pip uv
+# uv requires virtual env either managed or system before installing dependencies
+uv venv $XDG_DATA_HOME/venv --seed --python-preference only-managed --python=$PYTHON_VERSION

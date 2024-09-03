@@ -11,8 +11,7 @@ apt-fast update
 apt-fast install -y --no-install-recommends automake autoconf build-essential cmake
 
 # TODO: clean up these build time dependencies
-apt-fast install -y --no-install-recommends python3 python3-pip python3-setuptools python3-wheel ninja-build
-pip3 install --user meson
+apt-fast install -y --no-install-recommends python3 python3-pip python3-setuptools python3-wheel ninja-build meson
 export PATH=$PATH:/root/.local/bin
 
 # build mobile-broadband-provider-info
@@ -25,7 +24,7 @@ make install
 
 # build libqmi
 cd /tmp
-apt-fast install -y --no-install-recommends libgudev-1.0-dev gobject-introspection libgirepository1.0-dev help2man bash-completion
+apt-fast install -y --no-install-recommends libgudev-1.0-dev gobject-introspection libgirepository1.0-dev help2man bash-completion python-is-python3
 
 git clone -b $LIBQMI_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/libqmi.git
 cd libqmi
@@ -35,7 +34,7 @@ ninja -C build install
 
 # build ModemManager
 cd /tmp
-apt install -y --no-install-recommends gettext libpolkit-gobject-1-dev libdbus-1-dev libsystemd-dev
+apt install -y --no-install-recommends gettext libpolkit-gobject-1-dev libdbus-1-dev libsystemd-dev polkitd-pkla
 
 git clone -b $MM_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/ModemManager.git
 

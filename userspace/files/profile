@@ -32,32 +32,15 @@ export QT_QPA_PLATFORM="wayland-egl"
 
 # python setup
 export PYTHONPATH="/data/pythonpath"
-export PATH="/usr/local/pyenv/bin:$PATH"
-export PYENV_VERSION="3.11.4"
-export PYENV_ROOT="/usr/local/pyenv"
 
-# output of "pyenv init - --no-rehash"
-export PATH="/usr/local/pyenv/shims:${PATH}"
-export PYENV_SHELL=bash
-source '/usr/local/pyenv/libexec/../completions/pyenv.bash'
-pyenv() {
-  local command
-  command="${1:-}"
-  if [ "$#" -gt 0 ]; then
-    shift
-  fi
-
-  case "$command" in
-  activate|deactivate|rehash|shell)
-    eval "$(pyenv "sh-$command" "$@")";;
-  *)
-    command pyenv "$command" "$@";;
-  esac
-}
+export PATH="/usr/local/.cargo/bin:$PATH"
+export UV_PYTHON_INSTALL_DIR="/usr/local/uv/python"
+export UV_PYTHON_PREFERENCE=only-managed
+export UV_LINK_MODE=copy
+source /usr/local/venv/bin/activate
 
 # custom shims
 export PATH="/usr/comma/shims:${PATH}"
-
 
 # nice AT command helper
 atc() {

@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
-UBUNTU_BASE_URL="http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release"
-UBUNTU_FILE="ubuntu-base-20.04.1-base-arm64.tar.gz"
+UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
+UBUNTU_FILE="ubuntu-base-24.04.1-base-arm64.tar.gz"
+UBUNTU_FILE_CHECKSUM="7700539236d24c31c3eea1d5345eba5ee0353a1bac7d91ea5720b399b27f3cb4"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -14,10 +15,13 @@ BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
-ROOTFS_IMAGE="$BUILD_DIR/system.img.raw"
-ROOTFS_IMAGE_SIZE=10G
-SPARSE_IMAGE="$OUTPUT_DIR/system.img"
-SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
+ROOTFS_IMAGE="$BUILD_DIR/system.img"
+OUT_IMAGE="$OUTPUT_DIR/system.img"
+OUT_SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
+
+# the partition is 10G, but openpilot's updater didn't always handle the full size
+# openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
+ROOTFS_IMAGE_SIZE=5G
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -32,8 +36,17 @@ cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
 
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
-  echo -e "${GREEN}Downloading Ubuntu: $UBUNTU_FILE ${NO_COLOR}"
-  curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time
+  echo -e "Downloading Ubuntu Base: $UBUNTU_FILE"
+  if ! curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time --fail; then
+    echo "Download failed, please check Ubuntu releases: $UBUNTU_BASE_URL"
+    exit 1
+  fi
+fi
+
+# Check SHA256 sum
+if [ "$(shasum -a 256 "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECKSUM" ]; then
+  echo "Checksum mismatch, please check Ubuntu releases: $UBUNTU_BASE_URL"
+  exit 1
 fi
 
 # Setup qemu multiarch
@@ -43,11 +56,12 @@ if [ "$ARCH" = "x86_64" ]; then
 fi
 
 # Check agnos-builder Dockerfile
+export DOCKER_BUILDKIT=1
 docker build -f Dockerfile.agnos --check $DIR
 
 # Start agnos-builder docker build and create container
 echo "Building agnos-builder docker image"
-docker build -f Dockerfile.agnos -t agnos-builder $DIR
+docker build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
@@ -99,6 +113,10 @@ echo "Extracting docker image"
 docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
 
+# Avoid detecting as container
+echo "Removing .dockerenv file"
+exec_as_root rm -f $ROOTFS_DIR/.dockerenv
+
 echo "Setting network stuff"
 set_network_stuff() {
   cd $ROOTFS_DIR
@@ -111,6 +129,9 @@ set_network_stuff() {
   # Fix resolv config
   bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
 
+  # Set capability for ping
+  bash -c "setcap cap_net_raw+ep bin/ping"
+
   # Write build info
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
   bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
@@ -122,18 +143,16 @@ exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; 
 echo "Unmount filesystem"
 exec_as_root umount -l $ROOTFS_DIR
 
-# Sparsify
-echo "Sparsify image $(basename $SPARSE_IMAGE)"
+# Make system image with skipped chunks
+echo "Sparsifying image $(basename $OUT_SKIP_CHUNKS_IMAGE)"
 exec_as_user bash -c "\
 TMP_SPARSE=\$(mktemp); \
 img2simg $ROOTFS_IMAGE \$TMP_SPARSE; \
-mv \$TMP_SPARSE $SPARSE_IMAGE"
-
-# Make image with skipped chunks
-echo "Sparsify image $(basename $SKIP_CHUNKS_IMAGE)"
-exec_as_user bash -c "\
 TMP_SKIP=\$(mktemp); \
-$DIR/tools/simg2dontcare.py $SPARSE_IMAGE \$TMP_SKIP; \
-mv \$TMP_SKIP $SKIP_CHUNKS_IMAGE"
+$DIR/tools/simg2dontcare.py \$TMP_SPARSE \$TMP_SKIP; \
+mv \$TMP_SKIP $OUT_SKIP_CHUNKS_IMAGE"
+
+# Copy system image to output
+cp $ROOTFS_IMAGE $OUT_IMAGE
 
 echo "Done!"

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import json
 import os
 import hashlib
@@ -25,22 +26,11 @@ def compress(fin, fout) -> None:
   subprocess.check_call(f"xz -T4 -vc {fin} > {fout}", shell=True)
 
 
-def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None):
+def process_file(fn, name, full_check=True, has_ab=True, alt=None):
   print(name)
   hash_raw = hash = checksum(fn)
   size = fn.stat().st_size
   print(f"  {size} bytes, hash {hash}")
-
-  if sparse:
-    raw_img = BUILD_DIR / "system.img.raw"
-    if raw_img.exists():
-      print("  using existing raw image")
-      hash_raw = checksum(raw_img)
-      size = raw_img.stat().st_size
-    else:
-      print("Error: existing raw image not found")
-      exit(1)
-    print(f"  {size} bytes, hash {hash_raw} (raw)")
 
   print("  compressing")
   xz_fn = OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img.xz"
@@ -52,7 +42,7 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
     "hash": hash,
     "hash_raw": hash_raw,
     "size": size,
-    "sparse": sparse,
+    "sparse": False,
     "full_check": full_check,
     "has_ab": has_ab,
   }
@@ -79,30 +69,33 @@ def process_file(fn, name, sparse=False, full_check=True, has_ab=True, alt=None)
 if __name__ == "__main__":
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-  files = [
-    process_file(OUTPUT_DIR / "boot.img", "boot"),
-    process_file(OUTPUT_DIR / "system.img", "system", sparse=True, full_check=False, alt=OUTPUT_DIR / "system-skip-chunks.img"),
-  ]
+  if len(sys.argv[1:]):
+    files = [process_file(Path(fn), Path(fn).stem) for fn in sys.argv[1:]]
+  else:
+    files = [
+      process_file(OUTPUT_DIR / "boot.img", "boot"),
+      process_file(OUTPUT_DIR / "system.img", "system", full_check=False, alt=OUTPUT_DIR / "system-skip-chunks.img"),
+    ]
+
+    # pull in firmware not built in this repo
+    with open(ROOT/"firmware.json") as f:
+      fws = json.loads(f.read())
+      for fw in fws:
+        files.append({
+          "name": fw["name"],
+          "url": fw["url"],
+          "hash": fw["hash"],
+          "hash_raw": fw["hash"],
+          "size": fw["size"],
+          "sparse": False,
+          "full_check": True,
+          "has_ab": True,
+        })
+
   configs = [
     (AGNOS_UPDATE_URL, "ota.json"),
     (AGNOS_STAGING_UPDATE_URL, "ota-staging.json"),
   ]
-
-  # pull in firmware not built in this repo
-  with open(ROOT/"firmware.json") as f:
-    fws = json.loads(f.read())
-    for fw in fws:
-      files.append({
-        "name": fw["name"],
-        "url": fw["url"],
-        "hash": fw["hash"],
-        "hash_raw": fw["hash"],
-        "size": fw["size"],
-        "sparse": False,
-        "full_check": True,
-        "has_ab": True,
-      })
-
   for remote_url, output_fn in configs:
     processed_files = []
     for f in deepcopy(files):

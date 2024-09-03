@@ -17,6 +17,7 @@ TTYVTDisallocate=yes
 
 ExecStartPre=/bin/bash -c "mkdir -p $XDG_RUNTIME_DIR"
 ExecStartPre=/bin/bash -c "chown -R comma: $XDG_RUNTIME_DIR"
+ExecStartPre=/bin/bash -c "chmod -R 700 $XDG_RUNTIME_DIR"
 
 ExecStartPre=/bin/bash -c "mkdir -p /data/misc/display || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"

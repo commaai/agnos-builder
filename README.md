@@ -73,7 +73,7 @@ Now that AGNOS is good at running openpilot, the next things up are:
 Some concrete things on the roadmap:
 - [ ] <10s boot time https://github.com/commaai/agnos-builder/issues/110, https://github.com/commaai/openpilot/issues/30894
 - [ ] make the image tiny, for fast updating and flashing https://github.com/commaai/agnos-builder/issues/225
-- [ ] update to Ubuntu 24.04 https://github.com/commaai/openpilot/issues/32386
+- [x] update to Ubuntu 24.04 https://github.com/commaai/openpilot/issues/32386
 - [ ] mainline Linux kernel https://github.com/commaai/openpilot/issues/32386
 - [ ] fully open source
   - [ ] anything from [firmware.json](firmware.json): XBL, ABL, etc.
