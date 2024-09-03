@@ -5,6 +5,7 @@ authors = [{name = "Vehicle Researcher", email = "user@comma.ai"}]
 requires-python = "~=3.11"
 description = ""
 dependencies = [
+  "openpilot",
   # required
   "dbus-python",
   # tinygrad
@@ -37,7 +38,11 @@ dev = [
 ]
 
 [tool.uv.sources]
+openpilot = { workspace = true }
 sconscontrib = { git = "https://github.com/SCons/scons-contrib.git" }
+
+[tool.uv.workspace]
+members = ["openpilot"]
 
 [build-system]
 requires = ["hatchling"]
