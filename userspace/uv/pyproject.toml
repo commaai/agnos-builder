@@ -6,6 +6,7 @@ requires-python = "~=3.11"
 description = ""
 dependencies = [
   "openpilot",
+  "openpilot[testing]",
   # required
   "dbus-python",
   # tinygrad
@@ -14,7 +15,6 @@ dependencies = [
 
 [tool.uv.sources]
 openpilot = { workspace = true }
-sconscontrib = { git = "https://github.com/SCons/scons-contrib.git" }
 
 [tool.uv.workspace]
 members = ["openpilot"]

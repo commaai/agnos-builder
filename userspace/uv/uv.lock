@@ -21,7 +21,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "dbus-python" },
-    { name = "openpilot" },
+    { name = "openpilot", extra = ["testing"] },
     { name = "pyopencl" },
 ]
 
@@ -29,6 +29,7 @@ dependencies = [
 requires-dist = [
     { name = "dbus-python" },
     { name = "openpilot", editable = "openpilot" },
+    { name = "openpilot", extras = ["testing"], editable = "openpilot" },
     { name = "pyopencl", specifier = "==2024.1" },
 ]
 
