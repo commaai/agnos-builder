@@ -15,7 +15,4 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-openpilot = { workspace = true }
-
-[tool.uv.workspace]
-members = ["openpilot"]
+openpilot = { path = "openpilot" }
