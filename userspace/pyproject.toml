@@ -43,6 +43,7 @@ dependencies = [
   "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
   "pyserial",
   "pytest",
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-cpp",
   "pytest-forked",
