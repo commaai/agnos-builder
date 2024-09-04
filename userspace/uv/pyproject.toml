@@ -1,0 +1,21 @@
+[project]
+name = "agnos"
+version = "0.1.0"
+authors = [{name = "Vehicle Researcher", email = "user@comma.ai"}]
+requires-python = "~=3.11"
+description = ""
+dependencies = [
+  "openpilot",
+  "openpilot[dev]",
+  "openpilot[testing]",
+  # required
+  "dbus-python",
+  # tinygrad
+  "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
+]
+
+[tool.uv.sources]
+openpilot = { workspace = true }
+
+[tool.uv.workspace]
+members = ["openpilot"]

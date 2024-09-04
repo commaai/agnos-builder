@@ -98,8 +98,7 @@ RUN export MAKEFLAGS="-j$(nproc)" && \
     uv pip install /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl --verbose --config-settings="--confirm-license="
 
 # Install openpilot python packages
-RUN mkdir -p /tmp/agnos/uv
-COPY ./userspace/pyproject.toml ./userspace/uv.lock /tmp/agnos/uv
+COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
@@ -110,7 +109,9 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
     pypcpathembed=$pcpath"/python-3.12-embed.pc" && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --no-cache-dir .
+    export MAKEFLAGS="-j$(nproc)" && export UV_NO_CACHE=1 && \
+    export UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv && \
+    uv sync --frozen
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
