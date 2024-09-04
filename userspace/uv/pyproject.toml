@@ -6,6 +6,7 @@ requires-python = "~=3.11"
 description = ""
 dependencies = [
   "openpilot",
+  "openpilot[dev]",
   "openpilot[testing]",
   # required
   "dbus-python",

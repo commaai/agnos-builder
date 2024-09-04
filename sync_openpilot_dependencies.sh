@@ -12,4 +12,4 @@ export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
 pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
 pcpath=$pc"/lib/pkgconfig" && \
 export PKG_CONFIG_PATH="$pcpath:$PKG_CONFIG_PATH" && \
-uv lock
+uv lock --upgrade
