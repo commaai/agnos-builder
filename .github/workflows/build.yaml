@@ -58,6 +58,15 @@ jobs:
     - name: Build system
       run: ./build_system.sh
 
+    - name: Statistics
+      id: stats
+      run: |
+        {
+          echo 'stats_summary<<EOF'
+          scripts/analyze-agnos-rootfs.sh
+          echo EOF
+        } >> $GITHUB_OUTPUT
+
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       env:
@@ -65,11 +74,12 @@ jobs:
       run: |
         scripts/package_ota.py
 
-    - name: Save PR number and VERSION
+    - name: Save PR number, VERSION and stats
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       run: |
         echo ${{ github.event.number }} > output/ota/PR
         cp VERSION output/ota
+        echo "${{ steps.stats.outputs.stats_summary }}" > output/ota/agnos_stats.txt
 
     - name: Upload artifacts
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"

@@ -59,7 +59,6 @@ jobs:
           git push origin agnos-builder/pr-${{ env.PR_NUMBER }} --force
 
       - name: List .xz files with links
-        id: list_xz
         working-directory: ${{ github.workspace }}/ci-artifacts
         run: |
           {
@@ -67,6 +66,15 @@ jobs:
             for file in *.xz; do
               echo "* [$file](https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ env.PR_NUMBER }}/$file)"
             done
+            echo EOF
+          } >> $GITHUB_ENV
+
+      - name: Read agnos_stats.txt
+        working-directory: ${{ github.workspace }}/ci-artifacts
+        run: |
+          {
+            echo 'AGNOS_STATS<<EOF'
+            cat agnos_stats.txt
             echo EOF
           } >> $GITHUB_ENV
 
@@ -82,6 +90,11 @@ jobs:
 
             ### Images:
             ${{ env.XZ_FILES }}
+
+            ### Stats:
+            ```
+            ${{ env.AGNOS_STATS }}
+            ```
           pr_number: ${{ env.PR_NUMBER }}
           comment_tag: run_id
           mode: recreate
