@@ -42,25 +42,30 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
 # ################## #
 FROM agnos-base AS agnos-compiler
 
-RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
+RUN apt-fast update && apt-fast install --no-install-recommends -yq ccache checkinstall
+ENV PATH="/usr/lib/ccache:$PATH"
 
 # Individual compiling images
 FROM agnos-compiler AS agnos-compiler-pyqt5
 COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
-RUN /tmp/agnos/compile-pyqt5.sh
+RUN --mount=type=cache,target=/root/.ccache,id=pyqt5,sharing=shared \
+    /tmp/agnos/compile-pyqt5.sh
 
 FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
-RUN /tmp/agnos/compile-capnp.sh
+RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
+    /tmp/agnos/compile-capnp.sh
 
 FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN /tmp/agnos/compile-ffmpeg.sh
+RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
+    /tmp/agnos/compile-ffmpeg.sh
 
 FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch* /tmp/agnos/
-RUN /tmp/agnos/compile-qtwayland5.sh
+RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
+    /tmp/agnos/compile-qtwayland5.sh
 
 # ################### #
 # ###### AGNOS ###### #
@@ -76,7 +81,8 @@ RUN mv /data/persist /system/ && rm -rf /data/*
 
 # Build ModemManager
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN /tmp/agnos/compile-modemmanager.sh
+RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
+    /tmp/agnos/compile-modemmanager.sh
 
 # Pre-compiled capnp (must be before python install)
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb

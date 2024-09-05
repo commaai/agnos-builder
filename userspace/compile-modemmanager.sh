@@ -8,7 +8,8 @@ PROVIDER_INFO_VERSION="20230416"
 cd /tmp
 
 apt-fast update
-apt-fast install -y --no-install-recommends automake autoconf build-essential cmake
+apt-fast install -y --no-install-recommends automake autoconf build-essential cmake ccache
+export PATH="/usr/lib/ccache:$PATH"
 
 # TODO: clean up these build time dependencies
 apt-fast install -y --no-install-recommends python3 python3-pip python3-setuptools python3-wheel ninja-build meson

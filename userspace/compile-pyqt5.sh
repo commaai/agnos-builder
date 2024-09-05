@@ -9,4 +9,4 @@ tar xf PyQt5-5.15.9.tar.gz
 cd PyQt5-5.15.9
 
 export MAKEFLAGS="-j$(nproc)"
-pip wheel -w . --verbose --config-settings --confirm-license= .
+pip wheel -w . --verbose --config-settings="--confirm-license=" --config-settings="--build-dir=/tmp/build/" .
