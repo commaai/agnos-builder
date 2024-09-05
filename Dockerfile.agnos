@@ -109,7 +109,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
     pypcpathembed=$pcpath"/python-3.12-embed.pc" && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install .
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install --all-extras .
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/

@@ -6,12 +6,27 @@ requires-python = "~=3.11"
 description = ""
 dependencies = [
   "openpilot",
-  "openpilot[dev]",
   "openpilot[testing]",
   # required
   "dbus-python",
   # tinygrad
   "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
+]
+
+[project.optional-dependencies]
+dev = [
+  "azure-identity",
+  "azure-storage-blob",
+  "dictdiffer",
+  "flaky",
+  "inputs",
+  "parameterized >=0.8, <0.9",
+  "pyautogui",
+  "pywinctl",
+  "pyprof2calltree",
+  "tabulate",
+  "types-requests",
+  "types-tabulate",
 ]
 
 [tool.uv.sources]
