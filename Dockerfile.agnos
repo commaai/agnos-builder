@@ -109,9 +109,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
     pypcpathembed=$pcpath"/python-3.12-embed.pc" && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
-    export MAKEFLAGS="-j$(nproc)" && export UV_NO_CACHE=1 && \
-    export UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv && \
-    uv sync --frozen
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 uv pip install .
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
