@@ -10,6 +10,7 @@ FROM ubuntu:24.04 AS agnos-compiler
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     build-essential \
     ca-certificates \
+    ccache \
     clang \
     curl \
     checkinstall \
@@ -17,20 +18,26 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     pkg-config \
     wget
 
+# Enable ccache
+ENV PATH="/usr/lib/ccache:$PATH"
+
 # capnproto
 FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
-RUN /tmp/agnos/compile-capnp.sh
+RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
+    /tmp/agnos/compile-capnp.sh
 
 # ffmpeg
 FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN /tmp/agnos/compile-ffmpeg.sh
+RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
+    /tmp/agnos/compile-ffmpeg.sh
 
 # ModemManager
 FROM agnos-compiler AS agnos-compiler-modemmanager
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN /tmp/agnos/compile-modemmanager.sh
+RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
+    /tmp/agnos/compile-modemmanager.sh
 
 # PyQt5
 FROM agnos-compiler AS agnos-compiler-pyqt5
@@ -38,14 +45,16 @@ COPY ./userspace/qtwayland/*.deb /tmp/agnos/
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
-RUN /tmp/agnos/compile-pyqt5.sh
+RUN --mount=type=cache,target=/root/.ccache,id=pyqt5,sharing=shared \
+    /tmp/agnos/compile-pyqt5.sh
 
 # qtwayland5
 FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch* /tmp/agnos/
-RUN /tmp/agnos/compile-qtwayland5.sh
+RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
+    /tmp/agnos/compile-qtwayland5.sh
 
 # ################## #
 # ###### Base ###### #

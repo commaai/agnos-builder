@@ -28,4 +28,4 @@ tar xf PyQt5-${VERSION}.tar.gz
 cd PyQt5-${VERSION}
 
 export MAKEFLAGS="-j$(nproc)"
-pip wheel -w . --verbose --config-settings --confirm-license= .
+pip wheel -w . --verbose --config-settings="--confirm-license=" --config-settings="--build-dir=/tmp/build/" .
