@@ -2,6 +2,7 @@
 *.pyo
 .*.swp
 .*.swo
+**/.DS_Store
 
 build/
 output/
