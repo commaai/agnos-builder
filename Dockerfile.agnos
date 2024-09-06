@@ -198,10 +198,12 @@ COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
 
 # TODO: move this to base_setup.sh or build gcc from source
-# Remove unused architectures from arm-none-eabi
+# Remove unused architectures & bins from arm-none-eabi
 RUN cd /usr/lib/gcc/arm-none-eabi/* && \
     rm -rf arm/ && \
-    rm -rf thumb/nofp thumb/v6* thumb/v8* thumb/v7+fp thumb/v7-r+fp.sp
+    find thumb/ -maxdepth 1 -type d ! \( -name 'thumb' -o -name 'v7e-m+fp' -o -name 'v7e-m+dp' \) -exec rm -rf {} + && \
+    rm cc1plus g++-mapper-server && \
+    find /usr/bin -maxdepth 1 -type f -name 'arm-none-eabi-*' ! \( -name 'arm-none-eabi-gcc' -o -name 'arm-none-eabi-objcopy' -o -name 'arm-none-eabi-objdump' \) -delete
 
 # keep this last
 RUN ldconfig
