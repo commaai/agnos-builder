@@ -67,7 +67,7 @@ jobs:
           echo 'stats_summary<<EOF'
           scripts/analyze-agnos-rootfs.sh
           echo EOF
-        } >> $GITHUB_OUTPUT
+        } | tee -a $GITHUB_OUTPUT
 
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
