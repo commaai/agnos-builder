@@ -136,7 +136,7 @@ set_network_stuff() {
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
   bash -c "printf \"$GIT_HASH\n$DATETIME\" > BUILD"
 }
-GIT_HASH=$(git --git-dir=$DIR/.git rev-parse HEAD)
+GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
 exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; $(declare -f set_network_stuff); set_network_stuff"
 
 # Unmount image
