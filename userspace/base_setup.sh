@@ -112,6 +112,12 @@ apt-fast install --no-install-recommends -yq \
 apt-fast install --no-install-recommends -yq \
     clang-17 \
     llvm-17
+# since all files are suffixed with "-17", just remove the suffix
+for file in /usr/bin/*-17; do
+    if [ -f "$file" ]; then
+        mv "$file" "$(echo "$file" | sed 's/-17$//')"
+    fi
+done
 
 rm -rf /var/lib/apt/lists/*
 
