@@ -42,7 +42,7 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
 # ################## #
 FROM agnos-base AS agnos-compiler
 
-RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
+RUN apt-fast update && apt-fast install --no-install-recommends -yq dh-make dpkg-dev
 
 # Individual compiling images
 FROM agnos-compiler AS agnos-compiler-pyqt5
