@@ -6,11 +6,15 @@ VERSION=1.0.2
 wget https://capnproto.org/capnproto-c++-${VERSION}.tar.gz
 tar xvf capnproto-c++-${VERSION}.tar.gz
 cd capnproto-c++-${VERSION}
-CXXFLAGS="-fPIC -O2" ./configure
 
-make -j$(nproc)
+export DEBFULLNAME=comma
+export LOGNAME=comma
 
-# remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)
-# https://bugs.launchpad.net/ubuntu/+source/checkinstall/+bug/78455
-checkinstall -yD --install=no --fstrans=no --pkgname=capnproto
-mv capnproto*.deb /tmp/capnproto.deb
+dh_make --createorig -s -p capnproto_${VERSION} -y
+
+echo -e "override_dh_auto_configure:\n\tCXX_FLAGS=\"-fPIC -O2\" ./configure" >> debian/rules
+echo -e "override_dh_usrlocal:" >> debian/rules
+
+DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -nc
+
+mv ../capnproto*.deb /tmp/capnproto.deb
