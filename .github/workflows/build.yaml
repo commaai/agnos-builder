@@ -53,7 +53,7 @@ jobs:
     - name: Update VERSION
       if: github.event_name == 'pull_request'
       run: |
-        echo -n ${{ github.event.pull_request.head.sha }} > VERSION
+        echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
 
     - name: Build system
       env:
