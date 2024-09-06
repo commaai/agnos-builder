@@ -203,6 +203,10 @@ RUN cd /usr/lib/gcc/arm-none-eabi/* && \
     rm -rf arm/ && \
     rm -rf thumb/nofp thumb/v6* thumb/v8* thumb/v7+fp thumb/v7-r+fp.sp
 
+# TODO: make these packages not get installed in the first time
+# qemu-user also removes libglib2.0-dev:armhf libgudev-1.0-dev:armhf libinput-dev:armhf libwacom-dev:armhf
+RUN apt-fast update && apt-fast remove -y qemu-user:armhf
+
 # keep this last
 RUN ldconfig
 
@@ -219,7 +223,7 @@ COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 COPY VERSION /VERSION
 
 # ################## #
-# #### Cleaunup #### #
+# #### Cleanup #### #
 # ################## #
 
 RUN rm -rf /usr/share/icons/* && \
