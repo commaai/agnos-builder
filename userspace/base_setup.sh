@@ -83,7 +83,6 @@ apt-fast install --no-install-recommends -yq \
     libsqlite3-dev \
     libssl-dev \
     libffi-dev \
-    llvm \
     nano \
     net-tools \
     nload \
@@ -107,6 +106,12 @@ apt-fast install --no-install-recommends -yq \
     wget \
     wireless-tools \
     zlib1g-dev
+
+# keep LLVM 17 (not 18 as in 24.04, since mesa/rusticl/etc seems to use 17)
+# clang & llvm metapackages install LLVM 18 (which is not installed anymore)
+apt-fast install --no-install-recommends -yq \
+    clang-17 \
+    llvm-17
 
 rm -rf /var/lib/apt/lists/*
 

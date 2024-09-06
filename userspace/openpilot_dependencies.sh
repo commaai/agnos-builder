@@ -10,7 +10,6 @@ apt-fast install --no-install-recommends -yq \
     build-essential \
     bzip2 \
     casync \
-    clang \
     clinfo \
     cmake \
     cppcheck \
@@ -33,7 +32,6 @@ apt-fast install --no-install-recommends -yq \
     libi2c-dev \
     libjpeg-dev \
     liblzma-dev \
-    libomp-dev \
     libportaudio2 \
     libsdl2-dev \
     libsqlite3-dev \
