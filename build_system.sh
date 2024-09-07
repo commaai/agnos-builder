@@ -55,8 +55,18 @@ if [ "$ARCH" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
-# Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
+
+# Check agnos-compiler Dockerfile
+docker build -f Dockerfile.compiler --check $DIR
+
+# Build agnos-compiler docker
+echo "Building agnos-compiler docker image"
+docker build -f Dockerfile.compiler -t agnos-compiler $DIR
+echo "Creating agnos-compiler container"
+COMPILER_CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-compiler:latest)
+
+# Check agnos-builder Dockerfile
 docker build -f Dockerfile.agnos --check $DIR
 
 # Start agnos-builder docker build and create container

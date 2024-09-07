@@ -37,31 +37,6 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
     /tmp/agnos/libffi6_3.2.1-8_arm64.deb
 
-# ################## #
-# #### Compiler #### #
-# ################## #
-FROM agnos-base AS agnos-compiler
-
-RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
-
-# Individual compiling images
-FROM agnos-compiler AS agnos-compiler-pyqt5
-COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
-RUN /tmp/agnos/compile-pyqt5.sh
-
-FROM agnos-compiler AS agnos-compiler-capnp
-COPY ./userspace/compile-capnp.sh /tmp/agnos/
-RUN /tmp/agnos/compile-capnp.sh
-
-FROM agnos-compiler AS agnos-compiler-ffmpeg
-COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN /tmp/agnos/compile-ffmpeg.sh
-
-FROM agnos-compiler AS agnos-compiler-qtwayland5
-COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
-COPY ./userspace/qtwayland/patch* /tmp/agnos/
-RUN /tmp/agnos/compile-qtwayland5.sh
-
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
@@ -79,18 +54,18 @@ COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN /tmp/agnos/compile-modemmanager.sh
 
 # Pre-compiled capnp (must be before python install)
-COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
+COPY --from=agnos-compiler /tmp/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
 # Use other pre-compiled packages
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
+COPY --from=agnos-compiler /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
 ARG XDG_DATA_HOME="/usr/local"
 ARG PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
 
 # Use pre-compiled PyQt5 wheel
-COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
+COPY --from=agnos-compiler /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
 
 RUN export MAKEFLAGS="-j$(nproc)" && \
     source $XDG_DATA_HOME/venv/bin/activate && \
@@ -115,7 +90,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
+COPY --from=agnos-compiler /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
 
 # Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
