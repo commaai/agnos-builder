@@ -111,7 +111,8 @@ RUN /tmp/agnos/compile-qtwayland5.sh
 
 # Gather packages
 FROM agnos-compiler
-COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/
-COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/
-COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/
+RUN mkdir -p /tmp/packages
+COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/packages/
+COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/packages/
+COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/packages/
+COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/packages/

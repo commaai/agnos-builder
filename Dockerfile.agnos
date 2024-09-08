@@ -54,18 +54,18 @@ COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN /tmp/agnos/compile-modemmanager.sh
 
 # Pre-compiled capnp (must be before python install)
-COPY --from=agnos-compiler /tmp/capnproto.deb /tmp/capnproto.deb
+COPY ./packages/capnproto.deb /tmp/capnproto.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
 
 # Use other pre-compiled packages
-COPY --from=agnos-compiler /tmp/ffmpeg.deb /tmp/ffmpeg.deb
+COPY ./packages/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
 ARG XDG_DATA_HOME="/usr/local"
 ARG PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
 
 # Use pre-compiled PyQt5 wheel
-COPY --from=agnos-compiler /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
+COPY ./packages/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
 
 RUN export MAKEFLAGS="-j$(nproc)" && \
     source $XDG_DATA_HOME/venv/bin/activate && \
@@ -90,7 +90,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-COPY --from=agnos-compiler /tmp/qtwayland5.deb /tmp/qtwayland5.deb
+COPY ./packages/qtwayland5.deb /tmp/qtwayland5.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
 
 # Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
