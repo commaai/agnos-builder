@@ -62,7 +62,7 @@ docker build -f Dockerfile.compiler --check $DIR
 
 # Build agnos-compiler docker
 echo "Building agnos-compiler docker image"
-docker build -f Dockerfile.compiler -t agnos-compiler:latest $DIR
+docker build -f Dockerfile.compiler -t agnos-compiler $DIR
 echo "Creating agnos-compiler container"
 COMPILER_CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-compiler:latest)
 
