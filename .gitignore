@@ -8,6 +8,7 @@ output/
 build/
 tmp/
 qdl/
+packages/
 .ccache/
 .qemu_registered
 
