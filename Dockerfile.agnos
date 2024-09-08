@@ -9,7 +9,7 @@ FROM scratch AS agnos-base
 ARG UBUNTU_BASE_IMAGE
 ADD ${UBUNTU_BASE_IMAGE} /
 
-ARG INVALIDATE_CACHE 2
+ARG INVALIDATE_CACHE=2
 
 # Build folder
 RUN mkdir -p /tmp/agnos
