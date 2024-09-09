@@ -66,7 +66,7 @@ docker build -f Dockerfile.compiler -t agnos-compiler $DIR
 echo "Creating agnos-compiler container"
 COMPILER_CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-compiler:latest)
 
-docker cp $COMPILER_CONTAINER_ID:/tmp/packages/ $DIR/
+docker cp $COMPILER_CONTAINER_ID:/packages/ $DIR/
 
 # Check agnos-builder Dockerfile
 docker build -f Dockerfile.agnos --check $DIR
