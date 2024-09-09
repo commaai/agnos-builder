@@ -61,4 +61,19 @@ apt-fast install --no-install-recommends -yq \
     vnstat \
     wget \
     zlib1g-dev \
-    zstd
+    zstd \
+    libqt5opengl5-dev \
+    libqt5sql5-sqlite \
+    libqt5svg5-dev \
+    libqt5multimedia5-plugins \
+    qml-module-qtquick2 \
+    qtbase5-dev \
+    qtchooser \
+    qt5-qmake \
+    qtbase5-dev-tools \
+    qtbase5-private-dev \
+    qtdeclarative5-dev \
+    qtdeclarative5-private-dev \
+    qtlocation5-dev \
+    qtmultimedia5-dev \
+    qtpositioning5-dev
