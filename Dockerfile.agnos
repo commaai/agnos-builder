@@ -52,7 +52,7 @@ RUN /tmp/agnos/compile-qtwayland5.sh
 # ################## #
 FROM scratch AS agnos-base
 
-ARG invalidate_cache=8
+ARG invalidate_cache=9
 
 # Add Ubuntu Base image files
 ARG UBUNTU_BASE_IMAGE
