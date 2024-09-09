@@ -115,7 +115,6 @@ COPY ./userspace/files/*.service /lib/systemd/system/
 COPY ./userspace/files/*.timer /lib/systemd/system/
 COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
 COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
-COPY ./userspace/firmware/* /lib/firmware/
 
 # populate /etc
 COPY ./userspace/files/fstab /etc
@@ -131,7 +130,6 @@ RUN chmod 644 /etc/logrotate.conf
 # populate /usr
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
-COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 
 # kernel headers for the AGNOS kernel (built on device)
 COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
