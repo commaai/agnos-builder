@@ -2,8 +2,6 @@
 
 FROM ubuntu:24.04 AS agnos-compiler
 
-RUN rm /etc/apt/apt.conf.d/docker-clean
-
 # Common packages
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     build-essential \
