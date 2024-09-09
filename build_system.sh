@@ -55,7 +55,7 @@ if [ "$ARCH" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
-# Check agnos-compiler Dockerfile
+# Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
 docker build -f Dockerfile.agnos --check $DIR
 
