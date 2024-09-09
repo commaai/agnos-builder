@@ -28,15 +28,6 @@ RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
-# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
-COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
-    /tmp/agnos/qt-5.12.8.deb \
-    /tmp/agnos/libwayland-1.9.0-1.deb \
-    /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
-    /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
-
 # ################## #
 # #### Compiler #### #
 # ################## #
@@ -56,11 +47,6 @@ RUN /tmp/agnos/compile-capnp.sh
 FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
-
-FROM agnos-compiler AS agnos-compiler-qtwayland5
-COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
-COPY ./userspace/qtwayland/patch* /tmp/agnos/
-RUN /tmp/agnos/compile-qtwayland5.sh
 
 # ################### #
 # ###### AGNOS ###### #
@@ -114,9 +100,6 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
-
-COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
 
 # Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
 COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
