@@ -55,20 +55,8 @@ if [ "$ARCH" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
-export DOCKER_BUILDKIT=1
-
 # Check agnos-compiler Dockerfile
-docker build -f Dockerfile.compiler --check $DIR
-
-# Build agnos-compiler docker
-echo "Building agnos-compiler docker image"
-docker build -f Dockerfile.compiler -t agnos-compiler $DIR
-echo "Creating agnos-compiler container"
-COMPILER_CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-compiler:latest)
-
-docker cp $COMPILER_CONTAINER_ID:/packages/ $DIR/
-
-# Check agnos-builder Dockerfile
+export DOCKER_BUILDKIT=1
 docker build -f Dockerfile.agnos --check $DIR
 
 # Start agnos-builder docker build and create container
@@ -94,7 +82,7 @@ MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-meta-builder)
 
 # Cleanup containers on possible exit
 trap "echo \"Cleaning up containers:\"; \
-docker container rm -f $COMPILER_CONTAINER_ID $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
+docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Define functions for docker execution
 exec_as_user() {
@@ -118,7 +106,7 @@ exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
 # Also unmount filesystem (overwrite previous trap)
 trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
-docker container rm -f $COMPILER_CONTAINER_ID $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
+docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Extract image
 echo "Extracting docker image"
