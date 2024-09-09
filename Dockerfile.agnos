@@ -50,15 +50,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
 
-# modemmanager
-FROM agnos-compiler AS agnos-compiler-modemmanager
-
-RUN apt-get update && apt-get install -yq --no-install-recommends \
-    meson
-
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN /tmp/agnos/compile-modemmanager.sh
-
 # PyQt5
 FROM agnos-compiler AS agnos-compiler-pyqt5
 
