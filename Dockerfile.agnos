@@ -155,10 +155,6 @@ COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
 COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
 RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
 
-# Weston with hacked touch rotate and color correction
-COPY ./userspace/files/weston /usr/bin/weston
-COPY ./userspace/files/gl-renderer.so /usr/lib/arm-linux-gnueabihf/weston
-
 # Setup systemd services
 COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh

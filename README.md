@@ -68,13 +68,11 @@ The second priority is to be a good platform for all sorts of [robotics developm
 Now that AGNOS is good at running openpilot, the next things up are:
 * speedups: build system, CI, boot time, etc.
 * cleanups: Android kernel to mainline kernel, simplify the build system, etc.
-* open source: AGNOS started with a bunch blobs for various things, like the bootloaders and weston. We want to move everything we can to open source versions built in this repo.
+* open source: AGNOS started with a bunch blobs for various things, like the bootloaders. We want to move everything we can to open source versions built in this repo.
 
 Some concrete things on the roadmap:
 - [ ] <10s boot time https://github.com/commaai/agnos-builder/issues/110, https://github.com/commaai/openpilot/issues/30894
 - [ ] make the image tiny, for fast updating and flashing https://github.com/commaai/agnos-builder/issues/225
 - [x] update to Ubuntu 24.04 https://github.com/commaai/openpilot/issues/32386
 - [ ] mainline Linux kernel https://github.com/commaai/openpilot/issues/32386
-- [ ] fully open source
-  - [ ] anything from [firmware.json](firmware.json): XBL, ABL, etc.
-  - [ ] Weston https://github.com/commaai/agnos-builder/issues/16
+- [ ] fully open source anything from [firmware.json](firmware.json): XBL, ABL, etc.

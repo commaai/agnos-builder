@@ -27,8 +27,7 @@ if [ -d /etc/profile.d ]; then
 fi
 
 # display setup
-export XDG_RUNTIME_DIR="/var/tmp/weston"
-export QT_QPA_PLATFORM="wayland-egl"
+export QT_QPA_PLATFORM="eglfs"
 
 # python setup
 export PYTHONPATH="/data/pythonpath"
