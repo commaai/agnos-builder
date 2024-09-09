@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     clang \
     curl \
     checkinstall \
+    git \
+    pkg-config \
     wget
 
 # capnproto
@@ -24,6 +26,11 @@ RUN /tmp/agnos/compile-capnp.sh
 FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
+
+# ModemManager
+FROM agnos-compiler AS agnos-compiler-modemmanager
+COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+RUN /tmp/agnos/compile-modemmanager.sh
 
 # PyQt5
 FROM agnos-compiler AS agnos-compiler-pyqt5
@@ -89,9 +96,13 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-# Build ModemManager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN /tmp/agnos/compile-modemmanager.sh
+# Pre-compiled libqmi and modemmanager
+COPY --from=agnos-compiler-modemmanager /tmp/libqmi.deb /tmp/modemmanager.deb /tmp/
+RUN cd /tmp && \
+    apt-get update && \
+    apt-get install -yq --no-install-recommends mobile-broadband-provider-info && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
 
 # Pre-compiled capnp (must be before python install)
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb

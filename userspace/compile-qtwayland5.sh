@@ -6,8 +6,6 @@ VERSION=5.12.9
 dpkg --add-architecture armhf
 
 apt-get update && apt-get install -yq --no-install-recommends \
-    git \
-    pkg-config \
     libc6:armhf \
     libdbus-1-3 \
     libegl-dev \

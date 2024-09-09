@@ -3,40 +3,47 @@ set -e
 
 MM_VERSION="1.22.0"
 LIBQMI_VERSION="1.34.0"
-PROVIDER_INFO_VERSION="20230416"
 
 cd /tmp
 
-apt-fast update
-apt-fast install -y --no-install-recommends automake autoconf build-essential cmake
+# meson support for checkinstall
+git clone https://github.com/keithbowes/meson-install.git
 
-# TODO: clean up these build time dependencies
-apt-fast install -y --no-install-recommends python3 python3-pip python3-setuptools python3-wheel ninja-build meson
-export PATH=$PATH:/root/.local/bin
-
-# build mobile-broadband-provider-info
-apt-fast install -y --no-install-recommends xsltproc
-git clone -b $PROVIDER_INFO_VERSION --depth 1 https://gitlab.gnome.org/GNOME/mobile-broadband-provider-info.git
-cd mobile-broadband-provider-info
-./autogen.sh
-./configure
-make install
-
-# build libqmi
-cd /tmp
-apt-fast install -y --no-install-recommends libgudev-1.0-dev gobject-introspection libgirepository1.0-dev help2man bash-completion python-is-python3
+# libqmi
+apt-get update && apt-get install -yq --no-install-recommends \
+      bash-completion \
+      gobject-introspection \
+      gtk-doc-tools \
+      help2man \
+      libgirepository1.0-dev \
+      libglib2.0-dev \
+      libgudev-1.0-dev \
+      meson \
+      ninja-build \
 
 git clone -b $LIBQMI_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/libqmi.git
 cd libqmi
 meson setup build --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu -Dmbim_qmux=false -Dqrtr=false
 ninja -C build
-ninja -C build install
 
-# build ModemManager
+cd build
+checkinstall -yD --install=no --fstrans=no --pkgname=libqmi /tmp/meson-install/meson-install
+mv libqmi*.deb /tmp/libqmi.deb
+
+# ModemManager
 cd /tmp
-apt install -y --no-install-recommends gettext libpolkit-gobject-1-dev libdbus-1-dev libsystemd-dev polkitd-pkla
 
 git clone -b $MM_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/ModemManager.git
+
+apt-get install -y --no-install-recommends \
+      cmake \
+      gettext \
+      libdbus-1-dev \
+      libpolkit-gobject-1-dev \
+      libsystemd-dev \
+      udev
+
+apt-get -o Dpkg::Options::="--force-overwrite" install -yq /tmp/libqmi.deb
 
 cd ModemManager
 meson setup build \
@@ -53,10 +60,7 @@ meson setup build \
       -Dplugin_fibocom=disabled
 
 ninja -C build
-ninja -C build install
 
-# remove plugins we don't use, makes probing faster
-mkdir -p /tmp/mm-plugins
-mv /usr/lib/aarch64-linux-gnu/ModemManager/libmm-*.so /tmp/mm-plugins
-cp /tmp/mm-plugins/*generic* /usr/lib/aarch64-linux-gnu/ModemManager/
-cp /tmp/mm-plugins/*quectel* /usr/lib/aarch64-linux-gnu/ModemManager/
+cd build
+checkinstall -yD --install=no --fstrans=no --pkgname=modemmanager /tmp/meson-install/meson-install
+mv modemmanager*.deb /tmp/modemmanager.deb
