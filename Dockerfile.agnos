@@ -17,29 +17,24 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 
 #capnproto
 FROM agnos-compiler AS agnos-compiler-capnp
-
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN /tmp/agnos/compile-capnp.sh
 
 # ffmpeg
 FROM agnos-compiler AS agnos-compiler-ffmpeg
-
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
 
 # PyQt5
 FROM agnos-compiler AS agnos-compiler-pyqt5
-
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
-
 COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
 RUN /tmp/agnos/compile-pyqt5.sh
 
 # qtwayland5
 FROM agnos-compiler AS agnos-compiler-qtwayland5
-
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch* /tmp/agnos/
