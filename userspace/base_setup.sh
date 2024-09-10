@@ -8,11 +8,8 @@ HOST=comma
 touch /TICI
 touch /AGNOS
 
-# Add armhf as supported architecture
-dpkg --add-architecture armhf
-
 # Install apt-fast
-apt-get update
+apt-get update -yq
 apt-get install -yq curl sudo wget
 bash -c "$(curl -sL https://git.io/vokNn)"
 
@@ -86,6 +83,9 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # setup /bin/sh symlink
 ln -sf /bin/bash /bin/sh
+
+# Add armhf as supported architecture
+dpkg --add-architecture armhf
 
 # Install necessary libs
 apt-fast install --no-install-recommends -yq \
