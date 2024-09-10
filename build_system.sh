@@ -21,7 +21,7 @@ OUT_SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 
 # the partition is 10G, but openpilot's updater didn't always handle the full size
 # openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
-# ROOTFS_IMAGE_SIZE=4G # replaced static size with dynamic export tar size + 100 MB
+# ROOTFS_IMAGE_SIZE=4G # replaced static size with dynamic export tar size + 10%
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -69,7 +69,7 @@ docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 
 # Calculate dynamic ROOTFS_IMAGE_SIZE
 FILESYSTEM_SIZE=$(stat -c %s $BUILD_DIR/filesystem.tar)
-ROOTFS_IMAGE_SIZE=$((FILESYSTEM_SIZE + 100 * 1024 * 1024))
+ROOTFS_IMAGE_SIZE=$((FILESYSTEM_SIZE + FILESYSTEM_SIZE / 10))
 
 echo "Calculated ROOTFS_IMAGE_SIZE: $ROOTFS_IMAGE_SIZE bytes"
 
