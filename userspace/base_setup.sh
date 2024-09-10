@@ -50,29 +50,10 @@ echo "comma - nice -10" >> /etc/security/limits.conf
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8
 
-apt-fast upgrade -yq
 apt-fast install --no-install-recommends -yq \
-    alsa-utils \
-    apport-retrace \
-    bc \
     build-essential \
-    bzip2 \
-    curl \
     chrony \
-    cpuset \
-    dfu-util \
-    evtest \
-    git \
-    git-core \
-    git-lfs \
     gdb \
-    htop \
-    i2c-tools \
-    ifmetric \
-    ifupdown \
-    iptables-persistent \
-    jq \
-    landscape-common \
     libi2c-dev \
     libqmi-utils \
     libtool \
@@ -84,28 +65,8 @@ apt-fast install --no-install-recommends -yq \
     libssl-dev \
     libffi-dev \
     llvm \
-    nano \
-    net-tools \
     nload \
-    network-manager \
-    nvme-cli \
-    openssl \
-    ppp \
-    smartmontools \
-    speedtest-cli \
-    ssh \
-    sshfs \
-    sudo \
-    systemd-resolved \
-    traceroute \
     tk-dev \
-    ubuntu-minimal \
-    ubuntu-server \
-    ubuntu-standard \
-    udev \
-    udhcpc \
-    wget \
-    wireless-tools \
     zlib1g-dev
 
 rm -rf /var/lib/apt/lists/*
@@ -127,7 +88,6 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 ln -sf /bin/bash /bin/sh
 
 # Install necessary libs
-apt-fast update -yq
 apt-fast install --no-install-recommends -yq \
     libacl1:armhf \
     libasan6-armhf-cross \

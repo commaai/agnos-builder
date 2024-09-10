@@ -7,7 +7,6 @@ PROVIDER_INFO_VERSION="20230416"
 
 cd /tmp
 
-apt-fast update
 apt-fast install -y --no-install-recommends automake autoconf build-essential cmake
 
 # TODO: clean up these build time dependencies

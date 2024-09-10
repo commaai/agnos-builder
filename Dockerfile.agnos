@@ -74,7 +74,7 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-# Build ModemManager
+# Build ModemManagerbase_setup.sh
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN /tmp/agnos/compile-modemmanager.sh
 
