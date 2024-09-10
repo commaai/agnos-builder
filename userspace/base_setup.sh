@@ -13,6 +13,9 @@ apt-get update -yq
 apt-get install -yq curl sudo wget
 bash -c "$(curl -sL https://git.io/vokNn)"
 
+# Add armhf as supported architecture
+dpkg --add-architecture armhf
+
 # Install packages
 export DEBIAN_FRONTEND=noninteractive
 apt-fast update -yq
@@ -67,8 +70,6 @@ apt-fast install --no-install-recommends -yq \
     tk-dev \
     zlib1g-dev
 
-rm -rf /var/lib/apt/lists/*
-
 # Allow chrony to make a big adjustment to system time on boot
 echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
 
@@ -84,9 +85,6 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # setup /bin/sh symlink
 ln -sf /bin/bash /bin/sh
-
-# Add armhf as supported architecture
-dpkg --add-architecture armhf
 
 # Install necessary libs
 apt-fast install --no-install-recommends -yq \
@@ -163,3 +161,6 @@ apt-fast install --no-install-recommends -yq \
     hostapd \
     libgtk2.0-dev \
     libxml2:armhf \
+
+rm -rf /var/lib/apt/lists/*
+
