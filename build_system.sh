@@ -21,7 +21,7 @@ OUT_SKIP_CHUNKS_IMAGE="$OUTPUT_DIR/system-skip-chunks.img"
 
 # the partition is 10G, but openpilot's updater didn't always handle the full size
 # openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
-ROOTFS_IMAGE_SIZE=4000M
+# ROOTFS_IMAGE_SIZE=4G # replaced static size with dynamic export tar size + 100 MB
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -59,11 +59,19 @@ fi
 export DOCKER_BUILDKIT=1
 docker build -f Dockerfile.agnos --check $DIR
 
-# Start agnos-builder docker build and create container
+# Start agnos-builder docker build, create container and export
 echo "Building agnos-builder docker image"
 docker build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
+echo "Exporting agnos-builder container"
+docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
+
+# Calculate dynamic ROOTFS_IMAGE_SIZE
+FILESYSTEM_SIZE=$(stat -c %s $BUILD_DIR/filesystem.tar)
+ROOTFS_IMAGE_SIZE=$((FILESYSTEM_SIZE + 100 * 1024 * 1024))
+
+echo "Calculated ROOTFS_IMAGE_SIZE: $ROOTFS_IMAGE_SIZE bytes"
 
 # Check agnos-meta-builder Dockerfile
 docker build -f Dockerfile.builder --check $DIR \
@@ -110,7 +118,6 @@ docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Extract image
 echo "Extracting docker image"
-docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
 
 # Avoid detecting as container
