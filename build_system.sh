@@ -69,7 +69,7 @@ docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
 
 # Calculate dynamic ROOTFS_IMAGE_SIZE
 FILESYSTEM_SIZE=$(stat -c %s $BUILD_DIR/filesystem.tar)
-ROOTFS_IMAGE_SIZE=$((FILESYSTEM_SIZE + FILESYSTEM_SIZE / 10))
+ROOTFS_IMAGE_SIZE=$((FILESYSTEM_SIZE * 115 / 100))
 
 echo "Calculated ROOTFS_IMAGE_SIZE: $ROOTFS_IMAGE_SIZE bytes"
 
