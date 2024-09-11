@@ -1,6 +1,53 @@
 # check=error=true
 
 # ################## #
+# ### Package  ##### #
+# ### Compilation ## #
+# ################## #
+FROM ubuntu:24.04 AS agnos-compiler
+
+# Common packages
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    clang \
+    curl \
+    checkinstall \
+    git \
+    pkg-config \
+    wget
+
+# capnproto
+FROM agnos-compiler AS agnos-compiler-capnp
+COPY ./userspace/compile-capnp.sh /tmp/agnos/
+RUN /tmp/agnos/compile-capnp.sh
+
+# ffmpeg
+FROM agnos-compiler AS agnos-compiler-ffmpeg
+COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
+RUN /tmp/agnos/compile-ffmpeg.sh
+
+# ModemManager
+FROM agnos-compiler AS agnos-compiler-modemmanager
+COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+RUN /tmp/agnos/compile-modemmanager.sh
+
+# PyQt5
+FROM agnos-compiler AS agnos-compiler-pyqt5
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_python_dependencies.sh
+COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
+RUN /tmp/agnos/compile-pyqt5.sh
+
+# qtwayland5
+FROM agnos-compiler AS agnos-compiler-qtwayland5
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
+COPY ./userspace/qtwayland/patch* /tmp/agnos/
+RUN /tmp/agnos/compile-qtwayland5.sh
+
+# ################## #
 # ###### Base ###### #
 # ################## #
 FROM scratch AS agnos-base
@@ -37,31 +84,6 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
     /tmp/agnos/libffi6_3.2.1-8_arm64.deb
 
-# ################## #
-# #### Compiler #### #
-# ################## #
-FROM agnos-base AS agnos-compiler
-
-RUN apt-fast update && apt-fast install --no-install-recommends -yq checkinstall
-
-# Individual compiling images
-FROM agnos-compiler AS agnos-compiler-pyqt5
-COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
-RUN /tmp/agnos/compile-pyqt5.sh
-
-FROM agnos-compiler AS agnos-compiler-capnp
-COPY ./userspace/compile-capnp.sh /tmp/agnos/
-RUN /tmp/agnos/compile-capnp.sh
-
-FROM agnos-compiler AS agnos-compiler-ffmpeg
-COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN /tmp/agnos/compile-ffmpeg.sh
-
-FROM agnos-compiler AS agnos-compiler-qtwayland5
-COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
-COPY ./userspace/qtwayland/patch* /tmp/agnos/
-RUN /tmp/agnos/compile-qtwayland5.sh
-
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
@@ -74,9 +96,25 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-# Build ModemManager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN /tmp/agnos/compile-modemmanager.sh
+# Pre-compiled libqmi and modemmanager
+COPY --from=agnos-compiler-modemmanager /tmp/libqmi.deb /tmp/modemmanager.deb /tmp/
+RUN cd /tmp && \
+    apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    gir1.2-qmi-1.0 \
+    libglib2.0-dev \
+    libqmi-glib5 \
+    libc6 \
+    libglib2.0-0t64 \
+    libgudev-1.0-0 \
+    libmm-glib0 \
+    libpolkit-gobject-1-0 \
+    libsystemd0 \
+    polkitd \
+    polkitd-pkla \
+    mobile-broadband-provider-info && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
 
 # Pre-compiled capnp (must be before python install)
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
