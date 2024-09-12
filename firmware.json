@@ -11,9 +11,9 @@
   },
   {
     "name": "abl",
-    "url": "https://commadist.azureedge.net/agnosupdate/abl-709f3ca2139d52c458e6583ebfc296f243599a253c7a7caed2645fa51bc0ab79.img.xz",
-    "hash": "709f3ca2139d52c458e6583ebfc296f243599a253c7a7caed2645fa51bc0ab79",
-    "hash_raw": "709f3ca2139d52c458e6583ebfc296f243599a253c7a7caed2645fa51bc0ab79",
+    "url": "https://commadist.azureedge.net/agnosupdate/abl-6ce46c75c6270e4cb2f98998b4415177d46d0197e1348dea7d510534b206179b.img.xz",
+    "hash": "6ce46c75c6270e4cb2f98998b4415177d46d0197e1348dea7d510534b206179b",
+    "hash_raw": "6ce46c75c6270e4cb2f98998b4415177d46d0197e1348dea7d510534b206179b",
     "size": 274432,
     "sparse": false,
     "full_check": true,
