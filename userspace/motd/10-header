@@ -19,12 +19,19 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-#[ -r /etc/lsb-release ] && . /etc/lsb-release
+[ -r /etc/lsb-release ] && . /etc/lsb-release
 
-#if [ -z "$DISTRIB_DESCRIPTION" ] && [ -x /usr/bin/lsb_release ]; then
-#	# Fall back to using the very slow lsb_release utility
-#	DISTRIB_DESCRIPTION=$(lsb_release -s -d)
-#fi
+if [ -z "$DISTRIB_DESCRIPTION" ] && [ -x /usr/bin/lsb_release ]; then
+	# Fall back to using the very slow lsb_release utility
+	DISTRIB_DESCRIPTION=$(lsb_release -s -d)
+fi
 
-DISTRIB_DESCRIPTION="AGNOS"
-printf "Welcome to %s (%s %s %s)\n" "$DISTRIB_DESCRIPTION" "$(uname -o)" "$(uname -r)" "$(uname -m)"
+AGNOS_DESCRIPTION=$(< /VERSION)
+
+# For CI builds e.g. "11-ade422a"
+if [[ "$AGNOS_DESCRIPTION" == *-* ]]; then
+	AGNOS_DESCRIPTION="${AGNOS_DESCRIPTION%-*} (${AGNOS_DESCRIPTION#*-})"
+fi
+
+printf "Welcome to AGNOS v%s\n" "$AGNOS_DESCRIPTION"
+printf "Based on %s (%s %s %s)\n" "$DISTRIB_DESCRIPTION" "$(uname -o)" "$(uname -r)" "$(uname -m)"
