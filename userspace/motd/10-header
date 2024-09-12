@@ -26,7 +26,12 @@ if [ -z "$DISTRIB_DESCRIPTION" ] && [ -x /usr/bin/lsb_release ]; then
 	DISTRIB_DESCRIPTION=$(lsb_release -s -d)
 fi
 
-AGNOS_DESCRIPTION="AGNOS $(< /VERSION)"
+AGNOS_DESCRIPTION=$(< /VERSION)
 
-printf "Welcome to %s\n" "$AGNOS_DESCRIPTION"
+# For CI builds e.g. "11-ade422a"
+if [[ "$AGNOS_DESCRIPTION" == *-* ]]; then
+	AGNOS_DESCRIPTION="${AGNOS_DESCRIPTION%-*} (${AGNOS_DESCRIPTION#*-})"
+fi
+
+printf "Welcome to AGNOS v%s\n" "$AGNOS_DESCRIPTION"
 printf "Based on %s (%s %s %s)\n" "$DISTRIB_DESCRIPTION" "$(uname -o)" "$(uname -r)" "$(uname -m)"
