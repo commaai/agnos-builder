@@ -20,9 +20,8 @@ cd $OUTPUT_DIR
 
 download_image() {
   local name=$1
-  local alt=${2:-""}
 
-  local url=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$name\") | $alt.url")
+  local url=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$name\") | .url")
   if [ "$url" == "null" ]; then
     return
   fi
@@ -37,7 +36,6 @@ download_image() {
 
 for name in boot system; do
   download_image $name
-  download_image $name ".alt"
 done
 
 echo "Done!"

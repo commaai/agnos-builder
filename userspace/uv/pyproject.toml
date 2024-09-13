@@ -7,8 +7,14 @@ description = ""
 dependencies = [
   "openpilot",
   "openpilot[testing]",
-  # required
+
+  # hardware.py
   "dbus-python",
+  # phantom_touch_logger.py
+  "evdev",
+  # amplifier.py
+  "smbus2",
+
   # tinygrad
   "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
 ]
