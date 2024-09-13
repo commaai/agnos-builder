@@ -3,6 +3,7 @@
 echo "Installing openpilot dependencies"
 
 # Install necessary libs
+apt-fast update -yq
 apt-fast install --no-install-recommends -yq \
     autoconf \
     automake \
