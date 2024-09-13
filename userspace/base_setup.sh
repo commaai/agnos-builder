@@ -162,5 +162,3 @@ apt-fast install --no-install-recommends -yq \
     libgtk2.0-dev \
     libxml2:armhf \
 
-rm -rf /var/lib/apt/lists/*
-
