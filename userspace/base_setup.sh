@@ -58,7 +58,6 @@ apt-fast install --no-install-recommends -yq \
     build-essential \
     bzip2 \
     curl \
-    chrony \
     cpuset \
     dfu-util \
     evtest \
@@ -110,9 +109,6 @@ apt-fast install --no-install-recommends -yq \
     zlib1g-dev
 
 rm -rf /var/lib/apt/lists/*
-
-# Allow chrony to make a big adjustment to system time on boot
-echo "makestep 0.1 3" >> /etc/chrony/chrony.conf
 
 # Create dirs
 mkdir /data && chown $USERNAME:$USERNAME /data
