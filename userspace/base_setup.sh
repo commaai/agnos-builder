@@ -97,6 +97,7 @@ apt-fast install --no-install-recommends -yq \
     sshfs \
     sudo \
     systemd-resolved \
+    systemd-timesyncd \
     traceroute \
     tk-dev \
     ubuntu-minimal \
