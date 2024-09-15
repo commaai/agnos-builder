@@ -61,8 +61,8 @@ elif ! mountpoint -q /data; then
 fi
 
 # setup /data/tmp
+rm -rf /data/tmp
 mkdir -p /data/tmp
-rm -rf /data/tmp/*
 
 # symlink vscode to userdata
 mkdir -p /data/tmp/vscode-server
