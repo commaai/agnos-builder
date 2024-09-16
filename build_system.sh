@@ -60,7 +60,7 @@ docker build -f Dockerfile.agnos --check $DIR
 
 # Start agnos-builder docker build and create container
 echo "Building agnos-builder docker image"
-docker build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE
+docker build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
