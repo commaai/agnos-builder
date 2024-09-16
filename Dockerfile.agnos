@@ -39,15 +39,6 @@ COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
-# PyQt5
-FROM agnos-compiler AS agnos-compiler-pyqt5
-COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
-COPY ./userspace/compile-pyqt5.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=pyqt5,sharing=shared \
-    /tmp/agnos/compile-pyqt5.sh
-
 # qtwayland5
 FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
@@ -135,14 +126,6 @@ RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmp
 
 ARG XDG_DATA_HOME="/usr/local"
 ARG PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
-
-# Use pre-compiled PyQt5 wheel
-COPY --from=agnos-compiler-pyqt5 /tmp/PyQt5-5.15.9/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl
-
-RUN export MAKEFLAGS="-j$(nproc)" && \
-    source $XDG_DATA_HOME/venv/bin/activate && \
-    uv pip install pyqt5-sip==12.12.1 && \
-    uv pip install /tmp/PyQt5-5.15.9-cp38-abi3-manylinux_2_17_aarch64.whl --verbose --config-settings="--confirm-license="
 
 # Install openpilot python packages
 COPY ./userspace/uv /tmp/agnos/uv
