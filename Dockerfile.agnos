@@ -250,8 +250,12 @@ COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 # copy version file
 COPY VERSION /VERSION
 
+# The modification time ("mtime") of this file is used for advancing the system clock in case /var/lib/systemd/timesync/clock does not exist yet
+# Sets initial boot time (as build time) and fixes fstab warning #374 (system time > fstab mtime)
+RUN touch /usr/lib/clock-epoch
+
 # ################## #
-# #### Cleaunup #### #
+# #### Cleanup #### #
 # ################## #
 
 RUN rm -rf /usr/share/icons/* && \
