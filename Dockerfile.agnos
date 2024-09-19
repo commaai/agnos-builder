@@ -182,6 +182,7 @@ COPY ./userspace/files/*.rules /etc/udev/rules.d/
 COPY ./userspace/files/ssh*_config /etc/ssh/
 COPY ./userspace/files/logrotate.conf /etc/
 RUN chmod 644 /etc/logrotate.conf
+RUN touch -r /lib/systemd/systemd /etc/fstab
 
 # populate /usr
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
