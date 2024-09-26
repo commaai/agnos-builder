@@ -13,6 +13,9 @@ RELEASE_MANIFEST = "https://raw.githubusercontent.com/commaai/openpilot/release3
 ROOT = Path(__file__).parent.parent
 
 def download_and_decompress(url, expected_hash, filename):
+  # Ensure parent directories exist
+  filename.parent.mkdir(parents=True, exist_ok=True)
+  
   # check if already downloaded
   if Path(filename).is_file():
     sha256 = hashlib.sha256()
