@@ -233,6 +233,9 @@ RUN systemctl enable ModemManager
 # Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
 COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
 
+# Copy extra FW, rest comes from debs
+COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware
+
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
 
