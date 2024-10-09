@@ -99,6 +99,10 @@ CONFIGS = {
   ],
 }
 
+CONFIGS["tiki"] = [
+  *CONFIGS["tizi"],
+]
+
 class Amplifier:
   AMP_I2C_BUS = 0
   AMP_ADDRESS = 0x10
