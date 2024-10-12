@@ -47,10 +47,6 @@ COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
     /tmp/agnos/compile-qtwayland5.sh
 
-FROM agnos-compiler AS agnos-compiler-rep-ren
-COPY ./userspace/compile-rep_ren.sh /tmp/agnos/
-RUN /tmp/agnos/compile-rep_ren.sh
-
 # ################## #
 # ###### Base ###### #
 # ################## #
@@ -154,10 +150,6 @@ RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allo
 
 # Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
 COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
-
-# Install rep and ren
-COPY --from=agnos-compiler-rep-ren /tmp/rep-grep.deb /tmp/ren-find.deb /tmp/
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./rep-grep.deb ./ren-find.deb
 
 COPY ./userspace/home/ /home/$USERNAME/
 COPY ./userspace/home/.config/ /root/.config
