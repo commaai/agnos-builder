@@ -1,4 +1,5 @@
 [Unit]
+After=local-fs.target
 
 [Service]
 Type=simple
