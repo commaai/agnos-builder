@@ -24,8 +24,8 @@
 
 ### ABL
 
-- [ ] Fastboot USB enumeration
-- [ ] Boot time hasn't regressed (3.8s)
+- [ ] A/B slot fallback works
+- [ ] Boot time hasn't regressed (1s)
 
 ### XBL
 
