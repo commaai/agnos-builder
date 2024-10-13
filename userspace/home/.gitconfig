@@ -3,6 +3,8 @@
   name = Comma Device
 [push]
   default = simple
+[pull]
+  rebase = false
 [url "git@github.com:"]
   pushInsteadOf = "https://github.com/"
 [filter "lfs"]
