@@ -18,6 +18,9 @@ dependencies = [
 
   # tinygrad
   "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
+
+  # extra nice-to-haves
+  "ipython",
 ]
 
 [tool.uv.sources]
