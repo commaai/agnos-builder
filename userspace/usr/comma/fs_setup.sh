@@ -7,7 +7,10 @@
 systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 
 # setup /home
-mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/tmp/rw/home_upper,workdir=/tmp/rw/home_work /home
+mkdir -p /tmprw/home_work
+mkdir -p /tmprw/home_upper
+chmod 755 /tmprw/*
+mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/tmprw/home_upper,workdir=/tmprw/home_work /home
 
 # /etc
 mkdir -p /data/etc
@@ -21,6 +24,10 @@ mkdir -p /data/media
 # /data/ssh
 mkdir -p /data/ssh
 chown comma: /data/ssh
+
+# /data/tmp - clear out
+rm -rf /data/tmp/
+mkdir -p /data/tmp/
 
 # /data/persist
 if [[ ! -d /data/persist ]]; then

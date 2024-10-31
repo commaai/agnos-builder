@@ -6,3 +6,4 @@
 /dev/nvme0n1 /data/media auto discard,nosuid,nodev,nofail,x-systemd.device-timeout=5s 0 0
 tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755 0 0
 tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777 0 0
+tmpfs /tmprw tmpfs rw,nosuid,nodev,size=100M,mode=1777 0 0
