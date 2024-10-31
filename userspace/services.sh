@@ -21,7 +21,6 @@ systemctl enable power_drop_monitor.service
 systemctl enable brightnessd.service
 systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
-systemctl enable home.mount
 systemctl enable logrotate-hourly.timer
 systemctl enable phantom_touch_logger.service
 
