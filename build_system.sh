@@ -9,8 +9,6 @@ UBUNTU_FILE_CHECKSUM="7700539236d24c31c3eea1d5345eba5ee0353a1bac7d91ea5720b399b2
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-ARCH=$(uname -m)
-
 BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
 
@@ -49,7 +47,7 @@ if [ "$(shasum -a 256 "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECK
 fi
 
 # Setup qemu multiarch
-if [ "$ARCH" = "x86_64" ]; then
+if [ "$(uname -m)" = "x86_64" ]; then
   echo "Registering qemu-user-static"
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
@@ -60,7 +58,11 @@ docker buildx build -f Dockerfile.agnos --check $DIR
 
 # Start build and create container
 echo "Building agnos-builder docker image"
-docker buildx build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
+BUILD="docker"
+if [ ! -z "$NS" ]; then
+  BUILD="nsc"
+fi
+$BUILD build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
