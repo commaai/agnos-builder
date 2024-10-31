@@ -9,8 +9,6 @@ UBUNTU_FILE_CHECKSUM="7700539236d24c31c3eea1d5345eba5ee0353a1bac7d91ea5720b399b2
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-ARCH=$(uname -m)
-
 BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
 
@@ -49,30 +47,34 @@ if [ "$(shasum -a 256 "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECK
 fi
 
 # Setup qemu multiarch
-if [ "$ARCH" = "x86_64" ]; then
+if [ "$(uname -m)" = "x86_64" ]; then
   echo "Registering qemu-user-static"
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
 # Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
-docker build -f Dockerfile.agnos --check $DIR
+docker buildx build -f Dockerfile.agnos --check $DIR
 
-# Start agnos-builder docker build and create container
+# Start build and create container
 echo "Building agnos-builder docker image"
-docker build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
+BUILD="docker build"
+if [ ! -z "$NS" ]; then
+  BUILD="nsc build --load"
+fi
+$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
 # Check agnos-meta-builder Dockerfile
-docker build -f Dockerfile.builder --check $DIR \
+docker buildx build -f Dockerfile.builder --check $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
   --build-arg GID=$(id -g)
 
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-meta-builder docker image"
-docker build -f Dockerfile.builder -t agnos-meta-builder $DIR \
+docker buildx build -f Dockerfile.builder -t agnos-meta-builder $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
   --build-arg GID=$(id -g)
