@@ -3,6 +3,12 @@
 # Ensure the symlinks in the read only rootfs are
 # backed by real files and directories on userdata.
 
+# tmpfiles
+systemd-tmpfiles --create /usr/comma/tmpfiles.conf
+
+# setup /home
+mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/tmp/rw/home_upper,workdir=/tmp/rw/home_work /home
+
 # /etc
 mkdir -p /data/etc
 touch /data/etc/timezone
