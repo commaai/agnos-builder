@@ -58,11 +58,11 @@ docker buildx build -f Dockerfile.agnos --check $DIR
 
 # Start build and create container
 echo "Building agnos-builder docker image"
-BUILD="docker"
+BUILD="docker build"
 if [ ! -z "$NS" ]; then
-  BUILD="nsc"
+  BUILD="nsc build --load"
 fi
-$BUILD build -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
+$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
