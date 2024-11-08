@@ -12,6 +12,9 @@ This repo builds the two main parts of that (system and kernel) and packages it 
 
 Any system that supports a recent [Docker](https://docs.docker.com/get-docker/) should work.
 
+> [!NOTE]
+> docker buildx version >0.15.0 is required
+
 Run once to set things up:
 ```sh
 git clone https://github.com/commaai/agnos-builder.git
