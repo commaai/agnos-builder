@@ -1,11 +1,13 @@
 #!/bin/bash -e
 
+UV_VERSION=0.4.30
+
 echo "installing uv..."
 
 export XDG_DATA_HOME="/usr/local"
 export CARGO_HOME="$XDG_DATA_HOME/.cargo"
 
-curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-installer.sh | sh
 eval ". $CARGO_HOME/env"
 
 PYTHON_VERSION="3.12.3"
