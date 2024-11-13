@@ -2,7 +2,7 @@
 
 echo "installing uv..."
 
-export XDG_DATA_HOME="/usr/local" # uv is installed in $XDG_DATA_HOME/../bin since 0.5.0
+export XDG_DATA_HOME="/usr/local" 
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
