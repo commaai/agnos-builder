@@ -36,6 +36,9 @@ Flashing to a comma 3/3X:
 ./flash_system.sh
 ```
 
+> [!NOTE]
+> If flashing on M-series Macs, you may need to run `brew install libusb` and then `sudo mkdir -p /usr/local/lib && sudo ln -s /opt/homebrew/lib/libusb-1.0.0.dylib /usr/local/lib/libusb.dylib` if getting "No backend available".
+
 Validating changes:
 * Running openpilot is a good smoketest for general AGNOS functionality
 * [CI](https://github.com/commaai/agnos-builder/blob/master/.github/workflows/build.yaml) ensures the kernel and system builds work (and pushes the images for you to download)
