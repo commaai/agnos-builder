@@ -2,11 +2,9 @@
 
 echo "installing uv..."
 
-export XDG_DATA_HOME="/usr/local"
-export CARGO_HOME="$XDG_DATA_HOME/.cargo"
+export XDG_DATA_HOME="/usr/local" 
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
-eval ". $CARGO_HOME/env"
 
 PYTHON_VERSION="3.12.3"
 

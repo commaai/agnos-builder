@@ -125,7 +125,6 @@ COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
 ARG XDG_DATA_HOME="/usr/local"
-ARG PATH="$XDG_DATA_HOME/.cargo/bin:$PATH"
 
 # Install openpilot python packages
 COPY ./userspace/uv /tmp/agnos/uv
