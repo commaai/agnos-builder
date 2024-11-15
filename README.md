@@ -30,7 +30,7 @@ Building
 ./build_system.sh
 ```
 
-Flashing to a comma 3/3X:
+Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
 ```
 ./flash_kernel.sh
 ./flash_system.sh
