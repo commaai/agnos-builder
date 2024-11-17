@@ -154,3 +154,5 @@ if __name__ == "__main__":
   if model in CONFIGS:
     amp = Amplifier()
     amp.initialize_configuration(model)
+  else:
+    print(f"Skipping, no config for {model}")
