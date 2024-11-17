@@ -77,7 +77,9 @@ systemctl disable nvmf-autoconnect.service
 # no influence on any interface, all interfaces work fine
 systemctl disable networking.service
 
+# TODO: this doesn't actually disable unless run twice...
 # Service fails with Status: "No devices to monitor"
+systemctl disable smartd.service
 systemctl disable smartd.service
 
 systemctl disable console-setup.service
