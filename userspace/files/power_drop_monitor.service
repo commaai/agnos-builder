@@ -3,6 +3,7 @@ After=multi-user.target
 
 [Service]
 Restart=always
+ExecCondition=/bin/bash -c 'grep -q -E "tici|tizi" /sys/firmware/devicetree/base/model'
 ExecStart=/usr/local/venv/bin/python -u /usr/comma/power_drop_monitor.py
 
 [Install]
