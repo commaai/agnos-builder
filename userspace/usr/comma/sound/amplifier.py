@@ -99,10 +99,6 @@ CONFIGS = {
   ],
 }
 
-CONFIGS["tiki"] = [
-  *CONFIGS["tizi"],
-]
-
 class Amplifier:
   AMP_I2C_BUS = 0
   AMP_ADDRESS = 0x10
@@ -155,5 +151,6 @@ if __name__ == "__main__":
     model = f.read().strip('\x00')
   model = model.split('comma ')[-1]
 
-  amp = Amplifier()
-  amp.initialize_configuration(model)
+  if model in CONFIGS:
+    amp = Amplifier()
+    amp.initialize_configuration(model)
