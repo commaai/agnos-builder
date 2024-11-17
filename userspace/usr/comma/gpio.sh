@@ -24,6 +24,13 @@ pins=(
 
 for p in ${pins[@]}; do
   echo $p
+
+  # this is SSD_3v3 EN on tici
+  if [ "$p" -eq 41 ] && grep -q "comma tici" /sys/firmware/devicetree/base/model; then
+    echo "Skipping $p"
+    continue
+  fi
+
   echo $p > /sys/class/gpio/export
   until [ -d /sys/class/gpio/gpio$p ]
   do
