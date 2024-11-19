@@ -166,7 +166,7 @@ COPY ./userspace/firmware/* /lib/firmware/
 # populate /etc
 COPY ./userspace/files/fstab /etc
 COPY ./userspace/files/profile /etc/profile
-COPY ./userspace/files/01-network-manager-all.yaml /etc/netplan/
+COPY --chown=root:root ./userspace/files/01-network-manager-all.yaml /etc/netplan/
 COPY ./userspace/files/allow-network-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-network-control.pkla
 COPY ./userspace/files/allow-modem-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-modem-control.pkla
 COPY ./userspace/files/*.rules /etc/udev/rules.d/
