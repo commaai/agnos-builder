@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-UV_PATH=/usr/local/.cargo/bin/uv
+UV_PATH=/usr/bin/uv
 export TMPDIR=/tmp/uv-tmp
 
 # setup large tmp for install
