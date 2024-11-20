@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     ccache \
     clang \
     curl \
-    checkinstall \
     dh-make \
     dpkg-dev \
     git \
