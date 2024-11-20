@@ -19,6 +19,6 @@ export LOGNAME=comma
 
 dh_make --createorig -s -p capnproto_${VERSION} -y
 
-dpkg-buildpackage -us -uc -nc
+DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -nc
 
 mv ../capnproto*.deb /tmp/capnproto.deb
