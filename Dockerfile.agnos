@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
+ENV CCACHE_DIR=/root/.ccache
 
 # capnproto
 FROM agnos-compiler AS agnos-compiler-capnp
