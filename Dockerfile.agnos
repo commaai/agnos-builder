@@ -23,6 +23,10 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 ENV PATH="/usr/lib/ccache:$PATH"
 ENV CCACHE_DIR=/root/.ccache
 
+# For debhelper
+ENV DEBFULLNAME=comma
+ENV USER=comma
+
 # capnproto
 FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/

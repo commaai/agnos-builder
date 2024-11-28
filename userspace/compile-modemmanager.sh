@@ -24,9 +24,6 @@ apt-get update && apt-get install -yq --no-install-recommends \
 git clone -b $LIBQMI_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/libqmi.git
 cd libqmi
 
-export DEBFULLNAME=comma
-export LOGNAME=comma
-
 dh_make --createorig -s -p libqmi_${LIBQMI_VERSION} -y
 
 cat <<EOF >> debian/rules

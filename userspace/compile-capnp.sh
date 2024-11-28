@@ -14,9 +14,6 @@ wget https://capnproto.org/capnproto-c++-${VERSION}.tar.gz
 tar xvf capnproto-c++-${VERSION}.tar.gz
 cd capnproto-c++-${VERSION}
 
-export DEBFULLNAME=comma
-export LOGNAME=comma
-
 dh_make --createorig -s -p capnproto_${VERSION} -y
 
 DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -nc

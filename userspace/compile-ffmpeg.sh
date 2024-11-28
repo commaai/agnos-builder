@@ -27,9 +27,6 @@ wget https://ffmpeg.org/releases/ffmpeg-${VERSION}.tar.bz2
 tar xvf ffmpeg-${VERSION}.tar.bz2
 cd ffmpeg-${VERSION}
 
-export DEBFULLNAME=comma
-export LOGNAME=comma
-
 dh_make --createorig -s -p ffmpeg_${VERSION} -y
 
 # avoid makeinfo: error parsing ./doc/t2h.pm: Undefined subroutine &Texinfo::Config::set_from_init_file called at ./doc/t2h.pm line 24.
