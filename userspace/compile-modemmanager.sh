@@ -6,9 +6,6 @@ LIBQMI_VERSION="1.34.0"
 
 cd /tmp
 
-# meson support for checkinstall
-git clone https://github.com/keithbowes/meson-install.git
-
 # libqmi
 apt-get update && apt-get install -yq --no-install-recommends \
     bash-completion \
@@ -26,11 +23,7 @@ cd libqmi
 
 dh_make --createorig -s -p libqmi_${LIBQMI_VERSION} -y
 
-cat <<EOF >> debian/rules
-override_dh_auto_configure:
-    dh_auto_configure -- --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu -Dmbim_qmux=false -Dqrtr=false
-EOF
-sed -i 's/^    /\t/' debian/rules
+echo -e "override_dh_auto_configure:\n\tdh_auto_configure -- --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu -Dmbim_qmux=false -Dqrtr=false" >> debian/rules
 
 dpkg-buildpackage -us -uc -nc
 
