@@ -32,7 +32,7 @@ override_dh_auto_configure:
 EOF
 sed -i 's/^    /\t/' debian/rules
 
-DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -nc
+dpkg-buildpackage -us -uc -nc
 
 mv ../libqmi*.deb /tmp/libqmi.deb
 
@@ -109,6 +109,6 @@ override_dh_auto_configure:
 EOF
 sed -i 's/^    /\t/' debian/rules
 
-DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -nc
+dpkg-buildpackage -us -uc -nc
 
 mv ../modemmanager*.deb /tmp/modemmanager.deb

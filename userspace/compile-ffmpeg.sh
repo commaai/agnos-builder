@@ -37,6 +37,6 @@ dh_make --createorig -s -p ffmpeg_${VERSION} -y
 echo -e "override_dh_auto_configure:\n\t./configure --enable-shared --disable-static --disable-htmlpages" >> debian/rules
 echo -e "override_dh_usrlocal:" >> debian/rules
 
-DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -nc
+dpkg-buildpackage -us -uc -nc
 
  mv ../ffmpeg*.deb /tmp/ffmpeg.deb

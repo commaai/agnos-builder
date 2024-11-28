@@ -24,6 +24,7 @@ ENV PATH="/usr/lib/ccache:$PATH"
 ENV CCACHE_DIR=/root/.ccache
 
 # For debhelper
+ENV DEB_BUILD_OPTIONS=nocheck
 ENV DEBFULLNAME=comma
 ENV USER=comma
 

@@ -16,6 +16,6 @@ cd capnproto-c++-${VERSION}
 
 dh_make --createorig -s -p capnproto_${VERSION} -y
 
-DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -nc
+dpkg-buildpackage -us -uc -nc
 
 mv ../capnproto*.deb /tmp/capnproto.deb
