@@ -253,9 +253,9 @@ COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 # copy version file
 COPY VERSION /VERSION
 
-# ################## #
-# #### Cleaunup #### #
-# ################## #
+# ################# #
+# #### Cleanup #### #
+# ################# #
 
 RUN rm -rf /usr/share/icons/* && \
     rm -rf /var/lib/apt/lists/* && \
