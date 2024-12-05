@@ -29,13 +29,7 @@ cd ffmpeg-${VERSION}
 
 dh_make --createorig -s -p ffmpeg_${VERSION} -y
 
-# avoid makeinfo: error parsing ./doc/t2h.pm: Undefined subroutine &Texinfo::Config::set_from_init_file called at ./doc/t2h.pm line 24.
-# with --disable-htmlpages
-# --disable-doc works too, disables building documentation completely
-# https://gist.github.com/omegdadi/6904512c0a948225c81114b1c5acb875
-# https://github.com/7Ji/archrepo/issues/10
-echo -e "override_dh_auto_configure:\n\t./configure --enable-shared --disable-static --disable-htmlpages" >> debian/rules
-echo -e "override_dh_usrlocal:" >> debian/rules
+cp /tmp/agnos/ffmpeg_rules debian/rules
 
 dpkg-buildpackage -us -uc -nc
 

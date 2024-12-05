@@ -42,7 +42,7 @@ ln -s libdl.so.2 /usr/lib/aarch64-linux-gnu/libdl.so
 
 dh_make --createorig -s -p qtwayland5_${VERSION} -y
 
-echo -e "override_dh_shlibdeps:\n\tdh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info" >> debian/rules
+cp /tmp/agnos/qtwayland5_rules debian/rules
 
 dpkg-buildpackage -us -uc -nc
 
