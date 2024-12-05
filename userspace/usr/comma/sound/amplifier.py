@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import time
 from smbus2 import SMBus
 from collections import namedtuple
@@ -52,7 +53,9 @@ BASE_CONFIG = [
   AmpConfig("Right DAC input mixer: DAI2 left", 0b1, 0x22, 1, 0b00000010),
   AmpConfig("Right DAC input mixer: DAI2 right", 0b0, 0x22, 0, 0b00000001),
   AmpConfig("DAI1 audio port selector", 0b10, 0x16, 6, 0b11000000),
+  AmpConfig("DAI1 in/output enable", 0b11, 0x16, 0, 0b11),
   AmpConfig("DAI2 audio port selector", 0b01, 0x1E, 6, 0b11000000),
+  AmpConfig("DAI2 in/output enable", 0b11, 0x1E, 0, 0b11),
   AmpConfig("Enable left digital microphone", 0b1, 0x48, 5, 0b00100000),
   AmpConfig("Enable right digital microphone", 0b1, 0x48, 4, 0b00010000),
   AmpConfig("Enhanced volume smoothing disabled", 0b0, 0x49, 7, 0b10000000),
