@@ -21,6 +21,8 @@ dependencies = [
 
   # extra nice-to-haves
   "ipython",
+  "pyrasite",
+  "py-spy",
 ]
 
 [tool.uv.sources]
