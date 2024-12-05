@@ -8,8 +8,9 @@ KERNEL=="ttyUSB0",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_MM_DEV
 # ttyUSB3 - AT
 KERNEL=="ttyUSB0",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_DEVICE_IGNORE}="1"
 KERNEL=="ttyUSB1",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_DEVICE_IGNORE}="1"
-KERNEL=="ttyUSB2",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_PORT_TYPE_AT_PRIMARY}="1"
-KERNEL=="ttyUSB3",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_PORT_TYPE_AT_SECONDARY}="1"
+KERNEL=="ttyUSB2",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_PORT_TYPE_AT_PPP}="1"
+KERNEL=="ttyUSB3",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_PORT_TYPE_AT_PRIMARY}="1"
+ACTION=="add",SUBSYSTEM=="usb",ATTR{idVendor}=="2c7c",ATTR{idProduct}=="6007",RUN+="/bin/sh -c 'echo -n $kernel:1.4 > /sys/bus/usb/drivers/cdc_ether/unbind'"
 
 # C16
 KERNEL=="ttyACM1",ENV{ID_MM_DEVICE_IGNORE}="1"
