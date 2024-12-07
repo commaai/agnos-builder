@@ -43,6 +43,14 @@ handle_setup_keys () {
   fi
 }
 
+handle_adb () {
+  bash "$(dirname "$0")/adb_usb.sh start"
+    # Start ADB daemon if not already running
+  if ! pgrep adbd > /dev/null; then
+    "$(dirname "$0")/adbd" &
+  fi
+}
+
 # factory reset handling
 if [ -f "$RESET_TRIGGER" ]; then
   echo "launching system reset, reset trigger present"
@@ -72,6 +80,9 @@ ln -s /data/tmp/vscode-server ~/.cursor-server
 while true; do
   pkill -f "$SETUP"
   handle_setup_keys
+
+  echo "adb setup"
+  handle_adb
 
   if [ -f $CONTINUE ]; then
     exec "$CONTINUE"
