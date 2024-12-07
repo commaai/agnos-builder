@@ -40,13 +40,10 @@ git apply /tmp/agnos/patch-qtwayland-v5.12
 # https://stackoverflow.com/a/75855054/639708
 ln -s libdl.so.2 /usr/lib/aarch64-linux-gnu/libdl.so
 
-mkdir /tmp/build && cd /tmp/build
-qmake /tmp/qtwayland
+dh_make --createorig -s -p qtwayland5_${VERSION} -y
 
-export MAKEFLAGS="-j$(nproc)"
-make
+cp /tmp/agnos/qtwayland5_rules debian/rules
 
-# remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)
-# # https://bugs.launchpad.net/ubuntu/+source/checkinstall/+bug/78455
-checkinstall -yD --install=no --fstrans=no --pkgversion="${VERSION}" --pkgname=qtwayland5 --pkgarch=arm64 --replaces=qtwayland5,libqt5waylandclient5,libqt5waylandcompositor5
-mv qtwayland5*.deb /tmp/qtwayland5.deb
+dpkg-buildpackage -us -uc -nc
+
+mv ../qtwayland5*.deb /tmp/qtwayland5.deb

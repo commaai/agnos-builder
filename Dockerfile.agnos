@@ -13,36 +13,47 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     ccache \
     clang \
     curl \
-    checkinstall \
+    dh-make \
+    dpkg-dev \
     git \
     pkg-config \
     wget
 
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
+ENV CCACHE_DIR=/root/.ccache
+
+# For debhelper
+ENV DEB_BUILD_OPTIONS=nocheck
+ENV DEBFULLNAME=comma
+ENV USER=comma
 
 # capnproto
 FROM agnos-compiler AS agnos-compiler-capnp
-COPY ./userspace/compile-capnp.sh /tmp/agnos/
+COPY ./userspace/debs/compile-capnp.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
     /tmp/agnos/compile-capnp.sh
 
 # ffmpeg
 FROM agnos-compiler AS agnos-compiler-ffmpeg
-COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
+COPY ./userspace/debs/compile-ffmpeg.sh /tmp/agnos/
+COPY ./userspace/debs/ffmpeg_rules /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
     /tmp/agnos/compile-ffmpeg.sh
 
 # ModemManager
 FROM agnos-compiler AS agnos-compiler-modemmanager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+COPY ./userspace/debs/compile-modemmanager.sh /tmp/agnos/
+COPY ./userspace/debs/libqmi_rules /tmp/agnos/
+COPY ./userspace/debs/modemmanager_rules /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
 # qtwayland5
 FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
+COPY ./userspace/debs/compile-qtwayland5.sh /tmp/agnos/
+COPY ./userspace/debs/qtwayland5_rules /tmp/agnos/
 COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
     /tmp/agnos/compile-qtwayland5.sh
