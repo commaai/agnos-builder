@@ -44,11 +44,8 @@ handle_setup_keys () {
 }
 
 handle_adb () {
+  sudo systemctl start adbd
   bash "$(dirname "$0")/adb_usb.sh start"
-    # Start ADB daemon if not already running
-  if ! pgrep adbd > /dev/null; then
-    "$(dirname "$0")/adbd" &
-  fi
 }
 
 # factory reset handling
