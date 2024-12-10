@@ -25,6 +25,9 @@ fi
 sudo chown comma: /data
 sudo chown comma: /data/media
 
+# run adb service
+./adb.sh
+
 handle_setup_keys () {
   # install default SSH key while still in setup
   if [[ ! -e /data/params/d/GithubSshKeys && ! -e /data/continue.sh ]]; then
