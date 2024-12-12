@@ -1,0 +1,10 @@
+# Google vendor ID (18d1)
+SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb_device", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev", TAG+="uaccess"
+
+# Qualcomm vendor ID (05c6)
+SUBSYSTEM=="usb", ATTR{idVendor}=="05c6", MODE="0666", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb_device", ATTR{idVendor}=="05c6", MODE="0666", GROUP="plugdev", TAG+="uaccess"
+
+# Additional rules for ADB interface
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", MODE="0666"

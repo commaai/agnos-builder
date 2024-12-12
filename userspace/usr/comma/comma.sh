@@ -44,8 +44,48 @@ handle_setup_keys () {
 }
 
 handle_adb () {
-  sudo systemctl start adbd
-  bash "$(dirname "$0")/adb_usb.sh start"
+  # Try to configure USB controller through configfs
+  sudo mkdir -p /sys/kernel/config/usb_gadget/g1 2>/dev/null || true
+  
+  cd /sys/kernel/config/usb_gadget/g1
+  
+  # Basic USB configuration
+  sudo sh -c 'echo "0x18d1" > idVendor'  # Google vendor ID
+  sudo sh -c 'echo "0x2d01" > idProduct'  # Generic ADB product ID
+  
+  # Create strings directory and add basic info
+  sudo mkdir -p strings/0x409
+  sudo sh -c 'echo "Comma.ai" > strings/0x409/manufacturer'
+  sudo sh -c 'echo "Comma Device" > strings/0x409/product'
+  
+  # Create configuration
+  sudo mkdir -p configs/c.1/strings/0x409
+  sudo sh -c 'echo "ADB Configuration" > configs/c.1/strings/0x409/configuration'
+  
+  # Create function
+  sudo mkdir -p functions/ffs.adb
+  sudo ln -s functions/ffs.adb configs/c.1
+
+  sudo mount -o remount,rw /
+  sudo cp /usr/comma/99-android.rules /etc/udev/rules.d/99-android.rules
+  sudo chmod 777 /etc/udev/rules.d/99-android.rules
+  sudo chmod a+r /etc/udev/rules.d/99-android.rules
+  
+  # Create plugdev group if it doesn't exist
+  sudo groupadd -f plugdev
+  sudo usermod -aG plugdev comma
+  
+  # Restart udev and ADB with debug logging
+  sudo service udev restart
+  sudo udevadm control --reload-rules
+  sudo udevadm trigger
+  
+  sudo systemctl restart adbd
+  
+  # Print ADB status for debugging
+  systemctl status adbd
+  
+  sudo mount -o remount,ro /
 }
 
 # factory reset handling
