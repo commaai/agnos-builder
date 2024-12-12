@@ -70,6 +70,17 @@ handle_adb () {
   sudo cp /usr/comma/99-android.rules /etc/udev/rules.d/99-android.rules
   sudo chmod 777 /etc/udev/rules.d/99-android.rules
   sudo chmod a+r /etc/udev/rules.d/99-android.rules
+
+  # Check if UDC exists
+  if [ -e "/sys/class/udc/a600000.dwc3" ]; then
+    # First unbind any existing gadgets
+    sudo sh -c 'echo "" > UDC'
+    sleep 0.5
+    # Try to bind the new gadget
+    sudo sh -c 'echo "a600000.dwc3" > UDC' || echo "Failed to bind USB gadget to controller"
+  else
+    echo "USB controller a600000.dwc3 not found"
+  fi
   
   # Create plugdev group if it doesn't exist
   sudo groupadd -f plugdev
