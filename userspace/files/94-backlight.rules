@@ -4,3 +4,7 @@ ACTION=="add", SUBSYSTEM=="backlight", KERNEL=="panel0-backlight", RUN+="/bin/ch
 ACTION=="add", SUBSYSTEM=="backlight", KERNEL=="panel0-backlight", RUN+="/bin/chmod g+w /sys/class/backlight/%k/bl_power"
 ACTION=="add", SUBSYSTEM=="platform", KERNEL=="soc:qcom,dsi-display@0", RUN+="/bin/chgrp video /sys/devices/platform/soc/%k/max_brightness_percent"
 ACTION=="add", SUBSYSTEM=="platform", KERNEL=="soc:qcom,dsi-display@0", RUN+="/bin/chmod g+w /sys/devices/platform/soc/%k/max_brightness_percent"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="led:torch_2", RUN+="/bin/chgrp video /sys/class/leds/%k/brightness"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="led:torch_2", RUN+="/bin/chmod g+w /sys/class/leds/%k/brightness"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="led:switch_2", RUN+="/bin/chgrp video /sys/class/leds/%k/brightness"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="led:switch_2", RUN+="/bin/chmod g+w /sys/class/leds/%k/brightness"
