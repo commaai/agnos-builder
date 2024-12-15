@@ -134,9 +134,9 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
     pcpath=$pc"/lib/pkgconfig" && \
     export PKG_CONFIG_PATH="$pcpath:$PKG_CONFIG_PATH" && \
-    pypcpath=$pcpath"/python-3.12.pc" && \
+    pypcpath=$pcpath"/python-3.13.pc" && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
-    pypcpathembed=$pcpath"/python-3.12-embed.pc" && \
+    pypcpathembed=$pcpath"/python-3.13-embed.pc" && \
     sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
