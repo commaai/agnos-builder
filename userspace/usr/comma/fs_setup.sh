@@ -16,6 +16,7 @@ mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/tmprw/home_uppe
 mkdir -p /data/etc
 touch /data/etc/timezone
 touch /data/etc/localtime
+mkdir -p /data/etc/netplan
 mkdir -p /data/etc/NetworkManager/system-connections
 
 # /data/media - NVME mount point
