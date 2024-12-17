@@ -11,8 +11,6 @@ dependencies = [
 
   # hardware.py
   "dbus-python",
-  # phantom_touch_logger.py
-  "evdev",
   # amplifier.py
   "smbus2",
 
@@ -20,6 +18,7 @@ dependencies = [
   "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
 
   # extra nice-to-haves
+  "evdev",
   "ipython",
 ]
 

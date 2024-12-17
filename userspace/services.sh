@@ -22,7 +22,6 @@ systemctl enable brightnessd.service
 systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable logrotate-hourly.timer
-systemctl enable phantom_touch_logger.service
 
 # Disable some of our services
 systemctl disable agnos-tests.service
