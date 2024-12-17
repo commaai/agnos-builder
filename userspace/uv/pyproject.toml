@@ -11,8 +11,6 @@ dependencies = [
 
   # hardware.py
   "dbus-python",
-  # phantom_touch_logger.py
-  "evdev",
   # amplifier.py
   "smbus2",
 
