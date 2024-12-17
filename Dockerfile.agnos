@@ -241,7 +241,7 @@ RUN cd /usr/lib/gcc/arm-none-eabi/* && \
 RUN ldconfig
 
 # Setup RO rootfs
-RUN mkdir -p /tmprw
+RUN mkdir -p /rwtmp
 RUN mkdir -p /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
