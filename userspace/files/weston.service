@@ -15,6 +15,7 @@ TTYReset=yes
 TTYVHangup=yes
 TTYVTDisallocate=yes
 
+ExecStartPre=/bin/bash -c "/usr/local/venv/bin/python -c 'import fcntl; KDSETMODE = 0x4B3A; KD_TEXT = 0x00; fd = open(\"/dev/tty1\", \"w\"); fcntl.ioctl(fd, KDSETMODE, KD_TEXT); fd.close()'"
 ExecStartPre=/bin/bash -c "mkdir -p $XDG_RUNTIME_DIR"
 ExecStartPre=/bin/bash -c "chown -R comma: $XDG_RUNTIME_DIR"
 ExecStartPre=/bin/bash -c "chmod -R 700 $XDG_RUNTIME_DIR"
