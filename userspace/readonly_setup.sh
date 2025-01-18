@@ -11,6 +11,8 @@ rm /etc/ssh/ssh_host*
 
 rm -rf /etc/NetworkManager/system-connections
 ln -s /data/etc/NetworkManager/system-connections /etc/NetworkManager/system-connections
+rm -rf /etc/netplan/
+ln -s /data/etc/netplan/ /etc/netplan
 
 # setup /usr/default for defaults
 mkdir /usr/default/

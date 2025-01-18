@@ -12,10 +12,6 @@ MAX_PERCENT = 90
 MIN_PERCENT = 30
 HOURLY_PERC_DECREASE = 5
 
-IGNORED_PANELS = [
-  "dsi_mate10_lite_video_display",
-]
-
 def read(path: str) -> int:
   try:
     with open(path) as f:
@@ -25,18 +21,6 @@ def read(path: str) -> int:
 
 
 if __name__ == "__main__":
-
-  # detect panel type
-  with open("/sys/module/msm_drm/parameters/dsi_display0") as f:
-    d = f.read().strip()
-    panel = d.split(":")[0]
-
-  print(f"Detected panel '{panel}'")
-  if panel in IGNORED_PANELS:
-    print("panel is ignored, exiting")
-    exit(0)
-
-  # brightness loop
   last_perc = None
   last_off_ts = time.monotonic()
   while True:

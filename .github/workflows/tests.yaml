@@ -8,8 +8,8 @@ jobs:
   precommit:
     name: pre-commit
     runs-on: ubuntu-latest
-    timeout-minutes: 1
     steps:
+    - uses: commaai/timeout@v1
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:

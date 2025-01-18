@@ -166,7 +166,6 @@ COPY ./userspace/firmware/* /lib/firmware/
 # populate /etc
 COPY ./userspace/files/fstab /etc
 COPY ./userspace/files/profile /etc/profile
-COPY ./userspace/files/01-network-manager-all.yaml /etc/netplan/
 COPY ./userspace/files/allow-network-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-network-control.pkla
 COPY ./userspace/files/allow-modem-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-modem-control.pkla
 COPY ./userspace/files/*.rules /etc/udev/rules.d/
@@ -242,7 +241,7 @@ RUN cd /usr/lib/gcc/arm-none-eabi/* && \
 RUN ldconfig
 
 # Setup RO rootfs
-RUN mkdir -p /tmprw
+RUN mkdir -p /rwtmp
 RUN mkdir -p /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
@@ -253,9 +252,9 @@ COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 # copy version file
 COPY VERSION /VERSION
 
-# ################## #
-# #### Cleaunup #### #
-# ################## #
+# ################# #
+# #### Cleanup #### #
+# ################# #
 
 RUN rm -rf /usr/share/icons/* && \
     rm -rf /var/lib/apt/lists/* && \

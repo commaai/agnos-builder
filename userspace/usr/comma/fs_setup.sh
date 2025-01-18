@@ -7,15 +7,16 @@
 systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 
 # setup /home
-mkdir -p /tmprw/home_work
-mkdir -p /tmprw/home_upper
-chmod 755 /tmprw/*
-mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/tmprw/home_upper,workdir=/tmprw/home_work /home
+mkdir -p /rwtmp/home_work
+mkdir -p /rwtmp/home_upper
+chmod 755 /rwtmp/*
+mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home
 
 # /etc
 mkdir -p /data/etc
 touch /data/etc/timezone
 touch /data/etc/localtime
+mkdir -p /data/etc/netplan
 mkdir -p /data/etc/NetworkManager/system-connections
 
 # /data/media - NVME mount point
