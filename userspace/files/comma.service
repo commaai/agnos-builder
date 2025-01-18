@@ -2,10 +2,12 @@
 After=local-fs.target
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=true
 User=comma
-Restart=always
-ExecStart=/bin/bash -c "/usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh && sleep infinity"
+ExecStart=/bin/bash -c "/usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh"
+# TODO: send SIGTERM first, then kill after a timeout
+ExecStop=/bin/bash -c "/usr/bin/tmux kill-session -t comma"
 TimeoutStopSec=1
 LimitRTPRIO=100
 LimitNICE=-10
