@@ -101,6 +101,7 @@ COPY --from=agnos-compiler-modemmanager /tmp/libqmi.deb /tmp/modemmanager.deb /t
 RUN cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
+    python3 \
     gir1.2-qmi-1.0 \
     libglib2.0-dev \
     libqmi-glib5 \
