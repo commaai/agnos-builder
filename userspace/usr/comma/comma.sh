@@ -44,35 +44,40 @@ handle_setup_keys () {
 }
 
 handle_adb () {
-sudo mount -o remount,rw /
-sudo systemctl start adbd
+  sudo mount -o remount,rw /
+  sudo systemctl start adbd
 
-# Check if /config is already mounted
-if ! mountpoint -q /config; then
-  sudo mkdir -p /config
-  sudo mount -t configfs none /config
-else
-  echo "/config is already mounted."
-fi
+  # Check if /config is already mounted
+  if ! mountpoint -q /config; then
+    sudo mkdir -p /config
+    sudo mount -t configfs none /config
+  else
+    echo "/config is already mounted."
+  fi
 
-cd /config/usb_gadget/g1
+  # Create USB gadget directory structure
+  sudo mkdir -p /config/usb_gadget/g1
+  cd /config/usb_gadget/g1
+  sudo mkdir -p strings/0x409
+  sudo mkdir -p configs/c.1/strings/0x409
+  sudo mkdir -p functions/ncm.0
 
-# Set Vendor and Product ID
-echo 0x04D8 > idVendor
-echo 0x1234 > idProduct
+  # Set Vendor and Product ID
+  echo 0x04D8 | sudo tee idVendor
+  echo 0x1234 | sudo tee idProduct
 
-# Set strings
-echo "0123456789" > strings/0x409/serialnumber
-echo "Microchip Technology, Inc." > strings/0x409/manufacturer
-echo "Linux USB Gadget" > strings/0x409/product
-echo 250 > /config/usb_gadget/g1/configs/c.1/MaxPower
+  # Set strings
+  echo "0123456789" | sudo tee strings/0x409/serialnumber
+  echo "Microchip Technology, Inc." | sudo tee strings/0x409/manufacturer
+  echo "Linux USB Gadget" | sudo tee strings/0x409/product
+  echo 250 | sudo tee configs/c.1/MaxPower
 
-echo "NCM" | sudo tee /config/usb_gadget/g1/configs/c.1/strings/0x409/configuration
-sudo rm -f /config/usb_gadget/g1/configs/c.1/ncm.0
-sudo ln -s /config/usb_gadget/g1/functions/ncm.0 /config/usb_gadget/g1/configs/c.1/
+  echo "NCM" | sudo tee configs/c.1/strings/0x409/configuration
+  sudo rm -f configs/c.1/ncm.0
+  sudo ln -s functions/ncm.0 configs/c.1/
 
-# Enable the gadget
-ls /sys/class/udc | sudo tee /config/usb_gadget/g1/UDC
+  # Enable the gadget
+  ls /sys/class/udc | sudo tee UDC
 }
 
 # factory reset handling
