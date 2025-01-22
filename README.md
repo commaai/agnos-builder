@@ -30,10 +30,12 @@ Building
 ./build_system.sh
 ```
 
-Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
+Flashing to a comma 3/3X (Be sure to set your device in EDL mode before flashing. This involves connecting your USB-C cable from your computer to [port 2](https://flash.comma.ai/assets/fastboot-ports-DhWKM-vn.svg)):
 ```
 ./flash_kernel.sh
 ./flash_system.sh
+
+./flash_all.sh <- this runs both scripts one after the other
 ```
 
 > [!NOTE]
