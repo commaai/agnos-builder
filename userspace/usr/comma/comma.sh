@@ -44,59 +44,35 @@ handle_setup_keys () {
 }
 
 handle_adb () {
-  # Try to configure USB controller through configfs
-  sudo mkdir -p /sys/kernel/config/usb_gadget/g1 2>/dev/null || true
-  
-  cd /sys/kernel/config/usb_gadget/g1
-  
-  # Basic USB configuration
-  sudo sh -c 'echo "0x18d1" > idVendor'  # Google vendor ID
-  sudo sh -c 'echo "0x2d01" > idProduct'  # Generic ADB product ID
-  
-  # Create strings directory and add basic info
-  sudo mkdir -p strings/0x409
-  sudo sh -c 'echo "Comma.ai" > strings/0x409/manufacturer'
-  sudo sh -c 'echo "Comma Device" > strings/0x409/product'
-  
-  # Create configuration
-  sudo mkdir -p configs/c.1/strings/0x409
-  sudo sh -c 'echo "ADB Configuration" > configs/c.1/strings/0x409/configuration'
-  
-  # Create function
-  sudo mkdir -p functions/ffs.adb
-  sudo ln -s functions/ffs.adb configs/c.1
+sudo mount -o remount,rw /
+sudo systemctl start adbd
 
-  sudo mount -o remount,rw /
-  sudo cp /usr/comma/99-android.rules /etc/udev/rules.d/99-android.rules
-  sudo chmod 777 /etc/udev/rules.d/99-android.rules
-  sudo chmod a+r /etc/udev/rules.d/99-android.rules
+# Check if /config is already mounted
+if ! mountpoint -q /config; then
+  sudo mkdir -p /config
+  sudo mount -t configfs none /config
+else
+  echo "/config is already mounted."
+fi
 
-  # Check if UDC exists
-  if [ -e "/sys/class/udc/a600000.dwc3" ]; then
-    # First unbind any existing gadgets
-    sudo sh -c 'echo "" > UDC'
-    sleep 0.5
-    # Try to bind the new gadget
-    sudo sh -c 'echo "a600000.dwc3" > UDC' || echo "Failed to bind USB gadget to controller"
-  else
-    echo "USB controller a600000.dwc3 not found"
-  fi
-  
-  # Create plugdev group if it doesn't exist
-  sudo groupadd -f plugdev
-  sudo usermod -aG plugdev comma
-  
-  # Restart udev and ADB with debug logging
-  sudo service udev restart
-  sudo udevadm control --reload-rules
-  sudo udevadm trigger
-  
-  sudo systemctl restart adbd
-  
-  # Print ADB status for debugging
-  systemctl status adbd
-  
-  sudo mount -o remount,ro /
+cd /config/usb_gadget/g1
+
+# Set Vendor and Product ID
+echo 0x04D8 > idVendor
+echo 0x1234 > idProduct
+
+# Set strings
+echo "0123456789" > strings/0x409/serialnumber
+echo "Microchip Technology, Inc." > strings/0x409/manufacturer
+echo "Linux USB Gadget" > strings/0x409/product
+echo 250 > /config/usb_gadget/g1/configs/c.1/MaxPower
+
+echo "NCM" | sudo tee /config/usb_gadget/g1/configs/c.1/strings/0x409/configuration
+sudo rm -f /config/usb_gadget/g1/configs/c.1/ncm.0
+sudo ln -s /config/usb_gadget/g1/functions/ncm.0 /config/usb_gadget/g1/configs/c.1/
+
+# Enable the gadget
+ls /sys/class/udc | sudo tee /config/usb_gadget/g1/UDC
 }
 
 # factory reset handling
