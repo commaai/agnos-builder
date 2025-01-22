@@ -101,6 +101,7 @@ COPY --from=agnos-compiler-modemmanager /tmp/libqmi.deb /tmp/modemmanager.deb /t
 RUN cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
+    python3 \
     gir1.2-qmi-1.0 \
     libglib2.0-dev \
     libqmi-glib5 \
@@ -131,13 +132,6 @@ COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    pc="$(python -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
-    pcpath=$pc"/lib/pkgconfig" && \
-    export PKG_CONFIG_PATH="$pcpath:$PKG_CONFIG_PATH" && \
-    pypcpath=$pcpath"/python-3.12.pc" && \
-    sed -i 's|prefix=/install|prefix='$pc'|' $pypcpath && \
-    pypcpathembed=$pcpath"/python-3.12-embed.pc" && \
-    sed -i 's|prefix=/install|prefix='$pc'|' $pypcpathembed && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # Install nice to haves
