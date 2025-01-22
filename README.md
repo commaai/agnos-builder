@@ -35,7 +35,7 @@ Flashing to a comma 3/3X (Be sure to set your device in EDL mode before flashing
 ./flash_kernel.sh
 ./flash_system.sh
 
-./flash_all.sh <- this runs both scripts one after the other
+./flash_all.sh <- downloads and installs from manifest used in flash.comma.ai
 ```
 
 > [!NOTE]
