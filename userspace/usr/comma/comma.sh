@@ -65,7 +65,7 @@ handle_adb () {
   echo 0x1234 | sudo tee idProduct
 
   # Set strings
-  echo "0123456789" | sudo tee strings/0x409/serialnumber
+  echo "$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')" | sudo tee strings/0x409/serialnumber
   echo "Comma.ai" | sudo tee strings/0x409/manufacturer
   echo "Linux USB Gadget" | sudo tee strings/0x409/product
   echo 500 | sudo tee configs/c.1/MaxPower
@@ -73,8 +73,11 @@ handle_adb () {
   # Create ADB function
   sudo mkdir -p functions/ffs.adb
   sudo mkdir -p /dev/usb-ffs/adb
-  sudo mount -t functionfs adb /dev/usb-ffs/adb
-
+  if ! mountpoint -q /dev/usb-ffs/adb; then
+    sudo mount -t functionfs adb /dev/usb-ffs/adb
+  else
+    echo "/dev/usb-ffs/adb is already mounted"
+  fi
   # Link both functions to configuration
   echo "NCM+ADB" | sudo tee configs/c.1/strings/0x409/configuration
   sudo rm -f configs/c.1/ncm.0
