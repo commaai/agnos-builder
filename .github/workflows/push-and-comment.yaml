@@ -11,7 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success'
+      github.event.workflow_run.conclusion == 'success' &&
+      contains(env.LAST_COMMIT_MESSAGE, '[upload]')
     timeout-minutes: 5
     permissions:
       contents: read
