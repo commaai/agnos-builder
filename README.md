@@ -82,5 +82,5 @@ Some concrete things on the roadmap:
 - [x] update to Ubuntu 24.04 https://github.com/commaai/openpilot/issues/32386
 - [ ] mainline Linux kernel https://github.com/commaai/openpilot/issues/32386
 - [ ] fully open source
-  - [ ] anything from [firmware.json](firmware.json): XBL, ABL, etc.
+  - [ ] anything from `firmware/`: XBL, ABL, etc.
   - [ ] Weston https://github.com/commaai/agnos-builder/issues/16

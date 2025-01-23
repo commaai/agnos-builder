@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import sys
 import json
 import os
 import hashlib
@@ -9,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
+FIRMWARE_DIR = ROOT / "firmware"
 OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
 BUILD_DIR = ROOT / "build"
 
@@ -53,28 +53,13 @@ def process_file(fn, name, full_check=True, has_ab=True):
 if __name__ == "__main__":
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-  if len(sys.argv[1:]):
-    files = [process_file(Path(fn), Path(fn).stem) for fn in sys.argv[1:]]
-  else:
-    files = [
-      process_file(OUTPUT_DIR / "boot.img", "boot"),
-      process_file(OUTPUT_DIR / "system.img", "system", full_check=False),
-    ]
-
-    # pull in firmware not built in this repo
-    with open(ROOT/"firmware.json") as f:
-      fws = json.loads(f.read())
-      for fw in fws:
-        files.append({
-          "name": fw["name"],
-          "url": fw["url"],
-          "hash": fw["hash"],
-          "hash_raw": fw["hash"],
-          "size": fw["size"],
-          "sparse": False,
-          "full_check": True,
-          "has_ab": True,
-        })
+  files = [
+    process_file(OUTPUT_DIR / "boot.img", "boot"),
+    process_file(OUTPUT_DIR / "system.img", "system", full_check=False),
+  ]
+  for fw in ("aop", "abl", "xbl", "xbl_config", "devcfg"):
+    # firmware not built in this repo
+    files.append(process_file(FIRMWARE_DIR / f"{fw}.bin", fw))
 
   configs = [
     (AGNOS_UPDATE_URL, "ota.json"),
