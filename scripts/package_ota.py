@@ -57,7 +57,7 @@ if __name__ == "__main__":
     process_file(OUTPUT_DIR / "boot.img", "boot"),
     process_file(OUTPUT_DIR / "system.img", "system", full_check=False),
   ]
-  for fw in ("aop", "abl", "xbl", "xbl_config", "devcfg"):
+  for fw in ("xbl", "abl", "xbl_config", "devcfg", "aop"):
     # firmware not built in this repo
     files.append(process_file(FIRMWARE_DIR / f"{fw}.bin", fw))
 
