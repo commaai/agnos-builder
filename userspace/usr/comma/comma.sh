@@ -68,7 +68,7 @@ handle_adb () {
   echo "$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')" | sudo tee strings/0x409/serialnumber
   echo "Comma.ai" | sudo tee strings/0x409/manufacturer
   echo "Linux USB Gadget" | sudo tee strings/0x409/product
-  echo 500 | sudo tee configs/c.1/MaxPower
+  echo 250 | sudo tee configs/c.1/MaxPower
 
   # Create ADB function
   sudo mkdir -p functions/ffs.adb
