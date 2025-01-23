@@ -49,11 +49,7 @@ DATA_SAS_TOKEN=$(az storage container generate-sas --as-user --auth-mode login -
 
 # Liftoff!
 for name in $(cat $OTA_JSON | jq -r ".[] .name"); do
-  if grep -q "name.*${name}" $DIR/../firmware.json; then
-    echo "Skipping $name, found in firmware.json"
-  else
-    process_file $name
-  fi
+  process_file $name
 done
 
 echo "Done!"
