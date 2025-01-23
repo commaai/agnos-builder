@@ -45,8 +45,6 @@ handle_setup_keys () {
 
 handle_adb () {
   sudo mount -o remount,rw /
-  sudo systemctl start adbd
-
   # Check if /config is already mounted
   if ! mountpoint -q /config; then
     sudo mkdir -p /config
@@ -68,16 +66,27 @@ handle_adb () {
 
   # Set strings
   echo "0123456789" | sudo tee strings/0x409/serialnumber
-  echo "Microchip Technology, Inc." | sudo tee strings/0x409/manufacturer
+  echo "Comma.ai" | sudo tee strings/0x409/manufacturer
   echo "Linux USB Gadget" | sudo tee strings/0x409/product
-  echo 250 | sudo tee configs/c.1/MaxPower
+  echo 500 | sudo tee configs/c.1/MaxPower
 
-  echo "NCM" | sudo tee configs/c.1/strings/0x409/configuration
+  # Create ADB function
+  sudo mkdir -p functions/ffs.adb
+  sudo mkdir -p /dev/usb-ffs/adb
+  sudo mount -t functionfs adb /dev/usb-ffs/adb
+
+  # Link both functions to configuration
+  echo "NCM+ADB" | sudo tee configs/c.1/strings/0x409/configuration
   sudo rm -f configs/c.1/ncm.0
+  sudo rm -f configs/c.1/ffs.adb
   sudo ln -s functions/ncm.0 configs/c.1/
+  sudo ln -s functions/ffs.adb configs/c.1/
 
-  # Enable the gadget
-  ls /sys/class/udc | sudo tee UDC
+  # Start adbd after configuring gadget
+  sudo systemctl start adbd
+
+  # Enable the gadget only after adbd is ready
+  echo "a600000.dwc3" | sudo tee UDC
 }
 
 # factory reset handling
