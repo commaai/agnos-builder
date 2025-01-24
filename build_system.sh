@@ -28,7 +28,6 @@ if ! ls $OUTPUT_DIR/*.ko >/dev/null 2>&1; then
   echo "Kernel modules missing. Run ./build_kernel.sh first"
   exit 1
 fi
-cp $OUTPUT_DIR/wlan.ko $DIR/userspace/usr/comma
 cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
 
 # Download Ubuntu Base if not done already
