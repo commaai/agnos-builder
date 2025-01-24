@@ -55,11 +55,12 @@ ADB_PARAM="/data/params/d/AdbEnabled"
 if [ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]; then
   echo "Enabling ADB"
 
-  setup_gadget()
+  setup_gadget
   systemctl start adbd
-  start_gadget()
+  sleep 1
+  start_gadget
 else
   echo "Disabling ADB"
   systemctl stop adbd
-  stop_gadget()
+  stop_gadget
 fi
