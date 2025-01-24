@@ -21,6 +21,8 @@ systemctl enable power_drop_monitor.service
 systemctl enable brightnessd.service
 systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
+systemctl enable adb-param-watcher.path
+systemctl enable adb-param-watcher.service
 systemctl enable logrotate-hourly.timer
 
 # Disable some of our services

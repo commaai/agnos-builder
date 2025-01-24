@@ -113,6 +113,7 @@ rm -rf /var/lib/apt/lists/*
 # Create dirs
 mkdir /data && chown $USERNAME:$USERNAME /data
 mkdir /persist && chown $USERNAME:$USERNAME /persist
+mkdir /config && chown root:root /config
 
 # Disable pstore service that moves files out of /sys/fs/pstore
 systemctl disable systemd-pstore.service

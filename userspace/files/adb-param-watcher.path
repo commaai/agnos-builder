@@ -1,0 +1,5 @@
+[Path]
+PathModified=/data/params/d/AdbEnabled
+
+[Install]
+WantedBy=multi-user.target
