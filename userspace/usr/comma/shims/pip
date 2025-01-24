@@ -7,7 +7,7 @@ export TMPDIR=/tmp/pip-tmp
 mkdir -p $TMPDIR
 sudo mount -o remount,size=2G /tmp
 sudo mount -o rw,remount /
-sudo resize2fs $(findmnt -n -o SOURCE /) &>/dev/null || sudo resize2fs $(findmnt -n -o SOURCE /)
+/usr/comma/remount.sh
 
 # run command
 sudo TMPDIR=$TMPDIR PIP_NO_CACHE_DIR=1 $PIP_PATH "$@"
