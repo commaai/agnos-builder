@@ -47,8 +47,10 @@ start_gadget() {
 }
 
 stop_gadget() {
-  cd /config/usb_gadget/g1
-  echo "" | sudo tee UDC
+  if [ -d "/config/usb_gadget/g1" ]; then
+    cd /config/usb_gadget/g1
+    echo "" | sudo tee UDC
+  fi
 }
 
 ADB_PARAM="/data/params/d/AdbEnabled"

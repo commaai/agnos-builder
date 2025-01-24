@@ -11,6 +11,7 @@ echo "AGNOS is in read-only production mode. Switching to development mode."
 echo
 echo "WARNING: DO NOT power off while this script is running."
 echo "If you do, use https://flash.comma.ai to recover."
+echo "Once the script is done, it will automatically reboot into development mode."
 echo
 echo -n "Ready to continue? [y/N] "
 read response
