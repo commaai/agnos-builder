@@ -46,17 +46,12 @@ curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5core5a_5.1
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5network5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5gui5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5dbus5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5printsupport5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5test5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5concurrent5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5widgets5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5xml5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
 
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5opengl5-dev_5.12.8+dfsg-0ubuntu2.1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5opengl5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
-
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5sql5-sqlite_5.12.8+dfsg-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5sql5_5.12.8+dfsg-0ubuntu2.1_arm64.deb
 
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5svg5-dev_5.12.8-0ubuntu1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5svg5_5.12.8-0ubuntu1_arm64.deb
@@ -65,10 +60,6 @@ curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5multimedia
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5multimedia5_5.12.8-0ubuntu1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5multimediagsttools5_5.12.8-0ubuntu1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5multimediawidgets5_5.12.8-0ubuntu1_arm64.deb
-
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/qml-module-qtquick2_5.12.8-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5qml5_5.12.8-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/qt5-qmltooling-plugins_5.12.8-0ubuntu1_arm64.deb
 
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/qtdeclarative5-dev_5.12.8-0ubuntu1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/qtdeclarative5-private-dev_5.12.8-0ubuntu1_arm64.deb
@@ -81,17 +72,6 @@ curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5location5-
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/qtmultimedia5-dev_5.12.8-0ubuntu1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5multimedia5_5.12.8-0ubuntu1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5multimediaquick5_5.12.8-0ubuntu1_arm64.deb
-
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/qtpositioning5-dev_5.12.8+dfsg-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5positioning5_5.12.8+dfsg-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5positioningquick5_5.12.8+dfsg-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5positioning5-plugins_5.12.8+dfsg-0ubuntu1_arm64.deb
-
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5quick5_5.12.8-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5quickwidgets5_5.12.8-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5quicktest5_5.12.8-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5quickshapes5_5.12.8-0ubuntu1_arm64.deb
-curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5quickparticles5_5.12.8-0ubuntu1_arm64.deb
 
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5waylandclient5_5.12.8-0ubuntu1_arm64.deb
 curl -sSLO https://launchpad.net/ubuntu/+archive/primary/+files/libqt5waylandcompositor5_5.12.8-0ubuntu1_arm64.deb
