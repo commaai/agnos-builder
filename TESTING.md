@@ -7,7 +7,6 @@
 - [ ] Modem: connects to cell network
 - [ ] Image sizes haven't increased
 - [ ] Sounds work
-- [ ] `python` is our python, not system version
 - [ ] Clean openpilot build: `scons -c && scons -j8`
 - [ ] Factory reset
   - [ ] from openpilot menu
@@ -34,12 +33,6 @@
 
 ### Setup
 
-#### Networking
-
-- [ ] Continue button disabled when no connection
-- [ ] Forget/connect to wifi
-
-#### Custom URL
 - (a) Not a real URL (e.g. `comma`, `abc123`, `...`)
   - [ ] "Ensure the entered URL is valid"
   - [ ] Start over
@@ -49,3 +42,4 @@
 - (c) Valid installer URL (e.g. `openpilot.comma.ai`)
   - [ ] Download successful (comma logo or installer appears)
   - [ ] `/tmp/installer_url` should contain the installer URL
+  - [ ] Boots into openpilot
