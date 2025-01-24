@@ -6,7 +6,6 @@ if [ "$(df -T / | tail -n1 | awk '{print $2}')" = "ext4" ]; then
   exit 0
 fi
 
-# setup AGNOS for development
 echo "AGNOS is in read-only production mode. Switching to development mode."
 echo
 echo "WARNING: DO NOT power off while this script is running."
@@ -63,6 +62,5 @@ fi
 abctl --set_active $SLOT_NUM
 
 echo
-echo "All done! Rebooting into development AGNOS in two seconds..."
-sleep 2
+echo "All done! Rebooting into development AGNOS..."
 sudo reboot

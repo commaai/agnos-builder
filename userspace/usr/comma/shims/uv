@@ -6,7 +6,6 @@ export TMPDIR=/tmp/uv-tmp
 # setup large tmp for install
 mkdir -p $TMPDIR
 sudo mount -o remount,size=2G /tmp
-sudo mount -o rw,remount /
 /usr/comma/remount.sh
 
 # run command
