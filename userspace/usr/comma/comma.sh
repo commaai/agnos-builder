@@ -78,9 +78,6 @@ while true; do
   pkill -f "$SETUP"
   handle_setup_keys
 
-  echo "adb setup"
-  handle_adb
-
   if [ -f $CONTINUE ]; then
     exec "$CONTINUE"
   fi
