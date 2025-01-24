@@ -1,0 +1,10 @@
+[Unit]
+Description=ADB param watcher
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/set_adb.sh
+
+[Install]
+WantedBy=multi-user.target
