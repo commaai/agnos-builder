@@ -40,6 +40,9 @@ process_file() {
   local NAME=$1
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
   upload_file "$NAME-$HASH_RAW.img.xz"
+  if [ -f "$OTA_DIR/$NAME-$HASH_RAW.img" ]; then
+    upload_file "$NAME-$HASH_RAW.img"
+  fi
 }
 
 # Generate token

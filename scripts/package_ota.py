@@ -2,6 +2,7 @@
 import json
 import os
 import hashlib
+import shutil
 import subprocess
 from copy import deepcopy
 from pathlib import Path
@@ -23,7 +24,10 @@ def checksum(fn):
   return sha256.hexdigest()
 
 def compress(fin, fout) -> None:
-  subprocess.check_call(f"xz -T4 -vc {fin} > {fout}", shell=True)
+  # since system.img is a squashfs now, we don't rely on this compression.
+  # however, openpilot's updater still expects an xz archive, so use lowest
+  # compression level for quick packaging.
+  subprocess.check_call(f"xz -0 -T4 -vc {fin} > {fout}", shell=True)
 
 
 def process_file(fn, name, full_check=True, has_ab=True):
@@ -47,6 +51,14 @@ def process_file(fn, name, full_check=True, has_ab=True):
     "has_ab": has_ab,
   }
 
+  if name == "system":
+    ret["alt"] = {
+      "hash": hash_raw,
+      "url": "{remote_url}/" + xz_fn.name.replace(".img.xz", ".img"),
+      "size": size,
+    }
+    shutil.copy(fn, OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img")
+
   return ret
 
 
@@ -69,6 +81,8 @@ if __name__ == "__main__":
     processed_files = []
     for f in deepcopy(files):
       f["url"] = f["url"].format(remote_url=remote_url)
+      if "alt" in f:
+        f["alt"]["url"] = f["alt"]["url"].format(remote_url=remote_url)
       processed_files.append(f)
 
     with open(OTA_OUTPUT_DIR / output_fn, "w") as out:
