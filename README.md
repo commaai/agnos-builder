@@ -30,13 +30,15 @@ Building
 ./build_system.sh
 ```
 
-Flashing to a comma 3/3X (Be sure to set your device in EDL mode before flashing. This involves connecting your USB-C cable from your computer to [port 2](https://flash.comma.ai/assets/fastboot-ports-DhWKM-vn.svg)):
+Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
 ```
 ./flash_kernel.sh
 ./flash_system.sh
 
-./flash_all.sh <- downloads and installs from manifest used in flash.comma.ai
+./flash_all.sh 
 ```
+
+In the event that flashing from building doesn't work, `scripts/download-from-manifest.py` allows you to download the latest AGNOS version for flashing.
 
 > [!NOTE]
 > If flashing on M-series Macs, you may need to run `brew install libusb` and then `sudo mkdir -p /usr/local/lib && sudo ln -s /opt/homebrew/lib/libusb-1.0.0.dylib /usr/local/lib/libusb.dylib` if getting "No backend available".
