@@ -116,7 +116,7 @@ if __name__ == "__main__":
   ]
 
   for (name, fn, has_ab, ota) in QDL_FLASH_ARRAY:
-    files.append((process_file(FIRMWARE_DIR / fn, name, has_ab), ota))
+    files.append((process_file(FIRMWARE_DIR / fn, name, has_ab=has_ab), ota))
 
   for (lun, name, fn, start_sector, num_sectors) in PARTITION_TABLES:
     files.append((process_file(FIRMWARE_DIR / fn, name, has_ab=False, gpt=True, lun=lun, start_sector=start_sector, num_sectors=num_sectors), False))
