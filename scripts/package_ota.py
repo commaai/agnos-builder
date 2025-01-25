@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import json
 import os
 import hashlib
@@ -26,30 +27,30 @@ PARTITION_TABLES = [
   (5, 'gpt_main_5', 'gpt_main_5.bin', 0, 6),
 ]
 
-# Structure: (partition_name, filename, has_ab)
+# Structure: (partition_name, filename, has_ab, ota)
 QDL_FLASH_ARRAY = [
-  ('persist', 'persist.bin', False),
-  ('systemrw', 'systemrw.bin', False),
-  ('cache', 'cache.bin', False),
-  ('xbl', 'xbl.bin', True),
-  ('xbl_config', 'xbl_config.bin', True),
-  ('abl', 'abl.bin', True),
-  ('aop', 'aop.bin', True),
-  ('bluetooth', 'bluetooth.bin', True),
-  ('cmnlib64', 'cmnlib64.bin', True),
-  ('cmnlib', 'cmnlib.bin', True),
-  ('devcfg', 'devcfg.bin', True),
-  ('devinfo', 'devinfo.bin', False),
-  ('dsp', 'dsp.bin', True),
-  ('hyp', 'hyp.bin', True),
-  ('keymaster', 'keymaster.bin', True),
-  ('limits', 'limits.bin', False),
-  ('logfs', 'logfs.bin', False),
-  ('modem', 'modem.bin', True),
-  ('qupfw', 'qupfw.bin', True),
-  ('splash', 'splash.bin', False),
-  ('storsec', 'storsec.bin', True),
-  ('tz', 'tz.bin', True),
+  ('persist', 'persist.bin', False, False),
+  ('systemrw', 'systemrw.bin', False, False),
+  ('cache', 'cache.bin', False, False),
+  ('xbl', 'xbl.bin', True, True),
+  ('xbl_config', 'xbl_config.bin', True, True),
+  ('abl', 'abl.bin', True, True),
+  ('aop', 'aop.bin', True, True),
+  ('bluetooth', 'bluetooth.bin', True, False),
+  ('cmnlib64', 'cmnlib64.bin', True, False),
+  ('cmnlib', 'cmnlib.bin', True, False),
+  ('devcfg', 'devcfg.bin', True, True),
+  ('devinfo', 'devinfo.bin', False, False),
+  ('dsp', 'dsp.bin', True, False),
+  ('hyp', 'hyp.bin', True, False),
+  ('keymaster', 'keymaster.bin', True, False),
+  ('limits', 'limits.bin', False, False),
+  ('logfs', 'logfs.bin', False, False),
+  ('modem', 'modem.bin', True, False),
+  ('qupfw', 'qupfw.bin', True, False),
+  ('splash', 'splash.bin', False, False),
+  ('storsec', 'storsec.bin', True, False),
+  ('tz', 'tz.bin', True, False),
 ]
 
 
@@ -107,6 +108,10 @@ def process_file(fn, name, full_check=True, has_ab=True, gpt=False, lun=0, start
 
 
 if __name__ == "__main__":
+  parser = argparse.ArgumentParser(description='Generate a partitions manifest')
+  parser.add_argument('--all-partitions', action='store_true', help='include all partitions, not only the OTA ones')
+  args = parser.parse_args()
+
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
   files = [
@@ -114,11 +119,14 @@ if __name__ == "__main__":
     process_file(OUTPUT_DIR / "system.img", "system", full_check=False),
   ]
 
-  for (name, fn, has_ab) in QDL_FLASH_ARRAY:
+  for (name, fn, has_ab, ota) in QDL_FLASH_ARRAY:
+    if not ota and not args.all_partitions:
+      continue
     files.append(process_file(FIRMWARE_DIR / fn, name, has_ab))
 
-  for (lun, name, fn, start_sector, num_sectors) in PARTITION_TABLES:
-    files.append(process_file(FIRMWARE_DIR / fn, name, has_ab=False, gpt=True, lun=lun, start_sector=start_sector, num_sectors=num_sectors))
+  if args.all_partitions:
+    for (lun, name, fn, start_sector, num_sectors) in PARTITION_TABLES:
+      files.append(process_file(FIRMWARE_DIR / fn, name, has_ab=False, gpt=True, lun=lun, start_sector=start_sector, num_sectors=num_sectors))
 
   configs = [
     (AGNOS_UPDATE_URL, "ota.json"),
