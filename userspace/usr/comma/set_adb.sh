@@ -1,6 +1,6 @@
 #!/bin/bash
 
-setup_gadget() {
+setup() {
   # Check if /config is already mounted
   if ! mountpoint -q /config; then
     sudo mount -t configfs none /config
@@ -33,6 +33,7 @@ setup_gadget() {
   else
     echo "/dev/usb-ffs/adb is already mounted"
   fi
+
   # Link both functions to configuration
   echo "NCM+ADB" | sudo tee configs/c.1/strings/0x409/configuration
   sudo rm -f configs/c.1/ncm.0
@@ -41,12 +42,14 @@ setup_gadget() {
   sudo ln -s functions/ffs.adb configs/c.1/
 }
 
-start_gadget() {
+start() {
+  setprop service.adb.tcp.port 5555
+
   cd /config/usb_gadget/g1
   echo "a600000.dwc3" | sudo tee UDC
 }
 
-stop_gadget() {
+stop() {
   if [ -d "/config/usb_gadget/g1" ]; then
     cd /config/usb_gadget/g1
     echo "" | sudo tee UDC
@@ -57,12 +60,13 @@ ADB_PARAM="/data/params/d/AdbEnabled"
 if [ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]; then
   echo "Enabling ADB"
 
-  setup_gadget
+  setup
   systemctl start adbd
-  sleep 1
-  start_gadget
+  sleep 1  # adbd does some setup before we can enable the gadget
+  start
 else
   echo "Disabling ADB"
+
   systemctl stop adbd
-  stop_gadget
+  stop
 fi
