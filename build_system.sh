@@ -130,6 +130,8 @@ exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; 
 
 echo "Creating final squashfs image"
 rm -f $OUT_IMAGE
-exec_as_root mksquashfs $ROOTFS_DIR $OUT_IMAGE -comp xz -Xbcj arm -b 1M -Xdict-size 100%
+# TODO: probably possible to do some more tuning here
+#exec_as_root mksquashfs $ROOTFS_DIR $OUT_IMAGE -comp xz -Xbcj arm -b 1M -Xdict-size 100%
+exec_as_root mksquashfs $ROOTFS_DIR $OUT_IMAGE -comp gzip
 
 echo "Done!"
