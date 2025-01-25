@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import argparse
 import json
 import os
 import hashlib
@@ -108,33 +107,32 @@ def process_file(fn, name, full_check=True, has_ab=True, gpt=False, lun=0, start
 
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser(description='Generate a partitions manifest')
-  parser.add_argument('--all-partitions', action='store_true', help='include all partitions, not only the OTA ones')
-  args = parser.parse_args()
-
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
   files = [
-    process_file(OUTPUT_DIR / "boot.img", "boot"),
-    process_file(OUTPUT_DIR / "system.img", "system", full_check=False),
+    # JSON, OTA
+    (process_file(OUTPUT_DIR / "boot.img", "boot"), True),
+    (process_file(OUTPUT_DIR / "system.img", "system", full_check=False), True),
   ]
 
   for (name, fn, has_ab, ota) in QDL_FLASH_ARRAY:
-    if not ota and not args.all_partitions:
-      continue
-    files.append(process_file(FIRMWARE_DIR / fn, name, has_ab))
+    files.append((process_file(FIRMWARE_DIR / fn, name, has_ab), ota))
 
-  if args.all_partitions:
-    for (lun, name, fn, start_sector, num_sectors) in PARTITION_TABLES:
-      files.append(process_file(FIRMWARE_DIR / fn, name, has_ab=False, gpt=True, lun=lun, start_sector=start_sector, num_sectors=num_sectors))
+  for (lun, name, fn, start_sector, num_sectors) in PARTITION_TABLES:
+    files.append((process_file(FIRMWARE_DIR / fn, name, has_ab=False, gpt=True, lun=lun, start_sector=start_sector, num_sectors=num_sectors), False))
 
   configs = [
-    (AGNOS_UPDATE_URL, "ota.json"),
-    (AGNOS_STAGING_UPDATE_URL, "ota-staging.json"),
+    # URL, file name, only OTA partitions
+    (AGNOS_UPDATE_URL, "ota.json", True),
+    (AGNOS_STAGING_UPDATE_URL, "ota-staging.json", True),
+    (AGNOS_UPDATE_URL, "all-partitions.json", False),
+    (AGNOS_STAGING_UPDATE_URL, "all-partitions-staging.json", False),
   ]
-  for remote_url, output_fn in configs:
+  for remote_url, output_fn, only_ota in configs:
     processed_files = []
-    for f in deepcopy(files):
+    for f, ota in deepcopy(files):
+      if only_ota and not ota:
+        continue
       f["url"] = f["url"].format(remote_url=remote_url)
       if "alt" in f:
         f["alt"]["url"] = f["alt"]["url"].format(remote_url=remote_url)
