@@ -27,7 +27,7 @@ def compress(fin, fout) -> None:
   # since system.img is a squashfs now, we don't rely on this compression.
   # however, openpilot's updater still expects an xz archive, so use lowest
   # compression level for quick packaging.
-  subprocess.check_call(f"xz -0 -T4 -vc {fin} > {fout}", shell=True)
+  subprocess.check_call(f"xz -0 -T0 -vc {fin} > {fout}", shell=True)
 
 
 def process_file(fn, name, full_check=True, has_ab=True):
