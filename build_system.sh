@@ -18,13 +18,6 @@ OUT_IMAGE="$OUTPUT_DIR/system.img"
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
 
-# Copy kernel modules
-if ! ls $OUTPUT_DIR/*.ko >/dev/null 2>&1; then
-  echo "Kernel modules missing. Run ./build_kernel.sh first"
-  exit 1
-fi
-cp $OUTPUT_DIR/snd*.ko $DIR/userspace/usr/comma/sound/
-
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
   echo -e "Downloading Ubuntu Base: $UBUNTU_FILE"
@@ -49,7 +42,7 @@ fi
 # Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
 docker buildx build -f Dockerfile.agnos --check $DIR
-
+set -x
 # Start build and create container
 echo "Building agnos-builder docker image"
 BUILD="docker buildx build --load"
