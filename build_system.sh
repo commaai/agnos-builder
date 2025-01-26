@@ -42,7 +42,7 @@ fi
 # Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
 docker buildx build -f Dockerfile.agnos --check $DIR
-set -x
+
 # Start build and create container
 echo "Building agnos-builder docker image"
 BUILD="docker buildx build --load"
