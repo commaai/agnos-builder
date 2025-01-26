@@ -2,9 +2,6 @@
 
 /usr/comma/sound/adsp-start.sh
 
-insmod /usr/comma/sound/snd-soc-wcd9xxx.ko
-insmod /usr/comma/sound/snd-soc-sdm845.ko
-
 echo "waiting for sound card to come online"
 while [ ! -d /proc/asound/sdm845tavilsndc ] || [ "$(cat /proc/asound/card0/state 2> /dev/null)" != "ONLINE" ] ; do
   sleep 0.01
