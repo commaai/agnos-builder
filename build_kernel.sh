@@ -100,6 +100,10 @@ build_kernel() {
   dd if=/dev/zero of=$BOOT_IMG.sig.padded bs=2048 count=1
   dd if=$BOOT_IMG.sig of=$BOOT_IMG.sig.padded conv=notrunc
   cat $BOOT_IMG.nonsecure $BOOT_IMG.sig.padded > $BOOT_IMG
+
+  # Copy to output dir
+  mkdir -p $OUTPUT_DIR
+  mv $BOOT_IMG $OUTPUT_DIR/
 }
 
 # Run build_kernel in container
