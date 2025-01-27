@@ -12,7 +12,7 @@ jobs:
     if: >
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' &&
-      contains(env.LAST_COMMIT_MESSAGE, '[upload]')
+      contains(github.event.workflow_run.head_commit.message, '[upload]')
     timeout-minutes: 5
     permissions:
       contents: read
