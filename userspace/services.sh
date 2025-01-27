@@ -62,8 +62,6 @@ systemctl disable update-notifier-download.service
 systemctl disable update-notifier-motd.timer
 systemctl disable update-notifier-motd.service
 
-systemctl disable keyboard-setup.service
-
 # Disable NFS stuff by default
 systemctl disable rpcbind
 systemctl disable nfs-client.target
