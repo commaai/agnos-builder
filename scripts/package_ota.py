@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from copy import deepcopy
 from pathlib import Path
+from collections import namedtuple
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -16,40 +17,45 @@ BUILD_DIR = ROOT / "build"
 AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate")
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
 
-# Structure: (lun, partition_name, filename, start_sector, num_sectors)
-PARTITION_TABLES = [
-  (0, 'gpt_main_0', 'gpt_main_0.bin', 0, 6),
-  (1, 'gpt_main_1', 'gpt_main_1.bin', 0, 6),
-  (2, 'gpt_main_2', 'gpt_main_2.bin', 0, 6),
-  (3, 'gpt_main_3', 'gpt_main_3.bin', 0, 6),
-  (4, 'gpt_main_4', 'gpt_main_4.bin', 0, 6),
-  (5, 'gpt_main_5', 'gpt_main_5.bin', 0, 6),
+GPT = namedtuple('GPT', ['lun', 'name', 'path', 'start_sector', 'num_sectors', 'ondevice_hash', 'has_ab', 'ota', 'full_check'])
+GPTS = [
+  GPT(0, 'gpt_main_0', FIRMWARE_DIR / 'gpt_main_0.bin', 0, 6, '8928A31FD9EE20F8703649F89833EBA9B55E84B6415E67799C777B163C95A0BD', False, False, True),
+  GPT(1, 'gpt_main_1', FIRMWARE_DIR / 'gpt_main_1.bin', 0, 6, 'FE8EF7653DB588D7420A625920CA06927DFCB0ED8AFF3E3A1C74A52A24398BA6', False, False, True),
+  GPT(2, 'gpt_main_2', FIRMWARE_DIR / 'gpt_main_2.bin', 0, 6, '5CCFC7240C8CBFA2F1A018A2E376CF274A6BAF858C9BFE71951D8E28CAB53C21', False, False, True),
+  GPT(3, 'gpt_main_3', FIRMWARE_DIR / 'gpt_main_3.bin', 0, 6, 'C707979FA21E89519328F4F30C2B21C9C453401CA8303F914C1873D410A95159', False, False, True),
+  GPT(4, 'gpt_main_4', FIRMWARE_DIR / 'gpt_main_4.bin', 0, 6, 'E9405DCD785DBE79412184E1894A9C51AB7DEB33BB612166C4C42A3D2BF42A0E', False, False, True),
+  GPT(5, 'gpt_main_5', FIRMWARE_DIR / 'gpt_main_5.bin', 0, 6, '21AE965F05B2FA8D02E04F1EB74718F9779864F6EACDEB859757D6435E8CCCE3', False, False, True),
 ]
 
-# Structure: (partition_name, filename, has_ab, ota)
-QDL_FLASH_ARRAY = [
-  ('persist', 'persist.bin', False, False),
-  ('systemrw', 'systemrw.bin', False, False),
-  ('cache', 'cache.bin', False, False),
-  ('xbl', 'xbl.bin', True, True),
-  ('xbl_config', 'xbl_config.bin', True, True),
-  ('abl', 'abl.bin', True, True),
-  ('aop', 'aop.bin', True, True),
-  ('bluetooth', 'bluetooth.bin', True, False),
-  ('cmnlib64', 'cmnlib64.bin', True, False),
-  ('cmnlib', 'cmnlib.bin', True, False),
-  ('devcfg', 'devcfg.bin', True, True),
-  ('devinfo', 'devinfo.bin', False, False),
-  ('dsp', 'dsp.bin', True, False),
-  ('hyp', 'hyp.bin', True, False),
-  ('keymaster', 'keymaster.bin', True, False),
-  ('limits', 'limits.bin', False, False),
-  ('logfs', 'logfs.bin', False, False),
-  ('modem', 'modem.bin', True, False),
-  ('qupfw', 'qupfw.bin', True, False),
-  ('splash', 'splash.bin', False, False),
-  ('storsec', 'storsec.bin', True, False),
-  ('tz', 'tz.bin', True, False),
+Partition = namedtuple('Partition', ['name', 'path', 'ondevice_hash', 'has_ab', 'ota', 'full_check'])
+PARTITIONS = [
+  Partition('persist', FIRMWARE_DIR / 'persist.bin', '9814B07851292F510F3794B767489F38AB379A99F0EA75DC620AD2D3A496D54D', False, False, True),
+  Partition('systemrw', FIRMWARE_DIR / 'systemrw.bin', '8CE150CA38EF64A0885FC2FE816E5B63BAE8ADB4DF5D809C5B318E6996366C7E', False, False, True),
+  Partition('cache', FIRMWARE_DIR / 'cache.bin', 'EBFBAAA2F96DC4E5FEA4F126364E5BF5B3B44C12CBC753B62FDD8BAAB82F70B4', False, False, True),
+  Partition('xbl', FIRMWARE_DIR / 'xbl.bin', 'CA12B2A003D872404C94C3A875FE608B93B56C3FE3EE39BDD1EDFFE5F3A3B73C', True, True, True),
+  Partition('xbl_config', FIRMWARE_DIR / 'xbl_config.bin', 'CBD2FD9BFA0D4828720A9D40A693FCA0F5841AA3934A8300156E5AE57311AC75', True, True, True),
+  Partition('abl', FIRMWARE_DIR / 'abl.bin', '0084FCF79FEA067632A1C2D9519B6445AD484AA8B09F49F22E6B45B4DCCACD2D', True, True, True),
+  Partition('aop', FIRMWARE_DIR / 'aop.bin', 'CD30E2DDB8F4A57640897A424E173B1D0679628D9524D5A7EAE792352C1537CE', True, True, True),
+  Partition('bluetooth', FIRMWARE_DIR / 'bluetooth.bin', '9BB766D2D2CE0CC4491664B3010FE1EF62F8FFC1E362D55F78E48C4141F75533', True, False, True),
+  Partition('cmnlib64', FIRMWARE_DIR / 'cmnlib64.bin', '1A876BD151BB9635F18719C4A17F953079DE6E11D3EAEC800968FC75669E0DC3', True, False, True),
+  Partition('cmnlib', FIRMWARE_DIR / 'cmnlib.bin', '63DF823E8A5FAE01D66CB2B8C20F0D2DDB5C5F2425E5D0992A64676273BA1C82', True, False, True),
+  Partition('devcfg', FIRMWARE_DIR / 'devcfg.bin', 'F65FFD35D01A527802585238F8BA40DE4FC5A87BB066E256FDC4B6CFF8C79788', True, True, True),
+  Partition('devinfo', FIRMWARE_DIR / 'devinfo.bin', '143869C499A7E878FBEAB756E9C53074195770CC41D6D0D10E45C043141389A3', False, False, True),
+  Partition('dsp', FIRMWARE_DIR / 'dsp.bin', '4B15FBD2F45581F1553F33F01649E450B24AA19D5DEFF2AC7DCB16A534D9C248', True, False, True),
+  Partition('hyp', FIRMWARE_DIR / 'hyp.bin', 'FF5ECE6A4E3D2B4D898C77FFE193FC8BBC8ACEBE78263996ECF52373D8088927', True, False, True),
+  Partition('keymaster', FIRMWARE_DIR / 'keymaster.bin', '5C968C76F29B9A4D66FBE57E639BAC6B7A2C83B1758E25ABBAF5D276B8A6AF04', True, False, True),
+  Partition('limits', FIRMWARE_DIR / 'limits.bin', '94951A0F7AA55FB6CB975535CE4EBBFE6D695F04CB5424677B01C10DFA2E94E1', False, False, True),
+  Partition('logfs', FIRMWARE_DIR / 'logfs.bin', 'B8B5AC87F3D954404FC7ECBDD9EE3B5B0CF5691E5006E6EC55DB4C899FF61220', False, False, True),
+  Partition('modem', FIRMWARE_DIR / 'modem.bin', 'A3D014F0896D77A2DF7E5A80A70F43A51A047B9D03CFC675B6F0E31A6ECC4994', True, False, True),
+  Partition('qupfw', FIRMWARE_DIR / 'qupfw.bin', '64CC7C29D5D69B04267452B8B4DDBA9F4809E68F476FC162CA283F58537AFE4A', True, False, True),
+  Partition('splash', FIRMWARE_DIR / 'splash.bin', '5C61260048F22EDE6E6343FABB27F6FF73F9271F4751A01AAF7ABF097AFC1F08', False, False, True),
+  Partition('storsec', FIRMWARE_DIR / 'storsec.bin', '4494D86F68B125FBF2C004C824B1C6DBE71E61A65D2A1CC7DB13C553EDCB3FCE', True, False, True),
+  Partition('tz', FIRMWARE_DIR / 'tz.bin', 'E9443BF187641661BFA6C96702B9AB0156E72FB7482500F8799BA9EE2503CB16', True, False, True),
+  Partition('boot', OUTPUT_DIR / 'boot.img', 'C848B8CD26A15EC884E90534E1591F860F194495E2B01E887846C9EC699696CF', True, False, True),
+  Partition('system', OUTPUT_DIR / 'system.img', '95C5A47F7B3C93B37513356AA36CA1CF7941F941E9461462E796E2E4AFA1B919', True, False, False),
+  Partition('userdata', FIRMWARE_DIR / 'userdata_90.bin', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', True, False, True),
+  Partition('userdata', FIRMWARE_DIR / 'userdata_89.bin', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', True, False, True),
+  Partition('userdata', FIRMWARE_DIR / 'userdata_30.bin', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', True, False, True),
 ]
 
 
@@ -67,40 +73,41 @@ def compress(fin, fout) -> None:
   subprocess.check_call(f"xz -0 -T0 -vc {fin} > {fout}", shell=True)
 
 
-def process_file(fn, name, full_check=True, has_ab=True, gpt=False, lun=0, start_sector=0, num_sectors=0):
-  print(name)
-  hash_raw = hash = checksum(fn)
-  size = fn.stat().st_size
+def process_file(entry):
+  print(entry.name)
+  hash_raw = hash = checksum(entry.path)
+  size = entry.path.stat().st_size
   print(f"  {size} bytes, hash {hash}")
 
   print("  compressing")
-  xz_fn = OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img.xz"
-  compress(fn, xz_fn)
+  xz_fn = OTA_OUTPUT_DIR / f"{entry.path.stem}-{hash_raw}.img.xz"
+  compress(entry.path, xz_fn)
 
   ret = {
-    "name": name,
+    "name": entry.name,
     "url": "{remote_url}/" + xz_fn.name,
     "hash": hash,
     "hash_raw": hash_raw,
     "size": size,
     "sparse": False,
-    "full_check": full_check,
-    "has_ab": has_ab,
+    "full_check": entry.full_check,
+    "has_ab": entry.has_ab,
+    "ondevice_hash": entry.ondevice_hash,
   }
 
-  if name == "system":
+  if entry.name == "system":
     ret["alt"] = {
       "hash": hash_raw,
       "url": "{remote_url}/" + xz_fn.name.replace(".img.xz", ".img"),
       "size": size,
     }
-    shutil.copy(fn, OTA_OUTPUT_DIR / f"{fn.stem}-{hash_raw}.img")
+    shutil.copy(entry.path, OTA_OUTPUT_DIR / f"{entry.path.stem}-{hash_raw}.img")
 
-  if gpt:
+  if isinstance(entry, GPT):
     ret["gpt"] = {
-      "lun": lun,
-      "start_sector": start_sector,
-      "num_sectors": num_sectors,
+      "lun": entry.lun,
+      "start_sector": entry.start_sector,
+      "num_sectors": entry.num_sectors,
     }
 
   return ret
@@ -109,17 +116,7 @@ def process_file(fn, name, full_check=True, has_ab=True, gpt=False, lun=0, start
 if __name__ == "__main__":
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-  files = [
-    # JSON, OTA
-    (process_file(OUTPUT_DIR / "boot.img", "boot"), True),
-    (process_file(OUTPUT_DIR / "system.img", "system", full_check=False), True),
-  ]
-
-  for (name, fn, has_ab, ota) in QDL_FLASH_ARRAY:
-    files.append((process_file(FIRMWARE_DIR / fn, name, has_ab=has_ab), ota))
-
-  for (lun, name, fn, start_sector, num_sectors) in PARTITION_TABLES:
-    files.append((process_file(FIRMWARE_DIR / fn, name, has_ab=False, gpt=True, lun=lun, start_sector=start_sector, num_sectors=num_sectors), False))
+  files = [(process_file(x), x.ota) for x in GPTS + PARTITIONS]
 
   configs = [
     # URL, file name, only OTA partitions
