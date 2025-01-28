@@ -94,7 +94,6 @@ apt-fast install --no-install-recommends -yq \
     speedtest-cli \
     ssh \
     sshfs \
-    squashfs-tools \
     sudo \
     systemd-resolved \
     systemd-timesyncd \

@@ -18,7 +18,6 @@ RUN apt-get update && \
     openssl \
     ccache \
     libcap2-bin \
-    squashfs-tools \
     && rm -rf /var/lib/apt/lists/*
 
 RUN if [ ${UID:-0} -ne 0 ] && [ ${GID:-0} -ne 0 ]; then \

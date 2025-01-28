@@ -6,7 +6,8 @@ export TMPDIR=/tmp/pip-tmp
 # setup large tmp for install
 mkdir -p $TMPDIR
 sudo mount -o remount,size=2G /tmp
-/usr/comma/remount.sh
+sudo mount -o rw,remount /
+sudo resize2fs $(findmnt -n -o SOURCE /) &>/dev/null || sudo resize2fs $(findmnt -n -o SOURCE /)
 
 # run command
 sudo TMPDIR=$TMPDIR PIP_NO_CACHE_DIR=1 $PIP_PATH "$@"

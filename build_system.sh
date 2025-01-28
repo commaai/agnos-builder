@@ -13,7 +13,12 @@ BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
+ROOTFS_IMAGE="$BUILD_DIR/system.img"
 OUT_IMAGE="$OUTPUT_DIR/system.img"
+
+# the partition is 10G, but openpilot's updater didn't always handle the full size
+# openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
+ROOTFS_IMAGE_SIZE=4200M
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -81,9 +86,15 @@ exec_as_root() {
   docker exec $MOUNT_CONTAINER_ID "$@"
 }
 
+# Create filesystem ext4 image
+echo "Creating empty filesystem"
+exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
+exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
+
 # Mount filesystem
 echo "Mounting empty filesystem"
 exec_as_root mkdir -p $ROOTFS_DIR
+exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
 
 # Also unmount filesystem (overwrite previous trap)
 trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
@@ -121,8 +132,11 @@ set_network_stuff() {
 GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
 exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; $(declare -f set_network_stuff); set_network_stuff"
 
-echo "Creating final squashfs image"
-rm -f $OUT_IMAGE
-exec_as_root mksquashfs $ROOTFS_DIR $OUT_IMAGE -comp xz -Xbcj arm -b 1M -Xdict-size 100%
+# Unmount image
+echo "Unmount filesystem"
+exec_as_root umount -l $ROOTFS_DIR
+
+# Copy system image to output
+cp $ROOTFS_IMAGE $OUT_IMAGE
 
 echo "Done!"
