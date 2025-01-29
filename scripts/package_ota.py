@@ -53,9 +53,9 @@ PARTITIONS = [
   Partition('tz', FIRMWARE_DIR / 'tz.bin', 'E9443BF187641661BFA6C96702B9AB0156E72FB7482500F8799BA9EE2503CB16', True, False, True),
   Partition('boot', OUTPUT_DIR / 'boot.img', 'C848B8CD26A15EC884E90534E1591F860F194495E2B01E887846C9EC699696CF', True, False, True),
   Partition('system', OUTPUT_DIR / 'system.img', '95C5A47F7B3C93B37513356AA36CA1CF7941F941E9461462E796E2E4AFA1B919', True, False, False),
-  Partition('userdata', FIRMWARE_DIR / 'userdata_90.bin', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', True, False, True),
-  Partition('userdata', FIRMWARE_DIR / 'userdata_89.bin', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', True, False, True),
-  Partition('userdata', FIRMWARE_DIR / 'userdata_30.bin', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', True, False, True),
+  Partition('userdata', OUTPUT_DIR / 'userdata_90.img', '9940672129B2E049BEB879A62B7D73F957003FC8A2FBE74C2D4A4CC01BFB62E6', True, False, True),
+  Partition('userdata', OUTPUT_DIR / 'userdata_89.img', '699AA5918DCBAC98EE4EFFA1FA5CBC20EE4447C5F85DB4892D10198EE571C879', True, False, True),
+  Partition('userdata', OUTPUT_DIR / 'userdata_30.img', 'DE7625C4143C7769DB86F1E6913053120A2A0A5CA24F4EB634B2C2D1474BD20A', True, False, True),
 ]
 
 
