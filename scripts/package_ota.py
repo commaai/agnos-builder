@@ -123,7 +123,7 @@ def process_file(entry):
   sha256 = file_checksum(entry.path)
   hash = hash_raw = sha256.hexdigest()
 
-  if struct.unpack("<I", open(entry.path, 'rb').peek(4)[:4])[0] == 0xED26FF3A:
+  if struct.unpack("<I", open(entry.path, 'rb').read(4))[0] == 0xED26FF3A:
     sha256 = ondevice_checksum_sparse(entry.path)
   else:
     sha256.update(b'\x00' * ((SECTOR_SIZE - (size % SECTOR_SIZE)) % SECTOR_SIZE))
@@ -155,7 +155,7 @@ def process_file(entry):
 
   if entry.name == "userdata":
     ret["userdata"] = {
-      "type": entry.path.with_suffix('').name,
+      "type": entry.path.stem,
     }
 
   if isinstance(entry, GPT):
