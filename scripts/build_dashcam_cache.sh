@@ -28,8 +28,7 @@ function create_image() {
   sudo umount $MNTDIR
 
   echo "Sparsify"
-  img2simg $USERDATA_IMAGE $SPARSE_IMAGE
-  $DIR/simg2dontcare.py $SPARSE_IMAGE $OUTPUT_DIR/userdata_${sz}.img
+  img2simg $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
 }
 
 for sz in 30 89 90; do
