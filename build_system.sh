@@ -136,7 +136,7 @@ exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; 
 echo "Unmount filesystem"
 exec_as_root umount -l $ROOTFS_DIR
 
-# Copy system image to output
-cp $ROOTFS_IMAGE $OUT_IMAGE
+# Sparsify system image
+img2simg $ROOTFS_IMAGE $OUT_IMAGE
 
 echo "Done!"
