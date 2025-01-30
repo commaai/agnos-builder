@@ -6,6 +6,7 @@ cd $DIR/..
 
 ./build_kernel.sh
 ./build_system.sh
+scripts/build_userdata.sh
 scripts/package_ota.py
 
 # push to azure on an internal machine
