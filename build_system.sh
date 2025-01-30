@@ -137,6 +137,6 @@ echo "Unmount filesystem"
 exec_as_root umount -l $ROOTFS_DIR
 
 # Sparsify system image
-exec_as_root img2simg $ROOTFS_IMAGE $OUT_IMAGE
+exec_as_user img2simg $ROOTFS_IMAGE $OUT_IMAGE
 
 echo "Done!"
