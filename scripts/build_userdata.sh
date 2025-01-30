@@ -32,7 +32,7 @@ function create_image() {
 }
 
 for sz in 30 89 90; do
-  echo "Building dashcam image for ${sz}GB"
+  echo "Building ${sz}GB userdata image"
   create_image ${sz}G
 done
 
