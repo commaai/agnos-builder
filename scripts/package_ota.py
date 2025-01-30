@@ -56,9 +56,9 @@ PARTITIONS = [
   Partition('tz', FIRMWARE_DIR / 'tz.img', True, False, True, False),
   Partition('boot', OUTPUT_DIR / 'boot.img', True, True, True, False),
   Partition('system', OUTPUT_DIR / 'system.img', True, True, False, True),
-  Partition('userdata', OUTPUT_DIR / 'userdata_90.img', True, False, True, True),
-  Partition('userdata', OUTPUT_DIR / 'userdata_89.img', True, False, True, True),
-  Partition('userdata', OUTPUT_DIR / 'userdata_30.img', True, False, True, True),
+  Partition('userdata', OUTPUT_DIR / 'userdata_90.img', False, False, True, True),
+  Partition('userdata', OUTPUT_DIR / 'userdata_89.img', False, False, True, True),
+  Partition('userdata', OUTPUT_DIR / 'userdata_30.img', False, False, True, True),
 ]
 
 
