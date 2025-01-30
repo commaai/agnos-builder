@@ -27,7 +27,6 @@ def process_image(input_image: str, output_image: str) -> None:
     file_hdr_sz = header[3]
     chunk_hdr_sz = header[4]
     total_chunks = header[7]
-    image_checksum = header[8]
 
     assert magic == 0xED26FF3A
     assert major_version == 1 and minor_version == 0

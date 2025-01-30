@@ -123,7 +123,7 @@ def process_file(entry):
 
   if struct.unpack("<I", open(entry.path, 'rb').peek(4)[:4])[0] == 0xED26FF3A:
     sha256 = ondevice_checksum_sparse(entry.path)
-  elif (size % SECTOR_SIZE) != 0:
+  else:
     sha256.update(b'\x00' * ((SECTOR_SIZE - (size % SECTOR_SIZE)) % SECTOR_SIZE))
   ondevice_hash = sha256.hexdigest()
 
