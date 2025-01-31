@@ -69,7 +69,7 @@ def file_checksum(fn):
       sha256.update(chunk)
   return sha256
 
-def ondevice_checksum_sparse(fn):
+def ondevice_checksum_sparse(fn, ota):
   with open(fn, 'rb') as data_source:
     dat = data_source.read(28)
     header = struct.unpack("<I4H4I", dat)
@@ -104,7 +104,7 @@ def ondevice_checksum_sparse(fn):
         sha256.update(data_source.read(4) * (chunk_sz * SECTOR_SIZE // 4))
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC3: # DONT_CARE
-        pass
+        assert not ota, 'DONT_CARE chunks are currently not supported for OTA'
       else:
         raise Exception(f'UNKNOWN SPARSE CHUNK: {hex(chunk_type)}')
 
@@ -125,7 +125,7 @@ def process_file(entry):
   hash = hash_raw = sha256.hexdigest()
 
   if struct.unpack("<I", open(entry.path, 'rb').read(4))[0] == 0xED26FF3A:
-    hash_raw, size = ondevice_checksum_sparse(entry.path)
+    hash_raw, size = ondevice_checksum_sparse(entry.path, entry.ota)
     ondevice_hash = hash_raw
   else:
     sha256.update(b'\x00' * ((SECTOR_SIZE - (size % SECTOR_SIZE)) % SECTOR_SIZE))
