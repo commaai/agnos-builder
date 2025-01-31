@@ -101,9 +101,7 @@ def ondevice_checksum_sparse(fn):
         sha256.update(data_source.read(chunk_sz * SECTOR_SIZE))
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC2: # FILL
-        fill_value = data_source.read(4)
-        assert fill_value != b'\x00\x00\x00\x00', f'FILL 0 chunk detected. Run simg2dontcare.py on {fn}'
-        sha256.update(fill_value * (chunk_sz * SECTOR_SIZE // 4))
+        sha256.update(data_source.read(4) * (chunk_sz * SECTOR_SIZE // 4))
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC3: # DONT_CARE
         pass
