@@ -56,9 +56,9 @@ PARTITIONS = [
   Partition('tz', FIRMWARE_DIR / 'tz.img', True, False, True, False),
   Partition('boot', OUTPUT_DIR / 'boot.img', True, True, True, False),
   Partition('system', OUTPUT_DIR / 'system.img', True, True, False, True),
-  Partition('userdata', OUTPUT_DIR / 'userdata_90.img', False, False, True, True),
-  Partition('userdata', OUTPUT_DIR / 'userdata_89.img', False, False, True, True),
-  Partition('userdata', OUTPUT_DIR / 'userdata_30.img', False, False, True, True),
+  Partition('userdata_90', OUTPUT_DIR / 'userdata_90.img', False, False, True, True),
+  Partition('userdata_89', OUTPUT_DIR / 'userdata_89.img', False, False, True, True),
+  Partition('userdata_30', OUTPUT_DIR / 'userdata_30.img', False, False, True, True),
 ]
 
 
@@ -154,11 +154,6 @@ def process_file(entry):
       "size": size,
     }
     shutil.copy(entry.path, OTA_OUTPUT_DIR / f"{entry.path.stem}-{hash_raw}.img")
-
-  if entry.name == "userdata":
-    ret["userdata"] = {
-      "type": entry.path.stem,
-    }
 
   if isinstance(entry, GPT):
     ret["gpt"] = {
