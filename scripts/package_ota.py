@@ -89,6 +89,7 @@ def ondevice_checksum_sparse(fn):
     assert blk_sz == SECTOR_SIZE
 
     sha256 = hashlib.sha256()
+    total_size = 0
     for _ in range(total_chunks):
       header_bin = data_source.read(12)
 
@@ -98,16 +99,18 @@ def ondevice_checksum_sparse(fn):
 
       if chunk_type == 0xCAC1: # RAW
         sha256.update(data_source.read(chunk_sz * SECTOR_SIZE))
+        total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC2: # FILL
         fill_value = data_source.read(4)
-        if fill_value != b'\x00\x00\x00\x00': # treat FILL 0 like DONT_CARE
-          sha256.update(fill_value * (chunk_sz * SECTOR_SIZE // 4))
+        assert fill_value != b'\x00\x00\x00\x00', f'FILL 0 chunk detected. Run simg2dontcare.py on {fn}'
+        sha256.update(fill_value * (chunk_sz * SECTOR_SIZE // 4))
+        total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC3: # DONT_CARE
         pass
       else:
         raise Exception(f'UNKNOWN SPARSE CHUNK: {hex(chunk_type)}')
 
-    return sha256
+    return sha256.hexdigest(), total_size
 
 def compress(fin, fout) -> None:
   # since system.img is a squashfs now, we don't rely on this compression.
@@ -124,10 +127,11 @@ def process_file(entry):
   hash = hash_raw = sha256.hexdigest()
 
   if struct.unpack("<I", open(entry.path, 'rb').read(4))[0] == 0xED26FF3A:
-    sha256 = ondevice_checksum_sparse(entry.path)
+    hash_raw, size = ondevice_checksum_sparse(entry.path)
+    ondevice_hash = hash_raw
   else:
     sha256.update(b'\x00' * ((SECTOR_SIZE - (size % SECTOR_SIZE)) % SECTOR_SIZE))
-  ondevice_hash = sha256.hexdigest()
+    ondevice_hash = sha256.hexdigest()
 
   print("  compressing")
   xz_fn = OTA_OUTPUT_DIR / f"{entry.path.stem}-{hash_raw}.img.xz"
@@ -137,8 +141,8 @@ def process_file(entry):
     "name": entry.name,
     "url": "{remote_url}/" + xz_fn.name,
     "hash": hash,
-    "hash_raw": hash_raw,
-    "size": size,
+    "hash_raw": hash_raw, # for sparse image, this is not the hash of the raw file
+    "size": size, # for sparse image, this is not the size of the raw file
     "sparse": entry.sparse,
     "full_check": entry.full_check,
     "has_ab": entry.has_ab,

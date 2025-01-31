@@ -14,6 +14,7 @@ OUTPUT_DIR="$DIR/output"
 
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img"
+SPARSE_IMAGE="$BUILD_DIR/sparse.img"
 OUT_IMAGE="$OUTPUT_DIR/system.img"
 
 # the partition is 10G, but openpilot's updater didn't always handle the full size
@@ -137,6 +138,7 @@ echo "Unmount filesystem"
 exec_as_root umount -l $ROOTFS_DIR
 
 # Sparsify system image
-exec_as_user img2simg $ROOTFS_IMAGE $OUT_IMAGE
+exec_as_user img2simg $ROOTFS_IMAGE $SPARSE_IMAGE
+scripts/img2dontcare.py $SPARSE_IMAGE $OUT_IMAGE
 
 echo "Done!"
