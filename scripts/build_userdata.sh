@@ -11,7 +11,6 @@ function create_image() {
   WORKDIR=$(mktemp -d)
   MNTDIR=$WORKDIR/mnt
   USERDATA_IMAGE=$WORKDIR/raw.img
-  SPARSE_IMAGE=$WORKDIR/sparse.simg
 
   sudo umount $MNTDIR 2> /dev/null || true
   rm -rf $WORKDIR
@@ -28,7 +27,7 @@ function create_image() {
   sudo umount $MNTDIR
 
   echo "Sparsify"
-  img2simg $USERDATA_IMAGE $SPARSE_IMAGE
+  img2simg $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
 }
 
 for sz in 30 89 90; do
