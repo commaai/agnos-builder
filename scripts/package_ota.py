@@ -104,9 +104,10 @@ def ondevice_checksum_sparse(fn, ota):
         ondevice_hash.update(d)
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC2: # FILL
-        fill_value = data_source.read(4)
-        if fill_value != b'\x00\x00\x00\x00': # For ondevice_hash, treat FILL 0 like DONT_CARE
-          hash_raw.update(fill_value * (chunk_sz * SECTOR_SIZE // 4))
+        d = data_source.read(4) * (chunk_sz * SECTOR_SIZE // 4)
+        if d[:4] != b'\x00\x00\x00\x00': # For ondevice_hash, treat FILL 0 like DONT_CARE
+          ondevice_hash.update(d)
+        hash_raw.update(d)
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC3: # DONT_CARE
         assert not ota, 'DONT_CARE chunks are currently not supported for OTA'
