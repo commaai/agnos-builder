@@ -88,7 +88,8 @@ def ondevice_checksum_sparse(fn, ota):
     assert chunk_hdr_sz == 12
     assert blk_sz == SECTOR_SIZE
 
-    sha256 = hashlib.sha256()
+    hash_raw = hashlib.sha256()
+    ondevice_hash = hashlib.sha256()
     total_size = 0
     for _ in range(total_chunks):
       header_bin = data_source.read(12)
@@ -98,17 +99,21 @@ def ondevice_checksum_sparse(fn, ota):
       chunk_sz = header[2]
 
       if chunk_type == 0xCAC1: # RAW
-        sha256.update(data_source.read(chunk_sz * SECTOR_SIZE))
+        d = data_source.read(chunk_sz * SECTOR_SIZE)
+        hash_raw.update(d)
+        ondevice_hash.update(d)
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC2: # FILL
-        sha256.update(data_source.read(4) * (chunk_sz * SECTOR_SIZE // 4))
+        fill_value = data_source.read(4)
+        if fill_value != b'\x00\x00\x00\x00': # For ondevice_hash, treat FILL 0 like DONT_CARE
+          hash_raw.update(fill_value * (chunk_sz * SECTOR_SIZE // 4))
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC3: # DONT_CARE
         assert not ota, 'DONT_CARE chunks are currently not supported for OTA'
       else:
         raise Exception(f'UNKNOWN SPARSE CHUNK: {hex(chunk_type)}')
 
-    return sha256.hexdigest(), total_size
+    return hash_raw.hexdigest(), ondevice_hash.hexdigest(), total_size
 
 def compress(fin, fout) -> None:
   # since system.img is a squashfs now, we don't rely on this compression.
@@ -125,8 +130,7 @@ def process_file(entry):
   hash = hash_raw = sha256.hexdigest()
 
   if struct.unpack("<I", open(entry.path, 'rb').read(4))[0] == 0xED26FF3A:
-    hash_raw, size = ondevice_checksum_sparse(entry.path, entry.ota)
-    ondevice_hash = hash_raw
+    hash_raw, ondevice_hash, size = ondevice_checksum_sparse(entry.path, entry.ota)
   else:
     sha256.update(b'\x00' * ((SECTOR_SIZE - (size % SECTOR_SIZE)) % SECTOR_SIZE))
     ondevice_hash = sha256.hexdigest()
