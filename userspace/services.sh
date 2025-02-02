@@ -64,6 +64,7 @@ systemctl disable update-notifier-motd.service
 
 # Disable NFS stuff by default
 systemctl disable rpcbind
+systemctl disable dnsmasq.service
 systemctl disable nfs-client.target
 systemctl disable remote-fs-pre.target
 

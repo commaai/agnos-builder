@@ -4,6 +4,8 @@
 
 apt-fast update && apt-fast install -y --no-install-recommends \
   bash-completion \
+  iperf \
+  dnsmasq \
   irqtop \
   ripgrep \
   nfs-common \

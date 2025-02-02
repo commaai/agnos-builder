@@ -17,6 +17,10 @@ dependencies = [
   # tinygrad
   "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
 
+  # provisioning
+  "pyusb",
+  "paramiko",
+
   # extra nice-to-haves
   "evdev",
   "ipython",
