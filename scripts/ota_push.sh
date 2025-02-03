@@ -12,12 +12,12 @@ DATA_ACCOUNT="commadist"
 # Parse input
 FOUND=0
 if [ "$1" == "production" ]; then
-  OTA_JSON="$OTA_DIR/ota.json"
+  OTA_JSON="$OTA_DIR/all-partitions.json"
   DATA_CONTAINER="agnosupdate"
   FOUND=1
 fi
 if [ "$1" == "staging" ]; then
-  OTA_JSON="$OTA_DIR/ota-staging.json"
+  OTA_JSON="$OTA_DIR/all-partitions-staging.json"
   DATA_CONTAINER="agnosupdate-staging"
   FOUND=1
 fi
