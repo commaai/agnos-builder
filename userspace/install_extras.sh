@@ -8,6 +8,7 @@ apt-fast update && apt-fast install -y --no-install-recommends \
   dnsmasq \
   irqtop \
   ripgrep \
+  ncdu \
   nfs-common \
   socat
 
