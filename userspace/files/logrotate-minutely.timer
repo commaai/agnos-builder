@@ -5,6 +5,7 @@ Documentation=man:logrotate(8) man:logrotate.conf(5)
 [Timer]
 Unit=logrotate.service
 OnBootSec=1min
+OnUnitActiveSec=1min
 Persistent=true
 
 [Install]
