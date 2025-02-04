@@ -7,7 +7,6 @@ if __name__ == "__main__":
   while True:
     usage = os.statvfs('/var/log')
     percent = (usage.f_blocks - usage.f_bavail) / usage.f_blocks * 100
-    print(percent)
     if percent > 70:
       for fn in os.listdir('/var/log'):
         file_path = os.path.join('/var/log', fn)
