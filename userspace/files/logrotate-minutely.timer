@@ -1,10 +1,10 @@
 [Unit]
-Description=Hourly rotation of log files
+Description=Minutely rotation of log files
 Documentation=man:logrotate(8) man:logrotate.conf(5)
 
 [Timer]
 Unit=logrotate.service
-OnCalendar=hourly
+OnBootSec=1min
 Persistent=true
 
 [Install]

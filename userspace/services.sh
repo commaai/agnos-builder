@@ -22,7 +22,7 @@ systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable adb-param-watcher.path
 systemctl enable adb-param-watcher.service
-systemctl enable logrotate-hourly.timer
+systemctl enable logrotate-minutely.timer
 
 # Disable some of our services
 systemctl disable agnos-tests.service
