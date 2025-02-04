@@ -23,7 +23,7 @@ systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable adb-param-watcher.path
 systemctl enable adb-param-watcher.service
-systemctl enable logrotate-minutely.timer
+systemctl enable logrotate-hourly.timer
 
 # Disable some of our services
 systemctl disable agnos-tests.service
@@ -62,6 +62,7 @@ systemctl disable update-notifier-download.timer
 systemctl disable update-notifier-download.service
 systemctl disable update-notifier-motd.timer
 systemctl disable update-notifier-motd.service
+systemctl disable man-db.timer
 
 # Disable NFS stuff by default
 systemctl disable rpcbind
