@@ -16,6 +16,7 @@ systemctl enable sound.service
 systemctl enable weston.service
 systemctl enable weston-ready.service
 systemctl enable init-qcom.service
+systemctl enable varwatch.service
 systemctl enable power_drop_monitor.service
 systemctl enable brightnessd.service
 systemctl enable ssh-param-watcher.path
@@ -61,6 +62,7 @@ systemctl disable update-notifier-download.timer
 systemctl disable update-notifier-download.service
 systemctl disable update-notifier-motd.timer
 systemctl disable update-notifier-motd.service
+systemctl disable man-db.timer
 
 # Disable NFS stuff by default
 systemctl disable rpcbind
