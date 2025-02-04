@@ -2,8 +2,15 @@
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+ROOT=$DIR/..
 OUTPUT_DIR=$DIR/../output
 GIT_BRANCH=release3-staging
+
+export DOCKER_BUILDKIT=1
+docker build -f $ROOT/Dockerfile.builder -t agnos-meta-builder $DIR \
+  --build-arg UNAME=$(id -nu) \
+  --build-arg UID=$(id -u) \
+  --build-arg GID=$(id -g)
 
 function create_image() {
   IMAGE_SIZE=$1
@@ -27,7 +34,8 @@ function create_image() {
   sudo umount $MNTDIR
 
   echo "Sparsify"
-  img2simg $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
+  docker run --rm -u $(id -nu) --entrypoint img2simg -v $WORKDIR:$WORKDIR -v $ROOT:$ROOT -w $DIR agnos-meta-builder $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
+  rm -rf $WORKDIR
 }
 
 for sz in 30 89 90; do
