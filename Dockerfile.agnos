@@ -165,7 +165,6 @@ COPY ./userspace/files/allow-network-control.pkla /etc/polkit-1/localauthority/5
 COPY ./userspace/files/allow-modem-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-modem-control.pkla
 COPY ./userspace/files/*.rules /etc/udev/rules.d/
 COPY ./userspace/files/ssh*_config /etc/ssh/
-COPY ./userspace/files/journald.conf /etc/systemd/
 COPY ./userspace/files/logrotate.conf /etc/
 RUN chmod 644 /etc/logrotate.conf
 RUN touch -r /lib/systemd/systemd /etc/fstab
