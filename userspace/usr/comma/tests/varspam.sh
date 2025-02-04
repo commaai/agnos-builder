@@ -11,10 +11,11 @@ log_message() {
   #cat /usr/include/sqlite3.h | sudo tee /dev/kmsg > /dev/null
 }
 
-#minutely verify config is good
+# verify config is good
 sudo logrotate -d /etc/logrotate.conf
 
 sudo rm -rf /var/log/*
+sudo systemctl daemon-reload
 sudo systemctl restart rsyslog
 sudo systemctl restart systemd-journald
 sudo systemctl restart logrotate-hourly.timer
