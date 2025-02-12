@@ -60,6 +60,9 @@ jobs:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
       run: ./build_system.sh
 
+    - name: Build userdata
+      run: ./scripts/build_userdata.sh
+
     - name: Statistics
       id: stats
       run: |
