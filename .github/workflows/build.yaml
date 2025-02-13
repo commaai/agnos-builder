@@ -47,10 +47,18 @@ jobs:
         key: kernel-${{ steps.kernel-submodule.outputs.ref }}
         restore-keys: kernel-
 
+    - name: Build kernel
+      run: ./build_kernel.sh
+
     - name: Update VERSION
       if: github.event_name == 'pull_request'
       run: |
         echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
+
+    - name: Build system
+      env:
+        GIT_HASH: ${{ github.event.pull_request.head.sha }}
+      run: ./build_system.sh
 
     - name: Build userdata
       run: ./scripts/build_userdata.sh
