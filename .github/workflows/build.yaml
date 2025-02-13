@@ -52,12 +52,6 @@ jobs:
       run: |
         echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
 
-    - name: Breakpoint
-      uses: namespacelabs/breakpoint-action@v0
-      with:
-        duration: 30m
-        authorized-users: maxime-desroches
-
     - name: Build userdata
       run: ./scripts/build_userdata.sh
 
