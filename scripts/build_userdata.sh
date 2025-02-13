@@ -42,7 +42,6 @@ function create_image() {
   sudo git clone --branch=$GIT_BRANCH --depth=1 https://github.com/commaai/openpilot.git $WORKDIR/openpilot.cache
   echo "clone done for $(sudo cat $WORKDIR/openpilot.cache/common/version.h)"
   exec_as_root mv $WORKDIR/openpilot.cache $MNTDIR/
-  exec_as_root chown -R $(id -nu):$(id -nu) $MNTDIR
   exec_as_root umount $MNTDIR
 
   echo "Sparsify"
