@@ -45,7 +45,7 @@ function create_image() {
   exec_as_root umount $MNTDIR
 
   echo "Sparsify"
-  exec_as_user img2simg $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
+  #exec_as_user img2simg $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
   exec_as_root rm -rf $WORKDIR/*
 }
 
