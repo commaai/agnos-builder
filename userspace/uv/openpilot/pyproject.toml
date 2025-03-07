@@ -19,6 +19,7 @@ dependencies = [
 
   # hardwared
   "smbus2", # configuring amp
+  "dbus-next",
 
   # core
   "cffi",
