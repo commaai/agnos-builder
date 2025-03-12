@@ -40,13 +40,24 @@ git apply /tmp/agnos/patch-qtwayland-v5.12
 # https://stackoverflow.com/a/75855054/639708
 ln -s libdl.so.2 /usr/lib/aarch64-linux-gnu/libdl.so
 
-mkdir /tmp/build && cd /tmp/build
-qmake /tmp/qtwayland
-
+qmake
 export MAKEFLAGS="-j$(nproc)"
 make
 
-# remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)
-# # https://bugs.launchpad.net/ubuntu/+source/checkinstall/+bug/78455
-checkinstall -yD --install=no --fstrans=no --pkgversion="${VERSION}" --pkgname=qtwayland5 --pkgarch=arm64 --replaces=qtwayland5,libqt5waylandclient5,libqt5waylandcompositor5
-mv qtwayland5*.deb /tmp/qtwayland5.deb
+OUTPUT_DIR=/tmp/qtwayland5
+mkdir $OUTPUT_DIR
+make install INSTALL_ROOT=$OUTPUT_DIR
+
+mkdir $OUTPUT_DIR/DEBIAN
+cat << EOF > $OUTPUT_DIR/DEBIAN/control
+Package: qtwayland5
+Version: ${VERSION}-1
+Architecture: all
+Maintainer: Andrei Radulescu <andi.radulescu@gmail.com>
+Replaces: qtwayland5, libqt5waylandclient5, libqt5waylandcompositor5
+Installed-Size: `du -s $OUTPUT_DIR | awk '{print $1}'`
+Homepage: https://comma.ai
+Description: Patched qtwayland that outputs a fixed screen size
+EOF
+
+dpkg-deb --root-owner-group --build $OUTPUT_DIR /tmp/qtwayland5.deb
