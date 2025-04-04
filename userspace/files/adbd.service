@@ -3,4 +3,4 @@ Description=adbd Service
 
 [Service]
 User=root
-ExecStart=/usr/comma/adbd
+ExecStart=/bin/sh -c 'export TERM=xterm-256color; su - comma -c "cd /data/openpilot && exec /usr/comma/adbd"'
