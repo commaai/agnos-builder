@@ -73,6 +73,7 @@ mkdir -p /data/tmp
 mkdir -p /data/tmp/vscode-server
 ln -s /data/tmp/vscode-server ~/.vscode-server
 ln -s /data/tmp/vscode-server ~/.cursor-server
+ln -s /data/tmp/vscode-server ~/.windsurf-server
 
 while true; do
   pkill -f "$SETUP"

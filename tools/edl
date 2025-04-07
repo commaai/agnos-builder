@@ -23,10 +23,7 @@ if [ "$(< .git/HEAD)" != "$VERSION" ]; then
   git fetch origin $VERSION
   git checkout $VERSION
   git submodule update --depth=1 --init --recursive
-
-  # TODO: remove "--no-binary capstone" when capstone v5.0.2 is released
-  # https://github.com/capstone-engine/capstone/issues/2301#issuecomment-2026835275
-  pip3 install -r requirements.txt --no-binary capstone
+  pip3 install -r requirements.txt
 fi
 popd > /dev/null
 
