@@ -169,6 +169,7 @@ COPY ./userspace/files/logrotate.conf /etc/
 COPY ./userspace/files/rsyslog /etc/logrotate.d/
 RUN chmod 644 /etc/logrotate.conf
 RUN touch -r /lib/systemd/systemd /etc/fstab
+RUN cat ./userspace/files/mkshrc >> /system/etc/mkshrc
 
 # populate /usr
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
