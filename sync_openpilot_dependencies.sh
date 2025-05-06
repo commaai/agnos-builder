@@ -5,6 +5,11 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
+if ! command -v "uv" > /dev/null 2>&1; then
+  echo "installing uv..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+
 cd userspace/uv
 curl -sSo openpilot/pyproject.toml https://raw.githubusercontent.com/commaai/openpilot/master/pyproject.toml
 
