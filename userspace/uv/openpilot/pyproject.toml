@@ -48,7 +48,7 @@ dependencies = [
   # logging
   "pyzmq",
   "sentry-sdk",
-  "xattr",
+  "xattr", # used in place of 'os.getxattr' for macos compatibility
 
   # athena
   "PyJWT",
