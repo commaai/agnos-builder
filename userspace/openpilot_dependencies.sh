@@ -45,9 +45,17 @@ apt-fast install --no-install-recommends -yq \
     libva-dev \
     libvdpau-dev \
     libvorbis-dev \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-render-util0 \
     libxcb-shm0-dev \
     libxcb-xfixes0-dev \
+    libxcb-xinerama0 \
+    libxcb-xinput0 \
+    libxcb-xkb1 \
     libxcb1-dev \
+    libxkbcommon-x11-0 \
     libzmq3-dev \
     libzstd-dev \
     locales \
@@ -60,5 +68,6 @@ apt-fast install --no-install-recommends -yq \
     texinfo \
     vnstat \
     wget \
+    xvfb \
     zlib1g-dev \
     zstd
