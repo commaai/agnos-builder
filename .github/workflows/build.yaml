@@ -69,6 +69,11 @@ jobs:
           echo EOF
         } | tee -a $GITHUB_OUTPUT
 
+    - name: Build userdata
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      run: |
+        scripts/build_userdata.sh
+
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       env:
