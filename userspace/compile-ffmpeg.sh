@@ -13,6 +13,7 @@ apt-get update && apt-get install -yq --no-install-recommends \
     libva-dev \
     libvdpau-dev \
     libvorbis-dev \
+    libx264-dev \
     libxcb1-dev \
     libxcb-shm0-dev \
     libxcb-xfixes0-dev \
@@ -32,7 +33,7 @@ cd ffmpeg-${VERSION}
 # --disable-doc works too, disables building documentation completely
 # https://gist.github.com/omegdadi/6904512c0a948225c81114b1c5acb875
 # https://github.com/7Ji/archrepo/issues/10
-./configure --enable-shared --disable-static --disable-htmlpages
+./configure --enable-gpl --enable-libx264 --enable-shared --disable-static --disable-htmlpages
 make -j$(nproc)
 
 # remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)
