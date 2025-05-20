@@ -190,6 +190,7 @@ apt-fast install --no-install-recommends -yq \
     libgles1 \
     libgles2 \
     libgles-dev \
+    libx264-dev \
     openssh-server \
     dnsmasq-base \
     isc-dhcp-client \
