@@ -33,11 +33,23 @@ COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
     /tmp/agnos/compile-ffmpeg.sh
 
+# libqmi
+FROM agnos-compiler AS agnos-compiler-libqmi
+COPY ./userspace/compile-libqmi.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
+    /tmp/agnos/compile-libqmi.sh
+
 # ModemManager
-FROM agnos-compiler AS agnos-compiler-modemmanager
+FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
+
+# lpac
+FROM agnos-compiler-libqmi AS agnos-compiler-lpac
+COPY ./userspace/compile-lpac.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
+    /tmp/agnos/compile-lpac.sh
 
 # qtwayland5
 FROM agnos-compiler AS agnos-compiler-qtwayland5
@@ -96,8 +108,10 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-# Pre-compiled libqmi and modemmanager
-COPY --from=agnos-compiler-modemmanager /tmp/libqmi.deb /tmp/modemmanager.deb /tmp/
+COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
+COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+COPY --from=agnos-compiler-lpac /tmp/lpac.deb /tmp/
+
 RUN cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
@@ -116,7 +130,8 @@ RUN cd /tmp && \
     polkitd-pkla \
     mobile-broadband-provider-info && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./lpac.deb
 
 # Pre-compiled capnp (must be before python install)
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
