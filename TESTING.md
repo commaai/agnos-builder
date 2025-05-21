@@ -20,6 +20,7 @@
   - [ ] previous -> new
   - [ ] new -> previous
 - [ ] comma three: NVMe works
+- [ ] Display works at 60FPS
 
 ### ABL
 
@@ -29,6 +30,7 @@
 ### XBL
 
 - [ ] Display init works in cold and hot temperatures
+- [ ] Display works at 60FPS
 - [ ] Boot time hasn't regressed (2.4s)
 
 ### Setup
