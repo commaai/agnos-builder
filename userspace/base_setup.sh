@@ -50,66 +50,6 @@ echo "comma - nice -10" >> /etc/security/limits.conf
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8
 
-apt-fast upgrade -yq
-apt-fast install --no-install-recommends -yq \
-    alsa-utils \
-    apport-retrace \
-    bc \
-    build-essential \
-    bzip2 \
-    curl \
-    cpuset \
-    dfu-util \
-    evtest \
-    git \
-    git-core \
-    git-lfs \
-    gdb \
-    htop \
-    i2c-tools \
-    ifmetric \
-    ifupdown \
-    iptables-persistent \
-    jq \
-    landscape-common \
-    libi2c-dev \
-    libqmi-utils \
-    libtool \
-    libncursesw5-dev \
-    libnss-myhostname \
-    libgdbm-dev \
-    libc6-dev \
-    libsqlite3-dev \
-    libssl-dev \
-    libffi-dev \
-    llvm \
-    nano \
-    net-tools \
-    nload \
-    network-manager \
-    nvme-cli \
-    openssl \
-    ppp \
-    smartmontools \
-    speedtest-cli \
-    ssh \
-    sshfs \
-    sudo \
-    systemd-resolved \
-    systemd-timesyncd \
-    traceroute \
-    tk-dev \
-    ubuntu-minimal \
-    ubuntu-server \
-    ubuntu-standard \
-    udev \
-    udhcpc \
-    wget \
-    wireless-tools \
-    zlib1g-dev
-
-rm -rf /var/lib/apt/lists/*
-
 # Create dirs
 mkdir /data && chown $USERNAME:$USERNAME /data
 mkdir /persist && chown $USERNAME:$USERNAME /persist
@@ -125,8 +65,69 @@ echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 ln -sf /bin/bash /bin/sh
 
 # Install necessary libs
-apt-fast update -yq
+# TODO: find only needed libs and tools to build runtime image
+apt-fast upgrade -yq
 apt-fast install --no-install-recommends -yq \
+    alsa-utils \
+    apport-retrace \
+    bc \
+    build-essential \
+    bzip2 \
+    curl \
+    dfu-util \
+    ifupdown \
+    iptables-persistent \
+    jq \
+    landscape-common \
+    libqmi-utils \
+    libtool \
+    libnss-myhostname \
+    nload \
+    network-manager \
+    openssl \
+    ppp \
+    ssh \
+    sshfs \
+    systemd-resolved \
+    systemd-timesyncd \
+    traceroute \
+    ubuntu-minimal \
+    ubuntu-server \
+    ubuntu-standard \
+    udev \
+    udhcpc \
+    wget \
+    autoconf \
+    automake \
+    casync \
+    clang \
+    clinfo \
+    cmake \
+    cppcheck \
+    curl \
+    darkstat \
+    dkms \
+    gpiod \
+    libglib2.0-0t64 \
+    libportaudio2 \
+    libtool \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-render-util0 \
+    libxcb-xinerama0 \
+    libxcb-xinput0 \
+    libxcb-xkb1 \
+    libxkbcommon-x11-0 \
+    locales \
+    nethogs \
+    ocl-icd-libopencl1 \
+    opencl-headers \
+    pkg-config \
+    texinfo \
+    vnstat \
+    xvfb \
+    zstd \
     libacl1:armhf \
     libasan6-armhf-cross \
     libatomic1-armhf-cross \
@@ -135,7 +136,6 @@ apt-fast install --no-install-recommends -yq \
     libblkid1:armhf \
     libc6:armhf \
     libc6-armhf-cross \
-    libc6-dev:armhf \
     libc6-dev-armhf-cross \
     libcairo2:armhf \
     libcap2:armhf \
@@ -151,17 +151,12 @@ apt-fast install --no-install-recommends -yq \
     libgomp1-armhf-cross \
     libgudev-1.0-0:armhf \
     libinput-bin:armhf \
-    libinput-dev:armhf \
     libinput10:armhf \
-    libjpeg-dev:armhf \
     libjpeg-turbo8:armhf \
-    libjpeg-turbo8-dev:armhf \
     libjpeg8:armhf \
-    libjpeg8-dev:armhf \
     libkmod2:armhf \
     libmtdev1t64:armhf \
     libpam0g:armhf \
-    libpam0g-dev:armhf \
     libpcre3:armhf \
     libpixman-1-0:armhf \
     libpng16-16t64:armhf \
@@ -169,7 +164,6 @@ apt-fast install --no-install-recommends -yq \
     libstdc++6:armhf \
     libstdc++6-armhf-cross \
     libubsan1-armhf-cross \
-    libudev-dev:armhf \
     libudev1:armhf \
     libuuid1:armhf \
     libwacom9:armhf \
@@ -182,15 +176,11 @@ apt-fast install --no-install-recommends -yq \
     libxext6:armhf \
     libxkbcommon0:armhf \
     libxrender1:armhf \
-    linux-libc-dev:armhf \
     linux-libc-dev-armhf-cross \
     zlib1g:armhf \
     libegl1 \
-    libegl-dev \
     libgles1 \
     libgles2 \
-    libgles-dev \
-    libx264-dev \
     openssh-server \
     dnsmasq-base \
     isc-dhcp-client \
@@ -199,5 +189,7 @@ apt-fast install --no-install-recommends -yq \
     kmod \
     wpasupplicant \
     hostapd \
-    libgtk2.0-dev \
     libxml2:armhf \
+    portaudio19-dev \
+    libdbus-1-dev \
+

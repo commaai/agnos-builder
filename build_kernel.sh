@@ -72,7 +72,9 @@ build_kernel() {
   echo "-- First make --"
   make $DEFCONFIG O=out
   echo "-- Second make: $(nproc --all) cores --"
-  make -j$(nproc --all) O=out  # Image.gz-dtb
+  # Build on CPUs * 1.5
+  NPROCS=$(printf "%.0f" $(echo "$(nproc) * 1.5" | bc -l))
+  make -j$NPROCS O=out  # Image.gz-dtb
 
   # Turn on if you want perf
   # LDFLAGS=-static make -j$(nproc --all) -C tools/perf
