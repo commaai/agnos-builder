@@ -41,14 +41,25 @@ jobs:
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
 
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
+    - name: restore ccache
+      uses: actions/cache/restore@v4
+      id: restore-cache
       with:
+        path: |
+          .ccache
         key: kernel-${{ steps.kernel-submodule.outputs.ref }}
         restore-keys: kernel-
 
     - name: Build kernel
       run: ./build_kernel.sh
+
+    - name: save ccache
+      uses: actions/cache/save@v4
+      if: always() && steps.restore-cache.outputs.cache-hit != 'true'
+      with:
+        path: |
+          .ccache
+        key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
     - name: Update VERSION
       if: github.event_name == 'pull_request'
