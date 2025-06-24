@@ -1,0 +1,16 @@
+[Unit]
+Description=Publish commaai SSH service via Avahi
+After=avahi-daemon.service network.target
+Requires=avahi-daemon.service 
+Wants=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/comma/avahi-publish-service.sh
+Restart=always
+RestartSec=5
+User=comma
+
+[Install]
+WantedBy=multi-user.target
