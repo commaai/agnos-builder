@@ -6,7 +6,7 @@ RAW_MODEL=$(tr -d '\0' < /sys/firmware/devicetree/base/model)
 # Extract the device model (e.g., tici, tizi, mici)
 MODEL=$(echo "$RAW_MODEL" | sed 's/comma //g' | awk '{print $1}')
 
-[ -z "$MODEL" ] && MODEL="comma-unknown"
+[ -z "$MODEL" ] && MODEL="unknown"
 
 HOSTNAME=$(hostname)
 SERVICE_NAME="openpilot SSH - $MODEL - [$HOSTNAME]"
