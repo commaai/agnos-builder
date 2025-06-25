@@ -12,4 +12,4 @@ HOSTNAME=$(hostname)
 SERVICE_NAME="openpilot SSH - $MODEL - [$HOSTNAME]"
 
 # Publish avahi service
-exec avahi-publish -s "$SERVICE_NAME" _ssh._tcp 22 "vendor=comma" "device=openpilot" "model=$MODEL"
+exec avahi-publish -s "$SERVICE_NAME" _ssh._tcp 22 "vendor=comma" "device=comma" "model=$MODEL"
