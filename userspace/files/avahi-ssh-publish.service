@@ -1,5 +1,5 @@
 [Unit]
-Description=Publish commaai SSH service via Avahi
+Description=Publish comma SSH service via Avahi
 After=avahi-daemon.service network.target
 Requires=avahi-daemon.service 
 Wants=network.target
