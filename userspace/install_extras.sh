@@ -6,6 +6,7 @@ apt-fast update && apt-fast install -y --no-install-recommends \
   bash-completion \
   btop \
   iperf \
+  iperf3 \
   dnsmasq \
   irqtop \
   ripgrep \
