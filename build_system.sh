@@ -103,8 +103,8 @@ docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
 # Extract image
 echo "Extracting docker image"
-docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
-exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
+# Extract to disk directly to avoid disk space issues
+docker container export $CONTAINER_ID | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR > /dev/null
 
 # Avoid detecting as container
 echo "Removing .dockerenv file"

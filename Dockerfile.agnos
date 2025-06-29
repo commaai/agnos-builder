@@ -82,8 +82,8 @@ COPY ./userspace/base_setup.sh /tmp/agnos
 RUN /tmp/agnos/base_setup.sh
 
 # Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
+# Moved to base_setup.sh
+
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
@@ -95,11 +95,6 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
     /tmp/agnos/libffi6_3.2.1-8_arm64.deb
-
-# ################### #
-# ###### AGNOS ###### #
-# ################### #
-FROM agnos-base
 
 # Hardware setup
 RUN mkdir -p /tmp/agnos/debs
@@ -113,8 +108,8 @@ COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
 COPY --from=agnos-compiler-lpac /tmp/lpac.deb /tmp/
 
 RUN cd /tmp && \
-    apt-get update && \
-    apt-get install -yq --no-install-recommends \
+    apt-fast update && \
+    apt-fast install -yq --no-install-recommends \
     python3 \
     python3-dev \
     gir1.2-qmi-1.0 \
@@ -188,8 +183,9 @@ RUN touch -r /lib/systemd/systemd /etc/fstab
 # populate /usr
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
-COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
-COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
+# avoid using * in the file list to keep symlinks
+COPY ./userspace/libs/ /usr/lib/aarch64-linux-gnu/
+COPY ./userspace/libs32/ /usr/lib/arm-linux-gnueabihf/
 
 # this is big, only enable when we need it
 # kernel headers for the AGNOS kernel (built on device)
@@ -202,7 +198,8 @@ COPY ./userspace/files/gl-renderer.so /usr/lib/arm-linux-gnueabihf/weston
 
 # Setup systemd services
 COPY ./userspace/services.sh /tmp/agnos
-RUN /tmp/agnos/services.sh
+# Ignore errors in case services are not present
+RUN set +e; /tmp/agnos/services.sh && exit 0; set -e;
 
 # MOTD
 RUN rm -r /etc/update-motd.d/*
@@ -242,12 +239,18 @@ COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
 
 # TODO: move this to base_setup.sh or build gcc from source
-# Remove unused architectures & bins from arm-none-eabi
-RUN cd /usr/lib/gcc/arm-none-eabi/* && \
-    rm -rf arm/ && \
-    find thumb/ -maxdepth 1 -type d ! \( -name 'thumb' -o -name 'v7e-m+fp' -o -name 'v7e-m+dp' \) -exec rm -rf {} + && \
-    rm cc1plus g++-mapper-server && \
-    find /usr/bin -maxdepth 1 -type f -name 'arm-none-eabi-*' ! \( -name 'arm-none-eabi-gcc' -o -name 'arm-none-eabi-objcopy' -o -name 'arm-none-eabi-objdump' \) -delete
+# TODO: may remove more packages not needed for runtime to reduce final disk image size
+RUN apt-get remove -yq \
+    build-essential \
+    gcc gcc-13 gcc-13-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+    cpp-13-aarch64-linux-gnu \
+    && apt-get -yq autoremove \
+    && apt-get -yq clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Remove dev packages to save space
+# Ignore any errors on dpkg
+RUN dpkg --remove $(dpkg -l '*-dev' | awk '/^ii/ {print $2}'); exit 0
 
 # keep this last
 RUN ldconfig
