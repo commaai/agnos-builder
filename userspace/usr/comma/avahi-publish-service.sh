@@ -9,7 +9,7 @@ MODEL=$(echo "$RAW_MODEL" | sed 's/comma //g' | awk '{print $1}')
 [ -z "$MODEL" ] && MODEL="unknown"
 
 HOSTNAME=$(hostname)
-SERVICE_NAME="openpilot SSH - $MODEL - [$HOSTNAME]"
+SERVICE_NAME="comma SSH - $MODEL - [$HOSTNAME]"
 
 ALIAS_FILE="/data/params/d_tmp/ApiCache_Device"
 ALIAS=$(jq -e -r '.alias // empty' "$ALIAS_FILE" 2>/dev/null | grep -E '\S' || echo "$RAW_MODEL")
