@@ -176,8 +176,9 @@ COPY ./userspace/firmware/* /lib/firmware/
 # populate /etc
 COPY ./userspace/files/fstab /etc
 COPY ./userspace/files/profile /etc/profile
-COPY ./userspace/files/allow-network-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-network-control.pkla
-COPY ./userspace/files/allow-modem-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-modem-control.pkla
+#COPY ./userspace/files/allow-network-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-network-control.pkla
+#COPY ./userspace/files/allow-modem-control.pkla /etc/polkit-1/localauthority/50-local.d/allow-modem-control.pkla
+COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
 COPY ./userspace/files/*.rules /etc/udev/rules.d/
 COPY ./userspace/files/ssh*_config /etc/ssh/
 COPY ./userspace/files/logrotate.conf /etc/

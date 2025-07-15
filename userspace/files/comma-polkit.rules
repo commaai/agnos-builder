@@ -1,0 +1,19 @@
+// allow-network-control.pkla
+polkit.addRule(function (action, subject) {
+  if (action.id.startswith("org.freedesktop.ModemManager1." &&
+      (subject.user == "comma" || subject.user == "root"))
+    return polkit.Result.YES;
+});
+
+// allow-modem-control.pkla
+polkit.addRule(function (action, subject) {
+  if (action.id == "org.freedesktop.ModemManager1.Device.Control" &&
+      (subject.user == "comma" || subject.user == "root"))
+    return polkit.Result.YES;
+});
+
+polkit.addRule(function (action, subject) {
+  if (subject.isInGroup("sudo") && (action.id.startsWith("org.freedesktop.NetworkManager.") || action.id.startsWith("org.freedesktop.ModemManager1."))) {
+    return polkit.Result.YES;
+  }
+});
