@@ -92,6 +92,7 @@ apt-fast install --no-install-recommends -yq \
     ppp \
     smartmontools \
     speedtest-cli \
+    squashfs-tools \
     ssh \
     sshfs \
     sudo \
