@@ -225,6 +225,9 @@ COPY ./userspace/files/logind.conf /etc/systemd/logind.conf
 # Copy Avahi daemon override
 COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.service.d/override.conf
 
+# Prevent polkitd memory leak from getting out of hand by restarting it every ~day
+COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d/override.conf
+
 # Remove qt network bearer plugins
 RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
 
