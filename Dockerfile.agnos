@@ -127,7 +127,6 @@ RUN cd /tmp && \
     libpolkit-gobject-1-0 \
     libsystemd0 \
     polkitd \
-    polkitd-pkla \
     mobile-broadband-provider-info && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
