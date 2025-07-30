@@ -1,6 +1,6 @@
 /dev/disk/by-label/dsp /dsp auto ro
 /dev/disk/by-partlabel/modem_a /firmware auto ro
-/dev/disk/by-partlabel/persist /persist auto ro,discard,nosuid,nodev,noexec
+/dev/disk/by-partlabel/persist /persist auto ro,discard,nosuid,nodev,noexec,nofail
 /dev/disk/by-partlabel/userdata /data auto discard,noatime,nodiratime,nosuid,nodev,nofail 0 0
 /dev/disk/by-partlabel/cache /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid,x-systemd.makefs 0 0
 /dev/nvme0n1 /data/media auto discard,nosuid,nodev,nofail,x-systemd.device-timeout=5s 0 0
