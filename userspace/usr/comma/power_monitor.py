@@ -10,13 +10,14 @@ FN = "/var/tmp/power_watchdog"
 THRESHOLD = timedelta(hours=1.0)
 
 
-def read(path: str) -> int:
+def read(path: str, num: bool = False):
   try:
     with open(path) as f:
-      return float(f.read())
+      if num:
+        return float(f.read())
+      return f.read()
   except Exception:
-    raise
-    return 0
+    return 0 if num else ""
 
 
 last_touch_ts = 0
@@ -44,13 +45,15 @@ if __name__ == "__main__":
 
   last_valid_readout = time.monotonic()
   while True:
-    cur_t = read(FN)
+    cur_t = read(FN, True)
     last_valid_readout = max(last_valid_readout, last_touch_ts, cur_t)
+
+    not_engaged = not read("/data/params/d/IsEngaged").startswith("1")
 
     # time to shutoff?
     dt = timedelta(seconds=time.monotonic() - last_valid_readout)
-    if dt > THRESHOLD:
+    if dt > THRESHOLD and not_engaged:
       os.system("sudo poweroff")
 
-    #print((THRESHOLD - dt), "until shutdown")
+    print((THRESHOLD - dt), "until shutdown", "/ not engaged:", not_engaged)
     time.sleep(60)
