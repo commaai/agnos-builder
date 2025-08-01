@@ -32,6 +32,7 @@ GPTS = [
 
 Partition = namedtuple('Partition', ['name', 'path', 'has_ab', 'ota', 'full_check', 'sparse'])
 PARTITIONS = [
+  Partition('persist', FIRMWARE_DIR / 'persist.img', False, False, True, False),
   Partition('systemrw', FIRMWARE_DIR / 'systemrw.img', False, False, True, False),
   Partition('cache', FIRMWARE_DIR / 'cache.img', False, False, True, False),
   Partition('xbl', FIRMWARE_DIR / 'xbl.img', True, True, True, False),
