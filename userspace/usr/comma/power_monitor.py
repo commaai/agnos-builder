@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # time to shutoff?
     dt = timedelta(seconds=time.monotonic() - last_valid_readout)
     if dt > THRESHOLD:
-      os.sytem("sudo poweroff")
+      os.system("sudo poweroff")
 
     #print((THRESHOLD - dt), "until shutdown")
     time.sleep(60)
