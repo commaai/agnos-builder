@@ -27,7 +27,9 @@ dependencies = [
   # extra nice-to-haves
   "evdev",
   "ipython",
+  "py-spy",
 
+  # GUIs
   "raylib @ https://github.com/commaai/raylib-python-cffi/releases/download/2/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl",
 ]
 
