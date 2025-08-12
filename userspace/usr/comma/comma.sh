@@ -89,15 +89,17 @@ while true; do
   rm -f $INSTALLER
   pkill -f $INSTALLER
 
-  echo "running setup"
-  $SETUP
-  if [ -f $INSTALLER ]; then
-    # run installer and wait for continue.sh
-    chmod +x $INSTALLER
-    $INSTALLER &
-    echo "running installer"
-  fi
+  # run setup and wait for installer
+  $SETUP &
+  echo "waiting for installer"
+  while [ ! -f $INSTALLER ]; do
+    sleep 1
+  done
 
+  # run installer and wait for continue.sh
+  chmod +x $INSTALLER
+  $INSTALLER &
+  echo "running installer"
   while [ ! -f $CONTINUE ] && ps -p $! > /dev/null; do
     sleep 1
   done
