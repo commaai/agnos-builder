@@ -4,3 +4,4 @@ files/weston filter=lfs diff=lfs merge=lfs -text
 files/libeglSubDriverWayland.so.patched filter=lfs diff=lfs merge=lfs -text
 usr/comma/reset filter=lfs diff=lfs merge=lfs -text
 usr/comma/setup filter=lfs diff=lfs merge=lfs -text
+usr/comma/installer filter=lfs diff=lfs merge=lfs -text
