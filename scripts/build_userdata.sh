@@ -38,6 +38,9 @@ function create_image() {
   sudo git -C $MNTDIR/openpilot branch -m $RELEASE_BRANCH
   sudo git -C $MNTDIR/openpilot branch --set-upstream-to=origin/$RELEASE_BRANCH
 
+  # assume comma is the first non root user created
+  sudo chown 1000:1000 -R $MNTDIR/openpilot
+
   echo "clone done for $(sudo cat $MNTDIR/openpilot/common/version.h)"
   sudo umount $MNTDIR
 
