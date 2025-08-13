@@ -5,6 +5,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 ROOT=$DIR/..
 OUTPUT_DIR=$DIR/../output
 GIT_BRANCH=release3-staging
+RELEASE_BRANCH="release3"
 
 export DOCKER_BUILDKIT=1
 docker build -f $ROOT/Dockerfile.builder -t agnos-meta-builder $DIR \
@@ -29,8 +30,15 @@ function create_image() {
 
   mkdir $MNTDIR
   sudo mount $USERDATA_IMAGE $MNTDIR
-  sudo git clone --branch=$GIT_BRANCH --depth=1 https://github.com/commaai/openpilot.git $MNTDIR/openpilot.cache
-  echo "clone done for $(sudo cat $MNTDIR/openpilot.cache/common/version.h)"
+  sudo git clone --branch=$GIT_BRANCH --depth=1 https://github.com/commaai/openpilot.git $MNTDIR/openpilot
+  sudo touch $MNTDIR/.openpilot_cache
+
+  sudo git -C $MNTDIR/openpilot remote set-branches --add origin $RELEASE_BRANCH
+  sudo git -C $MNTDIR/openpilot update-ref refs/remotes/origin/$RELEASE_BRANCH refs/remotes/origin/$GIT_BRANCH
+  sudo git -C $MNTDIR/openpilot branch -m $RELEASE_BRANCH
+  sudo git -C $MNTDIR/openpilot branch --set-upstream-to=origin/$RELEASE_BRANCH
+
+  echo "clone done for $(sudo cat $MNTDIR/openpilot/common/version.h)"
   sudo umount $MNTDIR
 
   echo "Sparsify"

@@ -93,7 +93,7 @@ while true; do
   $SETUP &
   echo "waiting for installer"
   while [ ! -f $INSTALLER ]; do
-    sleep 1
+    sleep 0.1
   done
 
   # run installer and wait for continue.sh
@@ -101,6 +101,6 @@ while true; do
   $INSTALLER &
   echo "running installer"
   while [ ! -f $CONTINUE ] && ps -p $! > /dev/null; do
-    sleep 1
+    sleep 0.1
   done
 done
