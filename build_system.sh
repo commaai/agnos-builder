@@ -2,8 +2,8 @@
 set -e
 
 UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
-UBUNTU_FILE="ubuntu-base-24.04.2-base-arm64.tar.gz"
-UBUNTU_FILE_CHECKSUM="d3144c017e40b328c0e86f022d8d00a786db036784103c4413aa533dd97cbd3d"
+UBUNTU_FILE="ubuntu-base-24.04.3-base-arm64.tar.gz"
+UBUNTU_FILE_CHECKSUM="7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48dabb048"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
