@@ -93,11 +93,6 @@ def perform_controlled_shutdown():
 
   update_param("SHUTDOWN", v_initial, i_initial, v_now, i_now)
 
-  # TODO: let loggerd cleanly finish writing logs
-  printk("Unmount NVMe")
-  subprocess.call(["/usr/bin/umount", "-l", "/dev/nvme0"])
-  # TODO: turn off nvme regulator. Currently no userspace control over this
-
   # Kill services that draw a lot of power
   printk("Killing services")
   subprocess.call(["/usr/bin/systemctl", "kill", "--signal=9", "weston", "comma"])

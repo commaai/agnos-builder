@@ -24,9 +24,6 @@ touch /data/etc/localtime
 mkdir -p /data/etc/netplan
 mkdir -p /data/etc/NetworkManager/system-connections
 
-# /data/media - NVME mount point
-mkdir -p /data/media
-
 # /data/ssh
 mkdir -p /data/ssh
 chown comma: /data/ssh
