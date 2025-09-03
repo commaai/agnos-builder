@@ -28,6 +28,8 @@ dependencies = [
   "evdev",
   "ipython",
   "py-spy",
+  "spidev2",
+  "flaky",
 
   # GUIs
   "raylib @ https://github.com/commaai/raylib-python-cffi/releases/download/3/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl",

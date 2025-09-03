@@ -17,6 +17,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "dbus-python" },
     { name = "evdev" },
+    { name = "flaky" },
     { name = "ipython" },
     { name = "libusb1" },
     { name = "openpilot", extra = ["dev", "testing"] },
@@ -26,12 +27,14 @@ dependencies = [
     { name = "pyusb" },
     { name = "raylib" },
     { name = "smbus2" },
+    { name = "spidev2" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "dbus-python" },
     { name = "evdev" },
+    { name = "flaky" },
     { name = "ipython" },
     { name = "libusb1", specifier = "==3.1.0" },
     { name = "openpilot", directory = "openpilot" },
@@ -43,6 +46,7 @@ requires-dist = [
     { name = "pyusb" },
     { name = "raylib", url = "https://github.com/commaai/raylib-python-cffi/releases/download/3/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" },
     { name = "smbus2" },
+    { name = "spidev2" },
 ]
 
 [[package]]
@@ -724,6 +728,15 @@ wheels = [
 ]
 
 [[package]]
+name = "flaky"
+version = "3.8.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/c5/ef69119a01427204ff2db5fc8f98001087bcce719bbb94749dcd7b191365/flaky-3.8.1.tar.gz", hash = "sha256:47204a81ec905f3d5acfbd61daeabcada8f9d4031616d9bcb0618461729699f5", size = 25248, upload-time = "2024-03-12T22:17:59.265Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/b8/b830fc43663246c3f3dd1ae7dca4847b96ed992537e85311e27fa41ac40e/flaky-3.8.1-py2.py3-none-any.whl", hash = "sha256:194ccf4f0d3a22b2de7130f4b62e45e977ac1b5ccad74d4d48f3005dcc38815e", size = 19139, upload-time = "2024-03-12T22:17:51.59Z" },
+]
+
+[[package]]
 name = "fonttools"
 version = "4.59.1"
 source = { registry = "https://pypi.org/simple" }
@@ -942,6 +955,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/f9/42/127e6d792884ab860
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0a/66/7f8c48009c72d73bc6bbe6eb87ac838d6a526146f7dab14af671121eb379/invoke-2.2.0-py3-none-any.whl", hash = "sha256:6ea924cc53d4f78e3d98bc436b08069a03077e6f85ad1ddaa8a116d7dad15820", size = 160274, upload-time = "2023-07-12T18:05:16.294Z" },
 ]
+
+[[package]]
+name = "ioctl-opt"
+version = "1.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/58/4e7c0921c0e92dd18928043ce167952d6201206703ff31c44e3477523362/ioctl-opt-1.3.tar.gz", hash = "sha256:5ed4f9a80d2e02e152a43d3648d7ed8821a0aac5ea88ecc5fcc14460ff7cf2f9", size = 10519, upload-time = "2023-03-28T12:39:16.556Z" }
 
 [[package]]
 name = "ipython"
@@ -5145,7 +5164,7 @@ wheels = [
 
 [[package]]
 name = "pytest-xdist"
-version = "3.7.1.dev24+g2b4372bd6"
+version = "3.7.1.dev24+g2b4372b"
 source = { git = "https://github.com/sshane/pytest-xdist?rev=2b4372bd62699fb412c4fe2f95bf9f01bd2018da#2b4372bd62699fb412c4fe2f95bf9f01bd2018da" }
 dependencies = [
     { name = "execnet" },
@@ -5597,6 +5616,15 @@ name = "spidev"
 version = "3.7"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b5/99/dd50af8200e224ce9412ad01cdbeeb5b39b2d61acd72138f2b92c4a6d619/spidev-3.7.tar.gz", hash = "sha256:ce628a5ff489f45132679879bff5f455a66abf9751af01843850155b06ae92f0", size = 11616, upload-time = "2025-05-06T14:23:30.783Z" }
+
+[[package]]
+name = "spidev2"
+version = "0.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ioctl-opt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8e/40/e43163e764d0f97ab68c6e7db6c01affe85f199929027ecc25896a1c0f8c/spidev2-0.9.0.tar.gz", hash = "sha256:152da2911a8660283ceac3a75dd869953379bcbcf079e5436af5aae736876086", size = 37469, upload-time = "2022-09-12T00:41:38.963Z" }
 
 [[package]]
 name = "stack-data"
