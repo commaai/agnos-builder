@@ -87,7 +87,6 @@ apt-fast install --no-install-recommends -yq \
     net-tools \
     nload \
     network-manager \
-    nvme-cli \
     openssl \
     ppp \
     smartmontools \

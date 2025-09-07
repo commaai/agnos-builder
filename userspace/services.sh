@@ -58,7 +58,6 @@ systemctl disable chgrp-diag.service
 systemctl disable lvm2-monitor.service
 systemctl mask systemd-backlight@.service
 systemctl disable dpkg-db-backup.timer
-systemctl disable nvmefc-boot-connections.service
 systemctl disable ua-reboot-cmds.service
 systemctl disable ubuntu-advantage.service
 systemctl disable update-notifier-download.timer
@@ -72,11 +71,6 @@ systemctl disable rpcbind
 systemctl disable dnsmasq.service
 systemctl disable nfs-client.target
 systemctl disable remote-fs-pre.target
-
-# Disable nvmf service since no NVMe-oF in the old kernel
-# this service fails in 24.04, while failing silently on 20.04
-# no influence on C3 NVMe nor nvme smart-log, which work fine
-systemctl disable nvmf-autoconnect.service
 
 # Service is from ifupdown but ifupdown is managed by NetworkManager
 # networking service fails with "ifup: failed to bring up lo"
