@@ -6,39 +6,60 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
-# Common packages - optimized with faster package manager
-RUN apt-get update && apt-get install -yq --no-install-recommends \
+# Common packages - combine into single layer and use --no-install-suggests
+RUN apt-get update && apt-get install -yq --no-install-recommends --no-install-suggests \
     build-essential \
     ca-certificates \
+    ccache \
     clang \
     curl \
     checkinstall \
     git \
     pkg-config \
     wget \
-    parallel \
     && rm -rf /var/lib/apt/lists/*
 
-# Compile all packages in parallel with shared dependencies
-FROM agnos-compiler AS agnos-compiler-all
-COPY ./userspace/compile-*.sh /tmp/agnos/
-COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-COPY ./userspace/qtwayland/patch* /tmp/agnos/
+# Enable ccache
+ENV PATH="/usr/lib/ccache:$PATH"
 
-# Run all compilations in parallel where possible
-RUN cd /tmp/agnos && \
-    # Install common dependencies once
-    apt-get update && \
-    # Run independent compilations in parallel
-    parallel --will-cite --jobs 3 ::: \
-        "./compile-capnp.sh" \
-        "./compile-ffmpeg.sh" \
-        "./compile-qtwayland5.sh" && \
-    # Run dependent compilations sequentially
-    ./compile-libqmi.sh && \
-    parallel --will-cite --jobs 2 ::: \
-        "./compile-modemmanager.sh" \
-        "./compile-lpac.sh"
+# Parallel compilation stages - can build simultaneously
+# capnproto
+FROM agnos-compiler AS agnos-compiler-capnp
+COPY ./userspace/compile-capnp.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
+    /tmp/agnos/compile-capnp.sh
+
+# ffmpeg
+FROM agnos-compiler AS agnos-compiler-ffmpeg
+COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
+    /tmp/agnos/compile-ffmpeg.sh
+
+# libqmi
+FROM agnos-compiler AS agnos-compiler-libqmi
+COPY ./userspace/compile-libqmi.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
+    /tmp/agnos/compile-libqmi.sh
+
+# ModemManager - depends on libqmi
+FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
+COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
+    /tmp/agnos/compile-modemmanager.sh
+
+# lpac - depends on libqmi
+FROM agnos-compiler-libqmi AS agnos-compiler-lpac
+COPY ./userspace/compile-lpac.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
+    /tmp/agnos/compile-lpac.sh
+
+# qtwayland5
+FROM agnos-compiler AS agnos-compiler-qtwayland5
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
+COPY ./userspace/qtwayland/patch* /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
+    /tmp/agnos/compile-qtwayland5.sh
 
 # ################## #
 # ###### Base ###### #
@@ -49,52 +70,52 @@ FROM scratch AS agnos-base
 ARG UBUNTU_BASE_IMAGE
 ADD ${UBUNTU_BASE_IMAGE} /
 
-# Build folder
-RUN mkdir -p /tmp/agnos
-
-# Stop on error
-RUN set -xe
+# Build folder and error handling
+RUN mkdir -p /tmp/agnos && set -xe
 
 ARG USERNAME=comma
 
-# Base system setup with optimized package installation
+# Base system setup - combine related operations
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh /tmp/agnos
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-# Run all setup scripts in sequence but with shared apt cache
-RUN /tmp/agnos/base_setup.sh && \
-    /tmp/agnos/openpilot_dependencies.sh && \
-    /tmp/agnos/openpilot_python_dependencies.sh
+RUN /tmp/agnos/base_setup.sh
 
-# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
+# Install dependencies in single layer to reduce layers
+COPY ./userspace/openpilot_dependencies.sh ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh && /tmp/agnos/openpilot_python_dependencies.sh
+
+# Install Qt and dependencies - combine into single operation
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+RUN apt-get update && apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb \
+    && rm -rf /var/lib/apt/lists/* /tmp/agnos/*.deb
 
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
 FROM agnos-base
 
-# Hardware setup
+# Copy all compiled packages at once
+COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/
+COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/
+COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
+COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+COPY --from=agnos-compiler-lpac /tmp/lpac.deb /tmp/
+COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/
+
+# Hardware setup and package installation in single layer
 RUN mkdir -p /tmp/agnos/debs
 COPY ./userspace/debs /tmp/agnos/debs
 COPY ./userspace/hardware_setup.sh /tmp/agnos
-RUN /tmp/agnos/hardware_setup.sh
-RUN mv /data/persist /system/ && rm -rf /data/*
-
-COPY --from=agnos-compiler-all /tmp/libqmi.deb /tmp/
-COPY --from=agnos-compiler-all /tmp/modemmanager.deb /tmp/
-COPY --from=agnos-compiler-all /tmp/lpac.deb /tmp/
-
-RUN cd /tmp && \
+RUN /tmp/agnos/hardware_setup.sh && \
+    mv /data/persist /system/ && rm -rf /data/* && \
+    # Install all packages in single apt operation
     apt-get update && \
-    apt-get install -yq --no-install-recommends \
+    apt-get install -yq --no-install-recommends --no-install-suggests \
     python3 \
     python3-dev \
     gir1.2-qmi-1.0 \
@@ -108,153 +129,113 @@ RUN cd /tmp && \
     libsystemd0 \
     polkitd \
     mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./lpac.deb
-
-# Pre-compiled packages from optimized build
-COPY --from=agnos-compiler-all /tmp/capnproto.deb /tmp/capnproto.deb
-COPY --from=agnos-compiler-all /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-RUN cd /tmp && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
+    # Install compiled packages
+    cd /tmp && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    ./capnproto.deb \
+    ./ffmpeg.deb \
+    ./libqmi.deb \
+    ./modemmanager.deb \
+    ./lpac.deb \
+    --allow-downgrades ./qtwayland5.deb && \
+    # Cleanup in same layer
+    rm -rf /var/lib/apt/lists/* /tmp/*.deb && \
+    apt-get clean
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Install openpilot python packages with optimized settings
+# Install Python packages
 COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    export UV_CONCURRENT_DOWNLOADS="8" && \
-    export UV_CONCURRENT_INSTALLS="4" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode && \
+    # Cleanup in same layer
+    rm -rf /tmp/agnos/uv
 
-# Install nice to haves
+# Install extras
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-COPY --from=agnos-compiler-all /tmp/qtwayland5.deb /tmp/qtwayland5.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
-
-# Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
+# Copy system files - group by destination to reduce layers
+# Library files
 COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
-
-COPY ./userspace/home/ /home/$USERNAME/
-COPY ./userspace/home/.config/ /root/.config
-RUN chown -R $USERNAME: /home/$USERNAME/.config
-
-# populate /lib
-COPY ./userspace/files/*.path /lib/systemd/system/
-COPY ./userspace/files/*.mount /lib/systemd/system/
-COPY ./userspace/files/*.service /lib/systemd/system/
-COPY ./userspace/files/*.timer /lib/systemd/system/
-COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
-COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
-COPY ./userspace/firmware/* /lib/firmware/
-
-# populate /etc
-COPY ./userspace/files/fstab /etc
-COPY ./userspace/files/profile /etc/profile
-COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
-COPY ./userspace/files/*.rules /etc/udev/rules.d/
-COPY ./userspace/files/ssh*_config /etc/ssh/
-COPY ./userspace/files/logrotate.conf /etc/
-COPY ./userspace/files/rsyslog /etc/logrotate.d/
-RUN chmod 644 /etc/logrotate.conf
-RUN touch -r /lib/systemd/systemd /etc/fstab
-
-# populate /usr
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
 COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
-
-# this is big, only enable when we need it
-# kernel headers for the AGNOS kernel (built on device)
-#COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
-#RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
-
-# Weston with hacked touch rotate and color correction
 COPY ./userspace/files/weston /usr/bin/weston
 COPY ./userspace/files/gl-renderer.so /usr/lib/arm-linux-gnueabihf/weston
+COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware
+
+# System configuration files - combine into fewer layers
+COPY ./userspace/files/*.path ./userspace/files/*.mount ./userspace/files/*.service ./userspace/files/*.timer /lib/systemd/system/
+COPY ./userspace/files/ModemManager.service /lib/systemd/system/
+COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
+COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
+COPY ./userspace/firmware/* /lib/firmware/
+
+# /etc configuration files
+COPY ./userspace/files/fstab \
+     ./userspace/files/profile \
+     ./userspace/files/logrotate.conf \
+     /etc/
+COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
+COPY ./userspace/files/*.rules /etc/udev/rules.d/
+COPY ./userspace/files/ssh*_config /etc/ssh/
+COPY ./userspace/files/rsyslog /etc/logrotate.d/
+COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/
+COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/
+COPY ./userspace/files/*.nmconnection /usr/lib/NetworkManager/system-connections/
+COPY ./userspace/files/logind.conf /etc/systemd/
+COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.service.d/override.conf
+COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d/override.conf
+COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
+COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
+
+# Home directory setup
+COPY ./userspace/home/ /home/$USERNAME/
+COPY ./userspace/home/.config/ /root/.config
+RUN chown -R $USERNAME: /home/$USERNAME/.config
+
+# System configuration - combine related operations
+RUN chmod 644 /etc/logrotate.conf && \
+    touch -r /lib/systemd/systemd /etc/fstab && \
+    chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection && \
+    echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf && \
+    systemctl enable ModemManager && \
+    sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf && \
+    ldconfig
 
 # Setup systemd services
 COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh
 
-# MOTD
+# MOTD setup
 RUN rm -r /etc/update-motd.d/*
 COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
 
-# Let NetworkManager manage eth0
-COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
-COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
-
-# Add cellular connections
-COPY ./userspace/files/*.nmconnection /usr/lib/NetworkManager/system-connections/
-RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
-
-# Prefer ipv4 over ipv6
-RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
-
-# Don't let logind delete /dev/shm
-COPY ./userspace/files/logind.conf /etc/systemd/logind.conf
-
-# Copy Avahi daemon override
-COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.service.d/override.conf
-
-# Prevent polkitd memory leak from getting out of hand by restarting it every ~day
-COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d/override.conf
-
-# Remove qt network bearer plugins
-RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
-
-# Add iptable rules to block incoming traffic on wwan0
-COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
-
-# Run ModemManager in debug mode to allow AT commands
-COPY ./userspace/files/ModemManager.service /lib/systemd/system/
-RUN systemctl enable ModemManager
-
-# Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
-COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
-
-# Copy extra FW, rest comes from debs
-COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware
-
-# Setup hostname resolution for our custom hostname
-RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
-
-# TODO: move this to base_setup.sh or build gcc from source
-# Remove unused architectures & bins from arm-none-eabi
+# Cleanup operations - combine into single layer
 RUN cd /usr/lib/gcc/arm-none-eabi/* && \
     rm -rf arm/ && \
     find thumb/ -maxdepth 1 -type d ! \( -name 'thumb' -o -name 'v7e-m+fp' -o -name 'v7e-m+dp' \) -exec rm -rf {} + && \
-    rm cc1plus g++-mapper-server && \
-    find /usr/bin -maxdepth 1 -type f -name 'arm-none-eabi-*' ! \( -name 'arm-none-eabi-gcc' -o -name 'arm-none-eabi-objcopy' -o -name 'arm-none-eabi-objdump' \) -delete
-
-# keep this last
-RUN ldconfig
+    rm -f cc1plus g++-mapper-server && \
+    find /usr/bin -maxdepth 1 -type f -name 'arm-none-eabi-*' ! \( -name 'arm-none-eabi-gcc' -o -name 'arm-none-eabi-objcopy' -o -name 'arm-none-eabi-objdump' \) -delete && \
+    rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
 
 # Setup RO rootfs
-RUN mkdir -p /rwtmp
-RUN mkdir -p /tmptmp
+RUN mkdir -p /rwtmp /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 
-# copy at the end, after all apt usage
+# Final setup - copy version and apt config
 COPY ./userspace/files/apt.conf /etc/apt/apt.conf
-
-# copy version file
 COPY VERSION /VERSION
 
-# ################# #
-# #### Cleanup #### #
-# ################# #
-
-RUN rm -rf /usr/share/icons/* && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /home/$USERNAME/.cache && \
-    rm -rf /root/.cache && \
-    apt-get clean
+# Final cleanup - combine all cleanup operations
+RUN rm -rf /usr/share/icons/* \
+    /var/lib/apt/lists/* \
+    /home/$USERNAME/.cache \
+    /root/.cache \
+    /tmp/agnos \
+    && apt-get clean
