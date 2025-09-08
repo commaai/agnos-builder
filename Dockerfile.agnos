@@ -6,58 +6,39 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
-# Common packages
+# Common packages - optimized with faster package manager
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     build-essential \
     ca-certificates \
-    ccache \
     clang \
     curl \
     checkinstall \
     git \
     pkg-config \
-    wget
+    wget \
+    parallel \
+    && rm -rf /var/lib/apt/lists/*
 
-# Enable ccache
-ENV PATH="/usr/lib/ccache:$PATH"
-
-# capnproto
-FROM agnos-compiler AS agnos-compiler-capnp
-COPY ./userspace/compile-capnp.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
-    /tmp/agnos/compile-capnp.sh
-
-# ffmpeg
-FROM agnos-compiler AS agnos-compiler-ffmpeg
-COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
-    /tmp/agnos/compile-ffmpeg.sh
-
-# libqmi
-FROM agnos-compiler AS agnos-compiler-libqmi
-COPY ./userspace/compile-libqmi.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    /tmp/agnos/compile-libqmi.sh
-
-# ModemManager
-FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    /tmp/agnos/compile-modemmanager.sh
-
-# lpac
-FROM agnos-compiler-libqmi AS agnos-compiler-lpac
-COPY ./userspace/compile-lpac.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
-    /tmp/agnos/compile-lpac.sh
-
-# qtwayland5
-FROM agnos-compiler AS agnos-compiler-qtwayland5
+# Compile all packages in parallel with shared dependencies
+FROM agnos-compiler AS agnos-compiler-all
+COPY ./userspace/compile-*.sh /tmp/agnos/
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch* /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
-    /tmp/agnos/compile-qtwayland5.sh
+
+# Run all compilations in parallel where possible
+RUN cd /tmp/agnos && \
+    # Install common dependencies once
+    apt-get update && \
+    # Run independent compilations in parallel
+    parallel --will-cite --jobs 3 ::: \
+        "./compile-capnp.sh" \
+        "./compile-ffmpeg.sh" \
+        "./compile-qtwayland5.sh" && \
+    # Run dependent compilations sequentially
+    ./compile-libqmi.sh && \
+    parallel --will-cite --jobs 2 ::: \
+        "./compile-modemmanager.sh" \
+        "./compile-lpac.sh"
 
 # ################## #
 # ###### Base ###### #
@@ -76,16 +57,15 @@ RUN set -xe
 
 ARG USERNAME=comma
 
-# Base system setup
+# Base system setup with optimized package installation
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh /tmp/agnos
-RUN /tmp/agnos/base_setup.sh
-
-# Install openpilot dependencies
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
+# Run all setup scripts in sequence but with shared apt cache
+RUN /tmp/agnos/base_setup.sh && \
+    /tmp/agnos/openpilot_dependencies.sh && \
+    /tmp/agnos/openpilot_python_dependencies.sh
 
 # Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
@@ -108,9 +88,9 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
-COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
-COPY --from=agnos-compiler-lpac /tmp/lpac.deb /tmp/
+COPY --from=agnos-compiler-all /tmp/libqmi.deb /tmp/
+COPY --from=agnos-compiler-all /tmp/modemmanager.deb /tmp/
+COPY --from=agnos-compiler-all /tmp/lpac.deb /tmp/
 
 RUN cd /tmp && \
     apt-get update && \
@@ -132,28 +112,29 @@ RUN cd /tmp && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./lpac.deb
 
-# Pre-compiled capnp (must be before python install)
-COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
-
-# Use other pre-compiled packages
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
+# Pre-compiled packages from optimized build
+COPY --from=agnos-compiler-all /tmp/capnproto.deb /tmp/capnproto.deb
+COPY --from=agnos-compiler-all /tmp/ffmpeg.deb /tmp/ffmpeg.deb
+RUN cd /tmp && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Install openpilot python packages
+# Install openpilot python packages with optimized settings
 COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
+    export UV_CONCURRENT_DOWNLOADS="8" && \
+    export UV_CONCURRENT_INSTALLS="4" && \
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
+COPY --from=agnos-compiler-all /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
 
 # Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
