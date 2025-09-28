@@ -14,8 +14,6 @@ systemctl enable agnos-debug.service
 systemctl enable gpio.service
 systemctl enable lte.service
 systemctl enable sound.service
-systemctl enable weston.service
-systemctl enable weston-ready.service
 systemctl enable init-qcom.service
 systemctl enable varwatch.service
 systemctl enable power_monitor.service
