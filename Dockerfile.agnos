@@ -149,6 +149,9 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
+# Allow Python to lower nice values (requires CAP_SYS_NICE)
+RUN setcap cap_sys_nice+ep $(readlink -f /usr/local/venv/bin/python)
+
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
