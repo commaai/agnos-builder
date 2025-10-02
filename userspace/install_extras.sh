@@ -13,6 +13,7 @@ apt-fast update && apt-fast install -y --no-install-recommends \
   ncdu \
   nfs-common \
   socat \
+  tree \
   wavemon \
   avahi-daemon \
   avahi-utils
