@@ -10,6 +10,7 @@ systemctl enable cdsprpcd
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
 systemctl enable comma.service
+systemctl enable agnos-debug.service
 systemctl enable gpio.service
 systemctl enable lte.service
 systemctl enable sound.service

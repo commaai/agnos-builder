@@ -24,6 +24,9 @@ touch /data/etc/localtime
 mkdir -p /data/etc/netplan
 mkdir -p /data/etc/NetworkManager/system-connections
 
+# /cache
+chown -R comma:comma /cache/
+
 # /data/ssh
 mkdir -p /data/ssh
 chown comma: /data/ssh
