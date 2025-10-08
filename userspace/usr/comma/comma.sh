@@ -8,20 +8,6 @@ CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
-echo "waiting for weston"
-for i in {1..200}; do
-  if systemctl is-active --quiet weston-ready; then
-    break
-  fi
-  sleep 0.1
-done
-
-if systemctl is-active --quiet weston-ready; then
-  echo "weston ready after ${SECONDS}s"
-else
-  echo "timed out waiting for weston, ${SECONDS}s"
-fi
-
 sudo chown comma: /data
 sudo chown comma: /data/media
 
