@@ -7,7 +7,7 @@ repos:
     rev: v4.4.0
     hooks:
     -   id: check-ast
-        exclude: '^(tools)/|(userspace/usr/comma/reset)'
+        exclude: '^(tools)/|(userspace/usr/comma/reset)/|(userspace/usr/comma/updater)'
     -   id: check-toml
     -   id: check-xml
     -   id: check-yaml
