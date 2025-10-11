@@ -5,6 +5,7 @@
 apt-fast update && apt-fast install -y --no-install-recommends \
   bash-completion \
   btop \
+  hyperfine \
   iperf \
   iperf3 \
   dnsmasq \
