@@ -8,7 +8,7 @@ PermissionsStartOnly=true
 ExecStartPre=/bin/bash -c "chgrp gpu /dev/ion /dev/kgsl-3d0"
 ExecStartPre=/bin/bash -c "chmod 660 /dev/ion /dev/kgsl-3d0"
 
-ExecStart=/usr/local/venv/bin/python -u /usr/comma/magic.py
+ExecStart=/bin/bash -c "source /etc/profile && /usr/local/venv/bin/python -u /usr/comma/magic.py"
 
 [Install]
 WantedBy=multi-user.target

@@ -36,7 +36,9 @@ def updater_weston():
       with open(f"/proc/{pid}/comm", "r") as f:
         comm = f.read().strip()
         if comm == "updater":
-          subprocess.run(UPDATER_PATH)
+          with open(f"/proc/{pid}/cmdline", "rb") as f:
+            updater, manifest = [p.decode("utf-8") for p in f.read().split(b"\0") if p != b""][1:]
+            subprocess.run([UPDATER_PATH, updater, manifest])
     except Exception:
       pass
     finally:
