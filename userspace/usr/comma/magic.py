@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, socket, multiprocessing, struct, subprocess, threading
+import os, socket, struct, subprocess, threading
 from array import array
 
 import pyray as rl
