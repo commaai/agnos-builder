@@ -80,7 +80,7 @@ def handle_client(client, drm_master):
       pass
 
 def main():
-  multiprocessing.Process(target=updater_weston).start()
+  threading.Thread(target=updater_weston, daemon=True).start()
 
   drm_master = os.open(DRM_DEVICE, os.O_RDWR | os.O_CLOEXEC)
   os.environ['DRM_FD'] = str(drm_master)
