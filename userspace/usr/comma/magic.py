@@ -38,7 +38,9 @@ def updater_weston():
         if comm == "updater":
           with open(f"/proc/{pid}/cmdline", "rb") as f:
             updater, manifest = [p.decode("utf-8") for p in f.read().split(b"\0") if p != b""][1:]
-            subprocess.run([UPDATER_PATH, updater, manifest])
+            env = os.environ.copy()
+            env.pop("DRM_FD", None)
+            subprocess.run([UPDATER_PATH, updater, manifest], env=env)
     except Exception:
       pass
     finally:
