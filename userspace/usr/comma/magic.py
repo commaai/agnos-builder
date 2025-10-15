@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, socket, multiprocessing, struct, subprocess, threading
+import os, socket, struct, subprocess, threading
 from array import array
 
 import pyray as rl
@@ -38,7 +38,9 @@ def updater_weston():
         if comm == "updater":
           with open(f"/proc/{pid}/cmdline", "rb") as f:
             updater, manifest = [p.decode("utf-8") for p in f.read().split(b"\0") if p != b""][1:]
-            subprocess.run([UPDATER_PATH, updater, manifest])
+            env = os.environ.copy()
+            env.pop("DRM_FD", None)
+            subprocess.run([UPDATER_PATH, updater, manifest], env=env)
     except Exception:
       pass
     finally:
@@ -80,7 +82,7 @@ def handle_client(client, drm_master):
       pass
 
 def main():
-  multiprocessing.Process(target=updater_weston).start()
+  threading.Thread(target=updater_weston, daemon=True).start()
 
   drm_master = os.open(DRM_DEVICE, os.O_RDWR | os.O_CLOEXEC)
   os.environ['DRM_FD'] = str(drm_master)
