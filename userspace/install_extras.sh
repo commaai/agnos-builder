@@ -14,6 +14,7 @@ apt-fast update && apt-fast install -y --no-install-recommends \
   ncdu \
   nfs-common \
   socat \
+  stress-ng \
   tree \
   wavemon \
   avahi-daemon \
