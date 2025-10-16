@@ -61,7 +61,10 @@ def power_screen():
   except Exception:
     pass
 
-def show_background(tex, pos):
+def show_background(img):
+  tex = rl.load_texture_from_image(img)
+  rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
+  pos = rl.Vector2((rl.get_screen_width() - tex.width)/2.0, (rl.get_screen_height() - tex.height)/2.0)
   rl.begin_drawing()
   rl.draw_texture(tex, int(pos.x), int(pos.y), rl.WHITE)
   rl.end_drawing()
@@ -86,14 +89,10 @@ def main():
 
   drm_master = os.open(DRM_DEVICE, os.O_RDWR | os.O_CLOEXEC)
   os.environ['DRM_FD'] = str(drm_master)
-  rl.init_window(0, 0, "not weston")
+  rl.init_window(0, 0, "")
   img = rl.load_image(BACKGROUND)
   rl.image_resize(img, rl.get_screen_width(), rl.get_screen_width()//2)
-  tex = rl.load_texture_from_image(img)
-  rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
-  pos = rl.Vector2((rl.get_screen_width() - tex.width)/2.0, (rl.get_screen_height() - tex.height)/2.0)
-  rl.unload_image(img)
-  show_background(tex, pos)
+  show_background(img)
 
   try:
     os.unlink(SOCK_PATH)
@@ -115,7 +114,9 @@ def main():
       clients.discard(t)
     if not clients and need_background:
       need_background = False
-      show_background(tex, pos)
+      rl.close_window()
+      rl.init_window(0, 0, "")
+      show_background(img)
 
     try:
       client, _ = server.accept()
