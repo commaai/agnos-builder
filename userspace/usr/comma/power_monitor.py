@@ -4,6 +4,7 @@ import time
 import fcntl
 import struct
 import threading
+import subprocess
 from datetime import timedelta
 
 FN = "/var/tmp/power_watchdog"
@@ -36,6 +37,9 @@ def check_touches():
           last_touch_ts = time.monotonic()
       time.sleep(60)
 
+def ssh_active():
+  p = subprocess.run("ss | grep ssh", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+  return p.returncode == 0
 
 if __name__ == "__main__":
   # we limit worst-case power usage when openpilot isn't managing it,
@@ -47,6 +51,8 @@ if __name__ == "__main__":
   while True:
     cur_t = read(FN, True)
     last_valid_readout = max(last_valid_readout, last_touch_ts, cur_t)
+    if ssh_active():
+      last_valid_readout = cur_t
 
     not_engaged = not read("/data/params/d/IsEngaged").startswith("1")
 
