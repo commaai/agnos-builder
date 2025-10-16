@@ -5658,7 +5658,7 @@ dependencies = [
     { name = "cffi" },
 ]
 wheels = [
-    { url = "https://github.com/commaai/raylib-python-cffi/releases/download/4/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl", hash = "sha256:7d3adf0dad5eca7ad32291cba18d43c8cded1fc804642025e7e0e4cf05579885" },
+    { url = "https://github.com/commaai/raylib-python-cffi/releases/download/4/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl", hash = "sha256:d32619e003cc55b0ca4df5dde421e654e691600d4071dd12458d374ca5d2070b" },
 ]
 
 [package.metadata]
