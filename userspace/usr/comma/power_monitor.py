@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     # time to shutoff?
     dt = timedelta(seconds=time.monotonic() - max(timestamps.values()))
-    if dt > THRESHOLD and not_engaged:
+    if dt > THRESHOLD:
       os.system("sudo poweroff")
 
     print((THRESHOLD - dt), "until shutdown", f"/ {timestamps=}")
