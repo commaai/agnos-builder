@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, socket, struct, subprocess, threading
+import os, socket, struct, subprocess, threading, time
 from array import array
 
 import pyray as rl
@@ -84,7 +84,14 @@ def handle_client(client, drm_master):
 def main():
   threading.Thread(target=updater_weston, daemon=True).start()
 
-  drm_master = os.open(DRM_DEVICE, os.O_RDWR | os.O_CLOEXEC)
+  while True:
+    try:
+      drm_master = os.open(DRM_DEVICE, os.O_RDWR | os.O_CLOEXEC)
+      break
+    except Exception as e:
+      print(e)
+      time.sleep(0.1)
+
   os.environ['DRM_FD'] = str(drm_master)
   rl.init_window(0, 0, "not weston")
   img = rl.load_image(BACKGROUND)
