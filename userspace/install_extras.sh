@@ -5,6 +5,7 @@
 apt-fast update && apt-fast install -y --no-install-recommends \
   bash-completion \
   btop \
+  hyperfine \
   iperf \
   iperf3 \
   dnsmasq \
@@ -13,6 +14,7 @@ apt-fast update && apt-fast install -y --no-install-recommends \
   ncdu \
   nfs-common \
   socat \
+  stress-ng \
   tree \
   wavemon \
   avahi-daemon \

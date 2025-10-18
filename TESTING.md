@@ -12,14 +12,11 @@
   - [ ] from openpilot menu
   - [ ] tapping on boot
   - [ ] corrupt userdata
-- [ ] Color calibration
-  - [ ] from /persist/comma/
-  - [ ] directly from panel over sysfs
+- [ ] Color calibration works from /persist/comma/
 - [ ] Clean setup: factory reset -> install openpilot -> openpilot works
 - [ ] AGNOS update works on warm boot
   - [ ] previous -> new
   - [ ] new -> previous
-- [ ] comma three: NVMe works
 - [ ] Display works at 60FPS
 
 ### ABL

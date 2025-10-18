@@ -8,6 +8,20 @@ CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
+echo "waiting for magic"
+for i in {1..200}; do
+  if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
+    break
+  fi
+  sleep 0.1
+done
+
+if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
+  echo "magic ready after ${SECONDS}s"
+else
+  echo "timed out waiting for magic, ${SECONDS}s"
+fi
+
 sudo chown comma: /data
 sudo chown comma: /data/media
 

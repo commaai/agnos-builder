@@ -4,10 +4,12 @@ import time
 import fcntl
 import struct
 import threading
+import subprocess
 from datetime import timedelta
 
 FN = "/var/tmp/power_watchdog"
 THRESHOLD = timedelta(hours=1.0)
+timestamps = {}
 
 
 def read(path: str, num: bool = False):
@@ -20,9 +22,8 @@ def read(path: str, num: bool = False):
     return 0 if num else ""
 
 
-last_touch_ts = 0
 def check_touches():
-  global last_touch_ts
+  global timestamps
 
   event_format = "llHHi"
   event_size = struct.calcsize(event_format)
@@ -33,9 +34,12 @@ def check_touches():
       while (event := event_file.read(event_size)):
         (sec, usec, etype, code, value) = struct.unpack(event_format, event)
         if etype != 0 or code != 0 or value != 0:
-          last_touch_ts = time.monotonic()
+          timestamps['touch'] = time.monotonic()
       time.sleep(60)
 
+def ssh_active():
+  p = subprocess.run("ss | grep ssh", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+  return p.returncode == 0
 
 if __name__ == "__main__":
   # we limit worst-case power usage when openpilot isn't managing it,
@@ -43,17 +47,18 @@ if __name__ == "__main__":
 
   threading.Thread(target=check_touches, daemon=True).start()
 
-  last_valid_readout = time.monotonic()
+  timestamps['startup'] = time.monotonic()
   while True:
-    cur_t = read(FN, True)
-    last_valid_readout = max(last_valid_readout, last_touch_ts, cur_t)
-
-    not_engaged = not read("/data/params/d/IsEngaged").startswith("1")
+    timestamps['watchdog'] = read(FN, True)
+    if ssh_active():
+      timestamps['ssh'] = time.monotonic()
+    if read("/data/params/d/IsEngaged").startswith("1"):
+      timestamps['engaged'] = time.monotonic()
 
     # time to shutoff?
-    dt = timedelta(seconds=time.monotonic() - last_valid_readout)
-    if dt > THRESHOLD and not_engaged:
+    dt = timedelta(seconds=time.monotonic() - max(timestamps.values()))
+    if dt > THRESHOLD:
       os.system("sudo poweroff")
 
-    print((THRESHOLD - dt), "until shutdown", "/ not engaged:", not_engaged)
+    print((THRESHOLD - dt), "until shutdown", f"/ {timestamps=}")
     time.sleep(60)
