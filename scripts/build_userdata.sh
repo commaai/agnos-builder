@@ -4,8 +4,8 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 ROOT=$DIR/..
 OUTPUT_DIR=$DIR/../output
-GIT_BRANCH=release3-staging
-RELEASE_BRANCH="release3"
+GIT_BRANCH="release-tizi-staging"
+RELEASE_BRANCH="release-tizi"
 
 export DOCKER_BUILDKIT=1
 docker build -f $ROOT/Dockerfile.builder -t agnos-meta-builder $DIR \
