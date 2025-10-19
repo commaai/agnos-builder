@@ -11,10 +11,84 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: build kernel and system
+  build-kernel:
+    name: build kernel
     runs-on: namespace-profile-arm64-8x16-2004-caching
-    timeout-minutes: 60
+    timeout-minutes: 40
+    outputs:
+      kernel-ref: ${{ steps.kernel-submodule.outputs.ref }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: true
+
+    - name: Get kernel submodule ref
+      id: kernel-submodule
+      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
+      with:
+        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
+        restore-keys: kernel-
+
+    - name: Build kernel
+      run: ./build_kernel.sh
+
+    - name: Upload kernel artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-boot-img
+        path: output/boot.img
+        retention-days: 1
+
+  build-system:
+    name: build system
+    runs-on: namespace-profile-arm64-8x16-2004-caching
+    timeout-minutes: 40
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: true
+
+    - name: Update VERSION
+      if: github.event_name == 'pull_request'
+      run: |
+        echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
+
+    - name: Build system
+      env:
+        GIT_HASH: ${{ github.event.pull_request.head.sha }}
+      run: ./build_system.sh
+
+    - name: Upload system artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: system-img
+        path: output/system.img
+        retention-days: 1
+
+    - name: Upload build directory for statistics
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-dir
+        path: build/system.img
+        retention-days: 1
+
+    - name: Upload VERSION file
+      uses: actions/upload-artifact@v4
+      with:
+        name: version-file
+        path: VERSION
+        retention-days: 1
+
+  package:
+    name: package and upload
+    needs: [build-kernel, build-system]
+    runs-on: namespace-profile-arm64-8x16-2004-caching
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v4
       with:
@@ -37,28 +111,32 @@ jobs:
           echo EOF
         } | tee -a $GITHUB_ENV
 
-    - name: Get kernel submodule ref
-      id: kernel-submodule
-      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
+    - name: Create output and build directories
+      run: mkdir -p output build build/agnos-rootfs
 
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
+    - name: Download kernel artifact
+      uses: actions/download-artifact@v4
       with:
-        key: kernel-${{ steps.kernel-submodule.outputs.ref }}
-        restore-keys: kernel-
+        name: kernel-boot-img
+        path: output
 
-    - name: Build kernel
-      run: ./build_kernel.sh
+    - name: Download system artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: system-img
+        path: output
 
-    - name: Update VERSION
-      if: github.event_name == 'pull_request'
-      run: |
-        echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
+    - name: Download build directory
+      uses: actions/download-artifact@v4
+      with:
+        name: build-dir
+        path: build
 
-    - name: Build system
-      env:
-        GIT_HASH: ${{ github.event.pull_request.head.sha }}
-      run: ./build_system.sh
+    - name: Download VERSION file
+      uses: actions/download-artifact@v4
+      with:
+        name: version-file
+        path: .
 
     - name: Statistics
       id: stats
