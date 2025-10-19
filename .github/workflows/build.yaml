@@ -11,10 +11,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-docker-images:
+    name: build docker images
+    runs-on: namespace-profile-arm64-8x16-2004-caching
+    timeout-minutes: 35
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: true
+
+    - name: Download Ubuntu Base if needed
+      run: |
+        UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
+        UBUNTU_FILE="ubuntu-base-24.04.3-base-arm64.tar.gz"
+        UBUNTU_FILE_CHECKSUM="7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48dabb048"
+        if [ ! -f $UBUNTU_FILE ]; then
+          echo "Downloading Ubuntu Base: $UBUNTU_FILE"
+          curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time --fail
+        fi
+        if [ "$(shasum -a 256 "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECKSUM" ]; then
+          echo "Checksum mismatch"
+          exit 1
+        fi
+
+    - name: Build agnos-meta-builder image
+      run: |
+        export DOCKER_BUILDKIT=1
+        docker build -f Dockerfile.builder -t agnos-meta-builder . \
+          --build-arg UNAME=$(id -nu) \
+          --build-arg UID=$(id -u) \
+          --build-arg GID=$(id -g)
+
+    - name: Build agnos-builder image
+      run: |
+        export DOCKER_BUILDKIT=1
+        UBUNTU_FILE="ubuntu-base-24.04.3-base-arm64.tar.gz"
+        docker buildx build --load -f Dockerfile.agnos -t agnos-builder . \
+          --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
+          --platform=linux/arm64
+
+    - name: Save Docker images
+      run: |
+        mkdir -p docker-images
+        docker save agnos-meta-builder | gzip > docker-images/agnos-meta-builder.tar.gz
+        docker save agnos-builder | gzip > docker-images/agnos-builder.tar.gz
+
+    - name: Upload Docker images
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-images
+        path: docker-images/
+        retention-days: 1
+
   build-kernel:
     name: build kernel
+    needs: [build-docker-images]
     runs-on: namespace-profile-arm64-8x16-2004-caching
-    timeout-minutes: 40
+    timeout-minutes: 20
     outputs:
       kernel-ref: ${{ steps.kernel-submodule.outputs.ref }}
     steps:
@@ -22,6 +76,16 @@ jobs:
       with:
         lfs: true
         submodules: true
+
+    - name: Download Docker images
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-images
+        path: docker-images
+
+    - name: Load Docker images
+      run: |
+        docker load < docker-images/agnos-meta-builder.tar.gz
 
     - name: Get kernel submodule ref
       id: kernel-submodule
@@ -34,6 +98,8 @@ jobs:
         restore-keys: kernel-
 
     - name: Build kernel
+      env:
+        SKIP_DOCKER_BUILD: "true"
       run: ./build_kernel.sh
 
     - name: Upload kernel artifact
@@ -45,13 +111,25 @@ jobs:
 
   build-system:
     name: build system
+    needs: [build-docker-images]
     runs-on: namespace-profile-arm64-8x16-2004-caching
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v4
       with:
         lfs: true
         submodules: true
+
+    - name: Download Docker images
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-images
+        path: docker-images
+
+    - name: Load Docker images
+      run: |
+        docker load < docker-images/agnos-meta-builder.tar.gz
+        docker load < docker-images/agnos-builder.tar.gz
 
     - name: Update VERSION
       if: github.event_name == 'pull_request'
@@ -61,6 +139,7 @@ jobs:
     - name: Build system
       env:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
+        SKIP_DOCKER_BUILD: "true"
       run: ./build_system.sh
 
     - name: Upload system artifact

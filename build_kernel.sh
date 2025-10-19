@@ -23,12 +23,16 @@ if [[ "$(uname)" == 'Darwin' ]]; then
 fi
 
 # Setup kernel build container
-echo "Building agnos-meta-builder docker image"
-export DOCKER_BUILDKIT=1
-docker build -f Dockerfile.builder -t agnos-meta-builder $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+if [ "$SKIP_DOCKER_BUILD" != "true" ] || ! docker image inspect agnos-meta-builder >/dev/null 2>&1; then
+  echo "Building agnos-meta-builder docker image"
+  export DOCKER_BUILDKIT=1
+  docker build -f Dockerfile.builder -t agnos-meta-builder $DIR \
+    --build-arg UNAME=$(id -nu) \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g)
+else
+  echo "Skipping agnos-meta-builder build (image already exists)"
+fi
 echo "Starting agnos-meta-builder container"
 CONTAINER_ID=$(docker run -d -v $DIR:$DIR -w $DIR agnos-meta-builder)
 
