@@ -18,6 +18,7 @@ apt-fast update && apt-fast install -y --no-install-recommends \
   tree \
   wavemon \
   avahi-daemon \
+  adb \
   avahi-utils
 
 # color prompt
