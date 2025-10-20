@@ -8,6 +8,8 @@ ROOT = Path("/cache/debug/")
 
 
 if __name__ == "__main__":
+  os.makedirs(ROOT, exist_ok=True)
+
   boots = sorted(list(ROOT.iterdir()), key=lambda p: int(p.stem, 16), reverse=True)
 
   # limit to 100 boots
