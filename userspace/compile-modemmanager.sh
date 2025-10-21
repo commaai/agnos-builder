@@ -7,7 +7,12 @@ cd /tmp
 
 git clone -b $MM_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/ModemManager.git
 
-apt-get install -y --no-install-recommends \
+# Ensure apt is unlocked then install dependencies
+export DEBIAN_FRONTEND=noninteractive
+rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock || true
+rm -rf /var/lib/apt/lists/partial || true
+(dpkg --configure -a) || true
+apt-get update && apt-get install -y --no-install-recommends \
       cmake \
       gettext \
       libdbus-1-dev \

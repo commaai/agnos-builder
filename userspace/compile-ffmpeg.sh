@@ -2,7 +2,11 @@
 
 VERSION=4.2.2
 
-# Install build requirements
+# Ensure apt is unlocked and install build requirements
+export DEBIAN_FRONTEND=noninteractive
+rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock || true
+rm -rf /var/lib/apt/lists/partial || true
+(dpkg --configure -a) || true
 apt-get update && apt-get install -yq --no-install-recommends \
     libass-dev \
     libfreetype6-dev \
@@ -24,19 +28,27 @@ apt-get update && apt-get install -yq --no-install-recommends \
 
 # Build ffmpeg (the one from the ubuntu repos doesn't work with our libOpenCL)
 cd /tmp
-wget https://ffmpeg.org/releases/ffmpeg-${VERSION}.tar.bz2
-tar xvf ffmpeg-${VERSION}.tar.bz2
+wget -q --show-progress https://ffmpeg.org/releases/ffmpeg-${VERSION}.tar.bz2
+tar xf ffmpeg-${VERSION}.tar.bz2
 cd ffmpeg-${VERSION}
 
-# avoid makeinfo: error parsing ./doc/t2h.pm: Undefined subroutine &Texinfo::Config::set_from_init_file called at ./doc/t2h.pm line 24.
-# with --disable-htmlpages
-# --disable-doc works too, disables building documentation completely
-# https://gist.github.com/omegdadi/6904512c0a948225c81114b1c5acb875
-# https://github.com/7Ji/archrepo/issues/10
-./configure --enable-gpl --enable-libx264 --enable-shared --disable-static --disable-htmlpages
-make -j$(nproc)
+# Optimize configuration for build speed
+./configure \
+    --enable-gpl \
+    --enable-libx264 \
+    --enable-shared \
+    --disable-static \
+    --disable-doc \
+    --disable-htmlpages \
+    --disable-manpages \
+    --disable-debug
+
+# Use all available cores with memory management
+make -j$(nproc) MAKEFLAGS="-j$(nproc)"
 
 # remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)
-# # https://bugs.launchpad.net/ubuntu/+source/checkinstall/+bug/78455
-checkinstall -yD --install=no --fstrans=no --pkgname=ffmpeg
+checkinstall -yD --install=no --fstrans=no --pkgname=ffmpeg --pkgversion=${VERSION}
 mv ffmpeg*.deb /tmp/ffmpeg.deb
+
+# Cleanup to reduce layer size
+rm -rf /tmp/ffmpeg-${VERSION}*
