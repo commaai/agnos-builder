@@ -46,6 +46,8 @@ jobs:
     name: build system
     runs-on: namespace-profile-arm64-8x16-2004-caching
     timeout-minutes: 30
+    outputs:
+      stats_summary: ${{ steps.stats.outputs.stats_summary }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -78,6 +80,15 @@ jobs:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
       run: ./build_system.sh
 
+    - name: Statistics
+      id: stats
+      run: |
+        {
+          echo 'stats_summary<<EOF'
+          scripts/analyze-agnos-rootfs.sh
+          echo EOF
+        } | tee -a $GITHUB_OUTPUT
+
     - name: Upload system artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -86,6 +97,7 @@ jobs:
           output/system.img
           VERSION
         retention-days: 1
+
 
   package:
     name: package and analyze
@@ -107,7 +119,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: system-artifacts
-        path: output/
+        path: ./
 
     - name: Get commit message
       run: |
@@ -125,15 +137,8 @@ jobs:
           echo EOF
         } | tee -a $GITHUB_ENV
 
-
-    - name: Statistics
-      id: stats
-      run: |
-        {
-          echo 'stats_summary<<EOF'
-          scripts/analyze-agnos-rootfs.sh
-          echo EOF
-        } | tee -a $GITHUB_OUTPUT
+    - name: Setup output directory
+      run: mkdir -p output && mv system.img output/
 
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
@@ -147,7 +152,7 @@ jobs:
       run: |
         echo ${{ github.event.number }} > output/ota/PR
         cp VERSION output/ota
-        echo "${{ steps.stats.outputs.stats_summary }}" > output/ota/agnos_stats.txt
+        echo "${{ needs.build-system.outputs.stats_summary }}" > output/ota/agnos_stats.txt
 
     - name: Upload artifacts
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
