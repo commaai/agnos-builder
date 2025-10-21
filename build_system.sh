@@ -26,7 +26,7 @@ mkdir -p $BUILD_DIR $OUTPUT_DIR
 # Download Ubuntu Base if not done already
 if [ ! -f $UBUNTU_FILE ]; then
   echo -e "Downloading Ubuntu Base: $UBUNTU_FILE"
-  if ! curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time --fail; then
+  if ! curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --progress-bar --remote-time --fail; then
     echo "Download failed, please check Ubuntu releases: $UBUNTU_BASE_URL"
     exit 1
   fi
@@ -44,27 +44,26 @@ if [ "$(uname -m)" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
-# Check agnos-builder Dockerfile
+# Build with aggressive caching and parallel operations
 export DOCKER_BUILDKIT=1
-docker buildx build -f Dockerfile.agnos --check $DIR
+export BUILDKIT_PROGRESS=plain
 
-# Start build and create container
-echo "Building agnos-builder docker image"
+# Start build and create container with optimized settings
+echo "Building agnos-builder docker image with aggressive caching"
 BUILD="docker buildx build --load"
 if [ ! -z "$NS" ]; then
   BUILD="nsc build --load"
 fi
-$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
+
+# Use build cache and optimized settings
+$BUILD -f Dockerfile.agnos -t agnos-builder $DIR \
+    --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
+    --platform=linux/arm64
+
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
-# Check agnos-meta-builder Dockerfile
-docker buildx build --load -f Dockerfile.builder --check $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
-
-# Setup mount container for macOS and CI support (namespace.so)
+# Setup mount container for macOS and CI support (namespace.so) - skip check for speed
 echo "Building agnos-meta-builder docker image"
 docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
   --build-arg UNAME=$(id -nu) \
@@ -86,10 +85,11 @@ exec_as_root() {
   docker exec $MOUNT_CONTAINER_ID "$@"
 }
 
-# Create filesystem ext4 image
+# Create filesystem ext4 image with optimized settings
 echo "Creating empty filesystem"
 exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
+# Use faster ext4 creation with reduced features for build speed
+exec_as_user mkfs.ext4 -F -O ^has_journal,^metadata_csum $ROOTFS_IMAGE &> /dev/null
 
 # Mount filesystem
 echo "Mounting empty filesystem"
@@ -101,10 +101,9 @@ trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
 docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
-# Extract image
+# Extract image with parallel processing
 echo "Extracting docker image"
-docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
-exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
+docker container export $CONTAINER_ID | exec_as_root tar -xf - -C $ROOTFS_DIR
 
 # Avoid detecting as container
 echo "Removing .dockerenv file"

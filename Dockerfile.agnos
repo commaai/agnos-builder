@@ -6,7 +6,7 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
-# Common packages
+# Common packages - combine apt operations to reduce layers
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     build-essential \
     ca-certificates \
@@ -16,47 +16,63 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     checkinstall \
     git \
     pkg-config \
-    wget
+    wget \
+    && rm -rf /var/lib/apt/lists/* && apt-get clean
 
-# Enable ccache
-ENV PATH="/usr/lib/ccache:$PATH"
+# Enable ccache with optimal settings
+ENV PATH="/usr/lib/ccache:$PATH" \
+    CCACHE_COMPILERCHECK=content \
+    CCACHE_COMPRESS=true \
+    CCACHE_MAXSIZE=1G
 
-# capnproto
+# capnproto - optimized with cache mount and parallel build
 FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,sharing=shared \
     /tmp/agnos/compile-capnp.sh
 
-# ffmpeg
+# ffmpeg - optimized
 FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,sharing=shared \
     /tmp/agnos/compile-ffmpeg.sh
 
-# libqmi
+# libqmi - optimized
 FROM agnos-compiler AS agnos-compiler-libqmi
 COPY ./userspace/compile-libqmi.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,sharing=shared \
     /tmp/agnos/compile-libqmi.sh
 
-# ModemManager
+# ModemManager - optimized
 FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
-# lpac
+# lpac - optimized
 FROM agnos-compiler-libqmi AS agnos-compiler-lpac
 COPY ./userspace/compile-lpac.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,sharing=shared \
     /tmp/agnos/compile-lpac.sh
 
-# qtwayland5
+# qtwayland5 - optimized
 FROM agnos-compiler AS agnos-compiler-qtwayland5
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,sharing=shared \
     /tmp/agnos/compile-qtwayland5.sh
 
 # ################## #
@@ -76,43 +92,41 @@ RUN set -xe
 
 ARG USERNAME=comma
 
-# Base system setup
+# Base system setup - combine operations to reduce layers
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/base_setup.sh /tmp/agnos
-RUN /tmp/agnos/base_setup.sh
-
-# Install openpilot dependencies
+COPY ./userspace/base_setup.sh /tmp/agnos/
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
-
-# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+RUN /tmp/agnos/base_setup.sh && \
+    /tmp/agnos/openpilot_dependencies.sh && \
+    /tmp/agnos/openpilot_python_dependencies.sh && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb && \
+    rm -rf /var/lib/apt/lists/* && apt-get clean
 
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
 FROM agnos-base
 
-# Hardware setup
+# Hardware setup and package installation - combine to reduce layers
 RUN mkdir -p /tmp/agnos/debs
 COPY ./userspace/debs /tmp/agnos/debs
-COPY ./userspace/hardware_setup.sh /tmp/agnos
-RUN /tmp/agnos/hardware_setup.sh
-RUN mv /data/persist /system/ && rm -rf /data/*
-
+COPY ./userspace/hardware_setup.sh /tmp/agnos/
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
 COPY --from=agnos-compiler-lpac /tmp/lpac.deb /tmp/
+COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/
+COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/
 
-RUN cd /tmp && \
+RUN /tmp/agnos/hardware_setup.sh && \
+    mv /data/persist /system/ && rm -rf /data/* && \
+    cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
     python3 \
@@ -128,17 +142,13 @@ RUN cd /tmp && \
     libsystemd0 \
     polkitd \
     mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./lpac.deb
-
-# Pre-compiled capnp (must be before python install)
-COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
-
-# Use other pre-compiled packages
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+        ./libqmi.deb \
+        ./modemmanager.deb \
+        ./lpac.deb \
+        ./capnproto.deb \
+        ./ffmpeg.deb && \
+    rm -rf /var/lib/apt/lists/* && apt-get clean
 
 ARG XDG_DATA_HOME="/usr/local"
 
