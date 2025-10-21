@@ -82,7 +82,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: system-artifacts
-        path: output/system.img
+        path: |
+          output/system.img
+          VERSION
         retention-days: 1
 
   package:
@@ -92,6 +94,8 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
+      with:
+        lfs: true
 
     - name: Download kernel artifacts
       uses: actions/download-artifact@v4

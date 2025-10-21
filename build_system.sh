@@ -85,11 +85,10 @@ exec_as_root() {
   docker exec $MOUNT_CONTAINER_ID "$@"
 }
 
-# Create filesystem ext4 image with optimized settings
+# Create filesystem ext4 image
 echo "Creating empty filesystem"
 exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-# Use faster ext4 creation with reduced features for build speed
-exec_as_user mkfs.ext4 -F -O ^has_journal,^metadata_csum $ROOTFS_IMAGE &> /dev/null
+exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
 
 # Mount filesystem
 echo "Mounting empty filesystem"
@@ -101,9 +100,10 @@ trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
 docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
-# Extract image with parallel processing
+# Extract image
 echo "Extracting docker image"
-docker container export $CONTAINER_ID | exec_as_root tar -xf - -C $ROOTFS_DIR
+docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
+exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
 
 # Avoid detecting as container
 echo "Removing .dockerenv file"
