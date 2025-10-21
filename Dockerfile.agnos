@@ -29,40 +29,40 @@ ENV PATH="/usr/lib/ccache:$PATH" \
 FROM agnos-compiler AS agnos-compiler-capnp
 COPY ./userspace/compile-capnp.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
-    --mount=type=cache,target=/var/cache/apt,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
     /tmp/agnos/compile-capnp.sh
 
 # ffmpeg - optimized
 FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
-    --mount=type=cache,target=/var/cache/apt,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
     /tmp/agnos/compile-ffmpeg.sh
 
 # libqmi - optimized
 FROM agnos-compiler AS agnos-compiler-libqmi
 COPY ./userspace/compile-libqmi.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    --mount=type=cache,target=/var/cache/apt,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
     /tmp/agnos/compile-libqmi.sh
 
 # ModemManager - optimized
 FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    --mount=type=cache,target=/var/cache/apt,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
     /tmp/agnos/compile-modemmanager.sh
 
 # lpac - optimized
 FROM agnos-compiler-libqmi AS agnos-compiler-lpac
 COPY ./userspace/compile-lpac.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
-    --mount=type=cache,target=/var/cache/apt,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
     /tmp/agnos/compile-lpac.sh
 
 # qtwayland5 - optimized
@@ -71,8 +71,8 @@ COPY ./userspace/qtwayland/*.deb /tmp/agnos/
 COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
 COPY ./userspace/qtwayland/patch* /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
-    --mount=type=cache,target=/var/cache/apt,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,sharing=shared \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
     /tmp/agnos/compile-qtwayland5.sh
 
 # ################## #

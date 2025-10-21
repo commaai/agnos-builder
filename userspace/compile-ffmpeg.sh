@@ -2,7 +2,11 @@
 
 VERSION=4.2.2
 
-# Install build requirements (refresh apt cache since base image cleans lists)
+# Ensure apt is unlocked and install build requirements
+export DEBIAN_FRONTEND=noninteractive
+rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock || true
+rm -rf /var/lib/apt/lists/partial || true
+(dpkg --configure -a) || true
 apt-get update && apt-get install -yq --no-install-recommends \
     libass-dev \
     libfreetype6-dev \

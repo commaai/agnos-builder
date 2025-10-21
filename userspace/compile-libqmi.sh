@@ -8,6 +8,11 @@ cd /tmp
 # meson support for checkinstall
 git clone https://github.com/keithbowes/meson-install.git
 
+# Ensure apt is unlocked then install dependencies
+export DEBIAN_FRONTEND=noninteractive
+rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock || true
+rm -rf /var/lib/apt/lists/partial || true
+(dpkg --configure -a) || true
 apt-get update && apt-get install -yq --no-install-recommends \
       bash-completion \
       gobject-introspection \
