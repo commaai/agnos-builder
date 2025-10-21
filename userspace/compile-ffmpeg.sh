@@ -2,8 +2,8 @@
 
 VERSION=4.2.2
 
-# Install build requirements (don't update apt cache if using mount cache)
-apt-get install -yq --no-install-recommends \
+# Install build requirements (refresh apt cache since base image cleans lists)
+apt-get update && apt-get install -yq --no-install-recommends \
     libass-dev \
     libfreetype6-dev \
     libgnutls28-dev \

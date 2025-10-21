@@ -7,7 +7,7 @@ cd /tmp
 
 git clone -b $MM_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/ModemManager.git
 
-apt-get install -y --no-install-recommends \
+apt-get update && apt-get install -y --no-install-recommends \
       cmake \
       gettext \
       libdbus-1-dev \

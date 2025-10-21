@@ -2,8 +2,8 @@
 
 VERSION=1.0.2
 
-# Install build requirements (don't update apt cache if using mount cache)
-apt-get install -yq --no-install-recommends \
+# Install build requirements (refresh apt cache since base image cleans lists)
+apt-get update && apt-get install -yq --no-install-recommends \
     libc6-dev \
     libssl-dev \
     zlib1g-dev
