@@ -18,6 +18,7 @@ apt-fast install --no-install-recommends -yq \
     darkstat \
     dkms \
     gcc-arm-none-eabi \
+    gettext \
     gpiod \
     libarchive-dev \
     libass-dev \
