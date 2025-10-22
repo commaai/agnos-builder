@@ -46,11 +46,19 @@ fi
 
 # Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
-docker buildx build -f Dockerfile.agnos --check $DIR
+# Configure BuildKit cache for GitHub Actions
+if [ -n "$GITHUB_ACTIONS" ]; then
+  CACHE_GHA_AGNOS="--cache-from=type=gha,scope=agnos-builder-agnos --cache-to=type=gha,mode=max,scope=agnos-builder-agnos"
+  CACHE_GHA_BUILDER="--cache-from=type=gha,scope=agnos-builder-meta --cache-to=type=gha,mode=max,scope=agnos-builder-meta"
+else
+  CACHE_GHA_AGNOS=""
+  CACHE_GHA_BUILDER=""
+fi
+docker buildx build -f Dockerfile.agnos --check $DIR $CACHE_GHA_AGNOS
 
 # Start build and create container
 echo "Building agnos-builder docker image"
-BUILD="docker buildx build --load"
+BUILD="docker buildx build --load $CACHE_GHA_AGNOS"
 if [ ! -z "$NS" ]; then
   BUILD="nsc build --load"
 fi
@@ -59,14 +67,14 @@ echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
 # Check agnos-meta-builder Dockerfile
-docker buildx build --load -f Dockerfile.builder --check $DIR \
+docker buildx build --load $CACHE_GHA_BUILDER -f Dockerfile.builder --check $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
   --build-arg GID=$(id -g)
 
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-meta-builder docker image"
-docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
+docker buildx build --load $CACHE_GHA_BUILDER -f Dockerfile.builder -t agnos-meta-builder $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
   --build-arg GID=$(id -g)
