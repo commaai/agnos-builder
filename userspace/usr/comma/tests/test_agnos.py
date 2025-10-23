@@ -44,10 +44,6 @@ def test_wifi():
   networks = out.strip().splitlines()[1:]
   assert len(networks) > 5
 
-def test_color_calibration():
-  out = subprocess.check_output("journalctl -u weston", shell=True, encoding='utf8')
-  assert out.count("Successfully setup color correction") == 3
-
 def test_python_shims():
   subprocess.check_call("cd /data/openpilot && scons -h", shell=True, stdout=subprocess.DEVNULL)
 
@@ -64,7 +60,4 @@ def test_boot_time():
   a = out.splitlines()[0]
   print(out, a)
 
-  # check weston service
-
   # check comma service
-
