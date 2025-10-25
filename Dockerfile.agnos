@@ -89,9 +89,6 @@ RUN mkdir -p /tmp/agnos/debs
 COPY ./userspace/debs /tmp/agnos/debs
 COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
-# Install libffi6 - needed for raylib
-RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
-    /tmp/agnos/debs/libffi6_3.2.1-8_arm64.deb
 RUN mv /data/persist /system/ && rm -rf /data/*
 
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
