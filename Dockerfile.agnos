@@ -85,7 +85,7 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 FROM agnos-base
 
 # Hardware setup
-COPY ./usrerspace/debs/root/ /
+COPY ./usrerspace/rootfs/ /
 COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
