@@ -1,0 +1,15 @@
+# Copyright (c) 2018 Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+#
+
+[Unit]
+Description=cdsprpc Service
+SourcePath= /usr/bin/cdsprpcd
+
+[Service]
+Restart=always
+ExecStart= /usr/bin/cdsprpcd
+
+[Install]
+WantedBy=multi-user.target

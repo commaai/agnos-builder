@@ -1,0 +1,13 @@
+[Unit]
+Description= Remote Storage Service
+SourcePath=/sbin/rmt_storage
+After=usb.service
+Before=init_sys_mss.service
+
+[Service]
+Restart=always
+ExecStartPre=/bin/bash -c "/usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/modemst1; /usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/modemst2; /usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/fsc; /usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/fsg"
+ExecStart=/sbin/rmt_storage
+
+[Install]
+WantedBy=multi-user.target

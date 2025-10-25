@@ -1,0 +1,26 @@
+#! /bin/sh
+
+set -e
+
+case "$1" in
+start)
+    echo -n "Starting atreset: "
+    start-stop-daemon -S -b -x /sbin/init_mss
+    echo "done"
+    ;;
+  stop)
+    echo -n "Stopping atreset: "
+    start-stop-daemon -K -n init_mss
+    echo "done"
+    ;;
+  restart)
+    $0 stop
+    $0 start
+    ;;
+  *)
+    echo "Usage init_mss{ start | stop | restart }" >&2
+    exit 1
+    ;;
+esac
+
+exit 0

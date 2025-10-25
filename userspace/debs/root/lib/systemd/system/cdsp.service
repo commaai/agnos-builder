@@ -1,0 +1,16 @@
+# Copyright (c) 2018 Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+#
+
+[Unit]
+Description=start dsp variants
+SourcePath=/usr/bin/cdsp.sh
+Before=cdsprpcd.service
+
+[Service]
+Restart=always
+ExecStart=/bin/sh /usr/bin/cdsp.sh
+
+[Install]
+WantedBy=multi-user.target
