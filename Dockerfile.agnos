@@ -51,14 +51,6 @@ COPY ./userspace/compile-lpac.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
     /tmp/agnos/compile-lpac.sh
 
-# qtwayland5
-FROM agnos-compiler AS agnos-compiler-qtwayland5
-COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
-COPY ./userspace/qtwayland/patch* /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
-    /tmp/agnos/compile-qtwayland5.sh
-
 # ################## #
 # ###### Base ###### #
 # ################## #
@@ -86,15 +78,6 @@ COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
-
-# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
-COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
-    /tmp/agnos/qt-5.12.8.deb \
-    /tmp/agnos/libwayland-1.9.0-1.deb \
-    /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
-    /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
 
 # ################### #
 # ###### AGNOS ###### #
@@ -153,12 +136,6 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
-
-# Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
-COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
-
 COPY ./userspace/home/ /home/$USERNAME/
 COPY ./userspace/home/.config/ /root/.config
 RUN chown -R $USERNAME: /home/$USERNAME/.config
@@ -194,10 +171,6 @@ COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
 #COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
 #RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
 
-# Weston with hacked touch rotate and color correction
-COPY ./userspace/files/weston /usr/bin/weston
-COPY ./userspace/files/gl-renderer.so /usr/lib/arm-linux-gnueabihf/weston
-
 # Setup systemd services
 COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh
@@ -225,9 +198,6 @@ COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.serv
 
 # Prevent polkitd memory leak from getting out of hand by restarting it every ~day
 COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d/override.conf
-
-# Remove qt network bearer plugins
-RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
 
 # Add iptable rules to block incoming traffic on wwan0
 COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
