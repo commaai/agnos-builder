@@ -5,6 +5,7 @@ from tabulate import tabulate
 # serial with timestamps:
 # grabserial -d /dev/serial/by-id/usb-FTDI_FT230X* -t
 
+# systemd-analyze critical-chain weston.service
 # systemd-analyze critical-chain comma.service
 
 # boot chart:
@@ -35,6 +36,8 @@ if __name__ == "__main__":
   ts['kernel'] = float(l[3][:-1])
   #ts['systemd'] = float(l[6][:-1])
 
+  # includes /sbin/init -> weston being ready to display stuff
+  ts['weston'] = get_journal_time("Finished weston-ready.service") - tot_since_kern()
   ts['comma'] = get_journal_time("Starting comma.service") - tot_since_kern()
 
   # print

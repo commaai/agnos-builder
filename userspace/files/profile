@@ -26,7 +26,9 @@ if [ -d /etc/profile.d ]; then
   unset i
 fi
 
-export XDG_RUNTIME_DIR="/var/tmp/xdg"
+# display setup
+export XDG_RUNTIME_DIR="/var/tmp/weston"
+export QT_QPA_PLATFORM="wayland-egl"
 
 # python setup
 export PYTHONPATH="/data/pythonpath"
