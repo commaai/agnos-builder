@@ -32,7 +32,7 @@ dependencies = [
   "flaky",
 
   # GUIs
-  "raylib @ https://github.com/commaai/raylib-python-cffi/releases/download/5/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl",
+  "raylib @ https://github.com/commaai/raylib-python-cffi/releases/download/6/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl",
 ]
 
 [tool.uv.sources]
