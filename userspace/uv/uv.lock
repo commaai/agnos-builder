@@ -56,7 +56,7 @@ requires-dist = [
     { name = "py-spy" },
     { name = "pyopencl", specifier = "==2024.1" },
     { name = "pyusb" },
-    { name = "raylib", url = "https://github.com/commaai/raylib-python-cffi/releases/download/7/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" },
+    { name = "raylib", url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" },
     { name = "smbus2" },
     { name = "spidev2" },
 ]
@@ -5653,12 +5653,12 @@ wheels = [
 [[package]]
 name = "raylib"
 version = "5.5.0.2"
-source = { url = "https://github.com/commaai/raylib-python-cffi/releases/download/7/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" }
+source = { url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" }
 dependencies = [
     { name = "cffi" },
 ]
 wheels = [
-    { url = "https://github.com/commaai/raylib-python-cffi/releases/download/7/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl", hash = "sha256:b0276a76785d388638eed71284c7b4098ea3c10986fef5fdfcf6d83052fdf445" },
+    { url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl", hash = "sha256:abea9b94eadb56621b69d697ed3314f5fcb540d684ab1371990d3772e728cce0" },
 ]
 
 [package.metadata]
