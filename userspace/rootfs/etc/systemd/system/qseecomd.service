@@ -1,0 +1,19 @@
+# Copyright (c) 2017 Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+#
+
+[Unit]
+Description=Qseecomd Service
+SourcePath=/etc/initscripts/qseecomd
+After=leprop.service
+Requires=leprop.service
+
+[Service]
+Restart=no
+RemainAfterExit=yes
+ExecStart=/etc/initscripts/qseecomd start
+ExecStop=/etc/initscripts/qseecomd stop
+
+[Install]
+WantedBy=multi-user.target

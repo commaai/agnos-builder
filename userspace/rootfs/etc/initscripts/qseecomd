@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# qseecomd        init.d script to start the securemsm qseecomd daemon
+#
+#
+
+set -e
+
+soc_id=`cat /sys/devices/soc0/soc_id`
+
+if [[ "$soc_id" -ne "290" && "$soc_id" -ne "296" && "$soc_id" -ne "297" && "$soc_id" -ne "298" && "$soc_id" -ne "299" ]]; then
+    case "$1" in
+      start)
+            echo -n "Starting securemsm qseecomd daemon....: "
+            if [ -e /dev/qseecom ]; then
+                chmod 0666 /dev/qseecom
+            fi
+            chmod 0664 /dev/ion
+            if [ -e /dev/sde20 ]; then
+                chmod 0664 /dev/sde20
+            fi
+            start-stop-daemon -S -b -x /usr/bin/qseecomd
+            echo "done"
+            ;;
+      stop)
+            echo -n "Stoping securemsm qseecomd daemon......: "
+            start-stop-daemon -K -n qseecomd
+            echo "done"
+            ;;
+      restart)
+            $0 stop
+            $0 start
+            ;;
+      *)
+            echo "Usage qseecomd { start | stop | restart}" >&2
+            exit 1
+            ;;
+    esac
+fi
+
+exit 0

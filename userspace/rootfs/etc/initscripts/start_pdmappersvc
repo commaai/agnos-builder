@@ -1,0 +1,28 @@
+#! /bin/sh
+# Copyright (c) 2015 Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+set -e
+
+case "$1" in
+  start)
+    echo -n "Starting pdmapper service "
+    start-stop-daemon -S -b -x /usr/bin/pdmappersvc
+    echo "done"
+    ;;
+  stop)
+    echo -n "Stopping pdmapper service "
+    start-stop-daemon -K -n /usr/bin/pdmappersvc
+    echo "done"
+    ;;
+  restart)
+    $0 stop
+    $0 start
+    ;;
+  *)
+    echo "Usage pdmappersvc { start | stop | restart }" >&2
+    exit 1
+    ;;
+esac
+
+exit 0
