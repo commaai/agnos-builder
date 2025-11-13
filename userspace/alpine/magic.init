@@ -1,0 +1,25 @@
+#!/sbin/openrc-run
+
+description="Render the comma boot logo with magic.py"
+command="/usr/bin/python3"
+command_args="/usr/comma/magic.py"
+command_user="comma"
+command_group="comma"
+command_background="true"
+pidfile="/run/magic/magic.pid"
+start_stop_daemon_args="--make-pidfile --stdout /var/log/magic.log --stderr /var/log/magic.log"
+supervisor="supervise-daemon"
+respawn_delay="2"
+respawn_max="0"
+
+depend() {
+  need localmount
+  use net
+  after modules
+}
+
+start_pre() {
+  checkpath --directory --mode 0755 --owner ${command_user}:${command_group} /var/log
+  checkpath --file --mode 0644 --owner ${command_user}:${command_group} /var/log/magic.log
+  checkpath --directory --mode 0755 --owner ${command_user}:${command_group} /var/tmp/weston
+}
