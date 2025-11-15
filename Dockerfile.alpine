@@ -1,0 +1,82 @@
+# check=error=true
+
+ARG ALPINE_VERSION=3.20.8
+
+# ############### #
+# ### Minimal  ### #
+# ###  Alpine  ### #
+# ############### #
+FROM scratch AS agnos-alpine
+
+ARG ALPINE_BASE_IMAGE
+ARG USERNAME=comma
+
+ADD ${ALPINE_BASE_IMAGE} /
+
+SHELL ["/bin/sh", "-c"]
+ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONUNBUFFERED=1
+
+# Base packages just for the magic logo proof-of-concept
+RUN set -eux; \
+    apk update; \
+    apk add --no-cache \
+      bash \
+      ca-certificates \
+      coreutils \
+      curl \
+      eudev \
+      libdrm \
+      libinput \
+      mesa-dri-gallium \
+      mesa-egl \
+      mesa-gbm \
+      mesa-gl \
+      musl-locales \
+      openrc \
+      python3 \
+      py3-pillow \
+      py3-pip \
+      py3-psutil \
+      py3-setuptools \
+      shadow \
+      sudo \
+      ttf-dejavu
+
+# python deps that require a compiler (kept isolated so we can delete the toolchain afterwards)
+RUN set -eux; \
+    apk add --no-cache --virtual .magic-build-deps \
+      build-base \
+      linux-headers \
+      python3-dev; \
+    pip3 install --no-cache-dir --break-system-packages pyray; \
+    apk del .magic-build-deps
+
+# Create comma user
+RUN set -eux; \
+    addgroup -g 1000 "${USERNAME}" || true; \
+    adduser -D -G "${USERNAME}" -u 1000 -s /bin/bash -h "/home/${USERNAME}" "${USERNAME}" || true; \
+    echo "${USERNAME}:${USERNAME}" | chpasswd; \
+    adduser "${USERNAME}" video; \
+    adduser "${USERNAME}" input; \
+    adduser "${USERNAME}" dialout; \
+    mkdir -p /data /var/tmp/weston; \
+    chown "${USERNAME}:${USERNAME}" /data /var/tmp/weston /home/${USERNAME}
+
+# Copy minimal comma payload (logo assets + helper scripts)
+COPY userspace/usr/comma /usr/comma
+RUN chown -R "${USERNAME}:${USERNAME}" /usr/comma && \
+    chmod +x /usr/comma/*.sh || true
+
+# Install OpenRC service that drives magic.py
+COPY userspace/alpine/magic.init /etc/init.d/magic
+RUN chmod 0755 /etc/init.d/magic && \
+    rc-update add magic default
+
+# Basic runtime directories
+RUN mkdir -p /run/magic && \
+    chown "${USERNAME}:${USERNAME}" /run/magic
+
+# Default entrypoint: boot OpenRC like a normal system
+CMD ["/sbin/init"]
