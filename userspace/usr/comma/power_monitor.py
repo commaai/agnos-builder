@@ -55,6 +55,9 @@ if __name__ == "__main__":
     if read("/data/params/d/IsEngaged").startswith("1"):
       timestamps['engaged'] = time.monotonic()
 
+    # store a max such that we can't go backwards
+    timestamps['max'] = max(timestamps.values())
+
     # time to shutoff?
     dt = timedelta(seconds=time.monotonic() - max(timestamps.values()))
     if dt > THRESHOLD:
