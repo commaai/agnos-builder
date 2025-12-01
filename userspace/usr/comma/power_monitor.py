@@ -46,7 +46,7 @@ def write_param():
   try:
     os.umask(0)
     with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'a') as f:
-      f.write(f"SHUTDOWN datetime={datetime.datetime.now()}, time.monotonic={time.monotonic()}, {timestamps=}\n")
+      f.write(f"SHUTDOWN datetime={datetime.now()}, time.monotonic={time.monotonic()}, {timestamps=}\n")
       f.flush()
       os.fdatasync(f.fileno())
       os.fsync(f.fileno())
