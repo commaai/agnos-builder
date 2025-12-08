@@ -6,3 +6,6 @@ Description=Set screen calibration
 Type=oneshot
 User=root
 ExecStart=/usr/comma/screen_calibration.py
+
+[Install]
+WantedBy=multi-user.target
