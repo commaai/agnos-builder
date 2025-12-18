@@ -30,6 +30,7 @@ def set_gamma(gamma):
       send_command(f"39 0F 00 00 0A 00 02 {msb:02X} {(val >> 8) & 0xFF:02X}")
       send_command(f"39 {'01' if i % 10 == 0 else '0F'} 00 00 0A 00 02 {lsb:02X} {val & 0xFF:02X}")
   send_command(command_mode(0))
+  print("Successfully setup screen calibration")
 
 if __name__ == "__main__":
   if not os.path.exists(GAMMA_CURVES_FILE):
