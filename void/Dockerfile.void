@@ -38,13 +38,17 @@ ARG USERNAME=comma
 # RUN ...
 
 # Home directory
-COPY ./userspace/home/ /home/$USERNAME/
-RUN mkdir -p /root/.config && \
-  chown -R $USERNAME: /home/$USERNAME/ || true
+COPY --chown=comma:comma ./userspace/home/ /home/$USERNAME/
+RUN mkdir -p /root/.config
 
 # runit services
 COPY ./void/sv/ /etc/sv/
-RUN for svc in /etc/sv/*/; do ln -sf "$svc" /var/service/ 2>/dev/null || true; done
+RUN for svc in /etc/sv/adbd /etc/sv/avahi-ssh-publish /etc/sv/brightnessd \
+  /etc/sv/fs_setup /etc/sv/gpio /etc/sv/init-qcom /etc/sv/power_drop_monitor \
+  /etc/sv/power_monitor /etc/sv/screen_calibration /etc/sv/serial-hostname \
+  /etc/sv/sound /etc/sv/varwatch; do \
+    ln -sf "$svc" /etc/runit/runsvdir/default/; \
+  done
 
 # Firmware
 COPY ./userspace/firmware/ /lib/firmware/
@@ -52,8 +56,20 @@ COPY ./userspace/firmware/ /lib/firmware/
 # Qualcomm libs (aarch64 only, no armhf)
 COPY ./userspace/libs/ /usr/lib/
 
-# udev rules
-COPY ./userspace/files/*.rules /etc/udev/rules.d/
+# udev rules (excluding polkit rules)
+COPY ./userspace/files/78-modem.rules /etc/udev/rules.d/
+COPY ./userspace/files/92-dsp.rules /etc/udev/rules.d/
+COPY ./userspace/files/93-input.rules /etc/udev/rules.d/
+COPY ./userspace/files/94-backlight.rules /etc/udev/rules.d/
+COPY ./userspace/files/95-gpu.rules /etc/udev/rules.d/
+COPY ./userspace/files/96-i2c.rules /etc/udev/rules.d/
+COPY ./userspace/files/97-tty.rules /etc/udev/rules.d/
+COPY ./userspace/files/98-panda.rules /etc/udev/rules.d/
+COPY ./userspace/files/99-gpio.rules /etc/udev/rules.d/
+
+# polkit rules
+RUN mkdir -p /etc/polkit-1/rules.d
+COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
 
 # Config files
 COPY ./userspace/files/profile /etc/profile

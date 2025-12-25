@@ -178,6 +178,37 @@ void/
 
 ---
 
+## Review Process
+
+After each change, run:
+
+```bash
+# 1. Build
+./void/build_void.sh
+
+# 2. Mount and inspect rootfs
+simg2img output/system.img /tmp/void-rootfs.raw
+sudo mount -o loop /tmp/void-rootfs.raw /tmp/void-rootfs
+# inspect...
+sudo umount /tmp/void-rootfs
+
+# 3. Run in Docker and test
+docker run --rm --platform linux/arm64 void-agnos-builder /bin/sh -c "
+  # test commands
+"
+```
+
+### Checklist
+- [ ] Build passes
+- [ ] runit services enabled in /etc/runit/runsvdir/default/
+- [ ] polkit rules in /etc/polkit-1/rules.d/
+- [ ] udev rules in /etc/udev/rules.d/ (no polkit)
+- [ ] /data, /system, /persist, /TICI, /AGNOS exist
+- [ ] comma user exists with correct home ownership
+- [ ] Qualcomm libs in /usr/lib/
+- [ ] Firmware in /lib/firmware/
+- [ ] Python installed and working (once base_setup.sh is done)
+
 ## Open Items
 
 - [ ] Verify eudev vs udevd rule compatibility

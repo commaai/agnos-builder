@@ -8,5 +8,10 @@ echo "base_setup.sh: TODO - install xbps packages"
 useradd -m -s /bin/bash comma || true
 echo "comma ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/comma
 
+# Create identification files
+touch /TICI
+touch /AGNOS
+
 # Basic setup
-mkdir -p /data /system
+mkdir -p /data /system /persist
+chown comma:comma /data
