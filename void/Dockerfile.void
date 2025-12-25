@@ -1,0 +1,107 @@
+# AGNOS Void Linux Build
+# check=error=true
+
+# ################## #
+# ###### Base ###### #
+# ################## #
+FROM scratch AS void-base
+
+# Add Void Linux aarch64 rootfs
+ARG VOID_ROOTFS
+ADD ${VOID_ROOTFS} /
+
+# Build folder
+RUN mkdir -p /tmp/agnos
+
+ARG USERNAME=comma
+
+# Base system setup
+COPY ./void/base_setup.sh /tmp/agnos/
+RUN /tmp/agnos/base_setup.sh
+
+# ################### #
+# ###### AGNOS ###### #
+# ################### #
+FROM void-base
+
+ARG USERNAME=comma
+
+# TODO: Hardware setup - extract cleaned blobs (no systemd, no armhf)
+# COPY ./void/blobs/ /
+
+# TODO: Install compiled packages (capnp, ffmpeg, libqmi, modemmanager, lpac)
+# These need to be rebuilt for Void (current scripts use checkinstall/deb)
+
+# TODO: Python setup (need to install uv first in base_setup.sh)
+# ARG XDG_DATA_HOME="/usr/local"
+# COPY ./userspace/uv /tmp/agnos/uv
+# RUN ...
+
+# Home directory
+COPY ./userspace/home/ /home/$USERNAME/
+RUN mkdir -p /root/.config && \
+  chown -R $USERNAME: /home/$USERNAME/ || true
+
+# runit services
+COPY ./void/sv/ /etc/sv/
+RUN for svc in /etc/sv/*/; do ln -sf "$svc" /var/service/ 2>/dev/null || true; done
+
+# Firmware
+COPY ./userspace/firmware/ /lib/firmware/
+
+# Qualcomm libs (aarch64 only, no armhf)
+COPY ./userspace/libs/ /usr/lib/
+
+# udev rules
+COPY ./userspace/files/*.rules /etc/udev/rules.d/
+
+# Config files
+COPY ./userspace/files/profile /etc/profile
+COPY ./userspace/files/ssh_config /etc/ssh/
+COPY ./userspace/files/sshd_config /etc/ssh/
+COPY ./userspace/files/logrotate.conf /etc/
+COPY ./userspace/files/rsyslog /etc/logrotate.d/
+
+# comma userspace tools
+COPY ./userspace/usr/comma/ /usr/$USERNAME/
+COPY ./userspace/usr/share/fonts/ /usr/share/fonts/
+
+# NetworkManager config
+RUN mkdir -p /etc/NetworkManager/conf.d /etc/NetworkManager/system-connections
+COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/
+COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+COPY ./userspace/files/lte.nmconnection /etc/NetworkManager/system-connections/
+RUN chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
+
+# iptables rules
+RUN mkdir -p /etc/iptables
+COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
+
+# Extra firmware
+RUN mkdir -p /usr/lib/firmware /usr/share/mobile-broadband-provider-info
+COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware/
+COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
+
+# MOTD
+RUN mkdir -p /etc/update-motd.d
+COPY ./userspace/motd/ /etc/update-motd.d/
+
+# Prefer ipv4 over ipv6
+RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+
+# ldconfig
+RUN ldconfig
+
+# Read-only rootfs setup
+COPY ./void/readonly_setup.sh /tmp/agnos/
+RUN /tmp/agnos/readonly_setup.sh
+
+# Version
+COPY VERSION /VERSION
+
+# ################# #
+# #### Cleanup #### #
+# ################# #
+RUN rm -rf /var/cache/xbps/* || true && \
+  rm -rf /home/$USERNAME/.cache || true && \
+  rm -rf /root/.cache || true

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/comma/sound/sound_init.sh

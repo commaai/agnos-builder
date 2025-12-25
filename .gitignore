@@ -1,5 +1,6 @@
 *.swp
 *.tar.gz
+*.tar.xz
 *.DS_Store
 
 /logs/
