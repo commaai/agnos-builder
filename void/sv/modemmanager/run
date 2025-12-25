@@ -1,0 +1,10 @@
+#!/bin/sh
+# ModemManager - modem management daemon
+exec 2>&1
+
+# Wait for dbus and polkit
+sv check dbus > /dev/null || exit 1
+
+# ModemManager is installed from Void repos, has its own runit service
+# But we run with custom flags for comma hardware
+exec /usr/bin/ModemManager --filter-policy=strict --debug 2>/dev/null

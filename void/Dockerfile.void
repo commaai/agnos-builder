@@ -26,16 +26,23 @@ FROM void-base
 
 ARG USERNAME=comma
 
-# TODO: Hardware setup - extract cleaned blobs (no systemd, no armhf)
-# COPY ./void/blobs/ /
+# Hardware blobs from agnos-*.deb (cleaned: no systemd, no armhf, no weston)
+# Run ./void/extract-blobs.sh to regenerate
+COPY ./void/blobs/base/ /
+COPY ./void/blobs/wlan/ /
+COPY ./void/blobs/display/ /
 
-# TODO: Install compiled packages (capnp, ffmpeg, libqmi, modemmanager, lpac)
-# These need to be rebuilt for Void (current scripts use checkinstall/deb)
+# capnproto, ffmpeg, libqmi, ModemManager are from Void repos (in base_setup.sh)
+# lpac, qt, weston - removed, not used
 
-# TODO: Python setup (need to install uv first in base_setup.sh)
-# ARG XDG_DATA_HOME="/usr/local"
-# COPY ./userspace/uv /tmp/agnos/uv
-# RUN ...
+# Python packages via uv
+ARG XDG_DATA_HOME="/usr/local"
+ENV PATH="/root/.local/bin:$XDG_DATA_HOME/venv/bin:$PATH"
+COPY ./userspace/uv /tmp/agnos/uv
+RUN cd /tmp/agnos/uv && \
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv \
+    uv sync --frozen --inexact --compile-bytecode
 
 # Home directory
 COPY --chown=comma:comma ./userspace/home/ /home/$USERNAME/
@@ -43,11 +50,15 @@ RUN mkdir -p /root/.config
 
 # runit services
 COPY ./void/sv/ /etc/sv/
-RUN for svc in /etc/sv/adbd /etc/sv/avahi-ssh-publish /etc/sv/brightnessd \
-  /etc/sv/fs_setup /etc/sv/gpio /etc/sv/init-qcom /etc/sv/power_drop_monitor \
-  /etc/sv/power_monitor /etc/sv/screen_calibration /etc/sv/serial-hostname \
-  /etc/sv/sound /etc/sv/varwatch; do \
-    ln -sf "$svc" /etc/runit/runsvdir/default/; \
+RUN for svc in \
+  adbd avahi-ssh-publish brightnessd fs_setup gpio init-qcom \
+  power_drop_monitor power_monitor screen_calibration serial-hostname \
+  sound varwatch \
+  irsc_util leprop usb adsp cdsp adsprpcd cdsprpcd \
+  rmt_storage init_mss pdmapper qseecomd \
+  comma magic lte modemmanager \
+  ssh-param-watcher adb-param-watcher; do \
+    ln -sf /etc/sv/$svc /etc/runit/runsvdir/default/; \
   done
 
 # Firmware

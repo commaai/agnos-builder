@@ -1,0 +1,19 @@
+#!/bin/sh
+# adb-param-watcher - watches /data/params/d/AdbEnabled and runs set_adb.sh on changes
+exec 2>&1
+
+WATCH_FILE="/data/params/d/AdbEnabled"
+WATCH_DIR=$(dirname "$WATCH_FILE")
+
+# Run once at startup
+/usr/comma/set_adb.sh 2>/dev/null || true
+
+# Wait for the params directory to exist
+while [ ! -d "$WATCH_DIR" ]; do
+  sleep 2
+done
+
+# Watch for modifications and run script
+exec inotifywait -m -e modify,create,delete "$WATCH_FILE" 2>/dev/null | while read -r; do
+  /usr/comma/set_adb.sh 2>/dev/null || true
+done

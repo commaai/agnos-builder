@@ -7,7 +7,7 @@
 | Create void/ directory structure | done |
 | Dockerfile.void | done |
 | build_void.sh | done |
-| base_setup.sh (xbps packages) | stub |
+| base_setup.sh (xbps packages) | done |
 | readonly_setup.sh | done |
 | runit services (simple) | done |
 | runit services (complex) | |
@@ -20,6 +20,7 @@
 - **glibc** — Qualcomm blobs require it
 - **runit** — no systemd
 - **No Qt/Weston/armhf** — deleted entirely
+- **No lpac** — not used
 
 ---
 
@@ -121,21 +122,19 @@ These come from agnos-base.deb. Need to understand:
 - Dependencies on other services
 - Boot order requirements
 
-### Compile scripts
-Current scripts use checkinstall to make .debs. Options:
-1. Modify to install directly to /tmp/pkgname/ and COPY in Dockerfile
-2. Use xbps-src to build proper Void packages
-3. Just install packages from Void repos if available
+### Compile scripts — DONE
+All needed packages available in Void repos:
+- capnproto 1.1.0 ✓
+- ffmpeg6 6.1.3 ✓
+- libqmi 1.36.0 ✓
+- ModemManager 1.24.0 ✓
+- lpac — removed (not used)
 
-capnproto, ffmpeg — probably in Void repos
-libqmi, ModemManager — probably in Void repos  
-lpac — probably need to compile
-
-### Python/uv setup
-Need to:
-1. Install uv in base_setup.sh
-2. Create venv
-3. Verify all Python deps install on Void
+### Python/uv setup — DONE
+- uv installed in base_setup.sh
+- Python 3.12 installed via uv (Void has 3.14 which is too new)
+- venv created at /usr/local/venv
+- 155 packages installed via uv sync
 
 ---
 

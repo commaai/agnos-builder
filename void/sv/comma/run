@@ -1,0 +1,18 @@
+#!/bin/sh
+# comma - main openpilot launcher (runs as comma user in tmux)
+exec 2>&1
+
+# Wait for filesystem to be ready
+sv check fs_setup > /dev/null || exit 1
+
+# Run as comma user with elevated priority limits
+# ulimit settings come from /etc/security/limits.conf
+exec chpst -u comma /bin/bash -c '
+  ulimit -r 100  # RTPRIO
+  ulimit -e 30   # Nice limit (maps to -10)
+  exec /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
+  # Keep running while tmux session exists
+  while tmux has-session -t comma 2>/dev/null; do
+    sleep 5
+  done
+'
