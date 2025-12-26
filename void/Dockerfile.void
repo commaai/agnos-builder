@@ -84,6 +84,7 @@ COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
 
 # Config files
 COPY ./userspace/files/profile /etc/profile
+COPY ./void/files/venv_path.sh /etc/profile.d/
 COPY ./userspace/files/ssh_config /etc/ssh/
 COPY ./userspace/files/sshd_config /etc/ssh/
 COPY ./userspace/files/logrotate.conf /etc/
@@ -92,6 +93,15 @@ COPY ./userspace/files/rsyslog /etc/logrotate.d/
 # comma userspace tools
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/ /usr/share/fonts/
+
+# Void-specific overrides for scripts that use systemctl
+# These use sv (runit) instead of systemctl (systemd)
+COPY ./void/files/comma.sh /usr/$USERNAME/comma.sh
+COPY ./void/files/set_ssh.sh /usr/$USERNAME/set_ssh.sh
+COPY ./void/files/set_adb.sh /usr/$USERNAME/set_adb.sh
+COPY ./void/files/power_drop_monitor.py /usr/$USERNAME/power_drop_monitor.py
+COPY ./void/files/fs_setup.sh /usr/$USERNAME/fs_setup.sh
+RUN chmod +x /usr/$USERNAME/comma.sh /usr/$USERNAME/set_ssh.sh /usr/$USERNAME/set_adb.sh /usr/$USERNAME/fs_setup.sh
 
 # NetworkManager config
 RUN mkdir -p /etc/NetworkManager/conf.d /usr/lib/NetworkManager/system-connections
@@ -118,6 +128,22 @@ COPY ./userspace/motd/ /etc/update-motd.d/
 # Hourly logrotate cron job
 COPY ./void/files/logrotate /etc/cron.hourly/
 RUN chmod 755 /etc/cron.hourly/logrotate
+
+# Mount point directories (empty, populated by fstab mounts at runtime)
+# These must exist for the kernel/firmware to mount partitions
+RUN mkdir -p /dsp /bt_firmware /firmware && \
+    chown comma:comma /dsp /bt_firmware /firmware
+
+# /system/persist structure (copied to /data on first boot by fs_setup.sh)
+RUN mkdir -p /system/persist/hlos_rfs/shared \
+             /system/persist/rfs/mdm/adsp \
+             /system/persist/rfs/mdm/mpss \
+             /system/persist/rfs/msm/adsp \
+             /system/persist/rfs/msm/mpss \
+             /system/persist/rfs/shared
+
+# fstab for mounting partitions
+COPY ./void/files/fstab /etc/fstab
 
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
