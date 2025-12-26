@@ -4,4 +4,4 @@ exec 2>&1
 
 sv check rmt_storage > /dev/null || exit 1
 
-exec /sbin/init_mss
+exec /usr/sbin/init_mss

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Serial console on Qualcomm MSM serial port
+exec agetty -L 115200 ttyMSM0 linux

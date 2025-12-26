@@ -57,7 +57,8 @@ RUN for svc in \
   irsc_util leprop usb adsp cdsp adsprpcd cdsprpcd \
   rmt_storage init_mss pdmapper qseecomd \
   comma magic lte modemmanager \
-  ssh-param-watcher adb-param-watcher; do \
+  ssh-param-watcher adb-param-watcher \
+  rsyslogd iptables cnss_daemon polkitd; do \
     ln -sf /etc/sv/$svc /etc/runit/runsvdir/default/; \
   done
 
@@ -115,6 +116,8 @@ RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
 # iptables rules
 RUN mkdir -p /etc/iptables
 COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
+# Void's iptables service expects iptables.rules
+RUN ln -s /etc/iptables/rules.v4 /etc/iptables/iptables.rules
 
 # Extra firmware
 RUN mkdir -p /usr/lib/firmware /usr/share/mobile-broadband-provider-info

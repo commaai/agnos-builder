@@ -9,6 +9,7 @@ SPARSE_ROOTFS="$ROOT_DIR/output/system.img"
 KERNEL_IMAGE_DEFAULT="$ROOT_DIR/agnos-kernel-sdm845/out-qemu/arch/arm64/boot/Image"
 KERNEL_IMAGE="${KERNEL_IMAGE:-$KERNEL_IMAGE_DEFAULT}"
 ROOTFS_IMAGE="${ROOTFS_IMAGE:-$DEFAULT_ROOTFS}"
+INITRD_IMAGE="${INITRD_IMAGE:-}"
 QEMU_BIN="${QEMU_BIN:-qemu-system-aarch64}"
 
 MEM="${MEM:-2048}"
@@ -24,10 +25,11 @@ Usage: ./void/run_qemu.sh
 Environment overrides:
   KERNEL_IMAGE       Path to arm64 Image (default: agnos-kernel-sdm845/out-qemu/...)
   ROOTFS_IMAGE       Path to ext4 image (default: build/system.img)
+  INITRD_IMAGE       Optional initrd path to load
   QEMU_BIN           qemu-system-aarch64 binary
   MEM                RAM in MB (default: 2048)
   SMP                vCPU count (default: 4)
-  SSH_PORT           Host port forwarded to guest :22 (default: 2222)
+  SSH_PORT           Host port forwarded to guest :22 (default: 2222, set 0 to disable)
   EXTRA_QEMU_ARGS    Extra args passed to QEMU
   EXTRA_KERNEL_ARGS  Extra kernel cmdline args
 EOF
@@ -65,11 +67,24 @@ if [ ! -f "$KERNEL_IMAGE" ]; then
   exit 1
 fi
 
+if [ -n "$INITRD_IMAGE" ] && [ ! -f "$INITRD_IMAGE" ]; then
+  echo "Initrd not found at $INITRD_IMAGE."
+  exit 1
+fi
+
 if [[ "$KERNEL_IMAGE" == *"/out/arch/arm64/boot/Image" ]]; then
   echo "Note: using the device kernel; QEMU virt may not boot. Prefer out-qemu."
 fi
 
-KERNEL_CMDLINE="root=/dev/vda rw rootfstype=ext4 console=ttyAMA0 loglevel=7 ${EXTRA_KERNEL_ARGS}"
+KERNEL_CMDLINE="root=/dev/vda rw rootfstype=ext4 rootwait console=ttyAMA0 loglevel=7 ${EXTRA_KERNEL_ARGS}"
+INITRD_ARGS=""
+if [ -n "$INITRD_IMAGE" ]; then
+  INITRD_ARGS="-initrd $INITRD_IMAGE"
+fi
+NETDEV_ARGS="-netdev user,id=net0"
+if [ -n "$SSH_PORT" ] && [ "$SSH_PORT" != "0" ]; then
+  NETDEV_ARGS="-netdev user,id=net0,hostfwd=tcp::${SSH_PORT}-:22"
+fi
 
 exec "$QEMU_BIN" \
   -machine virt \
@@ -78,8 +93,9 @@ exec "$QEMU_BIN" \
   -smp "$SMP" \
   -nographic \
   -kernel "$KERNEL_IMAGE" \
+  $INITRD_ARGS \
   -append "$KERNEL_CMDLINE" \
   -drive file="$ROOTFS_IMAGE",format=raw,if=virtio \
   -device virtio-net-pci,netdev=net0 \
-  -netdev user,id=net0,hostfwd=tcp::${SSH_PORT}-:22 \
+  $NETDEV_ARGS \
   ${EXTRA_QEMU_ARGS}
