@@ -4,4 +4,4 @@ exec 2>&1
 
 sv check dbus > /dev/null || exit 1
 
-exec /usr/bin/irsc_util /etc/sec_config
+exec /usr/sbin/irsc_util /etc/sec_config

@@ -2,4 +2,4 @@
 # leprop - Android-style property service
 exec 2>&1
 
-exec /sbin/leprop-service
+exec /usr/sbin/leprop-service

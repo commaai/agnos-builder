@@ -7,4 +7,4 @@ sv check dbus > /dev/null || exit 1
 
 # ModemManager is installed from Void repos, has its own runit service
 # But we run with custom flags for comma hardware
-exec /usr/bin/ModemManager --filter-policy=strict --debug 2>/dev/null
+exec /usr/sbin/ModemManager --filter-policy=strict --debug 2>/dev/null

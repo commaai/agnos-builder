@@ -94,11 +94,13 @@ COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/ /usr/share/fonts/
 
 # NetworkManager config
-RUN mkdir -p /etc/NetworkManager/conf.d /etc/NetworkManager/system-connections
+RUN mkdir -p /etc/NetworkManager/conf.d /usr/lib/NetworkManager/system-connections
 COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/
-COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
-COPY ./userspace/files/lte.nmconnection /etc/NetworkManager/system-connections/
-RUN chmod 600 /etc/NetworkManager/system-connections/*.nmconnection
+# Use Void-specific NM config (dns=default instead of systemd-resolved)
+COPY ./void/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+# system-connections goes to /usr/lib because /etc/NetworkManager/system-connections is symlinked to /data
+COPY ./userspace/files/lte.nmconnection /usr/lib/NetworkManager/system-connections/
+RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
 
 # iptables rules
 RUN mkdir -p /etc/iptables
@@ -113,8 +115,16 @@ COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider
 RUN mkdir -p /etc/update-motd.d
 COPY ./userspace/motd/ /etc/update-motd.d/
 
+# Hourly logrotate cron job
+COPY ./void/files/logrotate /etc/cron.hourly/
+RUN chmod 755 /etc/cron.hourly/logrotate
+
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+
+# Compatibility symlinks for Qualcomm binaries
+# pdmappersvc needs libjson-c.so.2 but Void has libjson-c.so.5
+RUN ln -sf /usr/lib/libjson-c.so.5 /usr/lib/libjson-c.so.2
 
 # ldconfig
 RUN ldconfig

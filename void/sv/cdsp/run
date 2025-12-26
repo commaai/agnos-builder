@@ -3,7 +3,7 @@
 exec 2>&1
 
 # Run the init script
-/usr/bin/cdsp.sh
+/usr/sbin/cdsp.sh
 
 # Stay up so runit doesn't restart
 exec sleep infinity

@@ -4,4 +4,4 @@ exec 2>&1
 
 sv check cdsp > /dev/null || exit 1
 
-exec /usr/bin/cdsprpcd
+exec /usr/sbin/cdsprpcd

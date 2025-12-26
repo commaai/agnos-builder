@@ -10,8 +10,8 @@
 | base_setup.sh (xbps packages) | done |
 | readonly_setup.sh | done |
 | runit services (simple) | done |
-| runit services (complex) | |
-| Extract/clean agnos-*.deb blobs | |
+| runit services (complex) | done |
+| Extract/clean agnos-*.deb blobs | done |
 | Build integration | done |
 | First boot test | |
 

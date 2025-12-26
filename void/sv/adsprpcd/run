@@ -4,4 +4,4 @@ exec 2>&1
 
 sv check adsp > /dev/null || exit 1
 
-exec /usr/bin/adsprpcd
+exec /usr/sbin/adsprpcd

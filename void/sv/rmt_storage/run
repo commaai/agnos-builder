@@ -7,4 +7,4 @@ for dev in modemst1 modemst2 fsc fsg; do
   /usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/$dev
 done
 
-exec /sbin/rmt_storage
+exec /usr/sbin/rmt_storage
