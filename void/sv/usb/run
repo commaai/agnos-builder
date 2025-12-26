@@ -1,0 +1,7 @@
+#!/bin/sh
+# usb - USB gadget setup (runs once)
+exec 2>&1
+
+sv check leprop > /dev/null || exit 1
+
+exec /etc/initscripts/usb start

@@ -1,0 +1,7 @@
+#!/bin/sh
+# pdmapper - Protection Domain mapper service
+exec 2>&1
+
+sv check init_mss > /dev/null || exit 1
+
+exec /etc/initscripts/start_pdmappersvc start

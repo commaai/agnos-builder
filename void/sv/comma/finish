@@ -1,0 +1,3 @@
+#!/bin/sh
+# Clean up tmux session on stop
+exec chpst -u comma /usr/bin/tmux kill-session -t comma 2>/dev/null || true

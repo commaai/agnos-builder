@@ -1,0 +1,15 @@
+#!/bin/sh
+# magic - GPU display magic (setup permissions and run python)
+exec 2>&1
+
+# Setup GPU device permissions
+chgrp gpu /dev/ion /dev/kgsl-3d0 2>/dev/null || true
+chmod 660 /dev/ion /dev/kgsl-3d0 2>/dev/null || true
+
+# Setup display debug config
+mkdir -p /data/misc/display
+echo 0 > /data/misc/display/sdm_dbg_cfg.txt 2>/dev/null || true
+echo 0 > /data/misc/display/gbm_dbg_cfg.txt 2>/dev/null || true
+
+# Run as comma user
+exec chpst -u comma /bin/bash -c 'source /etc/profile && exec /usr/local/venv/bin/python -u /usr/comma/magic.py'

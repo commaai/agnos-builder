@@ -1,0 +1,7 @@
+#!/bin/sh
+# qseecomd - TrustZone daemon
+exec 2>&1
+
+sv check leprop > /dev/null || exit 1
+
+exec /etc/initscripts/qseecomd start
