@@ -13,7 +13,8 @@ apt-get install -y --no-install-recommends \
       libdbus-1-dev \
       libpolkit-gobject-1-dev \
       libsystemd-dev \
-      udev
+      udev \
+      && rm -rf /var/lib/apt/lists/*
 
 cd ModemManager
 meson setup build \

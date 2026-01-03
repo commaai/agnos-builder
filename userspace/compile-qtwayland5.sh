@@ -26,7 +26,8 @@ apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb \
+    && rm -rf /var/lib/apt/lists/*
 
 # Patched qtwayland that outputs a fixed screen size
 # Clone qtwayland submodule, checkout, apply patch, qmake, make

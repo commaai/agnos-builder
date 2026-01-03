@@ -20,7 +20,8 @@ apt-get update && apt-get install -yq --no-install-recommends \
     liblzma-dev \
     rsync \
     texinfo \
-    zlib1g-dev
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Build ffmpeg (the one from the ubuntu repos doesn't work with our libOpenCL)
 cd /tmp
