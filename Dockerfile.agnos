@@ -95,7 +95,8 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb \
+    && rm -rf /var/lib/apt/lists/*
 
 # ################### #
 # ###### AGNOS ###### #
@@ -131,7 +132,8 @@ RUN cd /tmp && \
     mobile-broadband-provider-info && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./lpac.deb
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./lpac.deb && \
+    rm -rf /var/lib/apt/lists/*
 
 # Pre-compiled capnp (must be before python install)
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
