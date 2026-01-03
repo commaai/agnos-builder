@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     checkinstall \
     git \
     pkg-config \
-    wget
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
