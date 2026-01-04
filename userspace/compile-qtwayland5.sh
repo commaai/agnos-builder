@@ -8,7 +8,7 @@ dpkg --add-architecture armhf
 apt-get update && apt-get install -yq --no-install-recommends \
     libc6:armhf \
     libdbus-1-3 \
-    libdouble-conversion3t64 \
+    libdouble-conversion3 \
     libegl-dev \
     libexpat1:armhf \
     libfontconfig-dev \
