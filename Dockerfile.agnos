@@ -15,12 +15,14 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     cmake \
     curl \
     checkinstall \
+    docbook-xsl \
     git \
     meson \
     ninja-build \
     pkg-config \
     python3 \
     wget \
+    xsltproc \
     && rm -rf /var/lib/apt/lists/*
 
 # Enable ccache
