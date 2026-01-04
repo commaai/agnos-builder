@@ -26,7 +26,7 @@ meson setup build \
       --libdir=/usr/lib/aarch64-linux-gnu \
       --sysconfdir=/etc \
       --buildtype=plain \
-      -Doptimization=2 \
+      -Doptimization=0 \
       -Dintrospection=false \
       -Dgtk_doc=false \
       -Dman=false \
@@ -34,46 +34,9 @@ meson setup build \
       -Dqmi=true \
       -Dmbim=false \
       -Dqrtr=false \
-      -Dplugin_generic=enabled \
-      -Dplugin_altair_lte=disabled \
-      -Dplugin_anydata=disabled \
-      -Dplugin_broadmobi=disabled \
-      -Dplugin_cinterion=disabled \
-      -Dplugin_dell=disabled \
-      -Dplugin_dlink=disabled \
-      -Dplugin_fibocom=disabled \
-      -Dplugin_foxconn=disabled \
-      -Dplugin_gosuncn=disabled \
-      -Dplugin_haier=disabled \
-      -Dplugin_huawei=disabled \
-      -Dplugin_intel=disabled \
-      -Dplugin_iridium=disabled \
-      -Dplugin_linktop=disabled \
-      -Dplugin_longcheer=disabled \
-      -Dplugin_mbm=disabled \
-      -Dplugin_motorola=disabled \
-      -Dplugin_mtk=disabled \
-      -Dplugin_nokia=disabled \
-      -Dplugin_nokia_icera=disabled \
-      -Dplugin_novatel=disabled \
-      -Dplugin_novatel_lte=disabled \
-      -Dplugin_option=disabled \
-      -Dplugin_option_hso=disabled \
-      -Dplugin_pantech=disabled \
-      -Dplugin_qcom_soc=disabled \
+      -Dplugin_generic=disabled \
       -Dplugin_quectel=enabled \
-      -Dplugin_samsung=disabled \
-      -Dplugin_sierra_legacy=disabled \
-      -Dplugin_sierra=disabled \
-      -Dplugin_simtech=disabled \
-      -Dplugin_telit=disabled \
-      -Dplugin_thuraya=disabled \
-      -Dplugin_tplink=disabled \
-      -Dplugin_ublox=disabled \
-      -Dplugin_via=disabled \
-      -Dplugin_wavecom=disabled \
-      -Dplugin_x22x=disabled \
-      -Dplugin_zte=disabled
+      -Dall_plugins=false
 
 ninja -C build
 
