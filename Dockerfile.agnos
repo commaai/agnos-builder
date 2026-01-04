@@ -149,6 +149,7 @@ ARG XDG_DATA_HOME="/usr/local"
 
 # Install openpilot python packages with persistent cache
 COPY ./userspace/uv/pyproject.toml ./userspace/uv/uv.lock /tmp/agnos/uv/
+COPY ./userspace/uv/openpilot /tmp/agnos/uv/openpilot
 RUN --mount=type=cache,target=/root/.cache/uv \
     source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
