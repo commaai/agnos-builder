@@ -29,8 +29,6 @@ meson setup build --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu \
     --buildtype=release -Doptimization=2
 ninja -C build
 
-ccache -s
-
 cd build
 checkinstall -yD --install=no --fstrans=no --pkgname=libqmi /tmp/meson-install/meson-install
 mv libqmi*.deb /tmp/libqmi.deb

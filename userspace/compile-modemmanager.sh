@@ -34,13 +34,11 @@ meson setup build \
       -Dqmi=true \
       -Dmbim=false \
       -Dqrtr=false \
-      -Dplugin_generic=disabled \
+      -Dplugin_generic=enabled \
       -Dplugin_quectel=enabled \
       -Dall_plugins=false
 
 ninja -C build
-
-ccache -s
 
 cd build
 checkinstall -yD --install=no --fstrans=no --pkgname=modemmanager /tmp/meson-install/meson-install
