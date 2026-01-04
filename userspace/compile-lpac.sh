@@ -14,11 +14,15 @@ apt-get update && apt-get install -yq --no-install-recommends cmake \
 
 ./scripts/setup-debian.sh
 
+# Speed optimizations: use Release build with -O2
 cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-O2" \
+    -DCMAKE_CXX_FLAGS="-O2" \
     -DLPAC_WITH_APDU_QMI=ON \
     -DLPAC_WITH_APDU_PCSC=OFF \
     -DCPACK_GENERATOR=DEB .
 
-make -j package
+make -j$(nproc) package
 
 mv lpac*.deb /tmp/lpac.deb

@@ -34,7 +34,10 @@ cd ffmpeg-${VERSION}
 # --disable-doc works too, disables building documentation completely
 # https://gist.github.com/omegdadi/6904512c0a948225c81114b1c5acb875
 # https://github.com/7Ji/archrepo/issues/10
-./configure --enable-gpl --enable-libx264 --enable-shared --disable-static --disable-htmlpages
+# Speed optimizations: disable doc, programs, debug, and use -O2 instead of -O3
+./configure --enable-gpl --enable-libx264 --enable-shared --disable-static \
+    --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
+    --disable-programs --disable-debug --extra-cflags="-O2" --extra-cxxflags="-O2"
 make -j$(nproc)
 
 # remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)

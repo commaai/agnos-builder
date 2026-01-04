@@ -42,7 +42,8 @@ git apply /tmp/agnos/patch-qtwayland-v5.12
 # https://stackoverflow.com/a/75855054/639708
 ln -s libdl.so.2 /usr/lib/aarch64-linux-gnu/libdl.so
 
-qmake
+# Speed optimizations: use release config and -O2
+qmake CONFIG+=release QMAKE_CFLAGS_RELEASE="-O2" QMAKE_CXXFLAGS_RELEASE="-O2"
 export MAKEFLAGS="-j$(nproc)"
 make
 

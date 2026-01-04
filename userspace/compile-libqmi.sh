@@ -22,7 +22,11 @@ apt-get update && apt-get install -yq --no-install-recommends \
 
 git clone -b $LIBQMI_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/libqmi.git
 cd libqmi
-meson setup build --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu -Dmbim_qmux=false -Dqrtr=false
+# Speed optimizations: disable docs, introspection, and use plain buildtype
+meson setup build --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu \
+    -Dmbim_qmux=false -Dqrtr=false \
+    -Dintrospection=disabled -Dgtk_doc=false -Dman=false \
+    --buildtype=plain -Doptimization=2
 ninja -C build
 
 cd build

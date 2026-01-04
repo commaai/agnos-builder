@@ -17,11 +17,17 @@ apt-get update && apt-get install -y --no-install-recommends \
       && rm -rf /var/lib/apt/lists/*
 
 cd ModemManager
+# Speed optimizations: use plain buildtype with -O2, disable docs and introspection
 meson setup build \
       --prefix=/usr \
       --libdir=/usr/lib/aarch64-linux-gnu \
       --sysconfdir=/etc \
-      --buildtype=release \
+      --buildtype=plain \
+      -Doptimization=2 \
+      -Dintrospection=false \
+      -Dgtk_doc=false \
+      -Dman=false \
+      -Dbash_completion=false \
       -Dqmi=true \
       -Dmbim=false \
       -Dqrtr=false \
