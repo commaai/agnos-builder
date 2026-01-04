@@ -12,14 +12,12 @@ touch /AGNOS
 dpkg --add-architecture armhf
 
 # Install apt-fast and aria2 for faster downloads
-apt-get update && apt-get install -yq aria2 curl sudo wget \
-    && rm -rf /var/lib/apt/lists/*
+apt-get update && apt-get install -yq aria2 curl sudo wget
 bash -c "$(curl -sL https://git.io/vokNn)"
 
 # Install packages
 export DEBIAN_FRONTEND=noninteractive
-apt-fast install --no-install-recommends -yq locales systemd adduser \
-    && rm -rf /var/lib/apt/lists/*
+apt-fast install --no-install-recommends -yq locales systemd adduser
 
 # Create privileged user
 useradd -G sudo -m -s /bin/bash $USERNAME
