@@ -5,6 +5,9 @@ MM_VERSION="1.22.0"
 
 cd /tmp
 
+# meson support for checkinstall
+git clone https://github.com/keithbowes/meson-install.git
+
 git clone -b $MM_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/ModemManager.git
 
 apt-get update && apt-get install -y --no-install-recommends \
