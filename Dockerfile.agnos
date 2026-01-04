@@ -29,11 +29,13 @@ ENV PATH="/usr/lib/ccache:$PATH"
 
 # lpac (not available in Ubuntu repos, must compile)
 FROM agnos-compiler AS agnos-compiler-lpac
-# Install libqmi from Ubuntu repos for lpac to build against
+# Install libqmi and mbim from Ubuntu repos for lpac to build against
 RUN apt-get update && \
     apt-get install -yq --no-install-recommends \
     libqmi-glib5 \
     libqmi-glib-dev \
+    libmbim-glib4 \
+    libmbim-glib-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY ./userspace/compile-lpac.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
