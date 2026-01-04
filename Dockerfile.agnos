@@ -22,32 +22,19 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
 
-# capnproto
-FROM agnos-compiler AS agnos-compiler-capnp
-COPY ./userspace/compile-capnp.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
-    /tmp/agnos/compile-capnp.sh
+# Speed optimization: Use Ubuntu packages instead of compiling from source
+# This saves ~8-10 minutes of build time
+# Commented out stages: capnproto, ffmpeg, libqmi, modemmanager
+# These are now installed from Ubuntu 24.04 repos in the main stage
 
-# ffmpeg
-FROM agnos-compiler AS agnos-compiler-ffmpeg
-COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
-    /tmp/agnos/compile-ffmpeg.sh
-
-# libqmi
-FROM agnos-compiler AS agnos-compiler-libqmi
-COPY ./userspace/compile-libqmi.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    /tmp/agnos/compile-libqmi.sh
-
-# ModemManager
-FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    /tmp/agnos/compile-modemmanager.sh
-
-# lpac
-FROM agnos-compiler-libqmi AS agnos-compiler-lpac
+# lpac (not available in Ubuntu repos, must compile)
+FROM agnos-compiler AS agnos-compiler-lpac
+# Install libqmi from Ubuntu repos for lpac to build against
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    libqmi-glib5 \
+    libqmi-glib-dev \
+    && rm -rf /var/lib/apt/lists/*
 COPY ./userspace/compile-lpac.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
     /tmp/agnos/compile-lpac.sh
@@ -112,8 +99,6 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
-COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
 COPY --from=agnos-compiler-lpac /tmp/lpac.deb /tmp/
 
 RUN cd /tmp && \
@@ -124,26 +109,30 @@ RUN cd /tmp && \
     gir1.2-qmi-1.0 \
     libglib2.0-dev \
     libqmi-glib5 \
+    libqmi-utils \
+    libqmi-proxy \
     libc6 \
     libglib2.0-0t64 \
     libgudev-1.0-0 \
     libmm-glib0 \
+    modemmanager \
     libpolkit-gobject-1-0 \
     libsystemd0 \
     polkitd \
     mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./lpac.deb && \
     rm -rf /var/lib/apt/lists/*
 
-# Pre-compiled capnp (must be before python install)
-COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
-
-# Use other pre-compiled packages
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
+# Use Ubuntu packages for capnproto and ffmpeg (faster than compiling)
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    capnproto \
+    libcapnp-1.0.1 \
+    ffmpeg \
+    libavcodec60 \
+    libavformat60 \
+    libavutil58 \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG XDG_DATA_HOME="/usr/local"
 
