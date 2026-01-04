@@ -26,8 +26,10 @@ cd libqmi
 meson setup build --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu \
     -Dmbim_qmux=false -Dqrtr=false \
     -Dintrospection=false -Dgtk_doc=false -Dman=false \
-    --buildtype=plain -Doptimization=0
+    --buildtype=release -Doptimization=2
 ninja -C build
+
+ccache -s
 
 cd build
 checkinstall -yD --install=no --fstrans=no --pkgname=libqmi /tmp/meson-install/meson-install

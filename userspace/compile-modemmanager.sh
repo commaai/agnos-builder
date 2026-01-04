@@ -25,8 +25,8 @@ meson setup build \
       --prefix=/usr \
       --libdir=/usr/lib/aarch64-linux-gnu \
       --sysconfdir=/etc \
-      --buildtype=plain \
-      -Doptimization=0 \
+      --buildtype=release \
+      -Doptimization=2 \
       -Dintrospection=false \
       -Dgtk_doc=false \
       -Dman=false \
@@ -39,6 +39,8 @@ meson setup build \
       -Dall_plugins=false
 
 ninja -C build
+
+ccache -s
 
 cd build
 checkinstall -yD --install=no --fstrans=no --pkgname=modemmanager /tmp/meson-install/meson-install
