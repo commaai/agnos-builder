@@ -20,9 +20,8 @@ apt-get update && apt-get install -yq --no-install-recommends \
     libwayland-dev \
     libxcomposite-dev \
     libxkbcommon-dev \
-    zlib1g-dev
-
-apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    zlib1g-dev \
+    && apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \

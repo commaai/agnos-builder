@@ -55,6 +55,11 @@ docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
   --build-arg GID=$(id -g) &
 META_BUILDER_PID=$!
 
+# Ensure we wait for background builds even if the main build fails
+trap "[ -n \"\$META_BUILDER_PID\" ] && kill \$META_BUILDER_PID 2>/dev/null || true; \
+echo \"Cleaning up containers:\"; \
+docker container rm -f \$CONTAINER_ID \$MOUNT_CONTAINER_ID 2>/dev/null || true" EXIT
+
 echo "Building agnos-builder docker image"
 BUILD="docker buildx build --load"
 if [ ! -z "$NS" ]; then

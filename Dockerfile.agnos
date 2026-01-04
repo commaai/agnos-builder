@@ -66,16 +66,12 @@ RUN set -xe
 
 ARG USERNAME=comma
 
-# Base system setup
+# Base system setup and dependencies
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/base_setup.sh /tmp/agnos
-RUN /tmp/agnos/base_setup.sh
-
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
+COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/base_setup.sh && \
+    /tmp/agnos/openpilot_dependencies.sh && \
+    /tmp/agnos/openpilot_python_dependencies.sh
 
 # Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
