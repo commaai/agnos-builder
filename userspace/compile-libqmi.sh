@@ -18,6 +18,7 @@ apt-get update && apt-get install -yq --no-install-recommends \
       libgudev-1.0-dev \
       meson \
       ninja-build \
+      && rm -rf /var/lib/apt/lists/*
 
 git clone -b $LIBQMI_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/libqmi.git
 cd libqmi

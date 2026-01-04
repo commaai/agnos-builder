@@ -106,9 +106,8 @@ apt-fast install --no-install-recommends -yq \
     udhcpc \
     wget \
     wireless-tools \
-    zlib1g-dev
-
-rm -rf /var/lib/apt/lists/*
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create dirs
 mkdir /data && chown $USERNAME:$USERNAME /data
@@ -201,3 +200,4 @@ apt-fast install --no-install-recommends -yq \
     hostapd \
     libgtk2.0-dev \
     libxml2:armhf \
+    && rm -rf /var/lib/apt/lists/*

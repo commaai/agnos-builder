@@ -6,7 +6,8 @@ VERSION=1.0.2
 apt-get update && apt-get install -yq --no-install-recommends \
     libc6-dev \
     libssl-dev \
-    zlib1g-dev
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Build capnproto
 cd /tmp

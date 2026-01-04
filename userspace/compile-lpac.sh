@@ -9,7 +9,8 @@ git clone -b $LPAC_VERSION --depth 1 https://github.com/estkme-group/lpac.git
 
 cd lpac
 
-apt-get update && apt-get install -yq --no-install-recommends cmake
+apt-get update && apt-get install -yq --no-install-recommends cmake \
+    && rm -rf /var/lib/apt/lists/*
 
 ./scripts/setup-debian.sh
 
