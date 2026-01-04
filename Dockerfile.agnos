@@ -12,10 +12,14 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     ca-certificates \
     ccache \
     clang \
+    cmake \
     curl \
     checkinstall \
     git \
+    meson \
+    ninja-build \
     pkg-config \
+    python3 \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
