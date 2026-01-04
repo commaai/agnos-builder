@@ -90,7 +90,9 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends libdouble-conversion3t64 && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
