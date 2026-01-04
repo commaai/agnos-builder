@@ -134,12 +134,20 @@ RUN apt-get update && \
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Install openpilot python packages
-COPY ./userspace/uv /tmp/agnos/uv
-RUN source $XDG_DATA_HOME/venv/bin/activate && \
+# Install openpilot python packages with persistent cache
+COPY ./userspace/uv/pyproject.toml ./userspace/uv/uv.lock /tmp/agnos/uv/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
+    MAKEFLAGS="-j$(nproc)" UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode --no-install-project
+
+COPY ./userspace/uv /tmp/agnos/uv
+RUN --mount=type=cache,target=/root/.cache/uv \
+    source $XDG_DATA_HOME/venv/bin/activate && \
+    cd /tmp/agnos/uv && \
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
+    MAKEFLAGS="-j$(nproc)" UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
