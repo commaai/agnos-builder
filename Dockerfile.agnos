@@ -39,7 +39,7 @@ FROM agnos-compiler AS agnos-compiler-modemmanager
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 RUN apt-get update && \
     apt-get install -yq --no-install-recommends \
-    libgudev-1.0-dev libmbim-glib-dev \
+    libgudev-1.0-dev libmbim-glib-dev xsltproc docbook-xsl \
     && apt-get -o Dpkg::Options::="--force-overwrite" install -yq /tmp/libqmi.deb \
     && rm -rf /var/lib/apt/lists/*
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
