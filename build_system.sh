@@ -91,22 +91,30 @@ exec_as_root() {
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
 exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
+exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null &
+MKFS_PID=$!
+
+# Extract image (in parallel with mkfs)
+echo "Extracting docker image to tar"
+docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID &
+EXPORT_PID=$!
+
+wait $MKFS_PID
 
 # Mount filesystem
 echo "Mounting empty filesystem"
 exec_as_root mkdir -p $ROOTFS_DIR
 exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
 
+wait $EXPORT_PID
+
+exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
+
 # Also unmount filesystem (overwrite previous trap)
 trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
 docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
-# Extract image
-echo "Extracting docker image"
-docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
-exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
 
 # Avoid detecting as container
 echo "Removing .dockerenv file"

@@ -4,6 +4,7 @@
 .*.swo
 **/.DS_Store
 
+.git/
 build/
 output/
 edk2_tici/
