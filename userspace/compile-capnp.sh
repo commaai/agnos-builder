@@ -14,10 +14,10 @@ cd /tmp
 wget https://capnproto.org/capnproto-c++-${VERSION}.tar.gz
 tar xvf capnproto-c++-${VERSION}.tar.gz
 cd capnproto-c++-${VERSION}
-# Speed optimization: use -O2, disable tests
-CXXFLAGS="-fPIC -O2" ./configure --disable-shared
+# Speed optimization: use -O2
+CXXFLAGS="-fPIC -O2" ./configure
 
-make -j$(nproc) capnp capnpc
+make -j$(nproc)
 
 # remove "--fstrans=no" when checkinstall is fixed (still not fixed in 24.04)
 # https://bugs.launchpad.net/ubuntu/+source/checkinstall/+bug/78455
