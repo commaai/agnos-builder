@@ -171,6 +171,13 @@ RUN ln -sf $(ls /usr/lib/libffi.so.* 2>/dev/null | grep -v '.so.6' | head -1) /u
 # ldconfig
 RUN ldconfig
 
+# Rootfs development/eval tools
+COPY ./void/eval/rootfs-init.sh /usr/local/bin/
+COPY ./void/eval/rootfs-manifest.sh /usr/local/bin/
+COPY ./void/eval/rootfs-diff.sh /usr/local/bin/
+COPY ./void/eval/rootfs-export.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/rootfs-*.sh
+
 # Read-only rootfs setup
 COPY ./void/readonly_setup.sh /tmp/agnos/
 RUN /tmp/agnos/readonly_setup.sh
