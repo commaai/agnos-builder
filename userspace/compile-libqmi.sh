@@ -18,10 +18,15 @@ apt-get update && apt-get install -yq --no-install-recommends \
       libgudev-1.0-dev \
       meson \
       ninja-build \
+      && rm -rf /var/lib/apt/lists/*
 
 git clone -b $LIBQMI_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/libqmi.git
 cd libqmi
-meson setup build --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu -Dmbim_qmux=false -Dqrtr=false
+# Speed optimizations: disable docs and introspection, use release buildtype with -O2
+meson setup build --prefix=/usr --libdir=/usr/lib/aarch64-linux-gnu \
+    -Dmbim_qmux=false -Dqrtr=false \
+    -Dintrospection=false -Dgtk_doc=false -Dman=false \
+    --buildtype=release -Doptimization=2
 ninja -C build
 
 cd build

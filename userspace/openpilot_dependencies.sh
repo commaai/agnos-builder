@@ -3,8 +3,7 @@
 echo "Installing openpilot dependencies"
 
 # Install necessary libs
-apt-fast update
-apt-fast install --no-install-recommends -yq \
+apt-fast update && apt-fast install --no-install-recommends -yq \
     autoconf \
     automake \
     build-essential \
@@ -71,4 +70,5 @@ apt-fast install --no-install-recommends -yq \
     wget \
     xvfb \
     zlib1g-dev \
-    zstd
+    zstd \
+    && rm -rf /var/lib/apt/lists/*

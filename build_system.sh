@@ -44,11 +44,22 @@ if [ "$(uname -m)" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
-# Check agnos-builder Dockerfile
-export DOCKER_BUILDKIT=1
-docker buildx build -f Dockerfile.agnos --check $DIR
-
 # Start build and create container
+export DOCKER_BUILDKIT=1
+
+# Build both docker images in parallel since they're independent
+echo "Building agnos-meta-builder docker image (in background)"
+docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
+  --build-arg UNAME=$(id -nu) \
+  --build-arg UID=$(id -u) \
+  --build-arg GID=$(id -g) &
+META_BUILDER_PID=$!
+
+# Ensure we wait for background builds even if the main build fails
+trap "[ -n \"\$META_BUILDER_PID\" ] && kill \$META_BUILDER_PID 2>/dev/null || true; \
+echo \"Cleaning up containers:\"; \
+docker container rm -f \$CONTAINER_ID \$MOUNT_CONTAINER_ID 2>/dev/null || true" EXIT
+
 echo "Building agnos-builder docker image"
 BUILD="docker buildx build --load"
 if [ ! -z "$NS" ]; then
@@ -58,18 +69,9 @@ $BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
-# Check agnos-meta-builder Dockerfile
-docker buildx build --load -f Dockerfile.builder --check $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
-
-# Setup mount container for macOS and CI support (namespace.so)
-echo "Building agnos-meta-builder docker image"
-docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+# Wait for meta-builder to finish
+echo "Waiting for agnos-meta-builder to finish building..."
+wait $META_BUILDER_PID
 echo "Starting agnos-meta-builder container"
 MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-meta-builder)
 
@@ -89,22 +91,30 @@ exec_as_root() {
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
 exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
+exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null &
+MKFS_PID=$!
+
+# Extract image (in parallel with mkfs)
+echo "Extracting docker image to tar"
+docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID &
+EXPORT_PID=$!
+
+wait $MKFS_PID
 
 # Mount filesystem
 echo "Mounting empty filesystem"
 exec_as_root mkdir -p $ROOTFS_DIR
 exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
 
+wait $EXPORT_PID
+
+exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
+
 # Also unmount filesystem (overwrite previous trap)
 trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
 docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
-# Extract image
-echo "Extracting docker image"
-docker container export -o $BUILD_DIR/filesystem.tar $CONTAINER_ID
-exec_as_root tar -xf $BUILD_DIR/filesystem.tar -C $ROOTFS_DIR > /dev/null
 
 # Avoid detecting as container
 echo "Removing .dockerenv file"

@@ -8,6 +8,7 @@ dpkg --add-architecture armhf
 apt-get update && apt-get install -yq --no-install-recommends \
     libc6:armhf \
     libdbus-1-3 \
+    libdouble-conversion3 \
     libegl-dev \
     libexpat1:armhf \
     libfontconfig-dev \
@@ -19,14 +20,14 @@ apt-get update && apt-get install -yq --no-install-recommends \
     libwayland-dev \
     libxcomposite-dev \
     libxkbcommon-dev \
-    zlib1g-dev
-
-apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    zlib1g-dev \
+    && apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb \
+    && rm -rf /var/lib/apt/lists/*
 
 # Patched qtwayland that outputs a fixed screen size
 # Clone qtwayland submodule, checkout, apply patch, qmake, make
@@ -40,7 +41,8 @@ git apply /tmp/agnos/patch-qtwayland-v5.12
 # https://stackoverflow.com/a/75855054/639708
 ln -s libdl.so.2 /usr/lib/aarch64-linux-gnu/libdl.so
 
-qmake
+# Speed optimizations: use release config and -O2
+qmake CONFIG+=release QMAKE_CFLAGS_RELEASE="-O2" QMAKE_CXXFLAGS_RELEASE="-O2"
 export MAKEFLAGS="-j$(nproc)"
 make
 

@@ -6,13 +6,15 @@ VERSION=1.0.2
 apt-get update && apt-get install -yq --no-install-recommends \
     libc6-dev \
     libssl-dev \
-    zlib1g-dev
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Build capnproto
 cd /tmp
 wget https://capnproto.org/capnproto-c++-${VERSION}.tar.gz
 tar xvf capnproto-c++-${VERSION}.tar.gz
 cd capnproto-c++-${VERSION}
+# Speed optimization: use -O2
 CXXFLAGS="-fPIC -O2" ./configure
 
 make -j$(nproc)

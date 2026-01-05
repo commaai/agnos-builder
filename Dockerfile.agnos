@@ -12,26 +12,21 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     ca-certificates \
     ccache \
     clang \
+    cmake \
     curl \
     checkinstall \
+    docbook-xsl \
     git \
+    meson \
+    ninja-build \
     pkg-config \
-    wget
+    python3 \
+    wget \
+    xsltproc \
+    && rm -rf /var/lib/apt/lists/*
 
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
-
-# capnproto
-FROM agnos-compiler AS agnos-compiler-capnp
-COPY ./userspace/compile-capnp.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
-    /tmp/agnos/compile-capnp.sh
-
-# ffmpeg
-FROM agnos-compiler AS agnos-compiler-ffmpeg
-COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
-    /tmp/agnos/compile-ffmpeg.sh
 
 # libqmi
 FROM agnos-compiler AS agnos-compiler-libqmi
@@ -39,14 +34,26 @@ COPY ./userspace/compile-libqmi.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
     /tmp/agnos/compile-libqmi.sh
 
-# ModemManager
-FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
+# modemmanager (depends on libqmi)
+FROM agnos-compiler AS agnos-compiler-modemmanager
+COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    libgudev-1.0-dev libmbim-glib-dev xsltproc docbook-xsl \
+    && apt-get -o Dpkg::Options::="--force-overwrite" install -yq /tmp/libqmi.deb \
+    && rm -rf /var/lib/apt/lists/*
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
-# lpac
-FROM agnos-compiler-libqmi AS agnos-compiler-lpac
+# lpac (not available in Ubuntu repos, must compile, depends on libqmi)
+FROM agnos-compiler AS agnos-compiler-lpac
+COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    libmbim-glib-dev \
+    && apt-get -o Dpkg::Options::="--force-overwrite" install -yq /tmp/libqmi.deb \
+    && rm -rf /var/lib/apt/lists/*
 COPY ./userspace/compile-lpac.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=lpac,sharing=shared \
     /tmp/agnos/compile-lpac.sh
@@ -76,25 +83,24 @@ RUN set -xe
 
 ARG USERNAME=comma
 
-# Base system setup
+# Base system setup and dependencies
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/base_setup.sh /tmp/agnos
-RUN /tmp/agnos/base_setup.sh
-
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
+COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/base_setup.sh && \
+    /tmp/agnos/openpilot_dependencies.sh && \
+    /tmp/agnos/openpilot_python_dependencies.sh
 
 # Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends libdouble-conversion3 && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb \
+    && rm -rf /var/lib/apt/lists/*
 
 # ################### #
 # ###### AGNOS ###### #
@@ -118,36 +124,44 @@ RUN cd /tmp && \
     python3 \
     python3-dev \
     gir1.2-qmi-1.0 \
-    libglib2.0-dev \
-    libqmi-glib5 \
     libc6 \
     libglib2.0-0t64 \
     libgudev-1.0-0 \
-    libmm-glib0 \
     libpolkit-gobject-1-0 \
     libsystemd0 \
     polkitd \
     mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./lpac.deb
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb ./modemmanager.deb ./lpac.deb && \
+    rm -rf /var/lib/apt/lists/*
 
-# Pre-compiled capnp (must be before python install)
-COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
-
-# Use other pre-compiled packages
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
+# Use Ubuntu packages for capnproto and ffmpeg (faster than compiling)
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    capnproto \
+    libcapnp-1.0.1 \
+    ffmpeg \
+    libavcodec60 \
+    libavformat60 \
+    libavutil58 \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Install openpilot python packages
-COPY ./userspace/uv /tmp/agnos/uv
-RUN source $XDG_DATA_HOME/venv/bin/activate && \
+# Install openpilot python packages with persistent cache
+COPY ./userspace/uv/pyproject.toml ./userspace/uv/uv.lock /tmp/agnos/uv/
+COPY ./userspace/uv/openpilot /tmp/agnos/uv/openpilot
+RUN --mount=type=cache,target=/root/.cache/uv \
+    source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
+    MAKEFLAGS="-j$(nproc)" UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode --no-install-project --no-dev
+
+COPY ./userspace/uv /tmp/agnos/uv
+RUN --mount=type=cache,target=/root/.cache/uv \
+    source $XDG_DATA_HOME/venv/bin/activate && \
+    cd /tmp/agnos/uv && \
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
+    MAKEFLAGS="-j$(nproc)" UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode --no-dev
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/

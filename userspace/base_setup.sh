@@ -11,9 +11,8 @@ touch /AGNOS
 # Add armhf as supported architecture
 dpkg --add-architecture armhf
 
-# Install apt-fast
-apt-get update
-apt-get install -yq curl sudo wget
+# Install apt-fast and aria2 for faster downloads
+apt-get update && apt-get install -yq aria2 curl sudo wget
 bash -c "$(curl -sL https://git.io/vokNn)"
 
 # Install packages
@@ -106,9 +105,8 @@ apt-fast install --no-install-recommends -yq \
     udhcpc \
     wget \
     wireless-tools \
-    zlib1g-dev
-
-rm -rf /var/lib/apt/lists/*
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create dirs
 mkdir /data && chown $USERNAME:$USERNAME /data
@@ -201,3 +199,4 @@ apt-fast install --no-install-recommends -yq \
     hostapd \
     libgtk2.0-dev \
     libxml2:armhf \
+    && rm -rf /var/lib/apt/lists/*
