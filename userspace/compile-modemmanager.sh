@@ -35,8 +35,7 @@ meson setup build \
       -Dmbim=false \
       -Dqrtr=false \
       -Dplugin_generic=enabled \
-      -Dplugin_quectel=enabled \
-      -Dall_plugins=false
+      -Dplugin_quectel=enabled
 
 ninja -C build
 
