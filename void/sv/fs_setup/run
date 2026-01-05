@@ -1,2 +1,4 @@
 #!/bin/sh
-exec /usr/comma/fs_setup.sh
+# One-shot service - run once then sleep forever
+/usr/comma/fs_setup.sh
+exec sleep infinity

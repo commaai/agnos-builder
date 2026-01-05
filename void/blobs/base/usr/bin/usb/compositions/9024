@@ -117,8 +117,8 @@ run_9650() {
 run_configfs() {
 	if [ $from_adb = "n" ]
 	then
-		pkill adbd
-		/etc/launch_adbd start
+		pkill adbd 2>/dev/null || true
+		[ -x /etc/launch_adbd ] && /etc/launch_adbd start
 		sleep 1
 	fi
 	cd /sys/kernel/config/usb_gadget/g1
@@ -126,9 +126,10 @@ run_configfs() {
 	rm -rf configs/c.2 configs/c.3 2> /dev/null
 	echo 0x05c6 > idVendor
 	echo 0x9024 > idProduct
-	echo "RNDIS_ADB" > configs/c.1/strings/0x409/configuration
+	echo "RNDIS" > configs/c.1/strings/0x409/configuration
 	ln -s functions/gsi.rndis configs/c.1/f1
-	ln -s functions/ffs.adb configs/c.1/f2
+	# Only add ADB if available
+	[ -d functions/ffs.adb ] && [ -e /dev/usb-ffs/adb/ep0 ] && ln -s functions/ffs.adb configs/c.1/f2
 	echo 0xA0 > configs/c.1/bmAttributes
 	echo "binding UDC with Gadget..." $1
 	echo $1 > UDC
@@ -161,6 +162,10 @@ case `source /sbin/usb/target` in
 		run_9650 &
 		;;
 	*sdxpoorwills* )
+		udcname=`ls -1 /sys/class/udc | head -n 1`
+		run_configfs $udcname &
+		;;
+	*sdm845* )
 		udcname=`ls -1 /sys/class/udc | head -n 1`
 		run_configfs $udcname &
 		;;

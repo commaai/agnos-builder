@@ -78,6 +78,9 @@ case `cat ${TARGET_DIR}` in
 	*sdxpoorwills* )
 		res="sdxpoorwills";
 		;;
+	*SDM845* | *sdm845* )
+		res="sdm845";
+		;;
 	* )
 		res="none"
 		;;

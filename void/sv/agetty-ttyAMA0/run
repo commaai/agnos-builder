@@ -1,0 +1,3 @@
+#!/bin/sh
+# Serial console for QEMU (ttyAMA0)
+exec agetty -L 115200 ttyAMA0 linux

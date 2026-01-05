@@ -29,6 +29,8 @@ ARG USERNAME=comma
 # Hardware blobs from agnos-*.deb (cleaned: no systemd, no armhf, no weston)
 # Run ./void/extract-blobs.sh to regenerate
 COPY ./void/blobs/base/ /
+# USB scripts expect /sbin/usb but files are in /usr/bin/usb
+RUN ln -sf /usr/bin/usb /sbin/usb
 COPY ./void/blobs/wlan/ /
 COPY ./void/blobs/display/ /
 
@@ -41,24 +43,27 @@ ENV PATH="/root/.local/bin:$XDG_DATA_HOME/venv/bin:$PATH"
 COPY ./userspace/uv /tmp/agnos/uv
 RUN cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv \
-    uv sync --frozen --inexact --compile-bytecode
+    MAKEFLAGS="-j$(nproc)" UV_CONCURRENT_BUILDS=4 UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv \
+    uv sync --frozen --inexact
 
-# Home directory
+# Home directory - ensure directory exists first
+RUN mkdir -p /home/$USERNAME && chown $USERNAME:$USERNAME /home/$USERNAME
 COPY --chown=comma:comma ./userspace/home/ /home/$USERNAME/
 RUN mkdir -p /root/.config
 
 # runit services
 COPY ./void/sv/ /etc/sv/
+# Enable services (disabled: adsprpcd cdsprpcd avahi-ssh-publish lte power_* - broken/noisy)
 RUN for svc in \
-  adbd avahi-ssh-publish brightnessd fs_setup gpio init-qcom \
-  power_drop_monitor power_monitor screen_calibration serial-hostname \
+  adbd brightnessd fs_setup gpio init-qcom \
+  screen_calibration serial-hostname \
   sound varwatch \
-  irsc_util leprop usb adsp cdsp adsprpcd cdsprpcd \
+  irsc_util leprop usb adsp cdsp \
   rmt_storage init_mss pdmapper qseecomd \
-  comma magic lte modemmanager \
+  comma modemmanager \
   ssh-param-watcher adb-param-watcher \
-  rsyslogd iptables cnss_daemon polkitd; do \
+  rsyslogd iptables cnss_daemon polkitd \
+  sshd agetty-ttyMSM0 agetty-ttyAMA0; do \
     ln -sf /etc/sv/$svc /etc/runit/runsvdir/default/; \
   done
 
@@ -104,6 +109,11 @@ COPY ./void/files/power_drop_monitor.py /usr/$USERNAME/power_drop_monitor.py
 COPY ./void/files/fs_setup.sh /usr/$USERNAME/fs_setup.sh
 RUN chmod +x /usr/$USERNAME/comma.sh /usr/$USERNAME/set_ssh.sh /usr/$USERNAME/set_adb.sh /usr/$USERNAME/fs_setup.sh
 
+# Custom runit stage 1 with verbose output and mount fixes
+COPY ./void/files/runit-1 /etc/runit/1
+COPY ./void/files/runit-2 /etc/runit/2
+RUN chmod +x /etc/runit/1 /etc/runit/2
+
 # NetworkManager config
 RUN mkdir -p /etc/NetworkManager/conf.d /usr/lib/NetworkManager/system-connections
 COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/
@@ -111,6 +121,7 @@ COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf
 COPY ./void/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
 # system-connections goes to /usr/lib because /etc/NetworkManager/system-connections is symlinked to /data
 COPY ./userspace/files/lte.nmconnection /usr/lib/NetworkManager/system-connections/
+COPY ./userspace/files/usb0.nmconnection /usr/lib/NetworkManager/system-connections/
 RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
 
 # iptables rules
@@ -151,9 +162,11 @@ COPY ./void/files/fstab /etc/fstab
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
-# Compatibility symlinks for Qualcomm binaries
+# Compatibility symlinks for Qualcomm binaries and prebuilt wheels
 # pdmappersvc needs libjson-c.so.2 but Void has libjson-c.so.5
 RUN ln -sf /usr/lib/libjson-c.so.5 /usr/lib/libjson-c.so.2
+# raylib wheel needs libffi.so.6 but Void has newer version
+RUN ln -sf $(ls /usr/lib/libffi.so.* 2>/dev/null | grep -v '.so.6' | head -1) /usr/lib/libffi.so.6
 
 # ldconfig
 RUN ldconfig
@@ -168,6 +181,85 @@ COPY VERSION /VERSION
 # ################# #
 # #### Cleanup #### #
 # ################# #
-RUN rm -rf /var/cache/xbps/* || true && \
-  rm -rf /home/$USERNAME/.cache || true && \
-  rm -rf /root/.cache || true
+
+# Remove build-time-only packages (saves ~1GB+)
+RUN xbps-remove -Roy \
+  base-devel clang llvm cmake gdb \
+  bzip2-devel dbus-devel freetype-devel gdbm-devel glfw-devel glib-devel \
+  libarchive-devel libcurl-devel libffi-devel libjpeg-turbo-devel liblzma-devel \
+  libomp-devel libusb-devel libuv-devel libzstd-devel ncurses-devel openssl-devel \
+  portaudio-devel SDL2-devel sqlite-devel zeromq-devel zlib-devel \
+  capnproto-devel czmq-devel ffmpeg-devel libqmi-devel ModemManager-devel \
+  ocl-icd-devel opencl-headers \
+  python3-devel python3-pip \
+  || true
+
+# Remove docs, man pages, locales (saves ~100MB+)
+RUN rm -rf /usr/share/doc /usr/share/man /usr/share/info \
+  /usr/share/gtk-doc /usr/share/licenses \
+  /var/cache/xbps/* \
+  /home/$USERNAME/.cache /root/.cache /root/.local/share/uv \
+  /tmp/* /var/tmp/* \
+  || true && \
+  find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en_US*' -exec rm -rf {} + 2>/dev/null || true
+
+# Strip debug symbols from binaries (saves ~50MB+)
+RUN find /usr/bin /usr/lib -type f \( -name '*.so*' -o -executable \) -exec strip --strip-unneeded {} + 2>/dev/null || true
+
+# Remove Python bytecode cache and test files from venv
+RUN find /usr/local/venv -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
+  find /usr/local/venv -type d -name 'tests' -exec rm -rf {} + 2>/dev/null || true && \
+  find /usr/local/venv -type d -name 'test' -exec rm -rf {} + 2>/dev/null || true
+
+
+# DEBUG: allow root login
+RUN echo ttyS0 >> /etc/securetty
+RUN echo ttyMSM0 >> /etc/securetty
+
+# DEBUG: fix comma password (chpasswd fails under QEMU)
+# Use pre-computed hash for reliability: password is "comma"
+RUN usermod -p '$6$agnosdev$tQ10U3e/BwHhW2Jc0N2nCo5wd9U616KhZu8ZgC4CoyhUX2ui29zIWXKXkEwCvV8yB3dYEhsMKrmA8dJnD6Y2./' comma && \
+    usermod -p '$6$agnosdev$tQ10U3e/BwHhW2Jc0N2nCo5wd9U616KhZu8ZgC4CoyhUX2ui29zIWXKXkEwCvV8yB3dYEhsMKrmA8dJnD6Y2./' root
+
+# DEBUG: USB NCM gadget instead of RNDIS (RNDIS needs GSI/IPA driver)
+# Also disable ffs.adb - it breaks UDC binding when ADB isn't ready
+RUN sed -i 's/gsi.rndis/ncm.0/g' /usr/bin/usb/compositions/9024 && \
+    sed -i 's/.*ffs.adb.*configs.*/#\0/' /usr/bin/usb/compositions/9024
+
+# DEBUG: SSH setup - sshd_config expects keys in /data/etc/ssh/
+# The /data partition is mounted at runtime from /dev/sda12
+# We need to create the ssh directory structure on first boot
+RUN mkdir -p /var/chroot/ssh
+
+# DEBUG: Custom sshd run script - /data is mounted in runit stage 1
+RUN echo '#!/bin/sh' > /etc/sv/sshd/run && \
+    echo 'exec 2>&1' >> /etc/sv/sshd/run && \
+    echo '# Create ssh host keys if needed (on first boot)' >> /etc/sv/sshd/run && \
+    echo 'mkdir -p /data/etc/ssh' >> /etc/sv/sshd/run && \
+    echo 'if [ ! -f /data/etc/ssh/ssh_host_ed25519_key ]; then' >> /etc/sv/sshd/run && \
+    echo '  ssh-keygen -t ed25519 -f /data/etc/ssh/ssh_host_ed25519_key -N ""' >> /etc/sv/sshd/run && \
+    echo '  ssh-keygen -t rsa -b 4096 -f /data/etc/ssh/ssh_host_rsa_key -N ""' >> /etc/sv/sshd/run && \
+    echo '  ssh-keygen -t ecdsa -f /data/etc/ssh/ssh_host_ecdsa_key -N ""' >> /etc/sv/sshd/run && \
+    echo 'fi' >> /etc/sv/sshd/run && \
+    echo 'exec /usr/bin/sshd -D' >> /etc/sv/sshd/run
+
+# DEBUG: Fix iptables to allow SSH (insert before wwan0 DROP rule)
+RUN sed -i '/-A INPUT -i wwan0 -j DROP/i -A INPUT -p tcp --dport 22 -j ACCEPT' /etc/iptables/rules.v4 || true
+
+# DEBUG: USB network interface config
+RUN echo '[connection]' > /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo 'id=usb0' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo 'type=ethernet' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo 'interface-name=usb0' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo 'autoconnect=true' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo '[ipv4]' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo 'method=manual' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo 'addresses=192.168.7.1/24' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo '[ipv6]' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    echo 'method=disabled' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+    chmod 600 /usr/lib/NetworkManager/system-connections/usb0.nmconnection
+
+# DEBUG: Add usb0 IP configuration to USB initscript (after UDC binding)
+RUN sed -i '/echo \$1 > UDC/a\\tip addr add 192.168.7.1/24 dev usb0 2>/dev/null || true\n\tip link set usb0 up' /usr/bin/usb/compositions/9024
+
+# Note: /data mount is handled in void/files/runit-1

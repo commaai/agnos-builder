@@ -1,20 +1,25 @@
 # AGNOS Void Linux fstab
-# <file system>                      <dir>      <type>  <options>                                                    <dump> <pass>
+# <file system>                           <dir>       <type>  <options>                                                    <dump> <pass>
 
 # Qualcomm DSP firmware partition (read-only)
-/dev/disk/by-label/dsp               /dsp       auto    ro                                                           0      0
+# sde9 = dsp_a (UFS LUN)
+/dev/disk/by-partlabel/dsp_a              /dsp        ext4    ro,nofail                                                    0      0
 
 # Modem firmware partition (read-only)
-/dev/disk/by-partlabel/modem_a       /firmware  auto    ro                                                           0      0
+# sde4 = modem_a (UFS LUN)
+/dev/disk/by-partlabel/modem_a            /firmware   vfat    ro,nofail                                                    0      0
 
-# Persistent storage partition
-/dev/disk/by-partlabel/persist       /persist   auto    ro,discard,nosuid,nodev,noexec                               0      0
+# Persistent storage partition (read-only)
+# sda2 = persist (eMMC)
+/dev/disk/by-partlabel/persist            /persist    squashfs ro,nosuid,nodev,noexec,nofail                               0      0
 
 # Userdata partition (main writable storage)
-/dev/disk/by-partlabel/userdata      /data      auto    discard,noatime,nodiratime,nosuid,nodev,nofail               0      0
+# sda12 = userdata (eMMC)
+/dev/disk/by-partlabel/userdata           /data       ext4    discard,noatime,nodiratime,nosuid,nodev,nofail               0      0
 
 # Cache partition
-/dev/disk/by-partlabel/cache         /cache     ext4    relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid 0 0
+# sda11 = cache (eMMC)
+/dev/disk/by-partlabel/cache              /cache      ext4    relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid,nofail 0 0
 
 # tmpfs mounts
 tmpfs                                /var       tmpfs   rw,nosuid,nodev,size=128M,mode=755                           0      0

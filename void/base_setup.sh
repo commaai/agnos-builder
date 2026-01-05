@@ -68,6 +68,7 @@ xbps-install -y \
   libzstd-devel \
   llvm \
   logrotate \
+  lz4 \
   nano \
   ncurses-devel \
   net-tools \
@@ -79,6 +80,7 @@ xbps-install -y \
   openssl-devel \
   portaudio-devel \
   ppp \
+  pv \
   python3 \
   python3-devel \
   python3-pip \
@@ -104,8 +106,8 @@ xbps-install -y \
   ModemManager-devel \
   cronie
 
-# Create privileged user
-useradd -m -s /bin/bash $USERNAME || true
+# Create privileged user (use /usr/bin/bash - Void Linux path)
+useradd -m -s /usr/bin/bash $USERNAME
 echo "$USERNAME:$PASSWD" | chpasswd
 groupadd -f gpio
 groupadd -f gpu
@@ -136,7 +138,7 @@ echo "%wheel ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel
 echo "comma ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/comma
 
 # Setup /bin/sh symlink to bash
-ln -sf /bin/bash /bin/sh
+ln -sf /usr/bin/bash /bin/sh
 
 # Enable essential services
 ln -sf /etc/sv/dbus /etc/runit/runsvdir/default/
@@ -145,16 +147,17 @@ ln -sf /etc/sv/sshd /etc/runit/runsvdir/default/
 ln -sf /etc/sv/avahi-daemon /etc/runit/runsvdir/default/
 ln -sf /etc/sv/cronie /etc/runit/runsvdir/default/
 
-# Disable unnecessary ttys (keep just tty1)
+# Disable all virtual ttys (only serial console needed)
+rm -f /etc/runit/runsvdir/default/agetty-tty1
 rm -f /etc/runit/runsvdir/default/agetty-tty2
 rm -f /etc/runit/runsvdir/default/agetty-tty3
 rm -f /etc/runit/runsvdir/default/agetty-tty4
 rm -f /etc/runit/runsvdir/default/agetty-tty5
 rm -f /etc/runit/runsvdir/default/agetty-tty6
 
-# Enable serial console
-ln -sf /etc/sv/agetty-ttyMSM0 /etc/runit/runsvdir/default/ 2>/dev/null || \
-  ln -sf /etc/sv/agetty-serial /etc/runit/runsvdir/default/
+# Enable serial console (ttyMSM0 for hardware, ttyAMA0 for QEMU)
+ln -sf /etc/sv/agetty-ttyMSM0 /etc/runit/runsvdir/default/ 2>/dev/null
+ln -sf /etc/sv/agetty-ttyAMA0 /etc/runit/runsvdir/default/ 2>/dev/null
 
 # Install uv (Python package manager)
 export XDG_DATA_HOME="/usr/local"

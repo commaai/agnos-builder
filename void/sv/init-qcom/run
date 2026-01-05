@@ -1,2 +1,4 @@
 #!/bin/sh
-exec /usr/comma/init.qcom.sh
+# One-shot service - run once then sleep forever
+/usr/comma/init.qcom.sh
+exec sleep infinity

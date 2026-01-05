@@ -100,10 +100,9 @@ trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
 docker container rm -f $CONTAINER_ID $MOUNT_CONTAINER_ID" EXIT
 
-# Extract image
+# Extract image (pipe directly to avoid double I/O)
 echo "Extracting docker image"
-docker container export -o "$BUILD_DIR/filesystem.tar" "$CONTAINER_ID"
-exec_as_root tar -xf "$BUILD_DIR/filesystem.tar" -C "$ROOTFS_DIR" > /dev/null
+docker container export "$CONTAINER_ID" | docker exec -i "$MOUNT_CONTAINER_ID" tar -xf - -C "$ROOTFS_DIR"
 
 # Avoid detecting as container
 echo "Removing .dockerenv file"

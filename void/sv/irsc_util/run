@@ -4,4 +4,6 @@ exec 2>&1
 
 sv check dbus > /dev/null || exit 1
 
-exec /usr/sbin/irsc_util /etc/sec_config
+# One-shot service - run once then sleep forever
+/usr/sbin/irsc_util /etc/sec_config
+exec sleep infinity

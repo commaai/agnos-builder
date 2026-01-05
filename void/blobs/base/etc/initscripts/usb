@@ -86,15 +86,17 @@ case "$1" in
 		mkdir functions/ncm.0
 		mkdir functions/qdss.qdss
 		mkdir functions/uac1.uac1
-		if [ ! -s "/etc/adb_devid" ]
+		# Use /var for writable storage (rootfs is read-only)
+		if [ ! -s "/var/adb_devid" ]
 		then
-			echo $serialno > /etc/adb_devid
+			echo $serialno > /var/adb_devid
 			sync
 		fi
-		cat /etc/adb_devid > strings/0x409/serialnumber
+		cat /var/adb_devid > strings/0x409/serialnumber
 		echo "QCOM" > strings/0x409/manufacturer
 		echo "$product_string" > strings/0x409/product
-		setprop sys.usb.configfs 1
+		# setprop is Android-specific, skip on Void
+		# setprop sys.usb.configfs 1
 		cd /
 	fi
 

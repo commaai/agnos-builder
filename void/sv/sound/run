@@ -1,2 +1,4 @@
 #!/bin/sh
-exec /usr/comma/sound/sound_init.sh
+# One-shot service - run once then sleep forever
+/usr/comma/sound/sound_init.sh
+exec sleep infinity

@@ -7,10 +7,13 @@ sv check fs_setup > /dev/null || exit 1
 
 # Run as comma user with elevated priority limits
 # ulimit settings come from /etc/security/limits.conf
-exec chpst -u comma /bin/bash -c '
+exec chpst -u comma /usr/bin/bash -c '
   ulimit -r 100  # RTPRIO
   ulimit -e 30   # Nice limit (maps to -10)
-  exec /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
+  
+  # Start tmux session in background (no exec - we need to keep running)
+  /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
+  
   # Keep running while tmux session exists
   while tmux has-session -t comma 2>/dev/null; do
     sleep 5

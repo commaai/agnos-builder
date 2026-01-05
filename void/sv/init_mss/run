@@ -4,4 +4,6 @@ exec 2>&1
 
 sv check rmt_storage > /dev/null || exit 1
 
-exec /usr/sbin/init_mss
+# One-shot service - run once then sleep forever
+/usr/sbin/init_mss
+exec sleep infinity

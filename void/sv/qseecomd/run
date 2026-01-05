@@ -4,4 +4,6 @@ exec 2>&1
 
 sv check leprop > /dev/null || exit 1
 
-exec /etc/initscripts/qseecomd start
+# One-shot service - run once then sleep forever
+/etc/initscripts/qseecomd start
+exec sleep infinity

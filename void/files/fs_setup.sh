@@ -5,6 +5,9 @@
 # backed by real files and directories on userdata.
 
 # Create tmpfiles directories manually (replaces systemd-tmpfiles)
+mkdir -p /var/run
+chmod 0755 /var/run
+
 mkdir -p /var/crash
 chmod 0755 /var/crash
 
