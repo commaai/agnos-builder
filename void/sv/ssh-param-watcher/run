@@ -1,19 +1,31 @@
 #!/bin/sh
-# ssh-param-watcher - watches /data/params/d/SshEnabled and runs set_ssh.sh on changes
+# ssh-param-watcher - watches /data/params/d/SshEnabled and runs set_ssh.sh on value changes
 exec 2>&1
 
 WATCH_FILE="/data/params/d/SshEnabled"
 WATCH_DIR=$(dirname "$WATCH_FILE")
+STATE_FILE="/tmp/ssh-param-watcher.last"
+
+# Get current value (empty string if file doesn't exist)
+get_value() {
+  cat "$WATCH_FILE" 2>/dev/null || echo ""
+}
 
 # Run once at startup
 /usr/comma/set_ssh.sh 2>/dev/null || true
+get_value > "$STATE_FILE"
 
 # Wait for the params directory to exist
 while [ ! -d "$WATCH_DIR" ]; do
   sleep 2
 done
 
-# Watch for modifications and run script
+# Watch for modifications and run script only on value changes
 exec inotifywait -m -e modify,create,delete "$WATCH_FILE" 2>/dev/null | while read -r; do
-  /usr/comma/set_ssh.sh 2>/dev/null || true
+  NEW_VALUE=$(get_value)
+  LAST_VALUE=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+  if [ "$NEW_VALUE" != "$LAST_VALUE" ]; then
+    /usr/comma/set_ssh.sh 2>/dev/null || true
+    echo "$NEW_VALUE" > "$STATE_FILE"
+  fi
 done

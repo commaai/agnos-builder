@@ -1,5 +1,5 @@
 #!/bin/sh
-# magic - GPU display magic (setup permissions and run python)
+# magic - GPU display magic (runs as comma user with gpu group)
 exec 2>&1
 
 # Wait for GPU device to exist
@@ -8,20 +8,16 @@ if [ ! -e /dev/dri/card0 ]; then
     exit 1
 fi
 
-# Setup GPU device permissions
-chgrp gpu /dev/ion /dev/kgsl-3d0 /dev/dri/card0 /dev/dri/renderD128 2>/dev/null || true
-chmod 660 /dev/ion /dev/kgsl-3d0 /dev/dri/card0 /dev/dri/renderD128 2>/dev/null || true
-
-# Verify comma user can access GPU before starting python
-if ! su -s /bin/sh comma -c "test -r /dev/dri/card0 && test -w /dev/dri/card0"; then
-    echo "GPU not accessible by comma user"
-    exit 1
-fi
-
-# Setup display debug config
+# Setup display debug config (suppress Qualcomm driver debug spam)
 mkdir -p /data/misc/display
 echo 0 > /data/misc/display/sdm_dbg_cfg.txt 2>/dev/null || true
 echo 0 > /data/misc/display/gbm_dbg_cfg.txt 2>/dev/null || true
 
-# Run as comma user
-exec chpst -u comma /usr/local/venv/bin/python -u /usr/comma/magic.py
+# Clean up stale files that may have wrong ownership from previous runs
+rm -f /tmp/drmfd.sock 2>/dev/null || true
+rm -rf /var/tmp/weston 2>/dev/null || true
+mkdir -p /var/tmp/weston
+chown comma:comma /var/tmp/weston
+
+# Run as comma user with gpu and video supplementary groups
+exec chpst -u comma:comma:gpu:video /usr/local/venv/bin/python -u /usr/comma/magic.py

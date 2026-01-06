@@ -60,7 +60,7 @@ RUN for svc in \
   sound varwatch \
   irsc_util leprop usb adsp cdsp \
   rmt_storage init_mss pdmapper qseecomd \
-  comma modemmanager \
+  comma modemmanager magic \
   ssh-param-watcher adb-param-watcher \
   rsyslogd iptables cnss_daemon polkitd \
   sshd agetty-ttyMSM0 agetty-ttyAMA0; do \
@@ -185,39 +185,54 @@ RUN /tmp/agnos/readonly_setup.sh
 # Version
 COPY VERSION /VERSION
 
+# ARM bare-metal cross-compiler (equivalent to Ubuntu's gcc-arm-none-eabi)
+# Void's cross-arm-none-eabi-gcc is x86_64 only, so download ARM's official aarch64 toolchain
+RUN curl -fsSL "https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-aarch64-arm-none-eabi.tar.xz" \
+    | tar -xJ -C /opt && \
+    ln -sf /opt/arm-gnu-toolchain-13.2.Rel1-aarch64-arm-none-eabi/bin/arm-none-eabi-* /usr/bin/
+
+# Mesa DRI drivers (freedreno for Qualcomm Adreno GPU)
+# Required for EGL/GBM to work with the display
+RUN yes | xbps-install -Sy mesa-dri
+
+# TODO: Remove Qualcomm GPU blobs by rebuilding pyray/raylib against Mesa
+# Currently raylib is compiled directly against libEGL_adreno.so/libGLESv2_adreno.so
+# To use open-source Mesa freedreno instead:
+#   1. Rebuild pyray wheel linking against GLVND (-lEGL -lGLESv2) not Adreno directly
+#   2. Remove display blobs (void/blobs/display/)
+#   3. Keep mesa-dri package (provides freedreno via msm_dri.so)
+# This would eliminate all proprietary GPU dependencies
+
+# Fix EGL/GBM library symlinks for Adreno GPU
+# The display blobs set libEGL.so -> libEGL_adreno.so but we need GLVND dispatcher
+# Also replace libwayland-egl with Qualcomm's version (has WlEglWindow* symbols)
+RUN ln -sf libEGL.so.1.1.0 /usr/lib/libEGL.so && \
+    ln -sf libEGL.so.1.1.0 /usr/lib/libEGL.so.1 && \
+    rm -f /usr/lib/libEGL.so.1.0 /usr/lib/libEGL.so.1.0.0 && \
+    rm -f /usr/lib/libwayland-egl.so.1 /usr/lib/libwayland-egl.so.1.* && \
+    cp /usr/lib/libwayland-egl-qcom.so /usr/lib/libwayland-egl.so.1 && \
+    ln -sf libwayland-egl.so.1 /usr/lib/libwayland-egl.so
+
+# Extra packages (nice-to-haves for development)
+RUN xbps-install -y \
+  bash-completion \
+  btop \
+  hyperfine \
+  iperf \
+  iperf3 \
+  ripgrep \
+  ncdu \
+  nfs-utils \
+  socat \
+  stress-ng \
+  tree \
+  wavemon \
+  android-tools \
+  avahi-utils
+
 # ################# #
 # #### Cleanup #### #
 # ################# #
-
-# Remove build-time-only packages (saves ~1GB+)
-RUN xbps-remove -Roy \
-  base-devel clang llvm cmake gdb \
-  bzip2-devel dbus-devel freetype-devel gdbm-devel glfw-devel glib-devel \
-  libarchive-devel libcurl-devel libffi-devel libjpeg-turbo-devel liblzma-devel \
-  libomp-devel libusb-devel libuv-devel libzstd-devel ncurses-devel openssl-devel \
-  portaudio-devel SDL2-devel sqlite-devel zeromq-devel zlib-devel \
-  capnproto-devel czmq-devel ffmpeg-devel libqmi-devel ModemManager-devel \
-  ocl-icd-devel opencl-headers \
-  python3-devel python3-pip \
-  || true
-
-# Remove docs, man pages, locales (saves ~100MB+)
-RUN rm -rf /usr/share/doc /usr/share/man /usr/share/info \
-  /usr/share/gtk-doc /usr/share/licenses \
-  /var/cache/xbps/* \
-  /home/$USERNAME/.cache /root/.cache /root/.local/share/uv \
-  /tmp/* /var/tmp/* \
-  || true && \
-  find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en_US*' -exec rm -rf {} + 2>/dev/null || true
-
-# Strip debug symbols from binaries (saves ~50MB+)
-RUN find /usr/bin /usr/lib -type f \( -name '*.so*' -o -executable \) -exec strip --strip-unneeded {} + 2>/dev/null || true
-
-# Remove Python bytecode cache and test files from venv
-RUN find /usr/local/venv -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
-  find /usr/local/venv -type d -name 'tests' -exec rm -rf {} + 2>/dev/null || true && \
-  find /usr/local/venv -type d -name 'test' -exec rm -rf {} + 2>/dev/null || true
-
 
 # DEBUG: allow root login
 RUN echo ttyS0 >> /etc/securetty

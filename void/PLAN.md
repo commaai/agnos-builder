@@ -13,6 +13,7 @@ things to know:
 * be careful to not make changes that will prevent you from being able to reboot to get it back into fastboot
 * you have access to a serial console running in a screen session
 * you can check if it's in fastboot mode with "fastboot devices"
+* you can SSH into this device ("ssh comma@comma-564b9adb") to check against a known working device running Ubuntu AGNOS
 * `void/eval/ubuntu-manifest.txt` - Full file listing from working Ubuntu AGNOS (100k lines)
 * Use to compare: `diff <(grep /etc/ssh void/eval/ubuntu-manifest.txt) <(ssh comma@192.168.7.1 "find /etc/ssh -type f")`
 
@@ -46,6 +47,7 @@ once we work on one and finish it, cross it off.
 2. ~~why does udev settle timeout? can we fix it?~~ (fixed: 99-gpio.rules was running expensive find on every gpio event)
 3. get wlan up and working
 4. ~~the tmux session (from the comma service) doesn't have our tmux.conf applied~~ (fixed: HOME=/home/comma in comma service)
+5. get graphics (i.e. magic) working
 
 ## Directory Structure
 
