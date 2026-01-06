@@ -42,6 +42,7 @@ once we work on one and finish it, cross it off.
 1. get USB SSH networking reliable
 2. why does udev settle timeout? can we fix it?
 3. get wlan up and working
+4. the tmux session (from the comma service) doesn't have our tmux.conf applied. i suspect the comma service is getting launched before the home overlay is all setup.
 
 ## Directory Structure
 

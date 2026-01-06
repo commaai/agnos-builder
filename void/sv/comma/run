@@ -11,6 +11,9 @@ exec chpst -u comma /usr/bin/bash -c '
   ulimit -r 100  # RTPRIO
   ulimit -e 30   # Nice limit (maps to -10)
   
+  # Set HOME explicitly (chpst -u does not set it)
+  export HOME=/home/comma
+  
   # Start tmux session in background (no exec - we need to keep running)
   /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
   
