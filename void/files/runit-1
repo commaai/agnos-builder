@@ -24,6 +24,8 @@ mountpoint -q /var || mount -t tmpfs tmpfs /var -o rw,nosuid,nodev,size=128M,mod
 mountpoint -q /tmp || mount -t tmpfs tmpfs /tmp -o rw,nosuid,nodev,size=150M,mode=1777
 mountpoint -q /rwtmp || mount -t tmpfs tmpfs /rwtmp -o rw,nosuid,nodev,size=100M,mode=1777
 mkdir -p /var/run /var/log /var/tmp /var/lib /var/cache /var/chroot/ssh
+# D-Bus socket symlink (D-Bus runs in /run/dbus, some apps expect /var/run/dbus)
+ln -sf /run/dbus /var/run/dbus
 
 # securityfs - optional, don't fail if kernel doesn't support
 if [ -d /sys/kernel/security ]; then
