@@ -34,15 +34,18 @@ always follow this exact workflow:
 * once it's fixed on the device, present me with a succint root cause. then i'll review and test
 * if i approve, then fix it in the docker build, build, flash, then test the fix
 * if it works after flashing, let me know for a final review. then i will give the next task
+for these tests, test with 2x reboots unless otherwise specified.
+
+NEVER FLASH WITHOUT GETTING APPROVAL
 
 ## tasks
 
 this is a running list of tasks. do not work on one until i tell you to do so.
 once we work on one and finish it, cross it off.
-1. get USB SSH networking reliable
-2. why does udev settle timeout? can we fix it?
+1. ~~get USB SSH networking reliable~~ (fixed: /dev/socket dir creation in leprop, set_ssh.sh always enables SSH)
+2. ~~why does udev settle timeout? can we fix it?~~ (fixed: 99-gpio.rules was running expensive find on every gpio event)
 3. get wlan up and working
-4. the tmux session (from the comma service) doesn't have our tmux.conf applied. i suspect the comma service is getting launched before the home overlay is all setup.
+4. ~~the tmux session (from the comma service) doesn't have our tmux.conf applied~~ (fixed: HOME=/home/comma in comma service)
 
 ## Directory Structure
 
