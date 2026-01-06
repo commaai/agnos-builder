@@ -1,23 +1,15 @@
 #!/bin/sh
-# magic - GPU display magic (runs as comma user with gpu group)
+# magic - GPU display service (raylib on Adreno GPU)
 exec 2>&1
 
-# Wait for GPU device to exist
 if [ ! -e /dev/dri/card0 ]; then
     echo "Waiting for /dev/dri/card0..."
     exit 1
 fi
 
-# Setup display debug config (suppress Qualcomm driver debug spam)
+# Suppress Qualcomm display driver debug spam
 mkdir -p /data/misc/display
 echo 0 > /data/misc/display/sdm_dbg_cfg.txt 2>/dev/null || true
 echo 0 > /data/misc/display/gbm_dbg_cfg.txt 2>/dev/null || true
 
-# Clean up stale files that may have wrong ownership from previous runs
-rm -f /tmp/drmfd.sock 2>/dev/null || true
-rm -rf /var/tmp/weston 2>/dev/null || true
-mkdir -p /var/tmp/weston
-chown comma:comma /var/tmp/weston
-
-# Run as comma user with gpu and video supplementary groups
 exec chpst -u comma:comma:gpu:video /usr/local/venv/bin/python -u /usr/comma/magic.py

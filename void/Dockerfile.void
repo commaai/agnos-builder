@@ -34,6 +34,12 @@ RUN ln -sf /usr/bin/usb /sbin/usb
 COPY ./void/blobs/wlan/ /
 COPY ./void/blobs/display/ /
 
+# Build 64-bit irsc_util (replaces 32-bit blob that requires armhf libs)
+COPY ./userspace/irsc_util/ /tmp/agnos/irsc_util/
+RUN cd /tmp/agnos/irsc_util && \
+    gcc -Wall -O2 -o /usr/bin/irsc_util irsc_util.c && \
+    rm -rf /tmp/agnos/irsc_util
+
 # capnproto, ffmpeg, libqmi, ModemManager are from Void repos (in base_setup.sh)
 # lpac, qt, weston - removed, not used
 
@@ -55,11 +61,11 @@ RUN mkdir -p /root/.config
 COPY ./void/sv/ /etc/sv/
 # Enable services (disabled: adsprpcd cdsprpcd avahi-ssh-publish lte power_* - broken/noisy)
 RUN for svc in \
-  adbd brightnessd fs_setup gpio init-qcom \
+  ipa_fws adbd brightnessd fs_setup gpio init-qcom \
   screen_calibration serial-hostname \
   sound varwatch \
   irsc_util leprop usb adsp cdsp \
-  rmt_storage init_mss pdmapper qseecomd \
+  rmt_storage init_mss pdmapper tftp_server qseecomd \
   comma modemmanager magic \
   ssh-param-watcher adb-param-watcher \
   rsyslogd iptables cnss_daemon polkitd \
