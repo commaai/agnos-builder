@@ -4,24 +4,18 @@
 - glibc (Qualcomm blobs), runit (no systemd)
 - Deleted: Qt/Weston/armhf, lpac
 
-## Progress
-
-| Task | Status |
-|------|--------|
-| Directory structure, Dockerfile, build script | done |
-| Package mapping (xbps) | done |
-| readonly_setup.sh | done |
-| runit services | done |
-| Blob extraction | done |
-| Python 3.12 via uv | done |
-| Eval tools (rootfs-init, diff, export) | done |
-| **First boot test** | in progress |
-
 ## Development Workflow
 
 The goal is fast iteration: fix issues live on the device, then backport working changes to the Dockerfile. Every change should be targeted. DO NOT change anything unrelated to the current bug, and only make the minimal change required to fix the bug.
 
-### 1. Boot and Connect
+things to know:
+* every boot starts in fastboot. you can either flash it with flash_system.sh or continue booting with "fastboot continue"
+* be careful to not make changes that will prevent you from being able to reboot to get it back into fastboot
+* you have access to a serial console running in a screen session
+* you can check if it's in fastboot mode with "fastboot devices"
+* `void/eval/ubuntu-manifest.txt` - Full file listing from working Ubuntu AGNOS (100k lines)
+* Use to compare: `diff <(grep /etc/ssh void/eval/ubuntu-manifest.txt) <(ssh comma@192.168.7.1 "find /etc/ssh -type f")`
+
 ```bash
 # Flash the device
 # reboot the device over serial to get it into flashing mode
@@ -34,63 +28,20 @@ sudo screen /dev/ttyUSB0 115200
 fastboot devices
 ```
 
-You can always reboot the device to get it into fastboot mode for flashing. Be careful about changes that will make it such that you can't reboot the device!
+always follow this exact workflow:
+* i will give a task that we're working on
+* you will root cause it and fix it on the live running device
+* once it's fixed on the device, present me with a succint root cause. then i'll review and test
+* if i approve, then fix it in the docker build, build, flash, then test the fix
+* if it works after flashing, let me know for a final review. then i will give the next task
 
-### 2. Initialize Git Tracking (first time only)
-```bash
-# On device - enables diffing against clean build
-rootfs-init.sh
-```
+## tasks
 
-### 3. Evaluate and Fix Live
-```bash
-# Make changes directly on device
-mount -o remount,rw /
-nano /etc/sv/sshd/run
-sv restart sshd
-
-# Test immediately - no rebuild needed!
-
-# Compare against Ubuntu reference if stuck
-# (ubuntu-manifest.txt in void/eval/ on host)
-```
-
-### 4. Review Changes
-```bash
-# On device - see what you changed
-rootfs-diff.sh
-
-# Detailed diff
-cd / && git diff
-```
-
-### 5. Export and Backport
-```bash
-# On device - package up changes
-rootfs-export.sh
-
-# On host - pull changes
-./void/eval/rootfs-pull.sh 192.168.7.1
-
-# Review and apply to Dockerfile/scripts
-cat void/device-changes/*/modified.patch
-ls void/device-changes/*/new-files/
-```
-
-### 6. Update Dockerfile
-Once fixes are working, add them to `Dockerfile.void` or the appropriate script, then rebuild to verify.
-
-## Reference Files
-
-- `void/eval/ubuntu-manifest.txt` - Full file listing from working Ubuntu AGNOS (100k lines)
-- Use to compare: `diff <(grep /etc/ssh void/eval/ubuntu-manifest.txt) <(ssh comma@192.168.7.1 "find /etc/ssh -type f")`
-
-## Open Items
-
-- [ ] Verify eudev rule compatibility
-- [ ] Verify dbus starts before NetworkManager/ModemManager
-- [ ] Verify polkit rules work on Void
-- [ ] Test DSP services (adsprpcd, cdsprpcd)
+this is a running list of tasks. do not work on one until i tell you to do so.
+once we work on one and finish it, cross it off.
+1. get USB SSH networking reliable
+2. why does udev settle timeout? can we fix it?
+3. get wlan up and working
 
 ## Directory Structure
 
@@ -111,16 +62,4 @@ void/
     ├── rootfs-export.sh   # export changes (device)
     ├── rootfs-pull.sh     # pull from device (host)
     └── ubuntu-manifest.txt # reference from working Ubuntu
-```
-
-## Quick Reference
-
-```bash
-# Device tools (in /usr/local/bin/ after boot)
-rootfs-init.sh      # One-time: init git tracking
-rootfs-diff.sh      # Show what changed
-rootfs-export.sh    # Export changes to /data
-
-# Host tools
-./void/eval/rootfs-pull.sh <device-ip>
 ```

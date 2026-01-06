@@ -27,8 +27,11 @@ fi
 
 echo "Active slot: $ACTIVE_SLOT"
 echo "Flashing system_$ACTIVE_SLOT..."
-tools/edl w system_$ACTIVE_SLOT $DIR/output/system.img $LOADER_ARG
+#tools/edl w system_$ACTIVE_SLOT $DIR/output/system.img $LOADER_ARG
 
-tools/edl reset $LOADER_ARG
+#tools/edl reset $LOADER_ARG
+
+fastboot flash system_a $DIR/output/system.img
+fastboot continue
 
 echo "Flashed system_$ACTIVE_SLOT!"
