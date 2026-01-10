@@ -1,0 +1,1 @@
+SUBSYSTEM=="sound", KERNEL=="controlC*|hwC*|pcmC*|comprC*|seq|timer", GROUP="audio", MODE="0660"
