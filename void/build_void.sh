@@ -117,6 +117,10 @@ set_network_stuff() {
   bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
   bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
+  # DNS: resolv.conf must be writable for NetworkManager
+  # Docker mounts resolv.conf during build so we do this after export
+  bash -c "rm -f etc/resolv.conf && ln -s /run/resolv.conf etc/resolv.conf"
+
   # Write build info
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
   bash -c "printf \"$GIT_HASH\n$DATETIME\n\" > BUILD"

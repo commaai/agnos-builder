@@ -8,10 +8,6 @@ rm -rf /etc/timezone /etc/localtime
 ln -s /data/etc/timezone /etc/timezone
 ln -s /data/etc/localtime /etc/localtime
 
-# DNS: resolv.conf must be writable for NetworkManager
-rm -f /etc/resolv.conf
-ln -s /run/resolv.conf /etc/resolv.conf
-
 rm -f /etc/ssh/ssh_host*
 
 rm -rf /etc/NetworkManager/system-connections

@@ -1,1 +1,2 @@
-/usr/local/venv/bin/python3
+#!/usr/bin/bash
+exec /usr/local/venv/bin/python "$@"

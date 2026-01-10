@@ -13,9 +13,10 @@ things to know:
 * be careful to not make changes that will prevent you from being able to reboot to get it back into fastboot
 * you have access to a serial console running in a screen session
 * you can check if it's in fastboot mode with "fastboot devices"
-* you can SSH into this device ("ssh comma@comma-564b9adb") to check against a known working device running Ubuntu AGNOS
+* you can also use ADB to get a shell on our device with "adb shell"
+* you can SSH into this second device ("ssh comma@comma-564b9adb") to check against a known working device running Ubuntu AGNOS
 * `void/eval/ubuntu-manifest.txt` - Full file listing from working Ubuntu AGNOS (100k lines)
-* Use to compare: `diff <(grep /etc/ssh void/eval/ubuntu-manifest.txt) <(ssh comma@192.168.7.1 "find /etc/ssh -type f")`
+* Use to compare: `diff <(grep /etc/ssh void/eval/ubuntu-manifest.txt) <(ssh void_device_ip "find /etc/ssh -type f")`
 
 ```bash
 # Flash the device
@@ -51,6 +52,7 @@ once we work on one and finish it, cross it off.
 6. replace closed blobs graphics stack with freedreno
 7. fix DNS (e.g. make curl google.com work)
 8. setup a good journalctl/logging replacement
+9. get ADB working
 
 ## Directory Structure
 
