@@ -239,6 +239,11 @@ RUN ln -sf libEGL.so.1.1.0 /usr/lib/libEGL.so && \
     cp /usr/lib/libwayland-egl-qcom.so /usr/lib/libwayland-egl.so.1 && \
     ln -sf libwayland-egl.so.1 /usr/lib/libwayland-egl.so
 
+# Drop non-English locales, man/doc/info pages, and xbps cache
+RUN find /usr/share/locale -maxdepth 1 -mindepth 1 ! -name en_US ! -name en -exec rm -rf {} + && \
+    rm -rf /usr/share/man /usr/share/doc /usr/share/info && \
+    rm -rf /var/cache/xbps
+
 # Extra packages (nice-to-haves for development)
 RUN xbps-install -y \
   bash-completion \
