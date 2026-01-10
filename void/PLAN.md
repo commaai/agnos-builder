@@ -48,6 +48,9 @@ once we work on one and finish it, cross it off.
 3. get wlan up and working
 4. ~~the tmux session (from the comma service) doesn't have our tmux.conf applied~~ (fixed: HOME=/home/comma in comma service)
 5. get graphics (i.e. magic) working
+6. replace closed blobs graphics stack with freedreno
+7. fix DNS (e.g. make curl google.com work)
+8. setup a good journalctl/logging replacement
 
 ## Directory Structure
 
