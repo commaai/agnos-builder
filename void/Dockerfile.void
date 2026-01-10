@@ -81,7 +81,6 @@ COPY ./userspace/libs/ /usr/lib/
 
 # udev rules (excluding polkit rules)
 COPY ./userspace/files/78-modem.rules /etc/udev/rules.d/
-COPY ./userspace/files/91-audio.rules /etc/udev/rules.d/
 COPY ./userspace/files/92-dsp.rules /etc/udev/rules.d/
 COPY ./userspace/files/93-input.rules /etc/udev/rules.d/
 COPY ./userspace/files/94-backlight.rules /etc/udev/rules.d/

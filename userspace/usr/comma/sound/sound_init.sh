@@ -8,6 +8,10 @@ while [ ! -d /proc/asound/sdm845tavilsndc ] || [ "$(cat /proc/asound/card0/state
 done
 echo "sound card online"
 
+# Fix permissions for audio group
+chgrp audio /dev/snd/*
+chmod 660 /dev/snd/*
+
 while ! /usr/comma/sound/tinymix controls | grep -q "SEC_MI2S_RX Audio Mixer MultiMedia1"; do
   sleep 0.01
 done
