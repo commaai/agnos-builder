@@ -234,7 +234,8 @@ RUN xbps-install -y \
   tree \
   wavemon \
   android-tools \
-  avahi-utils
+  avahi-utils \
+  vim
 
 # ################# #
 # #### Cleanup #### #
