@@ -53,3 +53,8 @@ mkdir -p /data/tmp/
 if [[ ! -d /data/persist ]]; then
   sudo cp -r /system/persist /data
 fi
+
+# Signal readiness for services that depend on the overlay
+mkdir -p /run
+chmod 0755 /run
+touch /run/fs_setup.ready
