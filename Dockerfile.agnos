@@ -99,7 +99,7 @@ RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
-FROM agnos-base
+FROM agnos-base AS agnos
 
 # Hardware setup
 RUN mkdir -p /tmp/agnos/debs
@@ -277,3 +277,52 @@ RUN rm -rf /usr/share/icons/* && \
     rm -rf /home/$USERNAME/.cache && \
     rm -rf /root/.cache && \
     apt-get clean
+
+# ################### #
+# #### Exporter ##### #
+# ################### #
+# This stage creates system.img directly in the build (for fast remote builds)
+
+FROM ubuntu:24.04 AS exporter
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install tools needed for image creation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    e2fsprogs \
+    android-sdk-libsparse-utils \
+    libcap2-bin \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the complete rootfs from AGNOS stage
+COPY --from=agnos / /rootfs
+
+# Remove .dockerenv (avoid detecting as container)
+RUN rm -f /rootfs/.dockerenv
+
+# Setup network configuration (cannot be done in docker container)
+RUN ln -sf /proc/sys/kernel/hostname /rootfs/etc/hostname && \
+    echo "127.0.0.1    localhost.localdomain localhost" > /rootfs/etc/hosts && \
+    echo "127.0.0.1    comma" >> /rootfs/etc/hosts && \
+    ln -sf /run/systemd/resolve/stub-resolv.conf /rootfs/etc/resolv.conf
+
+# Set capability for ping
+RUN setcap cap_net_raw+ep /rootfs/bin/ping
+
+# Write build info
+ARG GIT_HASH=unknown
+RUN echo "${GIT_HASH}" > /rootfs/BUILD && \
+    date '+%Y-%m-%dT%H:%M:%S' >> /rootfs/BUILD
+
+# Create ext4 image directly from directory (no mount needed!)
+ARG ROOTFS_IMAGE_SIZE=4500M
+RUN truncate -s ${ROOTFS_IMAGE_SIZE} /tmp/system.raw && \
+    mke2fs -t ext4 -d /rootfs -L "agnos" /tmp/system.raw
+
+# Convert to sparse format
+RUN img2simg /tmp/system.raw /system.img && \
+    rm /tmp/system.raw
+
+# Final stage - just the artifact
+FROM scratch AS artifact
+COPY --from=exporter /system.img /system.img

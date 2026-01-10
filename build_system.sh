@@ -48,13 +48,26 @@ fi
 export DOCKER_BUILDKIT=1
 docker buildx build -f Dockerfile.agnos --check $DIR
 
-# Start build and create container
-echo "Building agnos-builder docker image"
-BUILD="docker buildx build --load"
-if [ ! -z "$NS" ]; then
-  BUILD="nsc build --load"
+# Get git hash for build info
+GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
+
+# Fast path: when NS=1, build remotely and extract only system.img
+if [ -n "$NS" ]; then
+  echo "Building with nsc (fast path - artifact only)"
+  nsc build -f Dockerfile.agnos \
+    --output-local "$OUTPUT_DIR" \
+    --build-arg UBUNTU_BASE_IMAGE="$UBUNTU_FILE" \
+    --build-arg GIT_HASH="$GIT_HASH" \
+    --build-arg ROOTFS_IMAGE_SIZE="$ROOTFS_IMAGE_SIZE" \
+    --platform=linux/arm64 \
+    "$DIR"
+  echo "Done!"
+  exit 0
 fi
-$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
+
+# Local build path (original flow) - target agnos stage, not the artifact stage
+echo "Building agnos-builder docker image"
+docker buildx build --load --target agnos -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
@@ -129,7 +142,6 @@ set_network_stuff() {
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
   bash -c "printf \"$GIT_HASH\n$DATETIME\n\" > BUILD"
 }
-GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
 exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; $(declare -f set_network_stuff); set_network_stuff"
 
 # Unmount image
