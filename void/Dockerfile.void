@@ -63,7 +63,7 @@ COPY ./void/sv/ /etc/sv/
 RUN for svc in \
   ipa_fws adbd brightnessd fs_setup gpio init-qcom \
   screen_calibration serial-hostname \
-  sound varwatch \
+  sound varwatch busybox-ntpd \
   irsc_util leprop usb adsp cdsp \
   rmt_storage init_mss pdmapper tftp_server qseecomd \
   comma modemmanager magic \
