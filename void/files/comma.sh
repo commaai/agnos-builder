@@ -14,14 +14,14 @@ RESET_TRIGGER="/data/__system_reset__"
 
 echo "waiting for magic"
 for i in {1..200}; do
-  # Use sv check instead of systemctl is-active
-  if sv check magic >/dev/null 2>&1 && [ -S /tmp/drmfd.sock ]; then
+  # Check for drmfd socket (magic service creates this when ready)
+  if [ -S /tmp/drmfd.sock ]; then
     break
   fi
   sleep 0.1
 done
 
-if sv check magic >/dev/null 2>&1 && [ -S /tmp/drmfd.sock ]; then
+if [ -S /tmp/drmfd.sock ]; then
   echo "magic ready after ${SECONDS}s"
 else
   echo "timed out waiting for magic, ${SECONDS}s"

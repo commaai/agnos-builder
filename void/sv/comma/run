@@ -21,18 +21,12 @@ for i in $(seq 1 300); do
   sleep 0.1
 done
 
-# Run as comma user with elevated priority limits
-# ulimit settings come from /etc/security/limits.conf
-exec chpst -u comma:comma:gpu:video /usr/bin/bash -c '
-  ulimit -r 100  # RTPRIO
-  ulimit -e 30   # Nice limit (maps to -10)
-  
-  # Set HOME explicitly (chpst -u does not set it)
-  export HOME=/home/comma
-  
+# Run as comma user with proper groups and PAM limits
+# sudo -u properly inherits groups and applies /etc/security/limits.conf
+exec sudo -u comma /usr/bin/bash -l -c '
   # Start tmux session in background (no exec - we need to keep running)
   /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
-  
+
   # Keep running while tmux session exists
   while tmux has-session -t comma 2>/dev/null; do
     sleep 5

@@ -117,6 +117,8 @@ COPY ./userspace/usr/share/fonts/ /usr/share/fonts/
 # Void-specific overrides for scripts that use systemctl
 # These use sv (runit) instead of systemctl (systemd)
 COPY ./void/files/comma.sh /usr/$USERNAME/comma.sh
+# Replace proprietary abctl (fails on Void) with Python reimplementation
+COPY ./void/files/abctl /usr/bin/abctl
 COPY ./void/files/set_ssh.sh /usr/$USERNAME/set_ssh.sh
 COPY ./void/files/set_adb.sh /usr/$USERNAME/set_adb.sh
 COPY ./void/files/power_drop_monitor.py /usr/$USERNAME/power_drop_monitor.py

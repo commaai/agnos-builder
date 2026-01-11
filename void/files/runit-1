@@ -34,6 +34,9 @@ else
     echo "WARN: /sys/kernel/security does not exist, skipping"
 fi
 
+# debugfs - mount with mode=0755 so non-root users can traverse (needed for msm_vidc)
+mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug -o mode=0755 2>/dev/null || echo "WARN: debugfs not available"
+
 # cgroups - try cgroup2 first, fall back to cgroup1, or skip entirely
 echo "=> Setting up cgroups..."
 mkdir -p /sys/fs/cgroup

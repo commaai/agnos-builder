@@ -3,6 +3,7 @@
 ## Decisions
 - glibc (Qualcomm blobs), runit (no systemd)
 - Deleted: Qt/Weston/armhf, lpac
+- Code style: 2-space indentation
 
 ## Development Workflow
 
