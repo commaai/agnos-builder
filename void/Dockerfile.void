@@ -77,6 +77,10 @@ RUN for svc in \
 COPY ./userspace/firmware/ /lib/firmware/
 COPY ./void/files/wlan_mac.bin /lib/firmware/
 
+# Firmware loading helper (eudev doesn't have built-in firmware loader like systemd-udev)
+COPY ./void/files/firmware-helper.sh /lib/udev/firmware-helper.sh
+COPY ./void/files/50-firmware.rules /etc/udev/rules.d/
+
 # Qualcomm libs (aarch64 only, no armhf)
 COPY ./userspace/libs/ /usr/lib/
 
