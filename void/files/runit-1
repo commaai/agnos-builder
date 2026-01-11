@@ -45,6 +45,19 @@ else
     echo "WARN: cgroups not available, continuing without"
 fi
 
+# Mount /firmware early (before udev) so firmware is available when drivers load
+# The symlink /lib/firmware/updates -> /firmware/image requires /firmware to be mounted
+echo "=> Mounting /firmware early for driver firmware..."
+n=0
+while [ ! -b /dev/sde4 ] && [ $n -lt 50 ]; do
+    sleep 0.1
+    n=$((n + 1))
+done
+if [ -b /dev/sde4 ]; then
+    mount -t vfat -o ro /dev/sde4 /firmware && echo "=> /firmware mounted" || echo "WARN: /firmware mount failed"
+else
+    echo "WARN: /dev/sde4 not ready after 5s, will mount later"
+fi
 echo "=> Loading kernel modules..."
 if [ -x /etc/runit/core-services/02-kmods.sh ]; then
     /etc/runit/core-services/02-kmods.sh || echo "WARN: kmod loading had issues"
@@ -98,12 +111,11 @@ mount_part() {
 }
 
 echo "=> Mounting partitions..."
-
 # Critical partitions (with options: partlabel:mountpoint:options)
+# Note: /firmware (modem_a) is mounted earlier before udev
 for part in \
     "userdata:/data:rw,noatime,nodiratime" \
     "dsp_a:/dsp:ro" \
-    "modem_a:/firmware:ro" \
     "persist:/persist:ro" \
 ; do
     label="${part%%:*}"
