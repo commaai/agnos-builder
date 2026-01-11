@@ -1,0 +1,3 @@
+#!/bin/sh
+# Stop LTE
+/usr/comma/lte/lte.sh stop 2>/dev/null || true
