@@ -44,32 +44,43 @@ if [ "$(uname -m)" = "x86_64" ]; then
   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 fi
 
-# Check agnos-builder Dockerfile
-export DOCKER_BUILDKIT=1
-docker buildx build -f Dockerfile.agnos --check $DIR
+# Build agnos-builder image if needed
+if [ "$SKIP_DOCKER_BUILD" != "true" ] || ! docker image inspect agnos-builder >/dev/null 2>&1; then
+  # Check agnos-builder Dockerfile
+  export DOCKER_BUILDKIT=1
+  docker buildx build -f Dockerfile.agnos --check $DIR
 
-# Start build and create container
-echo "Building agnos-builder docker image"
-BUILD="docker buildx build --load"
-if [ ! -z "$NS" ]; then
-  BUILD="nsc build --load"
+  # Start build and create container
+  echo "Building agnos-builder docker image"
+  BUILD="docker buildx build --load"
+  if [ ! -z "$NS" ]; then
+    BUILD="nsc build --load"
+  fi
+  $BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
+else
+  echo "Skipping agnos-builder build (image already exists)"
 fi
-$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
 echo "Creating agnos-builder container"
 CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
 
-# Check agnos-meta-builder Dockerfile
-docker buildx build --load -f Dockerfile.builder --check $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+# Build agnos-meta-builder image if needed
+if [ "$SKIP_DOCKER_BUILD" != "true" ] || ! docker image inspect agnos-meta-builder >/dev/null 2>&1; then
+  # Check agnos-meta-builder Dockerfile
+  export DOCKER_BUILDKIT=1
+  docker buildx build --load -f Dockerfile.builder --check $DIR \
+    --build-arg UNAME=$(id -nu) \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g)
 
-# Setup mount container for macOS and CI support (namespace.so)
-echo "Building agnos-meta-builder docker image"
-docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+  # Setup mount container for macOS and CI support (namespace.so)
+  echo "Building agnos-meta-builder docker image"
+  docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
+    --build-arg UNAME=$(id -nu) \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g)
+else
+  echo "Skipping agnos-meta-builder build (image already exists)"
+fi
 echo "Starting agnos-meta-builder container"
 MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-meta-builder)
 
