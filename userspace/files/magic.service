@@ -8,6 +8,10 @@ PermissionsStartOnly=true
 ExecStartPre=/bin/bash -c "chgrp gpu /dev/ion /dev/kgsl-3d0"
 ExecStartPre=/bin/bash -c "chmod 660 /dev/ion /dev/kgsl-3d0"
 
+ExecStartPre=/bin/bash -c "mkdir -p /data/misc/display || true"
+ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"
+ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true"
+
 ExecStart=/bin/bash -c "source /etc/profile && /usr/local/venv/bin/python -u /usr/comma/magic.py"
 
 [Install]

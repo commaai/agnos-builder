@@ -55,7 +55,7 @@ def power_screen():
     with open("/sys/class/backlight/panel0-backlight/bl_power", "w") as f:
       f.write("0")
     with open("/sys/class/backlight/panel0-backlight/max_brightness") as f:
-      max_brightness = int(f.read().strip())
+      max_brightness = int((int(f.read().strip()) / 100) * 65)
     with open("/sys/class/backlight/panel0-backlight/brightness", "w") as f:
       f.write(str(max_brightness))
   except Exception:

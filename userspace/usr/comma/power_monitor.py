@@ -5,9 +5,10 @@ import fcntl
 import struct
 import threading
 import subprocess
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 FN = "/var/tmp/power_watchdog"
+PARAM_FILE = "/data/params/d/LastAgnosPowerMonitorShutdown"
 THRESHOLD = timedelta(hours=1.0)
 timestamps = {}
 
@@ -41,6 +42,17 @@ def ssh_active():
   p = subprocess.run("ss | grep ssh", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
   return p.returncode == 0
 
+def write_param():
+  try:
+    os.umask(0)
+    with open(os.open(PARAM_FILE, os.O_CREAT | os.O_WRONLY, 0o777), 'a') as f:
+      f.write(f"SHUTDOWN datetime={datetime.now()}, time.monotonic={time.monotonic()}, {timestamps=}\n")
+      f.flush()
+      os.fdatasync(f.fileno())
+      os.fsync(f.fileno())
+  except Exception as e:
+    print(f"Failed to write param: {e}")
+
 if __name__ == "__main__":
   # we limit worst-case power usage when openpilot isn't managing it,
   # e.g. while building or during setup.
@@ -55,9 +67,13 @@ if __name__ == "__main__":
     if read("/data/params/d/IsEngaged").startswith("1"):
       timestamps['engaged'] = time.monotonic()
 
+    # store a max such that we can't go backwards
+    timestamps['max'] = max(timestamps.values())
+
     # time to shutoff?
     dt = timedelta(seconds=time.monotonic() - max(timestamps.values()))
     if dt > THRESHOLD:
+      write_param()
       os.system("sudo poweroff")
 
     print((THRESHOLD - dt), "until shutdown", f"/ {timestamps=}")

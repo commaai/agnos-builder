@@ -1,11 +1,11 @@
 # agnos-builder
 
-This is the builder repo for AGNOS, our Ubuntu based OS. AGNOS runs on the comma three devkit and [comma 3X](https://comma.ai/shop/comma-3x).
+This is the builder repo for AGNOS, our Ubuntu based OS. AGNOS runs on the comma 3X and [comma four](https://comma.ai/shop/comma-four).
 
 > [!NOTE]
 > Use https://flash.comma.ai if you're looking to reflash your device to a clean factory state.
 
-AGNOS includes all the software to boot and run a comma 3/3X.
+AGNOS includes all the software to boot and run a comma 3X and four.
 This repo builds the two main parts of that (system and kernel) and packages it all up into a "release".
 
 ## Development
@@ -64,7 +64,7 @@ diskutil apfs addVolume <disk> "Case-sensitive APFS" agnos
 
 Join us in the `#dev-agnos` channel on [Discord](https://discord.comma.ai).
 
-A comma 3/3X is helpful for working on AGNOS, but there's still lots of interesting work to do without one.
+A comma device is helpful for working on AGNOS, but there's still lots of interesting work to do without one.
 
 * [Discord](https://discord.comma.ai)
 * [openpilot Docs](https://docs.comma.ai)

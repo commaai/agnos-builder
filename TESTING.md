@@ -6,18 +6,20 @@
 - [ ] Wi-Fi: lists networks and connects
 - [ ] Modem: connects to cell network
 - [ ] Image sizes haven't increased
-- [ ] Sounds work
+- [ ] Sounds work: `pkill -f manager ; /data/openpilot/scripts/disable-powersave.py && aplay /data/openpilot/selfdrive/assets/sounds/engage.wav`
 - [ ] Clean openpilot build: `scons -c && scons -j8`
 - [ ] Factory reset
   - [ ] from openpilot menu
   - [ ] tapping on boot
-  - [ ] corrupt userdata
-- [ ] Color calibration works from /persist/comma/
+  - [ ] corrupt userdata: `dd if=/dev/zero of=/dev/disk/by-partlabel/userdata count=10 bs=1M`
 - [ ] Clean setup: factory reset -> install openpilot -> openpilot works
+- [ ] Color calibration works from `/persist/comma/`
+  - [ ] tizi: `journalctl -u magic | grep 'Successfully setup color correction'`
+  - [ ] mici: `journalctl -u screen_calibration | grep -i 'Successfully setup screen calibration'`
 - [ ] AGNOS update works on warm boot
   - [ ] previous -> new
   - [ ] new -> previous
-- [ ] Display works at 60FPS
+- [ ] Display works at 60FPS: `SHOW_FPS=1 /data/openpilot/selfdrive/ui/ui.py`
 
 ### ABL
 
