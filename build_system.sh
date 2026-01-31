@@ -40,8 +40,8 @@ fi
 
 # Setup qemu multiarch
 if [ "$(uname -m)" = "x86_64" ]; then
-  echo "Registering qemu-user-static"
-  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
+  echo "Registering emulator"
+  docker run --rm --privileged tonistiigi/binfmt --install all
 fi
 
 # Check agnos-builder Dockerfile
