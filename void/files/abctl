@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""
+Minimal A/B boot control for Qualcomm devices.
+Replaces proprietary abctl which fails on Void Linux.
+
+References:
+  https://android.googlesource.com/device/google/crosshatch/+/master/gpt-utils/gpt-utils.h
+  https://android.googlesource.com/platform/hardware/interfaces/+/refs/heads/master/boot/1.1/default/boot_control/libboot_control.cpp
+  https://wiki.postmarketos.org/wiki/Android_AB_Slots
+"""
+import struct
+import sys
+import os
+import zlib
+
+SECTOR_SIZE = 4096
+
+# GPT attribute bits 48-63 (Qualcomm layout):
+#   48-51: Priority (0-15, higher boots first)
+#   52-55: Tries remaining (0-15)
+#   56: Successful boot
+#   57: Unbootable
+ATTR_SUCCESS = 1 << 56
+ATTR_UNBOOTABLE = 1 << 57
+ATTR_PRIORITY_MASK = 0xF << 48
+ATTR_TRIES_MASK = 0xF << 52
+
+def get_current_slot():
+  with open('/proc/cmdline') as f:
+    for part in f.read().split():
+      if part.startswith('androidboot.slot_suffix='):
+        return part.split('=')[1]
+  raise RuntimeError("Could not determine boot slot")
+
+
+def modify_gpt_attributes(device, slot, modify_fn):
+  """Read GPT, modify matching partition attributes, write back."""
+  with open(device, 'r+b') as f:
+    # Read GPT header
+    f.seek(SECTOR_SIZE)
+    header = bytearray(f.read(SECTOR_SIZE))
+    if header[:8] != b'EFI PART':
+      raise RuntimeError(f"Invalid GPT on {device}")
+
+    part_lba = struct.unpack('<Q', header[72:80])[0]
+    num_entries = struct.unpack('<I', header[80:84])[0]
+    entry_size = struct.unpack('<I', header[84:88])[0]
+
+    # Read and modify partition entries
+    f.seek(part_lba * SECTOR_SIZE)
+    entries = bytearray(f.read(num_entries * entry_size))
+
+    modified = False
+    for i in range(num_entries):
+      off = i * entry_size
+      if entries[off:off+16] == b'\x00' * 16:
+        continue
+      name = entries[off+56:off+128].decode('utf-16-le').rstrip('\x00')
+      if name.endswith(slot):
+        attrs = struct.unpack('<Q', entries[off+48:off+56])[0]
+        new_attrs = modify_fn(attrs)
+        if new_attrs != attrs:
+          struct.pack_into('<Q', entries, off+48, new_attrs)
+          modified = True
+
+    if not modified:
+      return
+
+    # Update CRCs and write back
+    entries_crc = zlib.crc32(entries) & 0xFFFFFFFF
+    struct.pack_into('<I', header, 88, entries_crc)
+    struct.pack_into('<I', header, 16, 0)
+    header_size = struct.unpack('<I', header[12:16])[0]
+    struct.pack_into('<I', header, 16, zlib.crc32(header[:header_size]) & 0xFFFFFFFF)
+
+    f.seek(part_lba * SECTOR_SIZE)
+    f.write(entries)
+    f.seek(SECTOR_SIZE)
+    f.write(header)
+    f.flush()
+    os.fsync(f.fileno())
+
+
+def main():
+  if len(sys.argv) < 2:
+    print("Usage: abctl --boot_slot|--set_success|--set_active <0|1>|--set_unbootable <0|1>")
+    sys.exit(1)
+
+  cmd = sys.argv[1]
+
+  if cmd == '--boot_slot':
+    print(get_current_slot())
+
+  elif cmd == '--set_success':
+    modify_gpt_attributes('/dev/sde', get_current_slot(), lambda a: a | ATTR_SUCCESS)
+
+  elif cmd == '--set_active' and len(sys.argv) > 2:
+    slot = '_a' if sys.argv[2] == '0' else '_b'
+    other = '_b' if slot == '_a' else '_a'
+    # Set priority=15, tries=7, clear success/unbootable for active slot
+    modify_gpt_attributes('/dev/sde', slot,
+      lambda a: (a & ~(ATTR_PRIORITY_MASK | ATTR_TRIES_MASK | ATTR_SUCCESS | ATTR_UNBOOTABLE))
+                | (15 << 48) | (7 << 52))
+    # Set priority=0 for inactive slot
+    modify_gpt_attributes('/dev/sde', other, lambda a: a & ~ATTR_PRIORITY_MASK)
+
+  elif cmd == '--set_unbootable' and len(sys.argv) > 2:
+    slot = '_a' if sys.argv[2] == '0' else '_b'
+    modify_gpt_attributes('/dev/sde', slot, lambda a: a | ATTR_UNBOOTABLE)
+
+  else:
+    print(f"Unknown: {cmd}", file=sys.stderr)
+    sys.exit(1)
+
+
+if __name__ == '__main__':
+  main()

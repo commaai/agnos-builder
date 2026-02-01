@@ -1,0 +1,34 @@
+#!/bin/sh
+# comma - main openpilot launcher (runs as comma user in tmux)
+exec 2>&1
+
+# Wait for filesystem to be ready
+sv check fs_setup > /dev/null || exit 1
+
+# Wait for fs_setup to finish mounting /home overlay
+for i in $(seq 1 120); do
+  if [ -f /run/fs_setup.ready ] && grep -q 'overlay /home' /proc/mounts 2>/dev/null; then
+    break
+  fi
+  sleep 0.5
+done
+
+# Wait for magic/graphics to be ready before launching tmux/setup
+for i in $(seq 1 300); do
+  if sv check magic >/dev/null 2>&1 && [ -S /tmp/drmfd.sock ]; then
+    break
+  fi
+  sleep 0.1
+done
+
+# Run as comma user with proper groups and PAM limits
+# sudo -u properly inherits groups and applies /etc/security/limits.conf
+exec sudo -u comma /usr/bin/bash -l -c '
+  # Start tmux session in background (no exec - we need to keep running)
+  /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
+
+  # Keep running while tmux session exists
+  while tmux has-session -t comma 2>/dev/null; do
+    sleep 5
+  done
+'

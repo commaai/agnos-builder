@@ -1,0 +1,8 @@
+#!/bin/sh
+# cnss_daemon - Qualcomm WiFi daemon
+exec 2>&1
+
+# Wait for init-qcom to set up wifi
+sv check init-qcom > /dev/null || exit 1
+
+exec /usr/sbin/cnss_daemon -n
