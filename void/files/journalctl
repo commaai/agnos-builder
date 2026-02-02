@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""Shim that mimics 'journalctl -f -o json' using syslog for Void Linux."""
+import subprocess
+import re
+import json
+import time
+import sys
+
+def main():
+  # Only support the mode openpilot uses: journalctl -f -o json
+  if '-f' not in sys.argv or 'json' not in ' '.join(sys.argv):
+    sys.exit(f"Unsupported args: {sys.argv[1:]}")
+
+  proc = subprocess.Popen(['tail', '-F', '/var/log/messages'], stdout=subprocess.PIPE, text=True)
+  # rsyslog format: "2026-02-02T21:37:49.681865+00:00 hostname tag[pid]: message"
+  pattern = re.compile(r'(\S+)\s+(\S+)\s+([^\[:]+)(?:\[(\d+)\])?:\s*(.*)')
+
+  for line in proc.stdout:
+    m = pattern.match(line.strip())
+    if not m:
+      continue
+
+    entry = {
+      '__REALTIME_TIMESTAMP': str(int(time.time() * 1_000_000)),
+      'MESSAGE': m.group(5),
+      'SYSLOG_IDENTIFIER': m.group(3).strip(),
+      '_HOSTNAME': m.group(2),
+    }
+    if m.group(4):
+      entry['_PID'] = m.group(4)
+
+    print(json.dumps(entry), flush=True)
+
+if __name__ == '__main__':
+  main()

@@ -109,6 +109,8 @@ COPY ./userspace/files/ssh_config /etc/ssh/
 COPY ./userspace/files/sshd_config /etc/ssh/
 COPY ./userspace/files/logrotate.conf /etc/
 COPY ./userspace/files/rsyslog /etc/logrotate.d/
+# Make logs readable by comma user (for journalctl shim)
+RUN sed -i 's/FileCreateMode 0640/FileCreateMode 0644/' /etc/rsyslog.conf
 
 # comma userspace tools
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
@@ -119,11 +121,13 @@ COPY ./userspace/usr/share/fonts/ /usr/share/fonts/
 COPY ./void/files/comma.sh /usr/$USERNAME/comma.sh
 # Replace proprietary abctl (fails on Void) with Python reimplementation
 COPY ./void/files/abctl /usr/bin/abctl
+# journalctl shim - openpilot's journald.py expects systemd's journalctl
+COPY ./void/files/journalctl /usr/bin/journalctl
 COPY ./void/files/set_ssh.sh /usr/$USERNAME/set_ssh.sh
 COPY ./void/files/set_adb.sh /usr/$USERNAME/set_adb.sh
 COPY ./void/files/power_drop_monitor.py /usr/$USERNAME/power_drop_monitor.py
 COPY ./void/files/fs_setup.sh /usr/$USERNAME/fs_setup.sh
-RUN chmod +x /usr/$USERNAME/comma.sh /usr/$USERNAME/set_ssh.sh /usr/$USERNAME/set_adb.sh /usr/$USERNAME/fs_setup.sh
+RUN chmod +x /usr/$USERNAME/comma.sh /usr/$USERNAME/set_ssh.sh /usr/$USERNAME/set_adb.sh /usr/$USERNAME/fs_setup.sh /usr/bin/journalctl
 
 # Custom runit stage 1 with verbose output and mount fixes
 COPY ./void/files/runit-1 /etc/runit/1
