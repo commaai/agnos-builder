@@ -184,6 +184,14 @@ RUN ln -sf /usr/lib/libjson-c.so.5 /usr/lib/libjson-c.so.2
 # raylib wheel needs libffi.so.6 but Void has newer version
 RUN ln -sf $(ls /usr/lib/libffi.so.* 2>/dev/null | grep -v '.so.6' | head -1) /usr/lib/libffi.so.6
 
+# capnproto: Void has 1.1.0 but openpilot release was built against 1.0.2
+# Create symlinks so openpilot's binaries and pycapnp can find the libraries
+RUN ln -sf /usr/lib64/libcapnp-1.1.0.so /usr/lib64/libcapnp-1.0.2.so && \
+    ln -sf /usr/lib64/libcapnp-rpc-1.1.0.so /usr/lib64/libcapnp-rpc-1.0.2.so && \
+    ln -sf /usr/lib64/libcapnpc-1.1.0.so /usr/lib64/libcapnpc-1.0.2.so && \
+    ln -sf /usr/lib64/libkj-1.1.0.so /usr/lib64/libkj-1.0.2.so && \
+    ln -sf /usr/lib64/libkj-async-1.1.0.so /usr/lib64/libkj-async-1.0.2.so
+
 # ldconfig
 RUN ldconfig
 

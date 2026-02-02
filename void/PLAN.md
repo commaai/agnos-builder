@@ -55,6 +55,11 @@ once we work on one and finish it, cross it off.
 8. setup a good journalctl/logging replacement
 9. get ADB working
 
+## Fixes Applied
+
+### capnproto version mismatch
+Void has capnproto 1.1.0 but openpilot release was built against 1.0.2. Create symlinks in /usr/lib64/ from 1.0.2 -> 1.1.0 for libcapnp, libcapnp-rpc, libcapnpc, libkj, libkj-async.
+
 ## Directory Structure
 
 ```
