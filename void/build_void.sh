@@ -121,6 +121,9 @@ set_network_stuff() {
   # Docker mounts resolv.conf during build so we do this after export
   bash -c "rm -f etc/resolv.conf && ln -s /run/resolv.conf etc/resolv.conf"
 
+  # Void's iputils doesn't set CAP_NET_RAW on ping, so non-root gets "Operation not permitted"
+  bash -c "setcap cap_net_raw+ep bin/iputils-ping"
+
   # Write build info
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
   bash -c "printf \"$GIT_HASH\n$DATETIME\n\" > BUILD"

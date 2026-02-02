@@ -51,7 +51,7 @@ once we work on one and finish it, cross it off.
 4. ~~the tmux session (from the comma service) doesn't have our tmux.conf applied~~ (fixed: HOME=/home/comma in comma service)
 5. ~~get graphics (i.e. magic) working~~ (fixed: bypass libglvnd, use libEGL_adreno.so directly)
 6. replace closed blobs graphics stack with freedreno
-7. fix DNS (e.g. make curl google.com work)
+7. ~~fix DNS (e.g. make ping google.com work)~~ (fixed: ping needed CAP_NET_RAW capability)
 8. setup a good journalctl/logging replacement
 9. get ADB working
 
@@ -62,6 +62,9 @@ Void has capnproto 1.1.0 but openpilot release was built against 1.0.2. Create s
 
 ### EGL extension functions
 openpilot's egl.py accesses `eglCreateImageKHR` from libEGL.so via cffi. libglvnd's dispatcher doesn't export extension functions (must use eglGetProcAddress). Replace libEGL.so.1.1.0 with libEGL_adreno.so which exports eglCreateImageKHR directly.
+
+### ping capability
+Void's iputils package doesn't set CAP_NET_RAW on ping by default, causing "Operation not permitted" for non-root users. Fixed with `setcap cap_net_raw+ep bin/iputils-ping` in build_void.sh.
 
 ## Directory Structure
 
