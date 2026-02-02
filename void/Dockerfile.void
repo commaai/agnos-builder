@@ -248,9 +248,14 @@ RUN yes | xbps-install -Sy mesa-dri
 # This would eliminate all proprietary GPU dependencies
 
 # Fix EGL/GBM library symlinks for Adreno GPU
-# The display blobs set libEGL.so -> libEGL_adreno.so but we need GLVND dispatcher
+# openpilot accesses eglCreateImageKHR from libEGL.so via cffi, but glvnd doesn't
+# export extension functions (must use eglGetProcAddress). Bypass glvnd dispatcher.
+# Old: just symlinked to glvnd (libEGL.so.1.1.0 from mesa)
+#   ln -sf libEGL.so.1.1.0 /usr/lib/libEGL.so
+# New: replace glvnd with libEGL_adreno.so which exports eglCreateImageKHR
 # Also replace libwayland-egl with Qualcomm's version (has WlEglWindow* symbols)
-RUN ln -sf libEGL.so.1.1.0 /usr/lib/libEGL.so && \
+RUN cp /usr/lib/libEGL_adreno.so /usr/lib/libEGL.so.1.1.0 && \
+    ln -sf libEGL.so.1.1.0 /usr/lib/libEGL.so && \
     ln -sf libEGL.so.1.1.0 /usr/lib/libEGL.so.1 && \
     rm -f /usr/lib/libEGL.so.1.0 /usr/lib/libEGL.so.1.0.0 && \
     rm -f /usr/lib/libwayland-egl.so.1 /usr/lib/libwayland-egl.so.1.* && \

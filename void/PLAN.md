@@ -49,7 +49,7 @@ once we work on one and finish it, cross it off.
 2. ~~why does udev settle timeout? can we fix it?~~ (fixed: 99-gpio.rules was running expensive find on every gpio event)
 3. get wlan up and working
 4. ~~the tmux session (from the comma service) doesn't have our tmux.conf applied~~ (fixed: HOME=/home/comma in comma service)
-5. get graphics (i.e. magic) working
+5. ~~get graphics (i.e. magic) working~~ (fixed: bypass libglvnd, use libEGL_adreno.so directly)
 6. replace closed blobs graphics stack with freedreno
 7. fix DNS (e.g. make curl google.com work)
 8. setup a good journalctl/logging replacement
@@ -59,6 +59,9 @@ once we work on one and finish it, cross it off.
 
 ### capnproto version mismatch
 Void has capnproto 1.1.0 but openpilot release was built against 1.0.2. Create symlinks in /usr/lib64/ from 1.0.2 -> 1.1.0 for libcapnp, libcapnp-rpc, libcapnpc, libkj, libkj-async.
+
+### EGL extension functions
+openpilot's egl.py accesses `eglCreateImageKHR` from libEGL.so via cffi. libglvnd's dispatcher doesn't export extension functions (must use eglGetProcAddress). Replace libEGL.so.1.1.0 with libEGL_adreno.so which exports eglCreateImageKHR directly.
 
 ## Directory Structure
 
