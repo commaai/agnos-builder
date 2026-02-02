@@ -151,9 +151,10 @@ RUN mkdir -p /usr/lib/firmware /usr/share/mobile-broadband-provider-info
 COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware/
 COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
 
-# MOTD
-RUN mkdir -p /etc/update-motd.d
+# MOTD - profile.d runs update-motd.d scripts into /run/motd, pam_motd displays it
 COPY ./userspace/motd/ /etc/update-motd.d/
+COPY ./void/files/update-motd.sh /etc/profile.d/update-motd.sh
+RUN sed -i 's|motd=/etc/motd|motd=/run/motd|' /etc/pam.d/system-login
 
 # Hourly logrotate cron job
 COPY ./void/files/logrotate /etc/cron.hourly/
