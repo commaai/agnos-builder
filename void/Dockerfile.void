@@ -344,11 +344,9 @@ RUN echo '[connection]' > /usr/lib/NetworkManager/system-connections/usb0.nmconn
 # DEBUG: Add usb0 IP configuration to USB initscript (after UDC binding)
 RUN sed -i '/echo \$1 > UDC/a\\tip addr add 192.168.7.1/24 dev usb0 2>/dev/null || true\n\tip link set usb0 up' /usr/bin/usb/compositions/9024
 
-# OpenCL ICD loader - ffmpeg needs versioned OpenCL symbols (clCreateContext@OPENCL_1.0)
-# Qualcomm's libOpenCL doesn't have version tags, so use ocl-icd as the loader
-RUN mv /usr/lib/libOpenCL.so.1.0.0 /usr/lib/libQCOpenCL.so.1.0.0 && \
-    xbps-install -y ocl-icd && \
-    echo '/usr/lib/libQCOpenCL.so.1.0.0' > /etc/OpenCL/vendors/qcom.icd && \
-    ldconfig
+# OpenCL: Use Qualcomm's libOpenCL directly (like Ubuntu AGNOS does)
+# Don't use ocl-icd - it breaks tinygrad's QCOM backend which needs direct GPU pointer access
+# ffmpeg may not get OpenCL acceleration (needs versioned symbols) but modeld is more critical
+RUN ldconfig
 
 # Note: /data mount is handled in void/files/runit-1
