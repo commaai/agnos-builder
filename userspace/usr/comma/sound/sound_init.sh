@@ -20,6 +20,3 @@ else
   /usr/comma/sound/tinymix set "MultiMedia1 Mixer TERT_MI2S_TX" 1
   /usr/comma/sound/tinymix set "TERT_MI2S_TX Channels" Two
 fi
-
-# setup the amplifier registers
-/usr/local/venv/bin/python /usr/comma/sound/amplifier.py

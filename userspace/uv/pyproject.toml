@@ -11,8 +11,6 @@ dependencies = [
 
   # hardware.py
   "dbus-python",
-  # amplifier.py
-  "smbus2",
 
   # pandad
   "libusb1 == 3.1.0", # recent versions segfault on comma three
