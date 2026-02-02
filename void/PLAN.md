@@ -47,7 +47,7 @@ this is a running list of tasks. do not work on one until i tell you to do so.
 once we work on one and finish it, cross it off.
 1. ~~get USB SSH networking reliable~~ (fixed: /dev/socket dir creation in leprop, set_ssh.sh always enables SSH)
 2. ~~why does udev settle timeout? can we fix it?~~ (fixed: 99-gpio.rules was running expensive find on every gpio event)
-3. get wlan up and working
+3. ~~get wlan up and working~~ (fixed)
 4. ~~the tmux session (from the comma service) doesn't have our tmux.conf applied~~ (fixed: HOME=/home/comma in comma service)
 5. ~~get graphics (i.e. magic) working~~ (fixed: bypass libglvnd, use libEGL_adreno.so directly)
 6. replace closed blobs graphics stack with freedreno
@@ -65,6 +65,9 @@ openpilot's egl.py accesses `eglCreateImageKHR` from libEGL.so via cffi. libglvn
 
 ### ping capability
 Void's iputils package doesn't set CAP_NET_RAW on ping by default, causing "Operation not permitted" for non-root users. Fixed with `setcap cap_net_raw+ep bin/iputils-ping` in build_void.sh.
+
+### ffmpeg OpenCL link errors
+Void's ffmpeg6 package is compiled with OpenCL support, requiring versioned symbols (`clCreateContext@OPENCL_1.0`) from ocl-icd. Qualcomm's libOpenCL doesn't provide versioned symbols and its ICD interface is broken (`clIcdGetPlatformIDsKHR` returns CL_INVALID_VALUE). Fix: compile ffmpeg 4.2.2 from source with `--disable-opencl`, removed ffmpeg6/ffmpeg-devel/ocl-icd from xbps packages.
 
 ## Directory Structure
 

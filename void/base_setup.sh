@@ -74,8 +74,6 @@ xbps-install -y \
   net-tools \
   NetworkManager \
   nload \
-  ocl-icd \
-  ocl-icd-devel \
   opencl-headers \
   openssl-devel \
   portaudio-devel \
@@ -99,8 +97,8 @@ xbps-install -y \
   zstd \
   capnproto \
   capnproto-devel \
-  ffmpeg6 \
-  ffmpeg-devel \
+  x264-devel \
+  nasm \
   libqmi \
   libqmi-devel \
   ModemManager \

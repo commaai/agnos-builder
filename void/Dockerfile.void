@@ -19,6 +19,10 @@ ARG USERNAME=comma
 COPY ./void/base_setup.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 
+# Compile ffmpeg without OpenCL (Qualcomm's libOpenCL doesn't support ICD interface)
+COPY ./void/compile-ffmpeg.sh /tmp/agnos/
+RUN /tmp/agnos/compile-ffmpeg.sh
+
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
@@ -344,9 +348,9 @@ RUN echo '[connection]' > /usr/lib/NetworkManager/system-connections/usb0.nmconn
 # DEBUG: Add usb0 IP configuration to USB initscript (after UDC binding)
 RUN sed -i '/echo \$1 > UDC/a\\tip addr add 192.168.7.1/24 dev usb0 2>/dev/null || true\n\tip link set usb0 up' /usr/bin/usb/compositions/9024
 
-# OpenCL: Use Qualcomm's libOpenCL directly (like Ubuntu AGNOS does)
-# Don't use ocl-icd - it breaks tinygrad's QCOM backend which needs direct GPU pointer access
-# ffmpeg may not get OpenCL acceleration (needs versioned symbols) but modeld is more critical
+# OpenCL: Use Qualcomm's libOpenCL directly (no ICD loader)
+# Qualcomm's lib has clIcdGetPlatformIDsKHR but it returns CL_INVALID_VALUE
+# ffmpeg compiled without OpenCL to avoid versioned symbol requirement
 RUN ldconfig
 
 # Note: /data mount is handled in void/files/runit-1
