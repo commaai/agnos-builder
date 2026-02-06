@@ -1,35 +1,109 @@
 #!/usr/bin/env python3
-"""Shim that mimics 'journalctl -f -o json' using syslog for Void Linux."""
+"""journalctl shim for Void Linux (runit/rsyslog, no systemd).
+
+Translates journalctl arguments to rsyslog queries on /var/log/messages.
+Supports the modes openpilot actually uses:
+  journalctl -f -o json          (system/journald.py - runtime log streaming)
+  journalctl -o short-monotonic  (system/loggerd/bootlog.cc - boot log capture)
+"""
 import subprocess
 import re
 import json
-import time
 import sys
+import time
+
+LOG_FILE = '/var/log/messages'
+# rsyslog format: "2026-02-02T21:37:49.681865+00:00 hostname tag[pid]: message"
+SYSLOG_RE = re.compile(r'(\S+)\s+(\S+)\s+([^\[:]+)(?:\[(\d+)\])?:\s*(.*)')
+
+
+def parse_line(line):
+  m = SYSLOG_RE.match(line.strip())
+  if not m:
+    return None
+  return {
+    'timestamp': m.group(1),
+    'hostname': m.group(2),
+    'tag': m.group(3).strip(),
+    'pid': m.group(4),  # may be None
+    'message': m.group(5),
+  }
+
+
+def format_json(parsed):
+  entry = {
+    '__REALTIME_TIMESTAMP': str(int(time.time() * 1_000_000)),
+    'MESSAGE': parsed['message'],
+    'SYSLOG_IDENTIFIER': parsed['tag'],
+    '_HOSTNAME': parsed['hostname'],
+    'PRIORITY': '6',
+  }
+  if parsed['pid']:
+    entry['_PID'] = parsed['pid']
+  return json.dumps(entry)
+
+
+def format_short_monotonic(parsed):
+  # Real journalctl format: "[    5.432109] hostname tag[pid]: message"
+  # We don't have monotonic timestamps, use wall clock time instead
+  return f"{parsed['timestamp']} {parsed['hostname']} {parsed['tag']}[{parsed['pid'] or ''}]: {parsed['message']}"
+
+
+def format_cat(parsed):
+  return parsed['message']
+
 
 def main():
-  # Only support the mode openpilot uses: journalctl -f -o json
-  if '-f' not in sys.argv or 'json' not in ' '.join(sys.argv):
-    sys.exit(f"Unsupported args: {sys.argv[1:]}")
+  args = sys.argv[1:]
+  follow = '-f' in args
+  output_format = 'short'
+  unit_filter = None
 
-  proc = subprocess.Popen(['tail', '-F', '/var/log/messages'], stdout=subprocess.PIPE, text=True)
-  # rsyslog format: "2026-02-02T21:37:49.681865+00:00 hostname tag[pid]: message"
-  pattern = re.compile(r'(\S+)\s+(\S+)\s+([^\[:]+)(?:\[(\d+)\])?:\s*(.*)')
+  i = 0
+  while i < len(args):
+    if args[i] == '-o' and i + 1 < len(args):
+      output_format = args[i + 1]
+      i += 2
+    elif args[i] == '-u' and i + 1 < len(args):
+      unit_filter = args[i + 1]
+      i += 2
+    else:
+      i += 1
 
-  for line in proc.stdout:
-    m = pattern.match(line.strip())
-    if not m:
-      continue
+  formatters = {
+    'json': format_json,
+    'short-monotonic': format_short_monotonic,
+    'cat': format_cat,
+    'short': format_short_monotonic,
+  }
+  formatter = formatters.get(output_format)
+  if not formatter:
+    print(f"journalctl shim: unsupported format '{output_format}'", file=sys.stderr)
+    sys.exit(1)
 
-    entry = {
-      '__REALTIME_TIMESTAMP': str(int(time.time() * 1_000_000)),
-      'MESSAGE': m.group(5),
-      'SYSLOG_IDENTIFIER': m.group(3).strip(),
-      '_HOSTNAME': m.group(2),
-    }
-    if m.group(4):
-      entry['_PID'] = m.group(4)
+  if follow:
+    proc = subprocess.Popen(['tail', '-F', LOG_FILE], stdout=subprocess.PIPE, text=True)
+    source = proc.stdout
+  else:
+    source = open(LOG_FILE, 'r')
 
-    print(json.dumps(entry), flush=True)
+  try:
+    for line in source:
+      parsed = parse_line(line)
+      if not parsed:
+        continue
+      if unit_filter and parsed['tag'] != unit_filter:
+        continue
+      print(formatter(parsed), flush=True)
+  except KeyboardInterrupt:
+    pass
+  finally:
+    if follow:
+      proc.terminate()
+      proc.wait()
+    else:
+      source.close()
+
 
 if __name__ == '__main__':
   main()
