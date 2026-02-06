@@ -1,2 +1,3 @@
-SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c 'find -L /sys/class/gpio/ -maxdepth 2 -exec chown root:gpio {} \; -exec chmod 770 {} \; || true'"
-SUBSYSTEM=="gpio", KERNEL=="gpiochip[0]", GROUP="gpio", MODE="660"
+# Set permissions on GPIO devices - use udev's built-in mechanism instead of find
+SUBSYSTEM=="gpio", GROUP="gpio", MODE="0660"
+SUBSYSTEM=="gpio*", KERNEL=="gpiochip*", GROUP="gpio", MODE="0660"
