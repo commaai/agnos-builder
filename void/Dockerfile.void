@@ -307,10 +307,10 @@ RUN echo ttyMSM0 >> /etc/securetty
 RUN usermod -p '$6$agnosdev$tQ10U3e/BwHhW2Jc0N2nCo5wd9U616KhZu8ZgC4CoyhUX2ui29zIWXKXkEwCvV8yB3dYEhsMKrmA8dJnD6Y2./' comma && \
     usermod -p '$6$agnosdev$tQ10U3e/BwHhW2Jc0N2nCo5wd9U616KhZu8ZgC4CoyhUX2ui29zIWXKXkEwCvV8yB3dYEhsMKrmA8dJnD6Y2./' root
 
-# DEBUG: USB NCM gadget instead of RNDIS (RNDIS needs GSI/IPA driver)
-# Also disable ffs.adb - it breaks UDC binding when ADB isn't ready
-RUN sed -i 's/gsi.rndis/ncm.0/g' /usr/bin/usb/compositions/9024 && \
-    sed -i 's/.*ffs.adb.*configs.*/#\0/' /usr/bin/usb/compositions/9024
+# USB gadget: disable ffs.adb in boot-time 9024 script (set_adb.sh handles it later)
+# USB networking (NCM) disabled — use WiFi. See set_adb_ncm.sh to re-enable.
+# RUN sed -i 's/gsi.rndis/ncm.0/g' /usr/bin/usb/compositions/9024
+RUN sed -i 's/.*ffs.adb.*configs.*/#\0/' /usr/bin/usb/compositions/9024
 
 # DEBUG: SSH setup - sshd_config expects keys in /data/etc/ssh/
 # The /data partition is mounted at runtime from /dev/sda12
@@ -332,21 +332,19 @@ RUN echo '#!/bin/sh' > /etc/sv/sshd/run && \
 # DEBUG: Fix iptables to allow SSH (insert before wwan0 DROP rule)
 RUN sed -i '/-A INPUT -i wwan0 -j DROP/i -A INPUT -p tcp --dport 22 -j ACCEPT' /etc/iptables/rules.v4 || true
 
-# DEBUG: USB network interface config
-RUN echo '[connection]' > /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo 'id=usb0' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo 'type=ethernet' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo 'interface-name=usb0' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo 'autoconnect=true' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo '[ipv4]' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo 'method=manual' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo 'addresses=192.168.7.1/24' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo '[ipv6]' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    echo 'method=disabled' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
-    chmod 600 /usr/lib/NetworkManager/system-connections/usb0.nmconnection
-
-# DEBUG: Add usb0 IP configuration to USB initscript (after UDC binding)
-RUN sed -i '/echo \$1 > UDC/a\\tip addr add 192.168.7.1/24 dev usb0 2>/dev/null || true\n\tip link set usb0 up' /usr/bin/usb/compositions/9024
+# USB networking disabled — use WiFi. See void/files/set_adb_ncm.sh to re-enable.
+# RUN echo '[connection]' > /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo 'id=usb0' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo 'type=ethernet' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo 'interface-name=usb0' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo 'autoconnect=true' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo '[ipv4]' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo 'method=manual' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo 'addresses=192.168.7.1/24' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo '[ipv6]' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     echo 'method=disabled' >> /usr/lib/NetworkManager/system-connections/usb0.nmconnection && \
+#     chmod 600 /usr/lib/NetworkManager/system-connections/usb0.nmconnection
+# RUN sed -i '/echo \$1 > UDC/a\\tip addr add 192.168.7.1/24 dev usb0 2>/dev/null || true\n\tip link set usb0 up' /usr/bin/usb/compositions/9024
 
 # OpenCL: Use Qualcomm's libOpenCL directly (no ICD loader)
 # Qualcomm's lib has clIcdGetPlatformIDsKHR but it returns CL_INVALID_VALUE

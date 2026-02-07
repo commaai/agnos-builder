@@ -1,73 +1,54 @@
 #!/bin/bash
-# Void Linux version - uses sv instead of systemctl
+# Void Linux version of set_adb.sh (based on userspace/usr/comma/set_adb.sh)
+# Adds/removes ADB function from the existing USB gadget set up by the
+# 9024 composition script at boot. Does NOT recreate the gadget.
+# See set_adb_ncm.sh for version with USB networking.
 
-setup() {
-  # Check if /config is already mounted
-  if ! mountpoint -q /config; then
-    sudo mount -t configfs none /config
-  else
-    echo "/config is already mounted."
-  fi
+GADGET=/sys/kernel/config/usb_gadget/g1
 
-  # Create USB gadget directory structure
-  sudo mkdir -p /config/usb_gadget/g1
-  cd /config/usb_gadget/g1
-  sudo mkdir -p strings/0x409
-  sudo mkdir -p configs/c.1/strings/0x409
-  sudo mkdir -p functions/ncm.0
+enable_adb() {
+  cd $GADGET
 
-  # Set Vendor and Product ID
-  echo 0x04D8 | sudo tee idVendor
-  echo 0x1234 | sudo tee idProduct
+  # Unbind gadget
+  echo > UDC 2>/dev/null || true
 
-  # Set strings
-  echo "$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')" | sudo tee strings/0x409/serialnumber
-  echo "comma.ai" | sudo tee strings/0x409/manufacturer
-  echo "Linux USB Gadget" | sudo tee strings/0x409/product
-  echo 250 | sudo tee configs/c.1/MaxPower
+  # Mount functionfs for ADB if needed
+  mkdir -p /dev/usb-ffs/adb
+  mountpoint -q /dev/usb-ffs/adb || mount -t functionfs adb /dev/usb-ffs/adb
 
-  # Create ADB function
-  sudo mkdir -p functions/ffs.adb
-  sudo mkdir -p /dev/usb-ffs/adb
-  if ! mountpoint -q /dev/usb-ffs/adb; then
-    sudo mount -t functionfs adb /dev/usb-ffs/adb
-  else
-    echo "/dev/usb-ffs/adb is already mounted"
-  fi
+  # Start adbd and wait for it to open ep0 (creates ep1/ep2)
+  sv up adbd
+  for i in $(seq 1 10); do
+    [ -e /dev/usb-ffs/adb/ep1 ] && break
+    sleep 0.5
+  done
 
-  # Link both functions to configuration
-  echo "NCM+ADB" | sudo tee configs/c.1/strings/0x409/configuration
-  sudo rm -f configs/c.1/ncm.0
-  sudo rm -f configs/c.1/ffs.adb
-  sudo ln -s functions/ncm.0 configs/c.1/
-  sudo ln -s functions/ffs.adb configs/c.1/
+  # Add ADB function to gadget config
+  ln -s functions/ffs.adb configs/c.1/ffs.adb 2>/dev/null || true
+
+  # Rebind gadget
+  echo a600000.dwc3 > UDC
 }
 
-start() {
-  setprop service.adb.tcp.port -1
+disable_adb() {
+  cd $GADGET
 
-  cd /config/usb_gadget/g1
-  echo "a600000.dwc3" | sudo tee UDC
-}
+  # Unbind gadget
+  echo > UDC 2>/dev/null || true
 
-stop() {
-  if [ -d "/config/usb_gadget/g1" ]; then
-    cd /config/usb_gadget/g1
-    echo "" | sudo tee UDC
-  fi
+  # Remove ADB function, stop adbd
+  rm -f configs/c.1/ffs.adb 2>/dev/null
+  sv down adbd
+
+  # Rebind gadget without ADB
+  echo a600000.dwc3 > UDC 2>/dev/null || true
 }
 
 ADB_PARAM="/data/params/d/AdbEnabled"
 if [ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]; then
   echo "Enabling ADB"
-
-  setup
-  sv up adbd
-  sleep 1  # adbd does some setup before we can enable the gadget
-  start
+  enable_adb
 else
   echo "Disabling ADB"
-
-  sv down adbd
-  stop
+  disable_adb
 fi
