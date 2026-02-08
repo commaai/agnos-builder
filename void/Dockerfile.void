@@ -19,6 +19,15 @@ ARG USERNAME=comma
 COPY ./void/base_setup.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 
+# Build Python 3.12.7 from void-packages (Void ships 3.14 which is too new)
+COPY ./void/compile-python.sh /tmp/agnos/
+RUN /tmp/agnos/compile-python.sh
+
+# Create venv with system Python 3.12.7 (must be after compile-python.sh)
+ARG XDG_DATA_HOME="/usr/local"
+ENV PATH="/root/.local/bin:$XDG_DATA_HOME/venv/bin:$PATH"
+RUN uv venv $XDG_DATA_HOME/venv --seed --python-preference only-system --python=3.12
+
 # Compile ffmpeg without OpenCL (Qualcomm's libOpenCL doesn't support ICD interface)
 COPY ./void/compile-ffmpeg.sh /tmp/agnos/
 RUN /tmp/agnos/compile-ffmpeg.sh
@@ -49,7 +58,6 @@ RUN cd /tmp/agnos/irsc_util && \
 
 # Python packages via uv
 ARG XDG_DATA_HOME="/usr/local"
-ENV PATH="/root/.local/bin:$XDG_DATA_HOME/venv/bin:$PATH"
 COPY ./userspace/uv /tmp/agnos/uv
 RUN cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \

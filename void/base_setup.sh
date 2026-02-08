@@ -79,9 +79,6 @@ xbps-install -y \
   portaudio-devel \
   ppp \
   pv \
-  python3 \
-  python3-devel \
-  python3-pip \
   rsync \
   rsyslog \
   SDL2-devel \
@@ -159,14 +156,8 @@ ln -sf /etc/sv/agetty-ttyMSM0 /etc/runit/runsvdir/default/ 2>/dev/null
 ln -sf /etc/sv/agetty-ttyAMA0 /etc/runit/runsvdir/default/ 2>/dev/null
 
 # Install uv (Python package manager)
+# Note: venv creation moved to Dockerfile.void (after compile-python.sh installs Python 3.12.7)
 export XDG_DATA_HOME="/usr/local"
 curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
-
-# Install Python 3.12 via uv (Void has 3.14 which is too new)
-uv python install 3.12
-
-# Create venv with Python 3.12
-uv venv $XDG_DATA_HOME/venv --seed --python 3.12
 
 echo "base_setup.sh complete"
