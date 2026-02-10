@@ -20,11 +20,6 @@ chmod 0755 /var/lib/logrotate
 mkdir -p /var/spool/cron/atjobs
 chmod 0755 /var/spool /var/spool/cron /var/spool/cron/atjobs
 
-# /var/log/ tmpfs
-mkdir -p /var/log/
-chown root:root /var/log
-mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log
-
 # setup /home
 mkdir -p /rwtmp/home_work
 mkdir -p /rwtmp/home_upper
