@@ -52,8 +52,10 @@ once we work on one and finish it, cross it off.
 5. ~~get graphics (i.e. magic) working~~ (fixed: bypass libglvnd, use libEGL_adreno.so directly)
 6. replace closed blobs graphics stack with freedreno
 7. ~~fix DNS (e.g. make ping google.com work)~~ (fixed: ping needed CAP_NET_RAW capability)
-8. setup a good journalctl/logging replacement
+8. ~~setup a good journalctl/logging replacement~~ (fixed: removed redundant /var/log tmpfs from fs_setup.sh that hid rsyslogd's files; journalctl shim works for all formats)
 9. get ADB working
+10. ~~enable LTE~~ (fixed: lte service wasn't symlinked, added usbutils for lsusb)
+11. ~~remove armhf blobs~~ (removed adsprpcd/cdsprpcd services+binaries, all 32-bit binaries from void/blobs)
 
 ## Fixes Applied
 
@@ -68,6 +70,15 @@ Void's iputils package doesn't set CAP_NET_RAW on ping by default, causing "Oper
 
 ### ffmpeg OpenCL link errors
 Void's ffmpeg6 package is compiled with OpenCL support, requiring versioned symbols (`clCreateContext@OPENCL_1.0`) from ocl-icd. Qualcomm's libOpenCL doesn't provide versioned symbols and its ICD interface is broken (`clIcdGetPlatformIDsKHR` returns CL_INVALID_VALUE). Fix: compile ffmpeg 4.2.2 from source with `--disable-opencl`, removed ffmpeg6/ffmpeg-devel/ocl-icd from xbps packages.
+
+### rsyslogd not writing logs at boot
+`fs_setup.sh` mounted a separate tmpfs on `/var/log` (carried over from Ubuntu where `/var` is on real rootfs). On Void `/var` is already a tmpfs, so the second mount hid rsyslogd's output. Fix: removed the redundant mount from fs_setup.sh.
+
+### LTE modem not working
+The `lte` runit service was not enabled (not in the symlink list in Dockerfile.void). Without it, GPIO never powers on the Quectel EC25 modem, so no USB modem device appears. Also needed `usbutils` package (lte.sh uses `lsusb` to detect modem).
+
+### armhf blob cleanup
+adsprpcd/cdsprpcd are 32-bit armhf binaries that can't run on pure aarch64 Void. Per PR #515, they're intentionally skipped — tinygrad uses CDSP via kernel driver directly, and ALSA works without adsprpcd. Removed services, binaries, and all other 32-bit blobs (diag_*, qmi_test_*, logcat, logwrapper, fs_mgr, gbmtest, etc).
 
 ## Directory Structure
 
