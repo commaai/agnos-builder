@@ -1,7 +1,0 @@
-#!/bin/sh
-# cdsprpcd - CDSP RPC daemon
-exec 2>&1
-
-sv check cdsp > /dev/null || exit 1
-
-exec /usr/sbin/cdsprpcd

@@ -1,7 +1,0 @@
-#!/bin/sh
-# adsprpcd - ADSP RPC daemon
-exec 2>&1
-
-sv check adsp > /dev/null || exit 1
-
-exec /usr/sbin/adsprpcd

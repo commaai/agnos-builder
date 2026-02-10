@@ -63,7 +63,7 @@ RUN mkdir -p /root/.config
 
 # runit services
 COPY ./void/sv/ /etc/sv/
-# Enable services (disabled: adsprpcd cdsprpcd avahi-ssh-publish power_* - broken/noisy)
+# Enable services (disabled: avahi-ssh-publish power_* - not yet ported)
 RUN for svc in \
   ipa_fws adbd brightnessd fs_setup gpio init-qcom lte \
   screen_calibration serial-hostname \
