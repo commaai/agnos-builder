@@ -3,10 +3,9 @@
 Minimal A/B boot control for Qualcomm devices.
 Replaces proprietary abctl which fails on Void Linux.
 
-References:
-  https://android.googlesource.com/device/google/crosshatch/+/master/gpt-utils/gpt-utils.h
-  https://android.googlesource.com/platform/hardware/interfaces/+/refs/heads/master/boot/1.1/default/boot_control/libboot_control.cpp
-  https://wiki.postmarketos.org/wiki/Android_AB_Slots
+Bit layout must match ABL (the bootloader reading these flags):
+  https://git.codelinaro.org/clo/qcomlt/abl/-/blob/LE.UM.2.3.7/QcomModulePkg/Include/Library/PartitionTableUpdate.h#L89-102
+  https://git.codelinaro.org/clo/qcomlt/abl/-/blob/LE.UM.2.3.7/QcomModulePkg/Library/BootLib/PartitionTableUpdate.c#L1233-1320
 """
 import struct
 import sys
@@ -15,15 +14,20 @@ import zlib
 
 SECTOR_SIZE = 4096
 
-# GPT attribute bits 48-63 (Qualcomm layout):
-#   48-51: Priority (0-15, higher boots first)
-#   52-55: Tries remaining (0-15)
-#   56: Successful boot
-#   57: Unbootable
-ATTR_SUCCESS = 1 << 56
-ATTR_UNBOOTABLE = 1 << 57
-ATTR_PRIORITY_MASK = 0xF << 48
-ATTR_TRIES_MASK = 0xF << 52
+# GPT attribute bits 48-55 (Qualcomm ABL layout):
+#   48-49: Priority    (2 bits, 0-3)
+#   50:    Active       (1 bit)
+#   51-53: Retry count  (3 bits, 0-7)
+#   54:    Successful   (1 bit)
+#   55:    Unbootable   (1 bit)
+ATTR_PRIORITY_MASK = 0x3 << 48
+ATTR_ACTIVE        = 1 << 50
+ATTR_TRIES_MASK    = 0x7 << 51
+ATTR_SUCCESS       = 1 << 54
+ATTR_UNBOOTABLE    = 1 << 55
+
+MAX_PRIORITY    = 3
+MAX_RETRY_COUNT = 7
 
 def get_current_slot():
   with open('/proc/cmdline') as f:
@@ -34,7 +38,8 @@ def get_current_slot():
 
 
 def modify_gpt_attributes(device, slot, modify_fn):
-  """Read GPT, modify matching partition attributes, write back."""
+  """Read GPT, modify matching partition attributes, write back.
+  modify_fn(name, attrs) -> new_attrs"""
   with open(device, 'r+b') as f:
     # Read GPT header
     f.seek(SECTOR_SIZE)
@@ -58,7 +63,7 @@ def modify_gpt_attributes(device, slot, modify_fn):
       name = entries[off+56:off+128].decode('utf-16-le').rstrip('\x00')
       if name.endswith(slot):
         attrs = struct.unpack('<Q', entries[off+48:off+56])[0]
-        new_attrs = modify_fn(attrs)
+        new_attrs = modify_fn(name, attrs)
         if new_attrs != attrs:
           struct.pack_into('<Q', entries, off+48, new_attrs)
           modified = True
@@ -92,21 +97,35 @@ def main():
     print(get_current_slot())
 
   elif cmd == '--set_success':
-    modify_gpt_attributes('/dev/sde', get_current_slot(), lambda a: a | ATTR_SUCCESS)
+    modify_gpt_attributes('/dev/sde', get_current_slot(), lambda name, a: a | ATTR_SUCCESS)
 
   elif cmd == '--set_active' and len(sys.argv) > 2:
     slot = '_a' if sys.argv[2] == '0' else '_b'
     other = '_b' if slot == '_a' else '_a'
-    # Set priority=15, tries=7, clear success/unbootable for active slot
-    modify_gpt_attributes('/dev/sde', slot,
-      lambda a: (a & ~(ATTR_PRIORITY_MASK | ATTR_TRIES_MASK | ATTR_SUCCESS | ATTR_UNBOOTABLE))
-                | (15 << 48) | (7 << 52))
-    # Set priority=0 for inactive slot
-    modify_gpt_attributes('/dev/sde', other, lambda a: a & ~ATTR_PRIORITY_MASK)
+
+    # Active slot: matches ABL SetActiveSlot() + MarkPtnActive()
+    def activate(name, attrs):
+      if name.startswith('boot'):
+        # Boot partition: priority=3, active=1, retry=7, successful=0, unbootable=0
+        return (attrs & ~(ATTR_PRIORITY_MASK | ATTR_ACTIVE | ATTR_TRIES_MASK | ATTR_SUCCESS | ATTR_UNBOOTABLE)) \
+               | (MAX_PRIORITY << 48) | ATTR_ACTIVE | (MAX_RETRY_COUNT << 51)
+      # Non-boot: only set ACTIVE bit
+      return attrs | ATTR_ACTIVE
+
+    # Inactive slot: matches ABL SetActiveSlot() + MarkPtnActive()
+    def deactivate(name, attrs):
+      if name.startswith('boot'):
+        # Boot partition: priority=2, clear active (other flags unchanged)
+        return (attrs & ~(ATTR_PRIORITY_MASK | ATTR_ACTIVE)) | ((MAX_PRIORITY - 1) << 48)
+      # Non-boot: only clear ACTIVE bit
+      return attrs & ~ATTR_ACTIVE
+
+    modify_gpt_attributes('/dev/sde', slot, activate)
+    modify_gpt_attributes('/dev/sde', other, deactivate)
 
   elif cmd == '--set_unbootable' and len(sys.argv) > 2:
     slot = '_a' if sys.argv[2] == '0' else '_b'
-    modify_gpt_attributes('/dev/sde', slot, lambda a: a | ATTR_UNBOOTABLE)
+    modify_gpt_attributes('/dev/sde', slot, lambda name, a: a | ATTR_UNBOOTABLE)
 
   else:
     print(f"Unknown: {cmd}", file=sys.stderr)
