@@ -63,10 +63,10 @@ RUN mkdir -p /root/.config
 
 # runit services
 COPY ./void/sv/ /etc/sv/
-# Enable services (disabled: power_* - not yet ported)
+# Enable services
 RUN for svc in \
   ipa_fws adbd brightnessd fs_setup gpio init-qcom lte \
-  avahi-ssh-publish \
+  avahi-ssh-publish power_monitor power_drop_monitor \
   screen_calibration serial-hostname \
   sound varwatch busybox-ntpd \
   irsc_util leprop usb adsp cdsp \

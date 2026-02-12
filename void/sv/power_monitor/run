@@ -1,3 +1,2 @@
 #!/bin/sh
-. /etc/profile
 exec /usr/local/venv/bin/python -u /usr/comma/power_monitor.py
