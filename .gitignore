@@ -16,4 +16,7 @@ qdl/
 edl_config.json
 tools/edl_repo/
 
+qcom_xbl/
 edk2_tici/
+
+__pycache__/
