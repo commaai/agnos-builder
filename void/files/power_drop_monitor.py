@@ -95,7 +95,7 @@ def perform_controlled_shutdown():
 
   # Kill services that draw a lot of power
   printk("Killing services")
-  subprocess.call(["sv", "force-stop", "comma"])
+  subprocess.call(["sv", "-w", "0", "force-stop", "comma"])
   set_screen_power(False)
 
   printk("Halt")
