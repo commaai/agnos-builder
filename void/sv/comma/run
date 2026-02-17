@@ -21,6 +21,10 @@ for i in $(seq 1 300); do
   sleep 0.1
 done
 
+# Create cgroup so power_drop_monitor can kill all openpilot processes at once
+mkdir -p /sys/fs/cgroup/comma
+echo $$ > /sys/fs/cgroup/comma/cgroup.procs
+
 # Run as comma user with proper groups and PAM limits
 # sudo -u properly inherits groups and applies /etc/security/limits.conf
 exec sudo -u comma /usr/bin/bash -l -c '

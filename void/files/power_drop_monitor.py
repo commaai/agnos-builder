@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import signal
 import time
 import smbus2
 import select
@@ -17,6 +18,8 @@ INA231_MASK_CONFIG = (1 << 12) # Bus undervoltage, not latching
 INA231_BUS_VOLTAGE_LSB_mV = 1.25
 VOLTAGE_FILE = "/sys/class/hwmon/hwmon1/in1_input"
 PARAM_FILE = "/data/params/d/LastPowerDropDetected"
+COMMA_CGROUP_PROCS = "/sys/fs/cgroup/comma/cgroup.procs"
+COMMA_SV_CONTROL = "/run/runit/service/comma/supervise/control"
 
 alert_pin_base = f"/sys/class/gpio/gpio{POWER_ALERT_GPIO_PIN}/"
 
@@ -94,9 +97,19 @@ def perform_controlled_shutdown():
   update_param("SHUTDOWN", v_initial, i_initial, v_now, i_now)
 
   # Kill services that draw a lot of power
+  # Offroad: ~150ms kill + ~10ms sync. Onroad: ~400ms kill + ~300ms sync (video encoders, dirty pages)
   printk("Killing services")
-  subprocess.call(["sv", "-w", "0", "force-stop", "comma"])
+  # Tell runsv not to restart the service (write "d" to its control pipe)
+  open(COMMA_SV_CONTROL, "wb", buffering=0).write(b"d")
+  # SIGKILL all processes in the comma cgroup (comma/run puts all openpilot procs in this cgroup)
+  [os.kill(int(p), signal.SIGKILL) for p in open(COMMA_CGROUP_PROCS).read().split() if p.strip()]
+  # Wait for all processes to fully exit before syncing (kernel resource cleanup takes ~150-400ms)
+  while open(COMMA_CGROUP_PROCS).read().strip():
+    time.sleep(0.001)
   set_screen_power(False)
+
+  printk("All processes dead, syncing")
+  os.sync()
 
   printk("Halt")
   subprocess.call(["/usr/sbin/halt", "-f"])
