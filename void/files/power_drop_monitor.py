@@ -94,6 +94,9 @@ def perform_controlled_shutdown():
     set_screen_power(prev_screen_power)
     return
 
+  # Kill screen power immediately
+  set_screen_power(False)
+
   update_param("SHUTDOWN", v_initial, i_initial, v_now, i_now)
 
   # Kill services that draw a lot of power
@@ -103,10 +106,12 @@ def perform_controlled_shutdown():
   open(COMMA_SV_CONTROL, "wb", buffering=0).write(b"d")
   # SIGKILL all processes in the comma cgroup (comma/run puts all openpilot procs in this cgroup)
   [os.kill(int(p), signal.SIGKILL) for p in open(COMMA_CGROUP_PROCS).read().split() if p.strip()]
+  # Tell panda SoC is off so it doesn't spin up the fan
+  write_once("/sys/class/gpio/gpio49/direction", "out")
+  write_once("/sys/class/gpio/gpio49/value", "0")
   # Wait for all processes to fully exit before syncing (kernel resource cleanup takes ~150-400ms)
   while open(COMMA_CGROUP_PROCS).read().strip():
     time.sleep(0.001)
-  set_screen_power(False)
 
   printk("All processes dead, syncing")
   os.sync()
