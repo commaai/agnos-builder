@@ -8,7 +8,7 @@ Here are some useful commands:
     └── tmux a
 
   Install packages
-    └── sudo xbps-install <pkg>
+    └── sudo xbps-install -S <pkg>
 
   Install Python packages
     └── pip install <pkg>
