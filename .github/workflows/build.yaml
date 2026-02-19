@@ -69,6 +69,20 @@ jobs:
           echo EOF
         } | tee -a $GITHUB_OUTPUT
 
+    - name: Upload boot image
+      if: "!contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/upload-artifact@v4
+      with:
+        name: boot
+        path: output/boot.img
+
+    - name: Upload system image
+      if: "!contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/upload-artifact@v4
+      with:
+        name: system
+        path: output/system.img
+
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       env:
