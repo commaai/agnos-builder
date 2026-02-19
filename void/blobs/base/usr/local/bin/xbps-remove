@@ -1,0 +1,6 @@
+#!/bin/bash
+/usr/comma/xbps_setup.sh
+/usr/bin/xbps-remove "$@"
+ret=$?
+/usr/comma/xbps_teardown.sh
+exit $ret
