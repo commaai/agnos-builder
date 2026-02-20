@@ -61,6 +61,11 @@ build_kernel() {
   # Set ccache dir
   export CCACHE_DIR=$DIR/.ccache
 
+  # Force ccache usage for kernel build (both target and host compilers)
+  export PATH="/usr/lib/ccache:$PATH"
+  export HOSTCC="ccache gcc"
+  export HOSTCXX="ccache g++"
+
   # Avoid LINUX_COMPILE_HOST to change on every run thus invalidating cache
   # https://patchwork.kernel.org/project/linux-kbuild/patch/1302015561-21047-8-git-send-email-mmarek@suse.cz/
   export KBUILD_BUILD_HOST="docker"
