@@ -55,10 +55,10 @@ jobs:
       run: |
         echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
 
-    - name: Build system
+    - name: Build Void system
       env:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
-      run: ./build_system.sh
+      run: ./void/build_void.sh
 
     - name: Statistics
       id: stats
