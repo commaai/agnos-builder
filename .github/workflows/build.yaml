@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     name: build kernel and system
-    runs-on: namespace-profile-arm64-8x16-2004-caching
+    runs-on: ${{ github.repository_owner == 'commaai' && 'namespace-profile-arm64-8x16-2004-caching' || 'ubuntu-24.04-arm' }}
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
