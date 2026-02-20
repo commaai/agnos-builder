@@ -37,7 +37,7 @@ export PATH="/usr/local/.cargo/bin:$PATH"
 export UV_PYTHON_INSTALL_DIR="/usr/local/uv/python"
 export UV_PYTHON_PREFERENCE=only-system
 export UV_LINK_MODE=copy
-source /usr/local/venv/bin/activate
+VIRTUAL_ENV_DISABLE_PROMPT=1 source /usr/local/venv/bin/activate
 
 # custom shims
 export PATH="/usr/comma/shims:${PATH}"

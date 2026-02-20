@@ -18,7 +18,7 @@ dependencies = [
   "libusb1 == 3.1.0", # recent versions segfault on comma three
 
   # tinygrad
-  "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
+  "pyopencl @ https://github.com/adeebshihadeh/pyopencl/releases/download/v2025.2.7-arm64/pyopencl-2025.2.7-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
 
   # provisioning
   "pyusb",
@@ -34,6 +34,9 @@ dependencies = [
   # GUIs
   "raylib @ https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl",
 ]
+
+[tool.uv]
+environments = ["python_version >= '3.12' and python_version < '3.13' and sys_platform == 'linux'"]
 
 [tool.uv.sources]
 openpilot = { path = "openpilot" }

@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     name: build kernel and system
-    runs-on: namespace-profile-arm64-8x16-2004-caching
+    runs-on: ${{ github.repository_owner == 'commaai' && 'namespace-profile-arm64-8x16-2004-caching' || 'ubuntu-24.04-arm' }}
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
@@ -56,15 +56,10 @@ jobs:
         CCACHE_MAXSIZE: 5G
       run: ./build_kernel.sh
 
-    - name: Update VERSION
-      if: github.event_name == 'pull_request'
-      run: |
-        echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
-
-    - name: Build system
+    - name: Build Void system
       env:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
-      run: ./build_system.sh
+      run: ./void/build_void.sh
 
     - name: Statistics
       id: stats
@@ -74,6 +69,20 @@ jobs:
           scripts/analyze-agnos-rootfs.sh
           echo EOF
         } | tee -a $GITHUB_OUTPUT
+
+    - name: Upload boot image
+      if: "!contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/upload-artifact@v4
+      with:
+        name: boot
+        path: output/boot.img
+
+    - name: Upload system image
+      if: "!contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/upload-artifact@v4
+      with:
+        name: system
+        path: output/system.img
 
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
