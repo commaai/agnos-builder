@@ -1,17 +1,20 @@
 # EG25 GNSS
-KERNEL=="ttyUSB0",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_MM_DEVICE_IGNORE}="1"
-KERNEL=="ttyUSB2",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_MM_PORT_IGNORE}="1"
+# interface 0 - GNSS
+# interface 2 - AT
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2c7c", ATTRS{idProduct}=="0125", ATTRS{bInterfaceNumber}=="00", ENV{ID_MM_DEVICE_IGNORE}="1"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2c7c", ATTRS{idProduct}=="0125", ATTRS{bInterfaceNumber}=="02", ENV{ID_MM_PORT_IGNORE}="1"
 
 # EG91
-# ttyUSB0 - debug
-# ttyUSB1 - GPS
-# ttyUSB2 - AT
-# ttyUSB3 - AT
-KERNEL=="ttyUSB0",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_DEVICE_IGNORE}="1"
-KERNEL=="ttyUSB1",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_DEVICE_IGNORE}="1"
-KERNEL=="ttyUSB2",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_PORT_IGNORE}="1"
-KERNEL=="ttyUSB3",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_MM_PORT_TYPE_AT_PRIMARY}="1"
-ACTION=="add",SUBSYSTEM=="usb",ATTR{idVendor}=="2c7c",ATTR{idProduct}=="6007",RUN+="/bin/sh -c 'echo -n $kernel:1.4 > /sys/bus/usb/drivers/cdc_ether/unbind'"
+# interface 0 - debug
+# interface 1 - GPS
+# interface 2 - AT
+# interface 3 - AT (primary)
+# interface 4 - CDC Ether
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2c7c", ATTRS{idProduct}=="6007", ATTRS{bInterfaceNumber}=="00", ENV{ID_MM_PORT_IGNORE}="1"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2c7c", ATTRS{idProduct}=="6007", ATTRS{bInterfaceNumber}=="01", ENV{ID_MM_PORT_IGNORE}="1"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2c7c", ATTRS{idProduct}=="6007", ATTRS{bInterfaceNumber}=="02", ENV{ID_MM_PORT_IGNORE}="1"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2c7c", ATTRS{idProduct}=="6007", ATTRS{bInterfaceNumber}=="03", ENV{ID_MM_PORT_TYPE_AT_PRIMARY}="1"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2c7c", ATTR{idProduct}=="6007", RUN+="/bin/sh -c 'echo -n $kernel:1.4 > /sys/bus/usb/drivers/cdc_ether/unbind'"
 
 # C16
 KERNEL=="ttyACM1",ENV{ID_MM_DEVICE_IGNORE}="1"
