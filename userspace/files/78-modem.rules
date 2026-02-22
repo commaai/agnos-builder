@@ -4,7 +4,7 @@ KERNEL=="ttyUSB2",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_MM_POR
 
 # EG91
 # Interface 0 - debug
-# Interface 1 - GPS/NMEA
+# Interface 1 - GPS
 # Interface 2 - AT
 # Interface 3 - AT
 SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_USB_INTERFACE_NUM}=="00",ENV{ID_MM_DEVICE_IGNORE}="1"
