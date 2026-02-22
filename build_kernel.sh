@@ -91,7 +91,7 @@ build_kernel() {
   $TOOLS/mkbootimg \
     --kernel Image.gz-dtb \
     --ramdisk /dev/null \
-    --cmdline "console=ttyMSM0,115200n8 isolcpus=6,7 quiet loglevel=3 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 ehci-hcd.park=3 lpm_levels.sleep_disabled=1 service_locator.enable=1 androidboot.selinux=permissive firmware_class.path=/lib/firmware/updates net.ifnames=0 dyndbg=\"\"" \
+    --cmdline "console=ttyMSM0,115200n8 isolcpus=6,7 loglevel=7 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 ehci-hcd.park=3 lpm_levels.sleep_disabled=1 service_locator.enable=1 androidboot.selinux=permissive firmware_class.path=/lib/firmware/updates net.ifnames=0 dyndbg=\"\"" \
     --pagesize 4096 \
     --base 0x80000000 \
     --kernel_offset 0x8000 \

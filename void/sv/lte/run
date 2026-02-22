@@ -1,0 +1,12 @@
+#!/bin/sh
+# lte - LTE modem management
+exec 2>&1
+
+# Wait for gpio setup
+sv check gpio > /dev/null || exit 1
+
+# Run the lte script (stays running)
+/usr/comma/lte/lte.sh start
+
+# Keep service alive
+exec sleep infinity

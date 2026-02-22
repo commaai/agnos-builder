@@ -3,7 +3,7 @@
 
 # Comma
 StrictModes no
-AuthorizedKeysFile /data/params/d/GithubSshKeys /tmp/authorized_keys
+AuthorizedKeysFile /usr/comma/setup_keys /data/params/d/GithubSshKeys /tmp/authorized_keys
 PermitRootLogin no
 
 # What ports, IPs and protocols we listen for

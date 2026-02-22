@@ -1,5 +1,6 @@
 *.swp
 *.tar.gz
+*.tar.xz
 *.DS_Store
 
 /logs/
@@ -17,3 +18,6 @@ edl_config.json
 tools/edl_repo/
 
 edk2_tici/
+output/system.raw
+
+void/eval/ubuntu-manifest.txt

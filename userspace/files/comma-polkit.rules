@@ -1,8 +1,9 @@
-// Allow sudo users to control network & modem
+// Allow wheel group users to control network & modem
+// Note: Void Linux uses "wheel" instead of "sudo" for admin group
 polkit.addRule(function (action, subject) {
   if ((action.id.startsWith("org.freedesktop.NetworkManager.") ||
        action.id.startsWith("org.freedesktop.ModemManager1.")) &&
-      subject.isInGroup("sudo")) {
+      subject.isInGroup("wheel")) {
     return polkit.Result.YES;
   }
 });

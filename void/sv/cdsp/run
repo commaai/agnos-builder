@@ -1,0 +1,9 @@
+#!/bin/sh
+# cdsp - Compute DSP init (runs once)
+exec 2>&1
+
+# Run the init script
+/usr/sbin/cdsp.sh
+
+# Stay up so runit doesn't restart
+exec sleep infinity
