@@ -1,6 +1,10 @@
-# EG25 GNSS
-KERNEL=="ttyUSB0",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_MM_DEVICE_IGNORE}="1"
-KERNEL=="ttyUSB2",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_MM_PORT_IGNORE}="1"
+# EG25
+# Interface 0 - GNSS
+# Interface 2 - AT
+# Interface 3 - AT
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_USB_INTERFACE_NUM}=="00",ENV{ID_MM_DEVICE_IGNORE}="1"
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_USB_INTERFACE_NUM}=="02",SYMLINK+="modem_at0",ENV{ID_MM_PORT_IGNORE}="1"
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_USB_INTERFACE_NUM}=="03",SYMLINK+="modem_at1",ENV{ID_MM_PORT_IGNORE}="1"
 
 # EG91
 # Interface 0 - debug
