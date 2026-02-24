@@ -131,6 +131,7 @@ COPY ./void/files/journalctl /usr/bin/journalctl
 COPY ./void/files/set_ssh.sh /usr/$USERNAME/set_ssh.sh
 COPY ./void/files/set_adb.sh /usr/$USERNAME/set_adb.sh
 COPY ./void/files/power_drop_monitor.py /usr/$USERNAME/power_drop_monitor.py
+COPY ./void/analyze-boot-time.py /usr/$USERNAME/tests/analyze-boot-time.py
 COPY ./void/files/fs_setup.sh /usr/$USERNAME/fs_setup.sh
 RUN chmod +x /usr/$USERNAME/comma.sh /usr/$USERNAME/set_ssh.sh /usr/$USERNAME/set_adb.sh /usr/$USERNAME/fs_setup.sh /usr/bin/journalctl
 
