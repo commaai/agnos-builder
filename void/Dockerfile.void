@@ -74,7 +74,7 @@ RUN for svc in \
   comma modemmanager magic \
   ssh-param-watcher adb-param-watcher \
   rsyslogd iptables cnss_daemon polkitd \
-  sshd agetty-ttyMSM0 agetty-ttyAMA0; do \
+  agetty-ttyMSM0 agetty-ttyAMA0; do \
     ln -sf /etc/sv/$svc /etc/runit/runsvdir/default/; \
   done
 
