@@ -1,0 +1,38 @@
+#!/bin/sh
+# Shutdown wrapper - sends wall broadcast before triggering runit shutdown
+# Matches systemd/Ubuntu AGNOS behavior where users see "The system will power off now!"
+# Installed in /usr/local/sbin/ to shadow /usr/bin/ originals
+
+cmd=$(basename "$0")
+
+case "$cmd" in
+  reboot) msg="The system will reboot now!"; label="Reboot" ;;
+  *)      msg="The system will power off now!"; label="PowerOff" ;;
+esac
+
+if [ "$(id -u)" -ne 0 ]; then
+  printf '\033[1;31mCall to %s failed: Interactive authentication required.\033[0m\n' "$label" >&2
+  exit 1
+fi
+
+# Broadcast to all terminals except our own (sudo's use_pty creates a second PTY
+# that causes wall to show the message twice). Write directly like systemd does.
+own_tty=$(tty 2>/dev/null)
+broadcast=$(printf '\r\nBroadcast message from root@%s on %s (%s):\r\n\r\n%s\r\n\r\n' \
+  "$(hostname)" "${own_tty#/dev/}" "$(date '+%a %Y-%m-%d %H:%M:%S %Z')" "$msg")
+for t in /dev/pts/[0-9]* /dev/ttyMSM* /dev/ttyAMA*; do
+  [ -c "$t" ] && [ -w "$t" ] && [ "$t" != "$own_tty" ] && \
+    printf '%s' "$broadcast" > "$t" 2>/dev/null &
+done
+wait
+
+# Trigger shutdown in a new session (survives sshd-session death)
+setsid /usr/bin/"$cmd" "$@" &
+
+# Close SSH sessions gracefully (SIGTERM lets sshd send TCP FIN for clean close)
+sleep 0.5
+pkill -TERM sshd-session 2>/dev/null
+sleep 0.5
+pkill -KILL sshd-session 2>/dev/null
+
+sleep infinity

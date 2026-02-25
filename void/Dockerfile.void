@@ -135,10 +135,18 @@ COPY ./void/analyze-boot-time.py /usr/$USERNAME/tests/analyze-boot-time.py
 COPY ./void/files/fs_setup.sh /usr/$USERNAME/fs_setup.sh
 RUN chmod +x /usr/$USERNAME/comma.sh /usr/$USERNAME/set_ssh.sh /usr/$USERNAME/set_adb.sh /usr/$USERNAME/fs_setup.sh /usr/bin/journalctl
 
-# Custom runit stage 1 with verbose output and mount fixes
+# Custom runit stages
 COPY ./void/files/runit-1 /etc/runit/1
 COPY ./void/files/runit-2 /etc/runit/2
-RUN chmod +x /etc/runit/1 /etc/runit/2
+COPY ./void/files/runit-3 /etc/runit/3
+RUN chmod +x /etc/runit/1 /etc/runit/2 /etc/runit/3
+
+# Shutdown wrappers - send wall broadcast like systemd does on Ubuntu AGNOS
+# Only poweroff and reboot: halt/shutdown must NOT be wrapped because Void's
+# /usr/bin/shutdown script calls halt/reboot internally, causing cascading walls
+COPY ./void/files/shutdown-wrapper /usr/local/sbin/poweroff
+RUN chmod +x /usr/local/sbin/poweroff && \
+    ln -sf poweroff /usr/local/sbin/reboot
 
 # NetworkManager config
 RUN mkdir -p /etc/NetworkManager/conf.d /usr/lib/NetworkManager/system-connections

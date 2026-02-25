@@ -1,0 +1,13 @@
+#!/bin/sh
+# runit stage 3 - shutdown
+# Wall broadcast is handled by /usr/local/sbin/poweroff wrapper (before runit signals)
+
+PATH=/usr/bin:/usr/sbin
+
+. /etc/runit/functions
+detect_container
+[ -r /etc/rc.conf ] && . /etc/rc.conf
+
+for f in /etc/runit/shutdown.d/*.sh; do
+  [ -r "$f" ] && . "$f"
+done
