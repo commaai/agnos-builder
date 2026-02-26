@@ -113,7 +113,7 @@ RUN --mount=type=cache,target=/root/.cache/uv,id=uv-cache,sharing=shared \
     source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" uv sync --frozen --inexact --compile-bytecode
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # ################### #
 # ###### AGNOS ###### #
@@ -211,6 +211,60 @@ RUN /tmp/agnos/services.sh
 RUN rm -r /etc/update-motd.d/*
 COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
 
+# Let NetworkManager manage eth0
+COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
+COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+
+# Add cellular connections
+COPY ./userspace/files/*.nmconnection /usr/lib/NetworkManager/system-connections/
+RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
+
+# Prefer ipv4 over ipv6
+RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+
+# Don't let logind delete /dev/shm
+COPY ./userspace/files/logind.conf /etc/systemd/logind.conf
+
+# Copy Avahi daemon override
+COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.service.d/override.conf
+
+# Prevent polkitd memory leak from getting out of hand by restarting it every ~day
+COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d/override.conf
+
+# Remove qt network bearer plugins
+RUN rm -rf /usr/lib/aarch64-linux-gnu/qt5/plugins/bearer
+
+# Add iptable rules to block incoming traffic on wwan0
+COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
+
+# Run ModemManager in debug mode to allow AT commands
+COPY ./userspace/files/ModemManager.service /lib/systemd/system/
+RUN systemctl enable ModemManager
+
+# Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
+COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
+
+# Copy extra FW, rest comes from debs
+COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware
+
+# Setup hostname resolution for our custom hostname
+RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
+
+# keep this last
+RUN ldconfig
+
+# Setup RO rootfs
+RUN mkdir -p /rwtmp
+RUN mkdir -p /tmptmp
+COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
+RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
+
+# copy at the end, after all apt usage
+COPY ./userspace/files/apt.conf /etc/apt/apt.conf
+
+# copy version file
+COPY VERSION /VERSION
+
 # Setup other users/systemd
 RUN adduser --gecos "" --system --group --uid 995 openpilot-system || true
 RUN systemctl enable systemd-logind.service
@@ -224,8 +278,10 @@ RUN systemctl enable resize-data.service
 RUN systemctl enable setup-keys.service
 
 # Cleanup
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/* && \
-    find /var/log -type f -exec truncate --size 0 {} \;
+RUN rm -rf /usr/share/icons/* && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /home/$USERNAME/.cache && \
+    rm -rf /root/.cache && \
+    apt-get clean
 
 # This container doesn't start any CMD, it just exists to be exported
