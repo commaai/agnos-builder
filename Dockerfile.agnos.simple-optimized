@@ -1,0 +1,56 @@
+# check=error=true
+
+# ################## #
+# ### Package  ##### #
+# ### Compilation ## #
+# ################## #
+FROM ubuntu:24.04 AS agnos-compiler
+
+# Common packages - consolidated into single RUN (cache mount 제외)
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    ccache \
+    clang \
+    curl \
+    checkinstall \
+    git \
+    pkg-config \
+    wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Enable ccache
+ENV PATH="/usr/lib/ccache:$PATH"
+
+# capnproto
+FROM agnos-compiler AS agnos-compiler-capnp
+COPY ./userspace/compile-capnp.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
+    /tmp/agnos/compile-capnp.sh
+
+# ffmpeg
+FROM agnos-compiler AS agnos-compiler-ffmpeg
+COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
+    /tmp/agnos/compile-ffmpeg.sh
+
+# libqmi
+FROM agnos-compiler AS agnos-compiler-libqmi
+COPY ./userspace/compile-libqmi.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
+    /tmp/agnos/compile-libqmi.sh
+
+# ModemManager
+FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
+COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
+    /tmp/agnos/compile-modemmanager.sh
+
+# qtwayland5
+FROM agnos-compiler AS agnos-compiler-qtwayland5
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
+COPY ./userspace/qtwayland/patch* /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
+    /tmp/agnos/compile-qtwayland5.sh

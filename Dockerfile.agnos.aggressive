@@ -72,33 +72,95 @@ RUN set -xe
 
 ARG USERNAME=comma
 
-# Base system setup - optimized with cache mount
+# AGGRESSIVE: Consolidate ALL apt operations into single layer
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/base_setup.sh /tmp/agnos
-RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
-    /tmp/agnos/base_setup.sh
 
-# Install openpilot dependencies - optimized
+# Copy all scripts that need apt operations
+COPY ./userspace/base_setup.sh /tmp/agnos/
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
-    /tmp/agnos/openpilot_dependencies.sh
-
-# Python environment setup - kept separate for now
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
-
-# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps - optimized
+COPY ./userspace/install_extras.sh /tmp/agnos/
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+
+# MEGA APT OPERATION - Everything in one RUN to minimize layers and apt updates
 RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
     --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+    set -e && \
+    \
+    # Create identification files
+    touch /TICI && \
+    touch /AGNOS && \
+    \
+    # Add armhf architecture
+    dpkg --add-architecture armhf && \
+    \
+    # Single apt update for everything
+    apt-get update && \
+    \
+    # Install apt-fast first
+    apt-get install -yq curl sudo wget && \
+    bash -c "$(curl -sL https://git.io/vokNn)" && \
+    \
+    # Install ALL packages in one go (base_setup + openpilot_dependencies + install_extras)
+    export DEBIAN_FRONTEND=noninteractive && \
+    apt-fast install --no-install-recommends -yq \
+    locales systemd adduser \
+    autoconf automake build-essential bzip2 casync clang clinfo cmake cppcheck curl \
+    darkstat dkms gettext gpiod libarchive-dev libass-dev libbz2-dev libcurl4-openssl-dev \
+    libczmq-dev libdbus-1-dev libeigen3-dev libffi-dev libfreetype6-dev libgles2-mesa-dev \
+    libglfw3-dev libglib2.0-dev libglvnd-dev libgpgme-dev libhidapi-dev libhidapi-libusb0 \
+    libjpeg-dev liblzma-dev libncurses5-dev libnl-3-dev libnl-genl-3-dev \
+    libopencl-clang-dev libopencv-dev libpng-dev libpolkit-agent-1-dev libpolkit-gobject-1-dev \
+    libpulse-dev libqt5core5a libqt5dbus5 libqt5gui5 libqt5network5 libqt5widgets5 \
+    libreadline-dev libssl-dev libsystemd-dev libtinfo5 libtool libusb-1.0-0-dev \
+    libv4l-dev libwayland-dev libzmq3-dev linux-firmware linux-headers-generic \
+    linux-libc-dev llvm-dev locales make ninja-build openssh-server parted pkg-config \
+    python3 python3-dev python3-pip tzdata udev vim zlib1g-dev \
+    bash-completion btop hyperfine iperf iperf3 dnsmasq irqtop ripgrep ncdu nfs-common \
+    socat stress-ng tree wavemon avahi-daemon adb avahi-utils \
+    gir1.2-qmi-1.0 libqmi-glib5 libc6 libglib2.0-0t64 libgudev-1.0-0 libmm-glib0 \
+    libpolkit-gobject-1-0 libsystemd0 polkitd mobile-broadband-provider-info && \
+    \
+    # Install Qt packages
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
-    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb && \
+    \
+    # User setup (from base_setup.sh)
+    useradd -G sudo -m -s /bin/bash $USERNAME && \
+    echo "$USERNAME:$USERNAME" | chpasswd && \
+    groupadd gpio && \
+    groupadd gpu && \
+    adduser $USERNAME root && \
+    adduser $USERNAME video && \
+    adduser $USERNAME gpio && \
+    adduser $USERNAME adm && \
+    adduser $USERNAME gpu && \
+    adduser $USERNAME audio && \
+    adduser $USERNAME disk && \
+    adduser $USERNAME dialout && \
+    adduser $USERNAME systemd-journal && \
+    \
+    # System configuration
+    systemctl enable serial-getty@ttyS0.service && \
+    echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf && \
+    echo "vm.dirty_expire_centisecs = 200" >> /etc/sysctl.conf && \
+    echo "comma - rtprio 100" >> /etc/security/limits.conf && \
+    echo "comma - nice -10" >> /etc/security/limits.conf && \
+    locale-gen en_US.UTF-8 && \
+    \
+    # Color prompt (from install_extras.sh)
+    sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /home/comma/.bashrc && \
+    \
+    # Clean up in same layer
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/agnos/*.deb
+
+# Python dependencies in separate optimized layer  
+RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # ####################### #
 # ### Python ENV Stage ## #
@@ -107,7 +169,7 @@ FROM agnos-base AS agnos-python-env
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Install openpilot python packages - separate stage for optimization
+# Install openpilot python packages with optimized caching
 COPY ./userspace/uv /tmp/agnos/uv
 RUN --mount=type=cache,target=/root/.cache/uv,id=uv-cache,sharing=shared \
     source $XDG_DATA_HOME/venv/bin/activate && \
@@ -127,83 +189,59 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-# Copy pre-compiled packages
+# Copy ALL pre-compiled packages and install in one operation
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
 COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 
-# Consolidated apt installation - MAJOR OPTIMIZATION
+# Single optimized package installation
 RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
     --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
     cd /tmp && \
-    apt-get update && \
-    apt-get install -yq --no-install-recommends \
-    python3 \
-    python3-dev \
-    gir1.2-qmi-1.0 \
-    libglib2.0-dev \
-    libqmi-glib5 \
-    libc6 \
-    libglib2.0-0t64 \
-    libgudev-1.0-0 \
-    libmm-glib0 \
-    libpolkit-gobject-1-0 \
-    libsystemd0 \
-    polkitd \
-    mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
-    ./libqmi.deb \
-    ./modemmanager.deb \
-    ./capnproto.deb \
-    ./ffmpeg.deb \
-    ./qtwayland5.deb --allow-downgrades
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades \
+    ./libqmi.deb ./modemmanager.deb ./capnproto.deb ./ffmpeg.deb ./qtwayland5.deb
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Copy Python environment from separate stage
+# Copy Python environment from optimized stage
 COPY --from=agnos-python-env $XDG_DATA_HOME/venv $XDG_DATA_HOME/venv
 
-# Install nice to haves
-COPY ./userspace/install_extras.sh /tmp/agnos/
-RUN /tmp/agnos/install_extras.sh
-
-# Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
+# Patched libeglSubDriverWayland
 COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
 
+# Bulk copy home directory
 COPY ./userspace/home/ /home/$USERNAME/
 COPY ./userspace/home/.config/ /root/.config
 RUN chown -R $USERNAME: /home/$USERNAME/.config
 
-# Bulk copy operations - optimized
+# Bulk systemd files
 COPY ./userspace/files/*.path ./userspace/files/*.mount ./userspace/files/*.service ./userspace/files/*.timer /lib/systemd/system/
 COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
 COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
 COPY ./userspace/firmware/* /lib/firmware/
 
-# Bulk copy etc files
-COPY ./userspace/files/fstab /etc
-COPY ./userspace/files/profile /etc/profile
+# Bulk etc files  
+COPY ./userspace/files/fstab ./userspace/files/profile /etc/
 COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
 COPY ./userspace/files/*.rules /etc/udev/rules.d/
 COPY ./userspace/files/ssh*_config /etc/ssh/
 COPY ./userspace/files/logrotate.conf /etc/
 COPY ./userspace/files/rsyslog /etc/logrotate.d/
-RUN chmod 644 /etc/logrotate.conf
-RUN touch -r /lib/systemd/systemd /etc/fstab
+RUN chmod 644 /etc/logrotate.conf && touch -r /lib/systemd/systemd /etc/fstab
 
-# Bulk copy usr files
+# Bulk usr files
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
 COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
 
-# Weston with hacked touch rotate and color correction
+# Weston files
 COPY ./userspace/files/weston /usr/bin/weston
 COPY ./userspace/files/gl-renderer.so /usr/lib/arm-linux-gnueabihf/weston
 
-# Setup systemd services
+# Services setup
 COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh
 
@@ -211,21 +249,15 @@ RUN /tmp/agnos/services.sh
 RUN rm -r /etc/update-motd.d/*
 COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
 
-# Setup other users/systemd
-RUN adduser --gecos "" --system --group --uid 995 openpilot-system || true
-RUN systemctl enable systemd-logind.service
-RUN systemctl disable apt-daily.timer
-RUN systemctl disable apt-daily.service
-RUN systemctl disable apt-daily-upgrade.timer
-RUN systemctl disable apt-daily-upgrade.service
-RUN systemctl mask apt-daily.service apt-daily-upgrade.service
-RUN systemctl disable systemd-journal-flush.service
-RUN systemctl enable resize-data.service
-RUN systemctl enable setup-keys.service
-
-# Cleanup
-RUN apt-get clean && \
+# Final system configuration
+RUN adduser --gecos "" --system --group --uid 995 openpilot-system || true && \
+    systemctl enable systemd-logind.service && \
+    systemctl disable apt-daily.timer apt-daily.service apt-daily-upgrade.timer apt-daily-upgrade.service && \
+    systemctl mask apt-daily.service apt-daily-upgrade.service && \
+    systemctl disable systemd-journal-flush.service && \
+    systemctl enable resize-data.service setup-keys.service && \
+    \
+    # Final cleanup
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/* && \
     find /var/log -type f -exec truncate --size 0 {} \;
-
-# This container doesn't start any CMD, it just exists to be exported

@@ -6,10 +6,8 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
-# Common packages - optimized with cache mount
-RUN --mount=type=cache,target=/var/cache/apt,id=compiler-apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=compiler-apt-lib,sharing=shared \
-    apt-get update && apt-get install -yq --no-install-recommends \
+# Common packages
+RUN apt-get update && apt-get install -yq --no-install-recommends \
     build-essential \
     ca-certificates \
     ccache \
@@ -72,48 +70,25 @@ RUN set -xe
 
 ARG USERNAME=comma
 
-# Base system setup - optimized with cache mount
+# Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh /tmp/agnos
-RUN --mount=type=cache,target=/var/cache/apt,id=base-apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=base-apt-lib,sharing=shared \
-    /tmp/agnos/base_setup.sh
+RUN /tmp/agnos/base_setup.sh
 
-# Install openpilot dependencies - optimized
+# Install openpilot dependencies
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN --mount=type=cache,target=/var/cache/apt,id=base-apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=base-apt-lib,sharing=shared \
-    /tmp/agnos/openpilot_dependencies.sh
-
-# Python environment setup - kept separate for now
+RUN /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
-# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps - optimized
+# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-RUN --mount=type=cache,target=/var/cache/apt,id=base-apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=base-apt-lib,sharing=shared \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+RUN apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
     /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
     /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
     /tmp/agnos/libffi6_3.2.1-8_arm64.deb
-
-# ####################### #
-# ### Python ENV Stage ## #
-# ####################### #
-FROM agnos-base AS agnos-python-env
-
-ARG XDG_DATA_HOME="/usr/local"
-
-# Install openpilot python packages - separate stage for optimization
-COPY ./userspace/uv /tmp/agnos/uv
-RUN --mount=type=cache,target=/root/.cache/uv,id=uv-cache,sharing=shared \
-    source $XDG_DATA_HOME/venv/bin/activate && \
-    cd /tmp/agnos/uv && \
-    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # ################### #
 # ###### AGNOS ###### #
@@ -127,17 +102,10 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-# Copy pre-compiled packages
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
-COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 
-# Consolidated apt installation - MAJOR OPTIMIZATION
-RUN --mount=type=cache,target=/var/cache/apt,id=agnos-apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=agnos-apt-lib,sharing=shared \
-    cd /tmp && \
+RUN cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
     python3 \
@@ -153,21 +121,32 @@ RUN --mount=type=cache,target=/var/cache/apt,id=agnos-apt-cache,sharing=shared \
     libsystemd0 \
     polkitd \
     mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
-    ./libqmi.deb \
-    ./modemmanager.deb \
-    ./capnproto.deb \
-    ./ffmpeg.deb \
-    ./qtwayland5.deb --allow-downgrades
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
+
+# Pre-compiled capnp (must be before python install)
+COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
+RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
+
+# Use other pre-compiled packages
+COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
+RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Copy Python environment from separate stage
-COPY --from=agnos-python-env $XDG_DATA_HOME/venv $XDG_DATA_HOME/venv
+# Install openpilot python packages
+COPY ./userspace/uv /tmp/agnos/uv
+RUN source $XDG_DATA_HOME/venv/bin/activate && \
+    cd /tmp/agnos/uv && \
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
+
+COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
+RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq --allow-downgrades ./qtwayland5.deb
 
 # Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
 COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
@@ -176,13 +155,16 @@ COPY ./userspace/home/ /home/$USERNAME/
 COPY ./userspace/home/.config/ /root/.config
 RUN chown -R $USERNAME: /home/$USERNAME/.config
 
-# Bulk copy operations - optimized
-COPY ./userspace/files/*.path ./userspace/files/*.mount ./userspace/files/*.service ./userspace/files/*.timer /lib/systemd/system/
+# populate /lib
+COPY ./userspace/files/*.path /lib/systemd/system/
+COPY ./userspace/files/*.mount /lib/systemd/system/
+COPY ./userspace/files/*.service /lib/systemd/system/
+COPY ./userspace/files/*.timer /lib/systemd/system/
 COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
 COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
 COPY ./userspace/firmware/* /lib/firmware/
 
-# Bulk copy etc files
+# populate /etc
 COPY ./userspace/files/fstab /etc
 COPY ./userspace/files/profile /etc/profile
 COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
@@ -193,11 +175,16 @@ COPY ./userspace/files/rsyslog /etc/logrotate.d/
 RUN chmod 644 /etc/logrotate.conf
 RUN touch -r /lib/systemd/systemd /etc/fstab
 
-# Bulk copy usr files
+# populate /usr
 COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
 COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
+
+# this is big, only enable when we need it
+# kernel headers for the AGNOS kernel (built on device)
+#COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
+#RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
 
 # Weston with hacked touch rotate and color correction
 COPY ./userspace/files/weston /usr/bin/weston
@@ -265,23 +252,12 @@ COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 # copy version file
 COPY VERSION /VERSION
 
-# Setup other users/systemd
-RUN adduser --gecos "" --system --group --uid 995 openpilot-system || true
-RUN systemctl enable systemd-logind.service
-RUN systemctl disable apt-daily.timer
-RUN systemctl disable apt-daily.service
-RUN systemctl disable apt-daily-upgrade.timer
-RUN systemctl disable apt-daily-upgrade.service
-RUN systemctl mask apt-daily.service apt-daily-upgrade.service
-RUN systemctl disable systemd-journal-flush.service
-RUN systemctl enable resize-data.service
-RUN systemctl enable setup-keys.service
+# ################# #
+# #### Cleanup #### #
+# ################# #
 
-# Cleanup
 RUN rm -rf /usr/share/icons/* && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /home/$USERNAME/.cache && \
     rm -rf /root/.cache && \
     apt-get clean
-
-# This container doesn't start any CMD, it just exists to be exported
