@@ -1,0 +1,231 @@
+# check=error=true
+
+# ################## #
+# ### Package  ##### #
+# ### Compilation ## #
+# ################## #
+FROM ubuntu:24.04 AS agnos-compiler
+
+# Common packages - optimized with cache mount
+RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+    apt-get update && apt-get install -yq --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    ccache \
+    clang \
+    curl \
+    checkinstall \
+    git \
+    pkg-config \
+    wget
+
+# Enable ccache
+ENV PATH="/usr/lib/ccache:$PATH"
+
+# capnproto
+FROM agnos-compiler AS agnos-compiler-capnp
+COPY ./userspace/compile-capnp.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
+    /tmp/agnos/compile-capnp.sh
+
+# ffmpeg
+FROM agnos-compiler AS agnos-compiler-ffmpeg
+COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
+    /tmp/agnos/compile-ffmpeg.sh
+
+# libqmi
+FROM agnos-compiler AS agnos-compiler-libqmi
+COPY ./userspace/compile-libqmi.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
+    /tmp/agnos/compile-libqmi.sh
+
+# ModemManager
+FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
+COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
+    /tmp/agnos/compile-modemmanager.sh
+
+# qtwayland5
+FROM agnos-compiler AS agnos-compiler-qtwayland5
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+COPY ./userspace/compile-qtwayland5.sh /tmp/agnos/
+COPY ./userspace/qtwayland/patch* /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=qtwayland5,sharing=shared \
+    /tmp/agnos/compile-qtwayland5.sh
+
+# ################## #
+# ###### Base ###### #
+# ################## #
+FROM scratch AS agnos-base
+
+# Add Ubuntu Base image files
+ARG UBUNTU_BASE_IMAGE
+ADD ${UBUNTU_BASE_IMAGE} /
+
+# Build folder
+RUN mkdir -p /tmp/agnos
+
+# Stop on error
+RUN set -xe
+
+ARG USERNAME=comma
+
+# Base system setup - optimized with cache mount
+RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
+COPY ./userspace/base_setup.sh /tmp/agnos
+RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+    /tmp/agnos/base_setup.sh
+
+# Install openpilot dependencies - optimized
+COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
+RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+    /tmp/agnos/openpilot_dependencies.sh
+
+# Python environment setup - kept separate for now
+COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_python_dependencies.sh
+
+# Install old Qt 5.12.8, libwayland 1.9.0-1 and deps - optimized
+COPY ./userspace/qtwayland/*.deb /tmp/agnos/
+RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    /tmp/agnos/qt-5.12.8.deb \
+    /tmp/agnos/libwayland-1.9.0-1.deb \
+    /tmp/agnos/libicu66_66.1-2ubuntu2.1_arm64.deb \
+    /tmp/agnos/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb \
+    /tmp/agnos/libffi6_3.2.1-8_arm64.deb
+
+# ####################### #
+# ### Python ENV Stage ## #
+# ####################### #
+FROM agnos-base AS agnos-python-env
+
+ARG XDG_DATA_HOME="/usr/local"
+
+# Install openpilot python packages - separate stage for optimization
+COPY ./userspace/uv /tmp/agnos/uv
+RUN --mount=type=cache,target=/root/.cache/uv,id=uv-cache,sharing=shared \
+    source $XDG_DATA_HOME/venv/bin/activate && \
+    cd /tmp/agnos/uv && \
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
+    MAKEFLAGS="-j$(nproc)" uv sync --frozen --inexact --compile-bytecode
+
+# ################### #
+# ###### AGNOS ###### #
+# ################### #
+FROM agnos-base
+
+# Hardware setup
+RUN mkdir -p /tmp/agnos/debs
+COPY ./userspace/debs /tmp/agnos/debs
+COPY ./userspace/hardware_setup.sh /tmp/agnos
+RUN /tmp/agnos/hardware_setup.sh
+RUN mv /data/persist /system/ && rm -rf /data/*
+
+# Copy pre-compiled packages
+COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
+COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
+COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
+COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
+
+# Consolidated apt installation - MAJOR OPTIMIZATION
+RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+    cd /tmp && \
+    apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    python3 \
+    python3-dev \
+    gir1.2-qmi-1.0 \
+    libglib2.0-dev \
+    libqmi-glib5 \
+    libc6 \
+    libglib2.0-0t64 \
+    libgudev-1.0-0 \
+    libmm-glib0 \
+    libpolkit-gobject-1-0 \
+    libsystemd0 \
+    polkitd \
+    mobile-broadband-provider-info && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+    ./libqmi.deb \
+    ./modemmanager.deb \
+    ./capnproto.deb \
+    ./ffmpeg.deb \
+    ./qtwayland5.deb --allow-downgrades
+
+ARG XDG_DATA_HOME="/usr/local"
+
+# Copy Python environment from separate stage
+COPY --from=agnos-python-env $XDG_DATA_HOME/venv $XDG_DATA_HOME/venv
+
+# Install nice to haves
+COPY ./userspace/install_extras.sh /tmp/agnos/
+RUN /tmp/agnos/install_extras.sh
+
+# Patched libeglSubDriverWayland with fixed nullptr deref in CommitBuffer
+COPY ./userspace/files/libeglSubDriverWayland.so.patched /lib/aarch64-linux-gnu/libeglSubDriverWayland.so
+
+COPY ./userspace/home/ /home/$USERNAME/
+COPY ./userspace/home/.config/ /root/.config
+RUN chown -R $USERNAME: /home/$USERNAME/.config
+
+# Bulk copy operations - optimized
+COPY ./userspace/files/*.path ./userspace/files/*.mount ./userspace/files/*.service ./userspace/files/*.timer /lib/systemd/system/
+COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
+COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
+COPY ./userspace/firmware/* /lib/firmware/
+
+# Bulk copy etc files
+COPY ./userspace/files/fstab /etc
+COPY ./userspace/files/profile /etc/profile
+COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
+COPY ./userspace/files/*.rules /etc/udev/rules.d/
+COPY ./userspace/files/ssh*_config /etc/ssh/
+COPY ./userspace/files/logrotate.conf /etc/
+COPY ./userspace/files/rsyslog /etc/logrotate.d/
+RUN chmod 644 /etc/logrotate.conf
+RUN touch -r /lib/systemd/systemd /etc/fstab
+
+# Bulk copy usr files
+COPY ./userspace/usr/comma/ /usr/$USERNAME/
+COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
+COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
+COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
+
+# Weston with hacked touch rotate and color correction
+COPY ./userspace/files/weston /usr/bin/weston
+COPY ./userspace/files/gl-renderer.so /usr/lib/arm-linux-gnueabihf/weston
+
+# Setup systemd services
+COPY ./userspace/services.sh /tmp/agnos
+RUN /tmp/agnos/services.sh
+
+# MOTD
+RUN rm -r /etc/update-motd.d/*
+COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
+
+# Setup other users/systemd
+RUN adduser --gecos "" --system --group --uid 995 openpilot-system || true
+RUN systemctl enable systemd-logind.service
+RUN systemctl disable apt-daily.timer
+RUN systemctl disable apt-daily.service
+RUN systemctl disable apt-daily-upgrade.timer
+RUN systemctl disable apt-daily-upgrade.service
+RUN systemctl mask apt-daily.service apt-daily-upgrade.service
+RUN systemctl disable systemd-journal-flush.service
+RUN systemctl enable resize-data.service
+RUN systemctl enable setup-keys.service
+
+# Cleanup
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/* && \
+    find /var/log -type f -exec truncate --size 0 {} \;
+
+# This container doesn't start any CMD, it just exists to be exported
