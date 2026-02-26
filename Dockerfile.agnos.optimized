@@ -7,8 +7,8 @@
 FROM ubuntu:24.04 AS agnos-compiler
 
 # Common packages - optimized with cache mount
-RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=compiler-apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=compiler-apt-lib,sharing=shared \
     apt-get update && apt-get install -yq --no-install-recommends \
     build-essential \
     ca-certificates \
@@ -75,14 +75,14 @@ ARG USERNAME=comma
 # Base system setup - optimized with cache mount
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh /tmp/agnos
-RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=base-apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=base-apt-lib,sharing=shared \
     /tmp/agnos/base_setup.sh
 
 # Install openpilot dependencies - optimized
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=base-apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=base-apt-lib,sharing=shared \
     /tmp/agnos/openpilot_dependencies.sh
 
 # Python environment setup - kept separate for now
@@ -91,8 +91,8 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # Install old Qt 5.12.8, libwayland 1.9.0-1 and deps - optimized
 COPY ./userspace/qtwayland/*.deb /tmp/agnos/
-RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=base-apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=base-apt-lib,sharing=shared \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
     /tmp/agnos/qt-5.12.8.deb \
     /tmp/agnos/libwayland-1.9.0-1.deb \
@@ -135,8 +135,8 @@ COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 COPY --from=agnos-compiler-qtwayland5 /tmp/qtwayland5.deb /tmp/qtwayland5.deb
 
 # Consolidated apt installation - MAJOR OPTIMIZATION
-RUN --mount=type=cache,target=/var/cache/apt,id=apt-cache,sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=apt-lib,sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=agnos-apt-cache,sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=agnos-apt-lib,sharing=shared \
     cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
