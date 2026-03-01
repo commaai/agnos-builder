@@ -1,0 +1,3 @@
+#!/bin/sh
+# Delay restart to avoid spamming console on failure
+sleep 5

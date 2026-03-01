@@ -1,0 +1,3 @@
+#!/bin/sh
+. /etc/profile
+exec /usr/local/venv/bin/python -u /usr/comma/varwatch.py

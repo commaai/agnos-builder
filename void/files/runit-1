@@ -1,0 +1,153 @@
+#!/bin/sh
+# Custom runit stage 1 for AGNOS - verbose and handles missing kernel features
+
+# Enable verbose output for debugging
+set -x
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+echo "=> AGNOS runit stage 1 starting"
+
+echo "=> Mounting pseudo-filesystems..."
+mountpoint -q /proc || mount -t proc proc /proc -o nosuid,noexec,nodev
+mountpoint -q /sys || mount -t sysfs sys /sys -o nosuid,noexec,nodev
+mountpoint -q /run || mount -t tmpfs run /run -o mode=0755,nosuid,nodev
+mountpoint -q /dev || mount -t devtmpfs dev /dev -o mode=0755,nosuid
+
+mkdir -p /run/lock /run/user /dev/pts /dev/shm
+touch /run/motd && chmod 666 /run/motd
+
+mountpoint -q /dev/pts || mount -t devpts devpts /dev/pts -o mode=0620,gid=5,nosuid,noexec
+mountpoint -q /dev/shm || mount -t tmpfs shm /dev/shm -o mode=1777,nosuid,nodev
+
+# Mount /var, /tmp, /rwtmp as tmpfs early (from fstab, but we need it before services start)
+mountpoint -q /var || mount -t tmpfs tmpfs /var -o rw,nosuid,nodev,size=128M,mode=755
+mountpoint -q /tmp || mount -t tmpfs tmpfs /tmp -o rw,nosuid,nodev,size=150M,mode=1777
+mountpoint -q /rwtmp || mount -t tmpfs tmpfs /rwtmp -o rw,nosuid,nodev,size=100M,mode=1777
+mkdir -p /var/run /var/log /var/tmp /var/lib /var/cache /var/chroot/ssh
+# D-Bus socket symlink (D-Bus runs in /run/dbus, some apps expect /var/run/dbus)
+ln -sf /run/dbus /var/run/dbus
+
+# securityfs - optional, don't fail if kernel doesn't support
+if [ -d /sys/kernel/security ]; then
+    mountpoint -q /sys/kernel/security || mount -t securityfs securityfs /sys/kernel/security -o nosuid,noexec,nodev 2>/dev/null || echo "WARN: securityfs not available"
+else
+    echo "WARN: /sys/kernel/security does not exist, skipping"
+fi
+
+# debugfs - mount with mode=0755 so non-root users can traverse (needed for msm_vidc)
+mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug -o mode=0755 2>/dev/null || echo "WARN: debugfs not available"
+
+# cgroups - try cgroup2 first, fall back to cgroup1, or skip entirely
+echo "=> Setting up cgroups..."
+mkdir -p /sys/fs/cgroup
+if mount -t cgroup2 cgroup2 /sys/fs/cgroup -o nosuid,noexec,nodev 2>/dev/null; then
+    echo "=> cgroup2 mounted successfully"
+elif mount -t cgroup cgroup /sys/fs/cgroup -o nosuid,noexec,nodev 2>/dev/null; then
+    echo "=> cgroup1 mounted successfully"
+else
+    echo "WARN: cgroups not available, continuing without"
+fi
+
+# Mount /firmware early (before udev) so firmware is available when drivers load
+# The symlink /lib/firmware/updates -> /firmware/image requires /firmware to be mounted
+echo "=> Mounting /firmware early for driver firmware..."
+n=0
+while [ ! -b /dev/sde4 ] && [ $n -lt 50 ]; do
+    sleep 0.1
+    n=$((n + 1))
+done
+if [ -b /dev/sde4 ]; then
+    mount -t vfat -o ro /dev/sde4 /firmware && echo "=> /firmware mounted" || echo "WARN: /firmware mount failed"
+else
+    echo "WARN: /dev/sde4 not ready after 5s, will mount later"
+fi
+echo "=> Loading kernel modules..."
+if [ -x /etc/runit/core-services/02-kmods.sh ]; then
+    /etc/runit/core-services/02-kmods.sh || echo "WARN: kmod loading had issues"
+fi
+
+echo "=> Starting udev..."
+if [ -x /usr/bin/udevd ]; then
+    /usr/bin/udevd --daemon
+    echo "=> udevd started, triggering events..."
+    udevadm trigger --action=add --type=subsystems
+    udevadm trigger --action=add --type=devices
+    echo "=> Waiting for udev to settle (timeout 30s)..."
+    udevadm settle --timeout=30 || echo "WARN: udevadm settle timed out"
+    echo "=> udev settle complete"
+else
+    echo "WARN: udevd not found at /usr/bin/udevd"
+    ls -la /usr/bin/udev* 2>/dev/null || true
+    ls -la /sbin/udev* 2>/dev/null || true
+fi
+
+# Wait for a device to appear (up to timeout seconds)
+wait_for_dev() {
+    dev="$1"
+    timeout="${2:-60}"
+    n=0
+    while [ ! -e "$dev" ] && [ $n -lt $timeout ]; do
+        sleep 1
+        n=$((n + 1))
+        [ $((n % 10)) -eq 0 ] && echo "=> Still waiting for $dev... (${n}s)"
+    done
+    [ -e "$dev" ]
+}
+
+# Mount a partition by partlabel
+# Usage: mount_part <partlabel> <mountpoint> <options>
+mount_part() {
+    label="$1"
+    mnt="$2"
+    opts="${3:-ro}"
+    dev="/dev/disk/by-partlabel/$label"
+
+    if wait_for_dev "$dev" 60; then
+        if mount -o "$opts" "$dev" "$mnt"; then
+            echo "=> $mnt mounted ($label)"
+        else
+            echo "WARN: $mnt mount failed"
+        fi
+    else
+        echo "WARN: $label partition not found"
+    fi
+}
+
+echo "=> Mounting partitions..."
+# Critical partitions (with options: partlabel:mountpoint:options)
+# Note: /firmware (modem_a) is mounted earlier before udev
+for part in \
+    "userdata:/data:rw,noatime,nodiratime" \
+    "dsp_a:/dsp:ro" \
+    "persist:/persist:ro" \
+; do
+    label="${part%%:*}"
+    rest="${part#*:}"
+    mnt="${rest%%:*}"
+    opts="${rest#*:}"
+    mount_part "$label" "$mnt" "$opts"
+done
+
+echo "=> Setting hostname..."
+if [ -f /etc/hostname ]; then
+    hostname "$(cat /etc/hostname)"
+else
+    hostname comma
+fi
+
+echo "=> Running core services..."
+for f in /etc/runit/core-services/*.sh; do
+    [ -x "$f" ] || continue
+    # Skip only the ones we already handled above
+    case "$f" in
+        *00-pseudofs*|*01-static-devnodes*|*02-kmods*|*02-udev*)
+            echo "=> Skipping $f (already done)"
+            continue
+            ;;
+    esac
+    echo "=> Running $f"
+    "$f" || echo "WARN: $f failed"
+done
+
+echo "=> Stage 1 complete, entering stage 2"

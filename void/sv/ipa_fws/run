@@ -1,0 +1,16 @@
+#!/bin/sh
+# ipa_fws - IPA Firmware loader
+# Tells IPA driver that userspace is ready so it can load firmware
+# Must run BEFORE wlan driver probes (before init-qcom completes)
+exec 2>&1
+
+# Wait for /dev/ipa to exist
+while [ ! -e /dev/ipa ]; do
+    sleep 0.1
+done
+
+# Signal IPA driver that userspace is ready
+echo 1 > /dev/ipa
+
+# One-shot service - done
+exec sleep infinity

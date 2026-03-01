@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# Copyright (c) 2017 Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+#
+# Starts the cnss_services daemon
+#
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+SSR_SUBSYS_PATH=/sys/bus/msm_subsys/devices
+SSR_SUBSYS=`ls -d $SSR_SUBSYS_PATH/subsys*`
+SSR_CLD_SUBSYS_NAME=AR6320
+SSR_RESTART_LEVEL=system
+
+case "$1" in
+    start)
+        echo "Starting cnss_daemon... $@"
+        if [ -e /tmp/cnss_daemon.log ];
+        then
+            echo "Starting cnss_daemon..." >> /tmp/cnss_daemon.log
+            start-stop-daemon -S -x /usr/sbin/cnss_daemon -- -d -f /tmp/cnss_daemon.log
+        else
+            start-stop-daemon -S -x /usr/sbin/cnss_daemon
+        fi
+        echo "done"
+        ;;
+    stop)
+        echo -n "Stopping cnss_services: "
+        start-stop-daemon -K -n /usr/sbin/cnss_daemon
+        echo "done"
+        ;;
+    restart)
+        $0 stop
+        $0 start
+        ;;
+    *)
+        echo "Usage: cnss_daemon { start | stop | restart }" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

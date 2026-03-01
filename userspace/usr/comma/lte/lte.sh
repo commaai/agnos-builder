@@ -41,7 +41,7 @@ function is_online {
       return 0
     fi
 
-    echo "  Waiting..."
+    #echo "  Waiting..."
     sleep 1
   done
 
@@ -57,7 +57,7 @@ function is_offline {
       return 0
     fi
 
-    echo "  Waiting..."
+    #echo "  Waiting..."
     sleep 1
   done
 
