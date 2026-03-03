@@ -516,6 +516,11 @@ wheels = [
 ]
 
 [[package]]
+name = "gcc-arm-none-eabi"
+version = "13.2.1"
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+
+[[package]]
 name = "google-crc32c"
 version = "1.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -809,6 +814,7 @@ dependencies = [
     { name = "cffi" },
     { name = "crcmod-plus" },
     { name = "cython" },
+    { name = "gcc-arm-none-eabi" },
     { name = "inputs" },
     { name = "jeepney" },
     { name = "json-rpc" },
@@ -868,6 +874,7 @@ requires-dist = [
     { name = "crcmod-plus" },
     { name = "cython" },
     { name = "dearpygui", marker = "(platform_machine != 'aarch64' and extra == 'tools') or (sys_platform != 'linux' and extra == 'tools')", specifier = ">=2.1.0" },
+    { name = "gcc-arm-none-eabi", git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases" },
     { name = "hypothesis", marker = "extra == 'testing'", specifier = "==6.47.*" },
     { name = "inputs" },
     { name = "jeepney" },
