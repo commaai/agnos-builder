@@ -212,6 +212,9 @@ RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 # Don't let logind delete /dev/shm
 COPY ./userspace/files/logind.conf /etc/systemd/logind.conf
 
+# Retry NTP sync every 5s instead of 30s for faster time sync after network connects
+COPY ./userspace/files/timesyncd.conf /etc/systemd/timesyncd.conf
+
 # Copy Avahi daemon override
 COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.service.d/override.conf
 
