@@ -24,7 +24,7 @@ git submodule update --init agnos-kernel-sdm845
 ./tools/extract_tools.sh
 ```
 
-Building
+### Building
 
 1. (Optional) Because AGNOS currently packages dependencies that [openpilot](https://github.com/commaai/openpilot) uses, run `./sync_openpilot_dependencies.sh` to update them.
 
@@ -44,18 +44,21 @@ Building
     ./build_system.sh
     ```
 
-Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
+    To build using [namespace.so](https://namespace.so) remote ARM64 builders, prefix with `NS=1`:
+
+    ```
+    NS=1 ./build_kernel.sh
+    NS=1 ./build_system.sh
+    ```
+
+### Flashing
+
+Flash to a comma 3/3X (set your device in QDL mode first, refer to [flash.comma.ai](https://flash.comma.ai/) for more information):
 ```
 ./flash_kernel.sh
 ./flash_system.sh
 
-./flash_all.sh 
-```
-
-**Namespace runners**: To build using [namespace.so](https://namespace.so) remote ARM64 builders, prefix with `NS=1`:
-```
-NS=1 ./build_system.sh
-NS=1 ./build_kernel.sh
+./flash_all.sh
 ```
 
 In the event that flashing from building doesn't work, `scripts/download-from-manifest.py` allows you to download the latest AGNOS version for flashing.
