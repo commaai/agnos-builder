@@ -34,7 +34,6 @@ dependencies = [
   # panda
   "libusb1",
   "spidev; platform_system == 'Linux'",
-  "gcc-arm-none-eabi @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=gcc-arm-none-eabi",
 
   # logging
   "pyzmq",
