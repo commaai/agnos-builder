@@ -44,12 +44,12 @@ git submodule update --init agnos-kernel-sdm845
     ./build_system.sh
     ```
 
-    > [!NOTE]
-    > To build using [namespace.so](https://namespace.so) remote ARM64 builders, prefix with `NS=1`:
-    > ```
-    > NS=1 ./build_kernel.sh
-    > NS=1 ./build_system.sh
-    > ```
+> [!NOTE]
+> To build using [namespace.so](https://namespace.so) remote ARM64 builders, prefix with `NS=1`:
+> ```
+> NS=1 ./build_kernel.sh
+> NS=1 ./build_system.sh
+> ```
 
 ### Flashing
 
