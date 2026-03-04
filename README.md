@@ -53,7 +53,7 @@ git submodule update --init agnos-kernel-sdm845
 
 ### Flashing
 
-Flash to a comma 3/3X (set your device in QDL mode first, refer to [flash.comma.ai](https://flash.comma.ai/) for more information):
+Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
 ```
 ./flash_kernel.sh
 ./flash_system.sh
