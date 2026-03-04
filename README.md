@@ -26,9 +26,9 @@ git submodule update --init agnos-kernel-sdm845
 
 Building
 
-1. Because AGNOS currently packages dependencies that [openpilot](https://github.com/commaai/openpilot) uses, run `./sync_openpilot_dependencies.sh`.
+1. (Optional) Because AGNOS currently packages dependencies that [openpilot](https://github.com/commaai/openpilot) uses, run `./sync_openpilot_dependencies.sh` to update them.
 
-2. The setup, reset, and updater UIs are Python [zipapps](https://docs.python.org/3/library/zipapp.html) built from openpilot using `release/pack.py`. To rebuild them, run from the openpilot repo:
+2. (Optional) The setup, reset, and updater UIs are Python [zipapps](https://docs.python.org/3/library/zipapp.html) built from openpilot using `release/pack.py`. To rebuild them, run from the openpilot repo:
 
     ```
     cd /path/to/openpilot
