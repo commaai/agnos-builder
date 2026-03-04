@@ -43,6 +43,27 @@ Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing
 ./flash_all.sh 
 ```
 
+### Troubleshooting
+
+**EDL tool can't find device**: The comma four uses USB vendor ID `0x3801` (comma's registered VID), not Qualcomm's `0x05c6`. Make sure your udev rules include both:
+```
+SUBSYSTEM=="usb", ATTR{idVendor}=="3801", ATTR{idProduct}=="9008", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="05c6", ATTR{idProduct}=="9008", MODE="0666"
+```
+
+**GPT headers corrupted after flash.comma.ai**: If `tools/edl setactiveslot` fails with "both gpt headers are corrupted", flash directly to slot a:
+```
+tools/edl w boot_a output/boot.img
+tools/edl w system_a output/system.img
+tools/edl reset
+```
+
+**Namespace runners**: To build using [namespace.so](https://namespace.so) remote ARM64 builders, prefix with `NS=1`:
+```
+NS=1 ./build_system.sh
+NS=1 ./build_kernel.sh
+```
+
 In the event that flashing from building doesn't work, `scripts/download-from-manifest.py` allows you to download the latest AGNOS version for flashing.
 
 > [!NOTE]
