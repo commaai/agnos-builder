@@ -1,6 +1,7 @@
 *.swp
 *.tar.gz
 *.DS_Store
+__pycache__/
 
 /logs/
 agnos/
@@ -8,6 +9,7 @@ output/
 build/
 tmp/
 qdl/
+qcom_xbl/
 .ccache/
 .qemu_registered
 
