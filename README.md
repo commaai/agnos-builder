@@ -58,7 +58,7 @@ Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing
 ./flash_kernel.sh
 ./flash_system.sh
 
-./flash_all.sh
+./flash_all.sh 
 ```
 
 In the event that flashing from building doesn't work, `scripts/download-from-manifest.py` allows you to download the latest AGNOS version for flashing.
