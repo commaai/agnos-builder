@@ -31,7 +31,7 @@ requires-dist = [
     { name = "paramiko" },
     { name = "py-spy" },
     { name = "pyusb" },
-    { name = "raylib", url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" },
+    { name = "raylib", git = "https://github.com/commaai/dependencies.git?subdirectory=raylib&rev=releases" },
     { name = "smbus2" },
     { name = "spidev2" },
 ]
@@ -847,7 +847,7 @@ requires-dist = [
     { name = "python3-dev", git = "https://github.com/commaai/dependencies.git?subdirectory=python3-dev&rev=releases" },
     { name = "pyzmq" },
     { name = "qrcode" },
-    { name = "raylib" },
+    { name = "raylib", specifier = ">5.5.0.3" },
     { name = "requests" },
     { name = "ruff", marker = "extra == 'testing'" },
     { name = "scons" },
@@ -1289,13 +1289,10 @@ wheels = [
 
 [[package]]
 name = "raylib"
-version = "5.5.0.2"
-source = { url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" }
+version = "5.5.0.8"
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=raylib&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 dependencies = [
     { name = "cffi" },
-]
-wheels = [
-    { url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl", hash = "sha256:abea9b94eadb56621b69d697ed3314f5fcb540d684ab1371990d3772e728cce0" },
 ]
 
 [[package]]
