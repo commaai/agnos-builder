@@ -8,36 +8,29 @@ apt-fast install --no-install-recommends -yq \
     autoconf \
     automake \
     build-essential \
-    bzip2 \
     casync \
     clang \
     clinfo \
     cmake \
-    cppcheck \
     curl \
     darkstat \
     dkms \
-    gettext \
     gpiod \
     libarchive-dev \
     libass-dev \
-    libbz2-dev \
     libcurl4-openssl-dev \
     libczmq-dev \
     libdbus-1-dev \
-    libeigen3-dev \
     libffi-dev \
     libfreetype6-dev \
     libglfw3-dev \
     libglib2.0-0t64 \
     libi2c-dev \
-    libjpeg-dev \
     liblzma-dev \
     libomp-dev \
     libportaudio2 \
     libsdl2-dev \
     libsqlite3-dev \
-    libssl-dev \
     libsystemd-dev \
     libtool \
     libusb-1.0-0-dev \
@@ -56,8 +49,6 @@ apt-fast install --no-install-recommends -yq \
     libxcb-xkb1 \
     libxcb1-dev \
     libxkbcommon-x11-0 \
-    libzmq3-dev \
-    libzstd-dev \
     locales \
     nethogs \
     ocl-icd-libopencl1 \
@@ -69,5 +60,4 @@ apt-fast install --no-install-recommends -yq \
     vnstat \
     wget \
     xvfb \
-    zlib1g-dev \
-    zstd
+    zlib1g-dev
