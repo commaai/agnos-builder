@@ -128,7 +128,6 @@ ARG XDG_DATA_HOME="/usr/local"
 COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
-    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # Install nice to haves
