@@ -202,12 +202,12 @@ wheels = [
 [[package]]
 name = "bzip2"
 version = "1.0.8"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=bzip2&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=bzip2&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "capnproto"
 version = "1.0.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=capnproto&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=capnproto&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "casadi"
@@ -460,7 +460,7 @@ wheels = [
 [[package]]
 name = "eigen"
 version = "3.4.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=eigen&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=eigen&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "evdev"
@@ -489,7 +489,7 @@ wheels = [
 [[package]]
 name = "ffmpeg"
 version = "7.1.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ffmpeg&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ffmpeg&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "flaky"
@@ -545,12 +545,12 @@ wheels = [
 [[package]]
 name = "gcc-arm-none-eabi"
 version = "13.2.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "git-lfs"
 version = "3.6.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "google-crc32c"
@@ -718,7 +718,7 @@ wheels = [
 [[package]]
 name = "libjpeg"
 version = "3.1.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libjpeg&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libjpeg&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "libusb1"
@@ -734,7 +734,7 @@ wheels = [
 [[package]]
 name = "libyuv"
 version = "1922.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libyuv&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libyuv&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "matplotlib"
@@ -813,7 +813,7 @@ wheels = [
 [[package]]
 name = "ncurses"
 version = "6.5"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ncurses&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ncurses&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "numpy"
@@ -868,6 +868,7 @@ dependencies = [
     { name = "cython" },
     { name = "eigen" },
     { name = "ffmpeg" },
+    { name = "gcc-arm-none-eabi" },
     { name = "git-lfs" },
     { name = "inputs" },
     { name = "jeepney" },
@@ -877,7 +878,6 @@ dependencies = [
     { name = "libyuv" },
     { name = "ncurses" },
     { name = "numpy" },
-    { name = "openssl3" },
     { name = "psutil" },
     { name = "pycapnp" },
     { name = "pycryptodome" },
@@ -886,7 +886,6 @@ dependencies = [
     { name = "python3-dev" },
     { name = "pyzmq" },
     { name = "qrcode" },
-    { name = "raylib" },
     { name = "requests" },
     { name = "scons" },
     { name = "sentry-sdk" },
@@ -905,7 +904,6 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "gcc-arm-none-eabi" },
     { name = "matplotlib" },
     { name = "opencv-python-headless" },
 ]
@@ -937,10 +935,9 @@ requires-dist = [
     { name = "coverage", marker = "extra == 'testing'" },
     { name = "crcmod-plus" },
     { name = "cython" },
-    { name = "dearpygui", marker = "(platform_machine != 'aarch64' and extra == 'tools') or (sys_platform != 'linux' and extra == 'tools')", specifier = ">=2.1.0" },
     { name = "eigen", git = "https://github.com/commaai/dependencies.git?subdirectory=eigen&rev=releases" },
     { name = "ffmpeg", git = "https://github.com/commaai/dependencies.git?subdirectory=ffmpeg&rev=releases" },
-    { name = "gcc-arm-none-eabi", marker = "extra == 'dev'", git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases" },
+    { name = "gcc-arm-none-eabi", git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=releases" },
     { name = "git-lfs", git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=releases" },
     { name = "hypothesis", marker = "extra == 'testing'", specifier = "==6.47.*" },
     { name = "inputs" },
@@ -956,7 +953,6 @@ requires-dist = [
     { name = "ncurses", git = "https://github.com/commaai/dependencies.git?subdirectory=ncurses&rev=releases" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "opencv-python-headless", marker = "extra == 'dev'" },
-    { name = "openssl3", git = "https://github.com/commaai/dependencies.git?subdirectory=openssl3&rev=releases" },
     { name = "pre-commit-hooks", marker = "extra == 'testing'" },
     { name = "psutil" },
     { name = "pycapnp" },
@@ -972,7 +968,6 @@ requires-dist = [
     { name = "python3-dev", git = "https://github.com/commaai/dependencies.git?subdirectory=python3-dev&rev=releases" },
     { name = "pyzmq" },
     { name = "qrcode" },
-    { name = "raylib", specifier = ">5.5.0.3" },
     { name = "requests" },
     { name = "ruff", marker = "extra == 'testing'" },
     { name = "scons" },
@@ -991,11 +986,6 @@ requires-dist = [
     { name = "zstd", git = "https://github.com/commaai/dependencies.git?subdirectory=zstd&rev=releases" },
 ]
 provides-extras = ["docs", "testing", "dev", "tools"]
-
-[[package]]
-name = "openssl3"
-version = "3.4.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=openssl3&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
 
 [[package]]
 name = "packaging"
@@ -1440,7 +1430,7 @@ wheels = [
 [[package]]
 name = "python3-dev"
 version = "3.12.8"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=python3-dev&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=python3-dev&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "pytools"
@@ -1501,7 +1491,7 @@ wheels = [
 [[package]]
 name = "raylib"
 version = "5.5.0.8"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=raylib&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=raylib&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 dependencies = [
     { name = "cffi" },
 ]
@@ -1836,7 +1826,7 @@ wheels = [
 [[package]]
 name = "zeromq"
 version = "4.3.5"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zeromq&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zeromq&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
 
 [[package]]
 name = "zstandard"
@@ -1866,4 +1856,4 @@ wheels = [
 [[package]]
 name = "zstd"
 version = "1.5.6"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zstd&rev=releases#c6a5d6b395c2e68b85584e935fe3e6a32252cb5b" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zstd&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
