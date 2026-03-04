@@ -9,7 +9,6 @@ apt-fast install --no-install-recommends -yq \
     casync \
     clang \
     curl \
-    dkms \
     gpiod \
     libarchive-dev \
     libass-dev \

@@ -56,10 +56,8 @@ apt-fast install --no-install-recommends -yq \
     apport-retrace \
     bc \
     build-essential \
-    bzip2 \
     curl \
     cpuset \
-    dfu-util \
     evtest \
     git \
     git-core \
@@ -72,14 +70,11 @@ apt-fast install --no-install-recommends -yq \
     iptables-persistent \
     jq \
     landscape-common \
-    libi2c-dev \
-    libqmi-utils \
     libtool \
     libncursesw5-dev \
     libnss-myhostname \
     libgdbm-dev \
     libc6-dev \
-    libsqlite3-dev \
     libssl-dev \
     libffi-dev \
     llvm \
@@ -91,7 +86,6 @@ apt-fast install --no-install-recommends -yq \
     ppp \
     smartmontools \
     speedtest-cli \
-    squashfs-tools \
     ssh \
     sshfs \
     sudo \
