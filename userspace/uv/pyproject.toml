@@ -6,19 +6,12 @@ requires-python = ">=3.12.3, <3.13"
 description = ""
 dependencies = [
   "openpilot",
-  "openpilot[dev]",
   "openpilot[testing]",
 
   # hardware.py
   "dbus-python",
   # amplifier.py
   "smbus2",
-
-  # pandad
-  "libusb1 == 3.1.0", # recent versions segfault on comma three
-
-  # tinygrad
-  "pyopencl == 2024.1",  # pinned until cmake update coming with 24.04
 
   # provisioning
   "pyusb",
