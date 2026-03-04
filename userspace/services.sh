@@ -32,10 +32,6 @@ systemctl enable screen_calibration.service
 # Disable some of our services
 systemctl disable agnos-tests.service
 
-# Disable third party services
-systemctl disable darkstat.service
-systemctl disable vnstat.service
-
 # Disable SSH by default
 systemctl disable ssh
 
