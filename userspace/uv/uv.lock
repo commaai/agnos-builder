@@ -31,7 +31,7 @@ requires-dist = [
     { name = "paramiko" },
     { name = "py-spy" },
     { name = "pyusb" },
-    { name = "raylib", git = "https://github.com/commaai/dependencies.git?subdirectory=raylib&rev=releases" },
+    { name = "raylib", url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" },
     { name = "smbus2" },
     { name = "spidev2" },
 ]
@@ -760,6 +760,7 @@ dependencies = [
     { name = "libyuv" },
     { name = "ncurses" },
     { name = "numpy" },
+    { name = "pillow" },
     { name = "psutil" },
     { name = "pycapnp" },
     { name = "pycryptodome" },
@@ -768,7 +769,6 @@ dependencies = [
     { name = "python3-dev" },
     { name = "pyzmq" },
     { name = "qrcode" },
-    { name = "raylib" },
     { name = "requests" },
     { name = "scons" },
     { name = "sentry-sdk" },
@@ -832,6 +832,7 @@ requires-dist = [
     { name = "ncurses", git = "https://github.com/commaai/dependencies.git?subdirectory=ncurses&rev=releases" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "opencv-python-headless", marker = "extra == 'dev'" },
+    { name = "pillow" },
     { name = "pre-commit-hooks", marker = "extra == 'testing'" },
     { name = "psutil" },
     { name = "pycapnp" },
@@ -847,7 +848,6 @@ requires-dist = [
     { name = "python3-dev", git = "https://github.com/commaai/dependencies.git?subdirectory=python3-dev&rev=releases" },
     { name = "pyzmq" },
     { name = "qrcode" },
-    { name = "raylib", specifier = ">5.5.0.3" },
     { name = "requests" },
     { name = "ruff", marker = "extra == 'testing'" },
     { name = "scons" },
@@ -910,6 +910,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9e/c3/059298687310d527a58bb01f3b1965787ee3b40dce76752eda8b44e9a2c5/pexpect-4.9.0-py2.py3-none-any.whl", hash = "sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523", size = 63772, upload-time = "2023-11-25T06:56:14.81Z" },
+]
+
+[[package]]
+name = "pillow"
+version = "12.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/42/5c74462b4fd957fcd7b13b04fb3205ff8349236ea74c7c375766d6c82288/pillow-12.1.1.tar.gz", hash = "sha256:9ad8fa5937ab05218e2b6a4cff30295ad35afd2f83ac592e68c0d871bb0fdbc4", size = 46980264, upload-time = "2026-02-11T04:23:07.146Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/d3/8df65da0d4df36b094351dce696f2989bec731d4f10e743b1c5f4da4d3bf/pillow-12.1.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:ab323b787d6e18b3d91a72fc99b1a2c28651e4358749842b8f8dfacd28ef2052", size = 5262803, upload-time = "2026-02-11T04:20:47.653Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/71/5026395b290ff404b836e636f51d7297e6c83beceaa87c592718747e670f/pillow-12.1.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:adebb5bee0f0af4909c30db0d890c773d1a92ffe83da908e2e9e720f8edf3984", size = 4657601, upload-time = "2026-02-11T04:20:49.328Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/2e/1001613d941c67442f745aff0f7cc66dd8df9a9c084eb497e6a543ee6f7e/pillow-12.1.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:bb66b7cc26f50977108790e2456b7921e773f23db5630261102233eb355a3b79", size = 6234995, upload-time = "2026-02-11T04:20:51.032Z" },
+    { url = "https://files.pythonhosted.org/packages/07/26/246ab11455b2549b9233dbd44d358d033a2f780fa9007b61a913c5b2d24e/pillow-12.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:aee2810642b2898bb187ced9b349e95d2a7272930796e022efaf12e99dccd293", size = 8045012, upload-time = "2026-02-11T04:20:52.882Z" },
+    { url = "https://files.pythonhosted.org/packages/b2/8b/07587069c27be7535ac1fe33874e32de118fbd34e2a73b7f83436a88368c/pillow-12.1.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:a0b1cd6232e2b618adcc54d9882e4e662a089d5768cd188f7c245b4c8c44a397", size = 6349638, upload-time = "2026-02-11T04:20:54.444Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/79/6df7b2ee763d619cda2fb4fea498e5f79d984dae304d45a8999b80d6cf5c/pillow-12.1.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7aac39bcf8d4770d089588a2e1dd111cbaa42df5a94be3114222057d68336bd0", size = 7041540, upload-time = "2026-02-11T04:20:55.97Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/5e/2ba19e7e7236d7529f4d873bdaf317a318896bac289abebd4bb00ef247f0/pillow-12.1.1-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:ab174cd7d29a62dd139c44bf74b698039328f45cb03b4596c43473a46656b2f3", size = 6462613, upload-time = "2026-02-11T04:20:57.542Z" },
+    { url = "https://files.pythonhosted.org/packages/03/03/31216ec124bb5c3dacd74ce8efff4cc7f52643653bad4825f8f08c697743/pillow-12.1.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:339ffdcb7cbeaa08221cd401d517d4b1fe7a9ed5d400e4a8039719238620ca35", size = 7166745, upload-time = "2026-02-11T04:20:59.196Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/e7/7c4552d80052337eb28653b617eafdef39adfb137c49dd7e831b8dc13bc5/pillow-12.1.1-cp312-cp312-win32.whl", hash = "sha256:5d1f9575a12bed9e9eedd9a4972834b08c97a352bd17955ccdebfeca5913fa0a", size = 6328823, upload-time = "2026-02-11T04:21:01.385Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/17/688626d192d7261bbbf98846fc98995726bddc2c945344b65bec3a29d731/pillow-12.1.1-cp312-cp312-win_amd64.whl", hash = "sha256:21329ec8c96c6e979cd0dfd29406c40c1d52521a90544463057d2aaa937d66a6", size = 7033367, upload-time = "2026-02-11T04:21:03.536Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/fe/a0ef1f73f939b0eca03ee2c108d0043a87468664770612602c63266a43c4/pillow-12.1.1-cp312-cp312-win_arm64.whl", hash = "sha256:af9a332e572978f0218686636610555ae3defd1633597be015ed50289a03c523", size = 2453811, upload-time = "2026-02-11T04:21:05.116Z" },
 ]
 
 [[package]]
@@ -1289,11 +1308,17 @@ wheels = [
 
 [[package]]
 name = "raylib"
-version = "5.5.0.8"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=raylib&rev=releases#9777ee38aa5ca9439843125392af38ed1262e500" }
+version = "5.5.0.2"
+source = { url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl" }
 dependencies = [
     { name = "cffi" },
 ]
+wheels = [
+    { url = "https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl", hash = "sha256:abea9b94eadb56621b69d697ed3314f5fcb540d684ab1371990d3772e728cce0" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cffi", specifier = ">=1.17.1" }]
 
 [[package]]
 name = "requests"
