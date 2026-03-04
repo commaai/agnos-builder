@@ -25,10 +25,15 @@ git submodule update --init agnos-kernel-sdm845
 ```
 
 Building
-```
-./build_kernel.sh
-./build_system.sh
-```
+
+1. Because AGNOS currently packages dependencies that [openpilot](https://github.com/commaai/openpilot) uses, run `./sync_openpilot_dependencies.sh`.
+
+2. Build the kernel and system images:
+
+  ```
+  ./build_kernel.sh
+  ./build_system.sh
+  ```
 
 Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
 ```
