@@ -15,7 +15,12 @@ if [ ! -d "$EDL_PATH" ]; then
 fi
 
 pushd $EDL_PATH > /dev/null
-python3 -m venv venv
+
+NEED_INSTALL=0
+if [ ! -d venv ]; then
+  python3 -m venv venv
+  NEED_INSTALL=1
+fi
 source venv/bin/activate
 
 if [ "$(< .git/HEAD)" != "$VERSION" ]; then
@@ -23,8 +28,18 @@ if [ "$(< .git/HEAD)" != "$VERSION" ]; then
   git fetch origin $VERSION
   git checkout $VERSION
   git submodule update --depth=1 --init --recursive
+  NEED_INSTALL=1
+fi
+
+if [ "$NEED_INSTALL" -eq 1 ]; then
   pip3 install -r requirements.txt
 fi
+
+# patch in comma four USB id (https://github.com/commaai/agnos-builder/issues/533)
+if ! grep -q '0x3801' $EDL_PATH/edlclient/Config/usb_ids.py; then
+  sed -i '/\[0x05c6, 0x9008, -1\]/a\    [0x3801, 0x9008, -1],  # comma four' $EDL_PATH/edlclient/Config/usb_ids.py
+fi
+
 popd > /dev/null
 
 $EDL_PATH/edl "$@"

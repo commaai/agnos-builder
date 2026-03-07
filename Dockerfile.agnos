@@ -21,12 +21,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
 
-# capnproto
-FROM agnos-compiler AS agnos-compiler-capnp
-COPY ./userspace/compile-capnp.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=capnp,sharing=shared \
-    /tmp/agnos/compile-capnp.sh
-
 # ffmpeg
 FROM agnos-compiler AS agnos-compiler-ffmpeg
 COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
@@ -124,10 +118,6 @@ RUN cd /tmp && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
 
-# Pre-compiled capnp (must be before python install)
-COPY --from=agnos-compiler-capnp /tmp/capnproto.deb /tmp/capnproto.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./capnproto.deb
-
 # Use other pre-compiled packages
 COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
 RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
@@ -138,7 +128,6 @@ ARG XDG_DATA_HOME="/usr/local"
 COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
-    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # Install nice to haves
@@ -211,6 +200,9 @@ RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
 # Don't let logind delete /dev/shm
 COPY ./userspace/files/logind.conf /etc/systemd/logind.conf
+
+# Retry NTP sync every 10s instead of 30s for faster time sync after network connects
+COPY ./userspace/files/timesyncd.conf /etc/systemd/timesyncd.conf
 
 # Copy Avahi daemon override
 COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.service.d/override.conf

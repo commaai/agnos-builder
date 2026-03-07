@@ -24,11 +24,34 @@ git submodule update --init agnos-kernel-sdm845
 ./tools/extract_tools.sh
 ```
 
-Building
-```
-./build_kernel.sh
-./build_system.sh
-```
+### Building
+
+1. (Optional) Because AGNOS currently packages dependencies that [openpilot](https://github.com/commaai/openpilot) uses, run `./sync_openpilot_dependencies.sh` to update them.
+
+2. (Optional) The setup, reset, and updater UIs are Python [zipapps](https://docs.python.org/3/library/zipapp.html) built from openpilot using `release/pack.py`. To rebuild them, run from the [openpilot](https://github.com/commaai/openpilot) repo:
+
+    ```
+    cd /path/to/openpilot
+    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/setup openpilot.system.ui.mici_setup
+    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/reset openpilot.system.ui.reset
+    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/updater openpilot.system.ui.updater
+    ```
+
+3. Build the kernel and system images:
+
+    ```
+    ./build_kernel.sh
+    ./build_system.sh
+    ```
+
+    To build using [namespace.so](https://namespace.so) remote ARM64 builders, prefix with `NS=1`:
+
+    ```
+    NS=1 ./build_kernel.sh
+    NS=1 ./build_system.sh
+    ```
+
+### Flashing
 
 Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
 ```

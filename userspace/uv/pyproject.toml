@@ -6,19 +6,12 @@ requires-python = ">=3.12.3, <3.13"
 description = ""
 dependencies = [
   "openpilot",
-  "openpilot[dev]",
   "openpilot[testing]",
 
   # hardware.py
   "dbus-python",
   # amplifier.py
   "smbus2",
-
-  # pandad
-  "libusb1 == 3.1.0", # recent versions segfault on comma three
-
-  # tinygrad
-  "pyopencl @ https://github.com/adeebshihadeh/pyopencl/releases/download/v2025.2.7-arm64/pyopencl-2025.2.7-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
 
   # provisioning
   "pyusb",
