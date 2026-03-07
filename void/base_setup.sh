@@ -95,8 +95,6 @@ xbps-install -y \
   zeromq-devel \
   zlib-devel \
   zstd \
-  capnproto \
-  capnproto-devel \
   x264-devel \
   nasm \
   libqmi \
