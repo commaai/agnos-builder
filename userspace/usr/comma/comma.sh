@@ -54,7 +54,7 @@ if [ ! -f /tmp/booted ]; then
     $RESET
   elif (( "$(cat /sys/class/input/input2/device/touch_count)" > 4 )); then
     echo "launching system reset, got taps"
-    $RESET
+    $RESET --tap-reset
   elif ! mountpoint -q /data; then
     echo "userdata not mounted. loading system reset"
     $RESET --recover
