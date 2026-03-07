@@ -29,7 +29,6 @@ xbps-install -y \
   base-devel \
   bc \
   busybox \
-  bzip2-devel \
   clang \
   cmake \
   czmq-devel \
@@ -37,7 +36,6 @@ xbps-install -y \
   dfu-util \
   dhcpcd \
   dnsmasq \
-  eigen \
   evtest \
   freetype-devel \
   fuse-sshfs \
@@ -59,13 +57,11 @@ xbps-install -y \
   libcurl-devel \
   libffi-devel \
   libgpiod \
-  libjpeg-turbo-devel \
   liblzma-devel \
   libomp-devel \
   libtool \
   libusb-devel \
   libuv-devel \
-  libzstd-devel \
   llvm \
   logrotate \
   lz4 \
@@ -75,7 +71,6 @@ xbps-install -y \
   NetworkManager \
   nload \
   opencl-headers \
-  openssl-devel \
   portaudio-devel \
   ppp \
   pv \
@@ -92,9 +87,7 @@ xbps-install -y \
   traceroute \
   wireless_tools \
   wpa_supplicant \
-  zeromq-devel \
   zlib-devel \
-  zstd \
   x264-devel \
   nasm \
   libqmi \
