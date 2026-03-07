@@ -1,0 +1,9 @@
+#!/bin/sh
+# qseecomd - TrustZone daemon
+exec 2>&1
+
+sv check leprop > /dev/null || exit 1
+
+# One-shot service - run once then sleep forever
+/etc/initscripts/qseecomd start
+exec sleep infinity

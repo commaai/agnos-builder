@@ -1,0 +1,4 @@
+#!/bin/sh
+# One-shot service - run once then sleep forever
+/usr/comma/gpio.sh
+exec sleep infinity

@@ -1,0 +1,2 @@
+# Firmware loading helper for eudev - responds immediately to prevent 60s timeouts
+SUBSYSTEM=="firmware", ACTION=="add", RUN+="/lib/udev/firmware-helper.sh"

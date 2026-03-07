@@ -1,0 +1,9 @@
+#!/bin/sh
+# adsp - Audio DSP init (runs once)
+exec 2>&1
+
+# Run the init script
+/etc/initscripts/adsp.sh start
+
+# Stay up so runit doesn't restart
+exec sleep infinity
