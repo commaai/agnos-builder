@@ -21,12 +21,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
 
-# ffmpeg
-FROM agnos-compiler AS agnos-compiler-ffmpeg
-COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
-    /tmp/agnos/compile-ffmpeg.sh
-
 # libqmi
 FROM agnos-compiler AS agnos-compiler-libqmi
 COPY ./userspace/compile-libqmi.sh /tmp/agnos/
@@ -117,10 +111,6 @@ RUN cd /tmp && \
     mobile-broadband-provider-info && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
-
-# Use other pre-compiled packages
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
 
 ARG XDG_DATA_HOME="/usr/local"
 
