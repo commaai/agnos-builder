@@ -130,13 +130,6 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
-# Symlink vendored C++ headers and libs to system paths
-RUN ln -s $XDG_DATA_HOME/venv/lib/python3.12/site-packages/capnproto/install/include/capnp /usr/include/capnp && \
-    ln -s $XDG_DATA_HOME/venv/lib/python3.12/site-packages/capnproto/install/include/kj /usr/include/kj && \
-    ln -s $XDG_DATA_HOME/venv/lib/python3.12/site-packages/capnproto/install/lib/libcapnp.a /usr/lib/aarch64-linux-gnu/libcapnp.a && \
-    ln -s $XDG_DATA_HOME/venv/lib/python3.12/site-packages/capnproto/install/lib/libkj.a /usr/lib/aarch64-linux-gnu/libkj.a && \
-    ln -s $XDG_DATA_HOME/venv/lib/python3.12/site-packages/eigen/install/eigen3 /usr/include/eigen3
-
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
