@@ -74,9 +74,6 @@ xbps-install -y \
   portaudio-devel \
   ppp \
   pv \
-  python3 \
-  python3-devel \
-  python3-pip \
   rsync \
   rsyslog \
   SDL2-devel \
