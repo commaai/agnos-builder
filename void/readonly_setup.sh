@@ -19,6 +19,9 @@ ln -s /data/etc/netplan/ /etc/netplan
 mkdir -p /usr/default/
 
 rm -rf /var/cache/*
+# Preserve xbps package database so xbps-query works on the running system
+# /var is tmpfs at runtime, so store db on rootfs and symlink
+cp -a /var/db/xbps /usr/lib/xbps-db
 mv /var /usr/default && mkdir /var
 
 mv /home /usr/default && mkdir /home

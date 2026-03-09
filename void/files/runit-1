@@ -24,7 +24,8 @@ mountpoint -q /dev/shm || mount -t tmpfs shm /dev/shm -o mode=1777,nosuid,nodev
 mountpoint -q /var || mount -t tmpfs tmpfs /var -o rw,nosuid,nodev,size=128M,mode=755
 mountpoint -q /tmp || mount -t tmpfs tmpfs /tmp -o rw,nosuid,nodev,size=150M,mode=1777
 mountpoint -q /rwtmp || mount -t tmpfs tmpfs /rwtmp -o rw,nosuid,nodev,size=100M,mode=1777
-mkdir -p /var/run /var/log /var/tmp /var/lib /var/cache /var/chroot/ssh
+mkdir -p /var/run /var/log /var/tmp /var/lib /var/cache /var/chroot/ssh /var/db
+ln -sf /usr/lib/xbps-db /var/db/xbps
 # D-Bus socket symlink (D-Bus runs in /run/dbus, some apps expect /var/run/dbus)
 ln -sf /run/dbus /var/run/dbus
 
