@@ -88,8 +88,6 @@ xbps-install -y \
   wireless_tools \
   wpa_supplicant \
   zlib-devel \
-  x264-devel \
-  nasm \
   libqmi \
   libqmi-devel \
   ModemManager \
