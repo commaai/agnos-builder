@@ -55,7 +55,7 @@ RUN cd /tmp/agnos/uv && \
 RUN mkdir -p /home/$USERNAME && chown $USERNAME:$USERNAME /home/$USERNAME
 COPY --chown=comma:comma ./userspace/home/ /home/$USERNAME/
 # Void's default .bashrc doesn't source .bash_aliases
-RUN echo '\nif [ -f ~/.bash_aliases ]; then\n    . ~/.bash_aliases\nfi' >> /home/$USERNAME/.bashrc
+RUN printf '\nif [ -f ~/.bash_aliases ]; then\n    . ~/.bash_aliases\nfi\n' >> /home/$USERNAME/.bashrc
 RUN mkdir -p /root/.config
 
 # runit services
