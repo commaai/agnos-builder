@@ -88,7 +88,11 @@ def modify_gpt_attributes(device, slot, modify_fn):
 
 def main():
   if len(sys.argv) < 2:
-    print("Usage: abctl --boot_slot|--set_success|--set_active <0|1>|--set_unbootable <0|1>")
+    print("Usage: abctl <command>")
+    print("  --boot_slot            Print current boot slot")
+    print("  --set_success          Mark current slot as successful")
+    print("  --set_active <0|1>     Set active slot (0=a, 1=b)")
+    print("  --set_unbootable <0|1> Mark slot as unbootable (0=a, 1=b)")
     sys.exit(1)
 
   cmd = sys.argv[1]
