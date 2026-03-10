@@ -69,6 +69,32 @@ def _write_gpt(f, header_lba, header, entries):
   f.write(header)
 
 
+def get_gpt_active_slot():
+  """Detect active slot from GPT boot partition flags.
+  Unlike get_current_slot() (which reads /proc/cmdline and reflects the booted
+  slot), this reads the current GPT state — needed for GUID swap decisions
+  when set_active is called without rebooting in between."""
+  with open('/dev/sde', 'rb') as f:
+    header, entries, num_entries, entry_size = _read_gpt(f, 1)
+    if header is None:
+      return None
+    best_slot, best_priority = None, -1
+    for i in range(num_entries):
+      off = i * entry_size
+      if entries[off:off+16] == b'\x00' * 16:
+        continue
+      name = entries[off+56:off+128].decode('utf-16-le').rstrip('\x00')
+      if not name.startswith('boot_'):
+        continue
+      attrs = struct.unpack('<Q', entries[off+48:off+56])[0]
+      active = (attrs >> 50) & 1
+      priority = (attrs >> 48) & 0x3
+      if active and priority > best_priority:
+        best_priority = priority
+        best_slot = '_' + name[-1]
+    return best_slot
+
+
 def modify_gpt_attributes(device, slot, modify_fn):
   """Read GPT, modify matching partition attributes, write back to both GPTs.
   modify_fn(name, attrs) -> new_attrs"""
@@ -181,9 +207,11 @@ def main():
       # Non-boot: only clear ACTIVE bit
       return attrs & ~ATTR_ACTIVE
 
-    # Swap GUIDs when switching to a different slot (matches ABL SwitchPtnSlots)
-    current = get_current_slot()
-    if current != slot:
+    # Swap GUIDs when switching to a different slot (matches ABL SwitchPtnSlots).
+    # Must read active slot from GPT, not /proc/cmdline — cmdline reflects the
+    # booted slot which doesn't change until reboot.
+    current = get_gpt_active_slot()
+    if current is not None and current != slot:
       for dev in AB_DEVICES:
         swap_slot_guids(dev)
 
