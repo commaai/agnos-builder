@@ -29,6 +29,10 @@ ATTR_UNBOOTABLE    = 1 << 55
 MAX_PRIORITY    = 3
 MAX_RETRY_COUNT = 7
 
+# Block devices with A/B partitions
+# /dev/sda = LUN 0 (system_a/b), /dev/sde = LUN 4 (boot, aop, tz, abl, etc.)
+AB_DEVICES = ['/dev/sda', '/dev/sde']
+
 def get_current_slot():
   with open('/proc/cmdline') as f:
     for part in f.read().split():
@@ -86,6 +90,58 @@ def modify_gpt_attributes(device, slot, modify_fn):
     os.fsync(f.fileno())
 
 
+def swap_slot_guids(device):
+  """Swap partition type GUIDs between _a and _b counterparts.
+  Matches ABL SwitchPtnSlots() / SwapPtnGuid().
+  https://git.codelinaro.org/clo/qcomlt/abl/-/blob/LE.UM.2.3.7/QcomModulePkg/Library/BootLib/PartitionTableUpdate.c#L452-510"""
+  with open(device, 'r+b') as f:
+    f.seek(SECTOR_SIZE)
+    header = bytearray(f.read(SECTOR_SIZE))
+    if header[:8] != b'EFI PART':
+      return
+
+    part_lba = struct.unpack('<Q', header[72:80])[0]
+    num_entries = struct.unpack('<I', header[80:84])[0]
+    entry_size = struct.unpack('<I', header[84:88])[0]
+
+    f.seek(part_lba * SECTOR_SIZE)
+    entries = bytearray(f.read(num_entries * entry_size))
+
+    pairs = {}
+    for i in range(num_entries):
+      off = i * entry_size
+      if entries[off:off+16] == b'\x00' * 16:
+        continue
+      name = entries[off+56:off+128].decode('utf-16-le').rstrip('\x00')
+      if name.endswith('_a') or name.endswith('_b'):
+        pairs.setdefault(name[:-2], {})[name[-1]] = off
+
+    modified = False
+    for slots in pairs.values():
+      if 'a' in slots and 'b' in slots:
+        a, b = slots['a'], slots['b']
+        temp = bytes(entries[a:a+16])
+        entries[a:a+16] = entries[b:b+16]
+        entries[b:b+16] = temp
+        modified = True
+
+    if not modified:
+      return
+
+    entries_crc = zlib.crc32(entries) & 0xFFFFFFFF
+    struct.pack_into('<I', header, 88, entries_crc)
+    struct.pack_into('<I', header, 16, 0)
+    header_size = struct.unpack('<I', header[12:16])[0]
+    struct.pack_into('<I', header, 16, zlib.crc32(header[:header_size]) & 0xFFFFFFFF)
+
+    f.seek(part_lba * SECTOR_SIZE)
+    f.write(entries)
+    f.seek(SECTOR_SIZE)
+    f.write(header)
+    f.flush()
+    os.fsync(f.fileno())
+
+
 def main():
   if len(sys.argv) < 2:
     print("Usage: abctl <command>")
@@ -123,6 +179,12 @@ def main():
         return (attrs & ~(ATTR_PRIORITY_MASK | ATTR_ACTIVE)) | ((MAX_PRIORITY - 1) << 48)
       # Non-boot: only clear ACTIVE bit
       return attrs & ~ATTR_ACTIVE
+
+    # Swap GUIDs when switching to a different slot (matches ABL SwitchPtnSlots)
+    current = get_current_slot()
+    if current != slot:
+      for dev in AB_DEVICES:
+        swap_slot_guids(dev)
 
     modify_gpt_attributes('/dev/sde', slot, activate)
     modify_gpt_attributes('/dev/sde', other, deactivate)
