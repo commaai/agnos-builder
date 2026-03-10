@@ -67,7 +67,7 @@ RUN for svc in \
   screen_calibration serial-hostname \
   sound varwatch busybox-ntpd \
   irsc_util leprop usb adsp cdsp \
-  rmt_storage init_mss pdmapper tftp_server qseecomd \
+  rmt_storage init_mss pdmapper tftp_server \
   comma modemmanager magic \
   ssh-param-watcher adb-param-watcher \
   rsyslogd iptables cnss_daemon polkitd \
