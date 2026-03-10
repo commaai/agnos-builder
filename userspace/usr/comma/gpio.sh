@@ -45,3 +45,5 @@ done
 
 HUB_RST_N=30
 gpio $HUB_RST_N 1
+
+touch /run/gpio.ready
