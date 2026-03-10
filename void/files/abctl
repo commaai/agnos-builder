@@ -338,8 +338,9 @@ def main():
       for dev in AB_DEVICES:
         swap_slot_guids(dev)
 
-    modify_gpt_attributes('/dev/sde', slot, activate)
-    modify_gpt_attributes('/dev/sde', other, deactivate)
+    for dev in AB_DEVICES:
+      modify_gpt_attributes(dev, slot, activate)
+      modify_gpt_attributes(dev, other, deactivate)
 
     # Switch UFS boot LUN to match active slot (xbl_a=LUN1, xbl_b=LUN2)
     set_boot_lun(BOOT_LUN_A if slot == '_a' else BOOT_LUN_B)
