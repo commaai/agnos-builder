@@ -122,6 +122,7 @@ for part in \
     "userdata:/data:rw,noatime,nodiratime" \
     "dsp_a:/dsp:ro" \
     "persist:/persist:ro" \
+    "cache:/cache:relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid" \
 ; do
     label="${part%%:*}"
     rest="${part#*:}"
