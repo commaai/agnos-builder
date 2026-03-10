@@ -41,23 +41,41 @@ def get_current_slot():
   raise RuntimeError("Could not determine boot slot")
 
 
+def _read_gpt(f, header_lba):
+  """Read GPT header and partition entries."""
+  f.seek(header_lba * SECTOR_SIZE)
+  header = bytearray(f.read(SECTOR_SIZE))
+  if header[:8] != b'EFI PART':
+    return None, None, 0, 0
+  part_lba = struct.unpack('<Q', header[72:80])[0]
+  num_entries = struct.unpack('<I', header[80:84])[0]
+  entry_size = struct.unpack('<I', header[84:88])[0]
+  f.seek(part_lba * SECTOR_SIZE)
+  entries = bytearray(f.read(num_entries * entry_size))
+  return header, entries, num_entries, entry_size
+
+
+def _write_gpt(f, header_lba, header, entries):
+  """Recompute CRCs and write GPT header and partition entries."""
+  part_lba = struct.unpack('<Q', header[72:80])[0]
+  entries_crc = zlib.crc32(entries) & 0xFFFFFFFF
+  struct.pack_into('<I', header, 88, entries_crc)
+  struct.pack_into('<I', header, 16, 0)
+  header_size = struct.unpack('<I', header[12:16])[0]
+  struct.pack_into('<I', header, 16, zlib.crc32(header[:header_size]) & 0xFFFFFFFF)
+  f.seek(part_lba * SECTOR_SIZE)
+  f.write(entries)
+  f.seek(header_lba * SECTOR_SIZE)
+  f.write(header)
+
+
 def modify_gpt_attributes(device, slot, modify_fn):
-  """Read GPT, modify matching partition attributes, write back.
+  """Read GPT, modify matching partition attributes, write back to both GPTs.
   modify_fn(name, attrs) -> new_attrs"""
   with open(device, 'r+b') as f:
-    # Read GPT header
-    f.seek(SECTOR_SIZE)
-    header = bytearray(f.read(SECTOR_SIZE))
-    if header[:8] != b'EFI PART':
+    primary_header, entries, num_entries, entry_size = _read_gpt(f, 1)
+    if primary_header is None:
       raise RuntimeError(f"Invalid GPT on {device}")
-
-    part_lba = struct.unpack('<Q', header[72:80])[0]
-    num_entries = struct.unpack('<I', header[80:84])[0]
-    entry_size = struct.unpack('<I', header[84:88])[0]
-
-    # Read and modify partition entries
-    f.seek(part_lba * SECTOR_SIZE)
-    entries = bytearray(f.read(num_entries * entry_size))
 
     modified = False
     for i in range(num_entries):
@@ -75,17 +93,12 @@ def modify_gpt_attributes(device, slot, modify_fn):
     if not modified:
       return
 
-    # Update CRCs and write back
-    entries_crc = zlib.crc32(entries) & 0xFFFFFFFF
-    struct.pack_into('<I', header, 88, entries_crc)
-    struct.pack_into('<I', header, 16, 0)
-    header_size = struct.unpack('<I', header[12:16])[0]
-    struct.pack_into('<I', header, 16, zlib.crc32(header[:header_size]) & 0xFFFFFFFF)
-
-    f.seek(part_lba * SECTOR_SIZE)
-    f.write(entries)
-    f.seek(SECTOR_SIZE)
-    f.write(header)
+    # Write backup first (safer if power fails), then primary
+    backup_lba = struct.unpack('<Q', primary_header[32:40])[0]
+    backup_header, _, _, _ = _read_gpt(f, backup_lba)
+    if backup_header is not None:
+      _write_gpt(f, backup_lba, backup_header, entries)
+    _write_gpt(f, 1, primary_header, entries)
     f.flush()
     os.fsync(f.fileno())
 
@@ -95,17 +108,9 @@ def swap_slot_guids(device):
   Matches ABL SwitchPtnSlots() / SwapPtnGuid().
   https://git.codelinaro.org/clo/qcomlt/abl/-/blob/LE.UM.2.3.7/QcomModulePkg/Library/BootLib/PartitionTableUpdate.c#L452-510"""
   with open(device, 'r+b') as f:
-    f.seek(SECTOR_SIZE)
-    header = bytearray(f.read(SECTOR_SIZE))
-    if header[:8] != b'EFI PART':
+    primary_header, entries, num_entries, entry_size = _read_gpt(f, 1)
+    if primary_header is None:
       return
-
-    part_lba = struct.unpack('<Q', header[72:80])[0]
-    num_entries = struct.unpack('<I', header[80:84])[0]
-    entry_size = struct.unpack('<I', header[84:88])[0]
-
-    f.seek(part_lba * SECTOR_SIZE)
-    entries = bytearray(f.read(num_entries * entry_size))
 
     pairs = {}
     for i in range(num_entries):
@@ -128,16 +133,12 @@ def swap_slot_guids(device):
     if not modified:
       return
 
-    entries_crc = zlib.crc32(entries) & 0xFFFFFFFF
-    struct.pack_into('<I', header, 88, entries_crc)
-    struct.pack_into('<I', header, 16, 0)
-    header_size = struct.unpack('<I', header[12:16])[0]
-    struct.pack_into('<I', header, 16, zlib.crc32(header[:header_size]) & 0xFFFFFFFF)
-
-    f.seek(part_lba * SECTOR_SIZE)
-    f.write(entries)
-    f.seek(SECTOR_SIZE)
-    f.write(header)
+    # Write backup first (safer if power fails), then primary
+    backup_lba = struct.unpack('<Q', primary_header[32:40])[0]
+    backup_header, _, _, _ = _read_gpt(f, backup_lba)
+    if backup_header is not None:
+      _write_gpt(f, backup_lba, backup_header, entries)
+    _write_gpt(f, 1, primary_header, entries)
     f.flush()
     os.fsync(f.fileno())
 
