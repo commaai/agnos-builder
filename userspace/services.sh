@@ -14,6 +14,7 @@ systemctl enable agnos-debug.service
 systemctl enable gpio.service
 systemctl enable lte.service
 systemctl enable sound.service
+systemctl enable bt-hci.service
 systemctl enable magic.service
 systemctl enable init-qcom.service
 systemctl enable varwatch.service

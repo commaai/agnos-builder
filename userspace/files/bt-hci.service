@@ -1,0 +1,14 @@
+[Unit]
+Description=Bluetooth HCI
+After=init-qcom.service
+Before=bluetooth.service
+
+[Service]
+Type=forking
+ExecStart=/usr/comma/bt_init.sh
+ExecStop=/usr/bin/killall hciattach
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
