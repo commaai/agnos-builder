@@ -1,0 +1,358 @@
+#!/usr/bin/env python3
+"""
+Minimal A/B boot control for Qualcomm devices.
+Replaces proprietary abctl which fails on Void Linux.
+
+Bit layout must match ABL (the bootloader reading these flags):
+  https://git.codelinaro.org/clo/qcomlt/abl/-/blob/LE.UM.2.3.7/QcomModulePkg/Include/Library/PartitionTableUpdate.h#L89-102
+  https://git.codelinaro.org/clo/qcomlt/abl/-/blob/LE.UM.2.3.7/QcomModulePkg/Library/BootLib/PartitionTableUpdate.c#L1233-1320
+"""
+import struct
+import sys
+import os
+import zlib
+import ctypes
+import fcntl
+import glob as _glob
+
+SECTOR_SIZE = 4096
+
+# GPT attribute bits 48-55 (Qualcomm ABL layout):
+#   48-49: Priority    (2 bits, 0-3)
+#   50:    Active       (1 bit)
+#   51-53: Retry count  (3 bits, 0-7)
+#   54:    Successful   (1 bit)
+#   55:    Unbootable   (1 bit)
+ATTR_PRIORITY_MASK = 0x3 << 48
+ATTR_ACTIVE        = 1 << 50
+ATTR_TRIES_MASK    = 0x7 << 51
+ATTR_SUCCESS       = 1 << 54
+ATTR_UNBOOTABLE    = 1 << 55
+
+MAX_PRIORITY    = 3
+MAX_RETRY_COUNT = 7
+
+# Block devices with A/B partitions
+# /dev/sda = LUN 0 (system_a/b), /dev/sde = LUN 4 (boot, aop, tz, abl, etc.)
+AB_DEVICES = ['/dev/sda', '/dev/sde']
+
+# UFS boot LUN IDs: xbl_a on LUN 1, xbl_b on LUN 2
+BOOT_LUN_A = 1
+BOOT_LUN_B = 2
+
+def get_current_slot():
+  with open('/proc/cmdline') as f:
+    for part in f.read().split():
+      if part.startswith('androidboot.slot_suffix='):
+        return part.split('=')[1]
+  raise RuntimeError("Could not determine boot slot")
+
+
+def _read_gpt(f, header_lba):
+  """Read GPT header and partition entries."""
+  f.seek(header_lba * SECTOR_SIZE)
+  header = bytearray(f.read(SECTOR_SIZE))
+  if header[:8] != b'EFI PART':
+    return None, None, 0, 0
+  part_lba = struct.unpack('<Q', header[72:80])[0]
+  num_entries = struct.unpack('<I', header[80:84])[0]
+  entry_size = struct.unpack('<I', header[84:88])[0]
+  f.seek(part_lba * SECTOR_SIZE)
+  entries = bytearray(f.read(num_entries * entry_size))
+  return header, entries, num_entries, entry_size
+
+
+def _write_gpt(f, header_lba, header, entries):
+  """Recompute CRCs and write GPT header and partition entries."""
+  part_lba = struct.unpack('<Q', header[72:80])[0]
+  entries_crc = zlib.crc32(entries) & 0xFFFFFFFF
+  struct.pack_into('<I', header, 88, entries_crc)
+  struct.pack_into('<I', header, 16, 0)
+  header_size = struct.unpack('<I', header[12:16])[0]
+  struct.pack_into('<I', header, 16, zlib.crc32(header[:header_size]) & 0xFFFFFFFF)
+  f.seek(part_lba * SECTOR_SIZE)
+  f.write(entries)
+  f.seek(header_lba * SECTOR_SIZE)
+  f.write(header)
+
+
+def get_gpt_active_slot():
+  """Detect active slot from GPT boot partition flags.
+  Unlike get_current_slot() (which reads /proc/cmdline and reflects the booted
+  slot), this reads the current GPT state — needed for GUID swap decisions
+  when set_active is called without rebooting in between."""
+  with open('/dev/sde', 'rb') as f:
+    header, entries, num_entries, entry_size = _read_gpt(f, 1)
+    if header is None:
+      return None
+    best_slot, best_priority = None, -1
+    for i in range(num_entries):
+      off = i * entry_size
+      if entries[off:off+16] == b'\x00' * 16:
+        continue
+      name = entries[off+56:off+128].decode('utf-16-le').rstrip('\x00')
+      if not name.startswith('boot_'):
+        continue
+      attrs = struct.unpack('<Q', entries[off+48:off+56])[0]
+      active = (attrs >> 50) & 1
+      priority = (attrs >> 48) & 0x3
+      if active and priority > best_priority:
+        best_priority = priority
+        best_slot = '_' + name[-1]
+    return best_slot
+
+
+def modify_gpt_attributes(device, slot, modify_fn):
+  """Read GPT, modify matching partition attributes, write back to both GPTs.
+  modify_fn(name, attrs) -> new_attrs"""
+  with open(device, 'r+b') as f:
+    primary_header, entries, num_entries, entry_size = _read_gpt(f, 1)
+    if primary_header is None:
+      raise RuntimeError(f"Invalid GPT on {device}")
+
+    modified = False
+    for i in range(num_entries):
+      off = i * entry_size
+      if entries[off:off+16] == b'\x00' * 16:
+        continue
+      name = entries[off+56:off+128].decode('utf-16-le').rstrip('\x00')
+      if name.endswith(slot):
+        attrs = struct.unpack('<Q', entries[off+48:off+56])[0]
+        new_attrs = modify_fn(name, attrs)
+        if new_attrs != attrs:
+          struct.pack_into('<Q', entries, off+48, new_attrs)
+          modified = True
+
+    if not modified:
+      return
+
+    # Write backup first (safer if power fails), then primary
+    backup_lba = struct.unpack('<Q', primary_header[32:40])[0]
+    backup_header, _, _, _ = _read_gpt(f, backup_lba)
+    if backup_header is not None:
+      _write_gpt(f, backup_lba, backup_header, entries)
+    _write_gpt(f, 1, primary_header, entries)
+    f.flush()
+    os.fsync(f.fileno())
+
+
+def swap_slot_guids(device):
+  """Swap partition type GUIDs between _a and _b counterparts.
+  Matches ABL SwitchPtnSlots() / SwapPtnGuid().
+  https://git.codelinaro.org/clo/qcomlt/abl/-/blob/LE.UM.2.3.7/QcomModulePkg/Library/BootLib/PartitionTableUpdate.c#L452-510"""
+  with open(device, 'r+b') as f:
+    primary_header, entries, num_entries, entry_size = _read_gpt(f, 1)
+    if primary_header is None:
+      return
+
+    pairs = {}
+    for i in range(num_entries):
+      off = i * entry_size
+      if entries[off:off+16] == b'\x00' * 16:
+        continue
+      name = entries[off+56:off+128].decode('utf-16-le').rstrip('\x00')
+      if name.endswith('_a') or name.endswith('_b'):
+        pairs.setdefault(name[:-2], {})[name[-1]] = off
+
+    modified = False
+    for slots in pairs.values():
+      if 'a' in slots and 'b' in slots:
+        a, b = slots['a'], slots['b']
+        temp = bytes(entries[a:a+16])
+        entries[a:a+16] = entries[b:b+16]
+        entries[b:b+16] = temp
+        modified = True
+
+    if not modified:
+      return
+
+    # Write backup first (safer if power fails), then primary
+    backup_lba = struct.unpack('<Q', primary_header[32:40])[0]
+    backup_header, _, _, _ = _read_gpt(f, backup_lba)
+    if backup_header is not None:
+      _write_gpt(f, backup_lba, backup_header, entries)
+    _write_gpt(f, 1, primary_header, entries)
+    f.flush()
+    os.fsync(f.fileno())
+
+
+def _find_boot_sg_dev():
+  """Find SCSI generic device for the XBL boot LUN (/dev/sdb)."""
+  try:
+    for name in os.listdir('/sys/block/sdb/device/scsi_generic'):
+      return f'/dev/{name}'
+  except OSError:
+    return None
+
+
+def _set_boot_lun_ufs_ioctl(lun_id):
+  """Set boot LUN via Qualcomm UFS_IOCTL_QUERY on SCSI generic device.
+  Works on Qualcomm kernels 4.9+ with custom UFS ioctl (0x5388).
+  struct ufs_ioctl_query_data { u32 opcode; u8 idn,index,selector,buf_size; u8 buffer[]; }"""
+  sg_dev = _find_boot_sg_dev()
+  if sg_dev is None:
+    return False
+  UFS_IOCTL_QUERY = 0x5388
+  UPIU_QUERY_OPCODE_WRITE_ATTR = 0x4
+  buf = bytearray(12)  # 8-byte header + 4-byte attribute value
+  struct.pack_into('<I', buf, 0, UPIU_QUERY_OPCODE_WRITE_ATTR)
+  buf[4] = 0x0  # idn = QUERY_ATTR_IDN_BOOT_LU_EN
+  buf[7] = 4    # buf_size
+  struct.pack_into('<I', buf, 8, lun_id)
+  fd = os.open(sg_dev, os.O_RDWR)
+  try:
+    fcntl.ioctl(fd, UFS_IOCTL_QUERY, buf, True)
+  except OSError:
+    return False
+  finally:
+    os.close(fd)
+  return True
+
+
+def _set_boot_lun_sysfs(lun_id):
+  """Set boot LUN via sysfs (available on mainline kernels 5.x+)."""
+  for path in _glob.glob('/sys/devices/platform/soc/*/boot_lun_en'):
+    with open(path, 'w') as f:
+      f.write(str(lun_id))
+    return True
+  return False
+
+
+def _set_boot_lun_bsg(lun_id):
+  """Set boot LUN via UFS BSG ioctl (mainline kernels with CONFIG_SCSI_UFS_BSG).
+  Matches Qualcomm abctl set_boot_lun() in abctl-ufs-bsg.cpp."""
+  bsg_dev = None
+  try:
+    for name in os.listdir('/dev/bsg'):
+      if name in ('ufs-bsg', 'ufs-bsg0'):
+        bsg_dev = f'/dev/bsg/{name}'
+        break
+  except OSError:
+    pass
+  if bsg_dev is None:
+    return False
+
+  SG_IO = 0x2285
+
+  # Build ufs_bsg_request (40 bytes)
+  # Layout: msgcode(4 LE) | header: dword_0..2(3x4 BE) | query: opcode(1) idn(1)
+  #         index(1) selector(1) reserved(2) length(2 BE) value(4 BE) reserved(12)
+  req = bytearray(40)
+  struct.pack_into('<I', req, 0, 0x16)          # msgcode = UTP_UPIU_QUERY_REQ
+  struct.pack_into('>I', req, 4, 0x16 << 24)    # header.dword_0
+  struct.pack_into('>I', req, 8, 0x81 << 16)    # header.dword_1 (func=STD_WRITE)
+  # header.dword_2 = 0 (length=0)
+  req[16] = 0x4                                  # qr.opcode = WRITE_ATTR
+  req[17] = 0x0                                  # qr.idn = BOOT_LU_EN
+  struct.pack_into('>I', req, 24, lun_id)        # qr.value
+
+  rsp = bytearray(44)  # ufs_bsg_reply
+
+  # Get buffer addresses for sg_io_v4 pointers
+  req_c = (ctypes.c_ubyte * len(req)).from_buffer(req)
+  rsp_c = (ctypes.c_ubyte * len(rsp)).from_buffer(rsp)
+
+  # Build sg_io_v4 (160 bytes on 64-bit Linux, layout from linux/bsg.h)
+  sg = bytearray(160)
+  struct.pack_into('=i', sg, 0, ord('Q'))                     # guard
+  struct.pack_into('=I', sg, 4, 0)                            # protocol (SCSI)
+  struct.pack_into('=I', sg, 8, 1)                            # subprotocol (SCSI_TRANSPORT)
+  struct.pack_into('=I', sg, 12, len(req))                    # request_len
+  struct.pack_into('=Q', sg, 16, ctypes.addressof(req_c))     # request ptr
+  struct.pack_into('=I', sg, 44, len(rsp))                    # max_response_len
+  struct.pack_into('=Q', sg, 48, ctypes.addressof(rsp_c))     # response ptr
+
+  fd = os.open(bsg_dev, os.O_RDWR)
+  try:
+    fcntl.ioctl(fd, SG_IO, sg, True)
+  except OSError:
+    return False
+  finally:
+    os.close(fd)
+
+  info = struct.unpack_from('=I', sg, 124)[0]
+  result = struct.unpack_from('<I', rsp, 0)[0]
+  if info or result:
+    raise RuntimeError(f"UFS BSG ioctl failed: info=0x{info:x}, result=0x{result:x}")
+  return True
+
+
+def set_boot_lun(lun_id):
+  """Set UFS boot LUN (1=slot A, 2=slot B).
+  Tries three methods in order:
+  1. Qualcomm UFS_IOCTL_QUERY on SG device (kernel 4.9 with Qualcomm patches)
+  2. sysfs boot_lun_en attribute (mainline kernel 5.x+)
+  3. UFS BSG ioctl (mainline kernel with CONFIG_SCSI_UFS_BSG)"""
+  if _set_boot_lun_ufs_ioctl(lun_id):
+    return
+  if _set_boot_lun_sysfs(lun_id):
+    return
+  if _set_boot_lun_bsg(lun_id):
+    return
+  raise RuntimeError("Cannot set boot LUN: no UFS ioctl, sysfs, or BSG device found")
+
+
+def main():
+  if len(sys.argv) < 2:
+    print("Usage: abctl <command>")
+    print("  --boot_slot            Print current boot slot")
+    print("  --set_success          Mark current slot as successful")
+    print("  --set_active <0|1>     Set active slot (0=a, 1=b)")
+    print("  --set_unbootable <0|1> Mark slot as unbootable (0=a, 1=b)")
+    sys.exit(1)
+
+  cmd = sys.argv[1]
+
+  if cmd == '--boot_slot':
+    print(get_current_slot())
+
+  elif cmd == '--set_success':
+    modify_gpt_attributes('/dev/sde', get_current_slot(), lambda name, a: a | ATTR_SUCCESS)
+
+  elif cmd == '--set_active' and len(sys.argv) > 2:
+    slot = '_a' if sys.argv[2] == '0' else '_b'
+    other = '_b' if slot == '_a' else '_a'
+
+    # Active slot: matches ABL SetActiveSlot() + MarkPtnActive()
+    def activate(name, attrs):
+      if name.startswith('boot'):
+        # Boot partition: priority=3, active=1, retry=7, successful=0, unbootable=0
+        return (attrs & ~(ATTR_PRIORITY_MASK | ATTR_ACTIVE | ATTR_TRIES_MASK | ATTR_SUCCESS | ATTR_UNBOOTABLE)) \
+               | (MAX_PRIORITY << 48) | ATTR_ACTIVE | (MAX_RETRY_COUNT << 51)
+      # Non-boot: only set ACTIVE bit
+      return attrs | ATTR_ACTIVE
+
+    # Inactive slot: matches ABL SetActiveSlot() + MarkPtnActive()
+    def deactivate(name, attrs):
+      if name.startswith('boot'):
+        # Boot partition: priority=2, clear active (other flags unchanged)
+        return (attrs & ~(ATTR_PRIORITY_MASK | ATTR_ACTIVE)) | ((MAX_PRIORITY - 1) << 48)
+      # Non-boot: only clear ACTIVE bit
+      return attrs & ~ATTR_ACTIVE
+
+    # Swap GUIDs when switching to a different slot (matches ABL SwitchPtnSlots).
+    # Must read active slot from GPT, not /proc/cmdline — cmdline reflects the
+    # booted slot which doesn't change until reboot.
+    current = get_gpt_active_slot()
+    if current is not None and current != slot:
+      for dev in AB_DEVICES:
+        swap_slot_guids(dev)
+
+    for dev in AB_DEVICES:
+      modify_gpt_attributes(dev, slot, activate)
+      modify_gpt_attributes(dev, other, deactivate)
+
+    # Switch UFS boot LUN to match active slot (xbl_a=LUN1, xbl_b=LUN2)
+    set_boot_lun(BOOT_LUN_A if slot == '_a' else BOOT_LUN_B)
+
+  elif cmd == '--set_unbootable' and len(sys.argv) > 2:
+    slot = '_a' if sys.argv[2] == '0' else '_b'
+    modify_gpt_attributes('/dev/sde', slot, lambda name, a: a | ATTR_UNBOOTABLE)
+
+  else:
+    print(f"Unknown: {cmd}", file=sys.stderr)
+    sys.exit(1)
+
+
+if __name__ == '__main__':
+  main()

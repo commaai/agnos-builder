@@ -1,0 +1,21 @@
+#!/bin/sh
+# Custom runit stage 2 for AGNOS
+
+# Copy services to writable location (runsv needs to create supervise/ dirs)
+mkdir -p /run/runit/service
+for svc in /etc/runit/runsvdir/default/*; do
+    [ -L "$svc" ] || continue
+    name=$(basename "$svc")
+    target=$(readlink "$svc")
+    # Copy the actual service directory (not symlink) to /run
+    cp -a "$target" "/run/runit/service/$name"
+done
+
+# Create /var/service pointing to our writable copy
+ln -sf /run/runit/service /var/service
+
+# Create utmp file for agetty
+touch /var/run/utmp
+
+# Just run runsvdir - keep it simple
+exec runsvdir -P /var/service

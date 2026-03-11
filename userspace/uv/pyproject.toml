@@ -28,5 +28,8 @@ dependencies = [
   "raylib @ https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl",
 ]
 
+[tool.uv]
+environments = ["python_version >= '3.12' and python_version < '3.13' and sys_platform == 'linux'"]
+
 [tool.uv.sources]
 openpilot = { path = "openpilot" }

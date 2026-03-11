@@ -11,31 +11,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: build kernel and system
-    runs-on: namespace-profile-arm64-8x16-2004-caching
-    timeout-minutes: 60
+  build-kernel:
+    name: build kernel
+    runs-on: ${{ github.repository_owner == 'commaai' && 'namespace-profile-arm64-8x16-2004-caching' || 'ubuntu-24.04-arm' }}
+    timeout-minutes: 30
     steps:
     - uses: actions/checkout@v4
       with:
         lfs: true
         submodules: true
-
-    - name: Get commit message
-      run: |
-        {
-          echo 'LAST_COMMIT_MESSAGE<<EOF'
-          if [ "${{ github.event_name }}" == "push" ]; then
-            echo "${{ github.event.head_commit.message }}"
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.sha }}|")
-            echo "$(curl -s "$COMMIT_URL" | jq -r '.commit.message')"
-          elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            PR_COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.event.pull_request.head.sha }}|")
-            echo "$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')"
-          fi
-          echo EOF
-        } | tee -a $GITHUB_ENV
 
     - name: Get kernel submodule ref
       id: kernel-submodule
@@ -56,15 +40,25 @@ jobs:
         CCACHE_MAXSIZE: 5G
       run: ./build_kernel.sh
 
-    - name: Update VERSION
-      if: github.event_name == 'pull_request'
-      run: |
-        echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
+    - name: Upload boot image
+      uses: actions/upload-artifact@v4
+      with:
+        name: boot
+        path: output/boot.img
 
-    - name: Build system
+  build-system:
+    name: build system
+    runs-on: ${{ github.repository_owner == 'commaai' && 'namespace-profile-arm64-8x16-2004-caching' || 'ubuntu-24.04-arm' }}
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: Build Void system
       env:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
-      run: ./build_system.sh
+      run: ./void/build_void.sh
 
     - name: Statistics
       id: stats
@@ -74,6 +68,69 @@ jobs:
           scripts/analyze-agnos-rootfs.sh
           echo EOF
         } | tee -a $GITHUB_OUTPUT
+
+    - name: Upload system image
+      uses: actions/upload-artifact@v4
+      with:
+        name: system
+        path: output/system.img
+
+    - name: Save stats
+      run: echo "${{ steps.stats.outputs.stats_summary }}" > output/stats.txt
+
+    - name: Upload stats
+      uses: actions/upload-artifact@v4
+      with:
+        name: stats
+        path: output/stats.txt
+
+  package:
+    name: package OTA
+    needs: [build-kernel, build-system]
+    if: "contains(needs.build-system.result, 'success')"
+    runs-on: ${{ github.repository_owner == 'commaai' && 'namespace-profile-arm64-8x16-2004-caching' || 'ubuntu-24.04-arm' }}
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: Get commit message
+      run: |
+        {
+          echo 'LAST_COMMIT_MESSAGE<<EOF'
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "${{ github.event.head_commit.message }}"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.sha }}|")
+            echo "$(curl -s "$COMMIT_URL" | jq -r '.commit.message')"
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            PR_COMMIT_URL=$(echo "${{ github.event.repository.commits_url }}" | sed "s|{/sha}|/${{ github.event.pull_request.head.sha }}|")
+            echo "$(curl -s "$PR_COMMIT_URL" | jq -r '.commit.message')"
+          fi
+          echo EOF
+        } | tee -a $GITHUB_ENV
+
+    - name: Download boot image
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/download-artifact@v4
+      with:
+        name: boot
+        path: output
+
+    - name: Download system image
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/download-artifact@v4
+      with:
+        name: system
+        path: output
+
+    - name: Download stats
+      if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
+      uses: actions/download-artifact@v4
+      with:
+        name: stats
+        path: output
 
     - name: Package and OTA push
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
@@ -87,7 +144,7 @@ jobs:
       run: |
         echo ${{ github.event.number }} > output/ota/PR
         cp VERSION output/ota
-        echo "${{ steps.stats.outputs.stats_summary }}" > output/ota/agnos_stats.txt
+        cp output/stats.txt output/ota/agnos_stats.txt
 
     - name: Upload artifacts
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"

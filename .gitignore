@@ -1,5 +1,6 @@
 *.swp
 *.tar.gz
+*.tar.xz
 *.DS_Store
 __pycache__/
 
@@ -16,3 +17,6 @@ qcom_xbl/
 .vscode
 
 edk2_tici/
+output/system.raw
+
+void/eval/ubuntu-manifest.txt

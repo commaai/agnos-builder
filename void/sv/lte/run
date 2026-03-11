@@ -1,0 +1,12 @@
+#!/bin/sh
+# lte - LTE modem management
+exec 2>&1
+
+# Wait for gpio setup to finish exporting all pins
+while [ ! -f /run/gpio.ready ]; do sleep 0.1; done
+
+# Run the lte script (stays running)
+/usr/comma/lte/lte.sh start
+
+# Keep service alive
+exec sleep infinity

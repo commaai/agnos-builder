@@ -1,0 +1,4 @@
+# GPU device permissions for comma user
+SUBSYSTEM=="drm", GROUP="gpu", MODE="0660"
+KERNEL=="kgsl-3d0", GROUP="gpu", MODE="0660"
+KERNEL=="ion", GROUP="gpu", MODE="0660"

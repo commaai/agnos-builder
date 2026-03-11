@@ -36,8 +36,14 @@ for p in ${pins[@]}; do
   do
     sleep .05
   done
+  # eudev doesn't apply GROUP/MODE from udev rules to sysfs GPIO files
+  # like systemd-udevd does, so set permissions manually after export
+  chown root:gpio /sys/class/gpio/gpio$p/direction /sys/class/gpio/gpio$p/value 2>/dev/null
+  chmod 660 /sys/class/gpio/gpio$p/direction /sys/class/gpio/gpio$p/value 2>/dev/null
 done
 
 
 HUB_RST_N=30
 gpio $HUB_RST_N 1
+
+touch /run/gpio.ready
