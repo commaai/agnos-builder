@@ -91,8 +91,6 @@ trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
 docker container rm -f $MOUNT_CONTAINER_ID" EXIT
 
-# Build and export filesystem directly as tar, pipe into mounted rootfs
-# This skips --load (slow "exporting layers" into Docker image store) and docker container export
 echo "Building and extracting agnos-builder docker image"
 BUILD="docker buildx build"
 if [ ! -z "$NS" ]; then
