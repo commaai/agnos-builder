@@ -48,28 +48,36 @@ fi
 export DOCKER_BUILDKIT=1
 docker buildx build -f Dockerfile.agnos --check $DIR
 
-# Start build and create container
-echo "Building agnos-builder docker image"
-BUILD="docker buildx build --load"
-if [ ! -z "$NS" ]; then
-  BUILD="nsc build --load"
-fi
-$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64
-echo "Creating agnos-builder container"
-CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
-
 # Check agnos-meta-builder Dockerfile
 docker buildx build --load -f Dockerfile.builder --check $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
   --build-arg GID=$(id -g)
 
+# Start build and create container
+echo "Building agnos-builder docker image"
+BUILD="docker buildx build --load"
+if [ ! -z "$NS" ]; then
+  BUILD="nsc build --load"
+fi
+$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64 &
+PID_AGNOS=$!
+
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-meta-builder docker image"
 docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+  --build-arg GID=$(id -g) &
+PID_META_BUILDER=$!
+
+# wait for both image builds to finish
+wait $PID_AGNOS
+wait $PID_META_BUILDER
+
+echo "Creating agnos-builder container"
+CONTAINER_ID=$(docker container create --entrypoint /bin/bash agnos-builder:latest)
+
 echo "Starting agnos-meta-builder container"
 MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-meta-builder)
 
