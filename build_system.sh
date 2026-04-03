@@ -41,7 +41,7 @@ fi
 # Setup qemu multiarch
 if [ "$(uname -m)" = "x86_64" ]; then
   echo "Registering emulator"
-  docker run --rm --privileged tonistiigi/binfmt --install all
+  docker run --rm --privileged tonistiigi/binfmt --install arm64
 fi
 
 # Check agnos-builder Dockerfile
@@ -56,11 +56,13 @@ docker buildx build --load -f Dockerfile.builder --check $DIR \
 
 # Start build and create container
 echo "Building agnos-builder docker image"
-BUILD="docker buildx build --load"
+BUILD="docker buildx build --load --platform=linux/arm64"
 if [ ! -z "$NS" ]; then
-  BUILD="nsc build --load"
+  BUILD="nsc build --load --platform=linux/arm64"
+elif [ "$(uname -m)" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then
+  BUILD="docker build"
 fi
-$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE --platform=linux/arm64 &
+$BUILD -f Dockerfile.agnos -t agnos-builder $DIR --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE &
 PID_AGNOS=$!
 
 # Setup mount container for macOS and CI support (namespace.so)
