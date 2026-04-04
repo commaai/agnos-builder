@@ -182,7 +182,7 @@ apt-fast install --no-install-recommends -yq \
     libxext6:armhf \
     libxkbcommon0:armhf \
     libxrender1:armhf \
-    libzbar0:armhf \
+    libzbar0 \
     linux-libc-dev:armhf \
     linux-libc-dev-armhf-cross \
     zlib1g:armhf \
