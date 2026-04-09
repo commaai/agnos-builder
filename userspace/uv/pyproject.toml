@@ -10,6 +10,8 @@ dependencies = [
 
   # hardware.py
   "dbus-python",
+  # glowd BLE
+  "bleak",
   # amplifier.py
   "smbus2",
 

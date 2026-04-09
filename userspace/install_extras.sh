@@ -4,12 +4,14 @@
 
 apt-fast update && apt-fast install -y --no-install-recommends \
   bash-completion \
+  bluez \
   btop \
   hyperfine \
   iperf \
   iperf3 \
   dnsmasq \
   irqtop \
+  rfkill \
   ripgrep \
   ncdu \
   nfs-common \
