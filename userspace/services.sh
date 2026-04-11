@@ -13,6 +13,7 @@ systemctl enable comma.service
 systemctl enable agnos-debug.service
 systemctl enable gpio.service
 systemctl enable lte.service
+systemctl enable modem.service
 systemctl enable sound.service
 systemctl enable magic.service
 systemctl enable init-qcom.service

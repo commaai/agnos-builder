@@ -1,0 +1,12 @@
+[Unit]
+Description=modem.py
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/venv/bin/python -u /usr/comma/modem.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
