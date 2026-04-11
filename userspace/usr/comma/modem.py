@@ -69,7 +69,7 @@ class Modem:
 
   def _at(self, cmd):
     """Send AT command, return response lines. [] on error or if LPA holds port."""
-    fd = os.open(AT_LOCK, os.O_CREAT | os.O_RDWR)
+    fd = os.open(AT_LOCK, os.O_CREAT | os.O_RDWR, 0o666)
     try:
       fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
