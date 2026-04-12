@@ -90,6 +90,10 @@ class Modem:
           break
         if line == "ERROR" or line.startswith("+CME ERROR"):
           raise RuntimeError(line)
+        # detect profile switch URC inline
+        if "+QUSIM:" in line:
+          print(f"[urc] {line}")
+          self._reset.set()
         lines.append(line)
       print(f"[at] {cmd} -> {len(lines)} ({(time.monotonic()-t)*1000:.0f}ms)")
       return lines
@@ -185,11 +189,7 @@ class Modem:
     time.sleep(1)
     self._init()
     self._pdp()
-    if not self._wait_reg(timeout=30):
-      return False
-    # re-scan after registration (profile switch clears CGDCONT until modem re-inits)
-    self._pdp()
-    return True
+    return self._wait_reg(timeout=30)
 
   @staticmethod
   def _reset_data_port():
@@ -304,41 +304,35 @@ class Modem:
       return False
     if self._reset.is_set():
       return False
+    # also check for URCs in buffered serial data
     if self.S["iccid"]:
       v = self._atv("AT+QCCID", "+QCCID:")
       if v and v != self.S["iccid"]:
         print(f"[health] ICCID {self.S['iccid']} -> {v}")
-        self._reconnect_count = 0
         return False
     return True
 
   def _reconnect(self):
     self._reconnect_count += 1
-    print(f"\n{'='*60}\n[reset] reconnecting (attempt {self._reconnect_count})\n{'='*60}")
+    print(f"\n{'='*60}\n[reconnect] attempt {self._reconnect_count}\n{'='*60}")
     self.S.update(state="reconnecting", connected=False, ip_address="")
     self._ws()
     self._reset.set()
     os.system("sudo killall -9 pppd 2>/dev/null")
     if self._ppp and self._ppp.is_alive():
       self._ppp.join(timeout=3)
-    if self._ser:
-      self._at(f"AT+CGACT=0,{self._cid}")
-      try:
-        self._ser.close()
-      except Exception:
-        pass
-      self._ser = None
-    if self._reconnect_count >= 2:
-      print("[reset] escalating to hardware reset")
-      self._hw_reset()
-      self._reconnect_count = 0
-    else:
-      self._reset_data_port()
-    if not os.path.exists(AT_PORT) and not self._wait_port():
-      self._hw_reset()
-    if not self._boot():
-      self._hw_reset()
-      self._boot()
+    self._reset_data_port()
+    # reopen AT port and wait for registration
+    self._open()
+    if not self._wait_reg(timeout=30):
+      print("[reconnect] no registration, retrying")
+      return
+    # re-scan PDP and read new ICCID
+    self._pdp()
+    v = self._atv("AT+QCCID", "+QCCID:")
+    if v:
+      self.S["iccid"] = v
+    self._reconnect_count = 0
     self._reset.clear()
     self.S["state"] = "connecting"
     self._ws()
