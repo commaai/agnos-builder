@@ -5,6 +5,7 @@ import os
 import serial
 import signal
 import subprocess
+import tempfile
 import termios
 import time
 import threading
@@ -13,6 +14,7 @@ AT_PORT = "/dev/modem_at0"
 PPP_PORT = "/dev/modem_at1"
 STATE_PATH = "/dev/shm/modem"
 AT_LOCK = "/dev/shm/modem_lpa.lock"  # shared with LPA
+AT_INIT = ["ATE0", "ATV1", "AT+CMEE=1", "ATX4", "AT&C1"]
 CREG = {0: "not_registered", 1: "home", 2: "searching", 3: "denied", 4: "unknown", 5: "roaming"}
 PPPD = [
   "sudo", "pppd", PPP_PORT, "460800", "noauth", "nodetach", "noipdefault", "usepeerdns",
@@ -49,7 +51,6 @@ class Modem:
     return (time.monotonic() - self._t0) * 1000
 
   def _ws(self):
-    import tempfile
     fd = tempfile.NamedTemporaryFile(mode="w", dir="/dev/shm", delete=False)
     json.dump(self.S, fd)
     fd.flush()
@@ -90,10 +91,10 @@ class Modem:
           break
         if line == "ERROR" or line.startswith("+CME ERROR"):
           raise RuntimeError(line)
-        # detect profile switch URC inline
         if "+QUSIM:" in line:
           print(f"[urc] {line}")
           self._reset.set()
+          os.system("sudo killall -9 pppd 2>/dev/null")
         lines.append(line)
       print(f"[at] {cmd} -> {len(lines)} ({(time.monotonic()-t)*1000:.0f}ms)")
       return lines
@@ -117,8 +118,7 @@ class Modem:
     print("[mm] stopped")
 
   def _init(self):
-    for c in [
-      "ATE0", "ATV1", "AT+CMEE=1", "ATX4", "AT&C1",
+    for c in AT_INIT + [
       "AT$QCSIMSLEEP=0", "AT$QCSIMCFG=SimPowerSave,0",
       "AT+CREG=2", "AT+CGREG=2",
     ]:
@@ -189,7 +189,15 @@ class Modem:
     time.sleep(1)
     self._init()
     self._pdp()
-    return self._wait_reg(timeout=30)
+    if not self._wait_reg(timeout=30):
+      return False
+    self.S["state"] = "connecting"
+    self._ws()
+    self._start_ppp()
+    t = time.monotonic()
+    while not self.S["connected"] and time.monotonic() - t < 30:
+      time.sleep(0.2)
+    return self.S["connected"]
 
   @staticmethod
   def _reset_data_port():
@@ -203,7 +211,7 @@ class Modem:
       attrs[4] = attrs[5] = termios.B460800
       termios.tcsetattr(s.fd, termios.TCSANOW, attrs)
       s.reset_input_buffer()
-      for cmd in ["ATE0", "ATV1", "AT+CMEE=1", "ATX4", "AT&C1"]:
+      for cmd in AT_INIT:
         s.write((cmd + "\r").encode())
         time.sleep(0.1)
         s.read(100)
@@ -212,43 +220,10 @@ class Modem:
     except Exception as e:
       print(f"[flash] {e}")
 
-  def _probe(self):
-    try:
-      s = serial.Serial(AT_PORT, 9600, timeout=2)
-      s.reset_input_buffer()
-      s.write(b"AT\r")
-      ok = b"OK" in s.read(50)
-      s.close()
-      return ok
-    except Exception:
-      return False
-
-  def _wait_port(self, timeout=30):
-    t = time.monotonic()
-    while time.monotonic() - t < timeout:
-      if os.path.exists(AT_PORT) and self._probe():
-        return True
-      time.sleep(0.5)
-    return False
-
-  def _hw_reset(self):
-    if self._ser:
-      try:
-        self._ser.close()
-      except Exception:
-        pass
-      self._ser = None
-    try:
-      subprocess.run(["sudo", "/usr/comma/lte/lte.sh", "start"], capture_output=True, timeout=30)
-    except Exception:
-      pass
-    self._wait_port()
-    self._stop_mm()
-
   # -- PPP --
 
   def _kill_ppp(self):
-    os.system("sudo killall pppd 2>/dev/null")
+    os.system("sudo killall -9 pppd 2>/dev/null")
     if self._ppp and self._ppp.is_alive():
       self._ppp.join(timeout=5)
 
@@ -304,12 +279,6 @@ class Modem:
       return False
     if self._reset.is_set():
       return False
-    # also check for URCs in buffered serial data
-    if self.S["iccid"]:
-      v = self._atv("AT+QCCID", "+QCCID:")
-      if v and v != self.S["iccid"]:
-        print(f"[health] ICCID {self.S['iccid']} -> {v}")
-        return False
     return True
 
   def _reconnect(self):
@@ -318,28 +287,11 @@ class Modem:
     self.S.update(state="reconnecting", connected=False, ip_address="")
     self._ws()
     self._reset.set()
-    os.system("sudo killall -9 pppd 2>/dev/null")
-    if self._ppp and self._ppp.is_alive():
-      self._ppp.join(timeout=3)
+    self._kill_ppp()
     self._reset_data_port()
-    # reopen AT port and wait for registration
-    self._open()
-    if not self._wait_reg(timeout=30):
-      print("[reconnect] no registration, retrying")
-      return
-    # re-scan PDP and read new ICCID
-    self._pdp()
-    v = self._atv("AT+QCCID", "+QCCID:")
-    if v:
-      self.S["iccid"] = v
-    self._reconnect_count = 0
     self._reset.clear()
-    self.S["state"] = "connecting"
-    self._ws()
-    self._start_ppp()
-    t = time.monotonic()
-    while not self.S["connected"] and time.monotonic() - t < 30:
-      time.sleep(0.2)
+    if self._boot():
+      self._reconnect_count = 0
 
   def _poll(self):
     v = self._atv("AT+CSQ", "+CSQ:")
@@ -400,28 +352,9 @@ class Modem:
 
   def run(self):
     print(f"{'='*60}\nmodem.py {time.strftime('%H:%M:%S')}\n{'='*60}")
-
-    print(f"[1/4 T+{self._ms():.0f}ms] stop MM + teardown")
     self._stop_mm()
     os.system("sudo killall pppd 2>/dev/null")
-
-    print(f"[2/4 T+{self._ms():.0f}ms] init")
-    self._open()
-    self._init()
-
-    print(f"[3/4 T+{self._ms():.0f}ms] PDP + reg")
-    self._pdp()
-    self._wait_reg()
-
-    print(f"[4/4 T+{self._ms():.0f}ms] PPP")
-    self.S["state"] = "connecting"
-    self._ws()
-    self._start_ppp()
-
-    t = time.monotonic()
-    while not self.S["connected"] and time.monotonic() - t < 30:
-      time.sleep(0.2)
-    if self.S["connected"]:
+    if self._boot():
       print(f"\n{'='*60}\nBOOT {self._ms():.0f}ms\n{'='*60}")
 
     last_poll = 0.0
