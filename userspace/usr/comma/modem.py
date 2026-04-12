@@ -146,7 +146,7 @@ class Modem:
       self.S["modem_version"] = r[0].strip()
 
   def _pdp(self):
-    # find highest CID with carrier APN, TODO: read from config instead
+    # find highest CID with carrier APN
     self._cid = 1
     best = None
     for line in self._at("AT+CGDCONT?"):
@@ -162,7 +162,7 @@ class Modem:
       print(f"[pdp] APN '{best[1]}' CID {self._cid}")
     else:
       self._at('AT+CGDCONT=1,"IP",""')
-    self._at(f'AT+CGACT=0,{self._cid}')
+      print("[pdp] no APN found, using CID 1")
 
   def _wait_reg(self, timeout=60):
     t = time.monotonic()
@@ -185,7 +185,11 @@ class Modem:
     time.sleep(1)
     self._init()
     self._pdp()
-    return self._wait_reg(timeout=30)
+    if not self._wait_reg(timeout=30):
+      return False
+    # re-scan after registration (profile switch clears CGDCONT until modem re-inits)
+    self._pdp()
+    return True
 
   @staticmethod
   def _reset_data_port():
@@ -270,7 +274,8 @@ class Modem:
               ip = line.split("local  IP address")[-1].strip()
               self.S.update(ip_address=ip, connected=True, state="connected")
               self._ws()
-              ok, fails, self._reconnect_count = True, 0, 0
+              ok, fails = True, 0
+              self._reconnect_count = 0
               print(f"[timing] ppp: {self._ms():.0f}ms (IP: {ip})")
             elif "Connection terminated" in line or "Modem hangup" in line:
               self.S.update(connected=False, state="disconnected", ip_address="")
@@ -282,11 +287,12 @@ class Modem:
         except Exception as e:
           print(f"[ppp] {e}")
           fails += 1
-        self.S.update(connected=False, state="reconnecting")
-        self._ws()
         if fails >= 3:
           self._reset.set()
           return
+        if not ok:
+          self.S.update(connected=False, state="reconnecting")
+          self._ws()
 
     self._ppp = threading.Thread(target=run, daemon=True)
     self._ppp.start()
@@ -302,6 +308,7 @@ class Modem:
       v = self._atv("AT+QCCID", "+QCCID:")
       if v and v != self.S["iccid"]:
         print(f"[health] ICCID {self.S['iccid']} -> {v}")
+        self._reconnect_count = 0
         return False
     return True
 
