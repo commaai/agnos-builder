@@ -15,21 +15,22 @@ GAMMA_ADDR = [
 def command_mode(mode):
   return f"39 01 00 00 0A 00 02 FE {((0b1010 << 4) | mode):02X}"
 
-def send_command(command_str):
+def pack_command(command_str):
   command_buf = bytes(map(lambda x: int(x, base=16), command_str.strip().split()))
-
-  data = struct.pack(f"i{len(command_buf)}s", len(command_buf), command_buf)
-  with open(COMMAND_FILE, "wb") as f:
-    f.write(data)
+  return struct.pack(f"i{len(command_buf)}s", len(command_buf), command_buf)
 
 def set_gamma(gamma):
-  send_command(command_mode(2))
+  cmds = [command_mode(2)]
   for color_idx in range(3):
     for i, val in reversed(list(enumerate(gamma[color_idx]))):
       msb, lsb = GAMMA_ADDR[color_idx][i]
-      send_command(f"39 0F 00 00 0A 00 02 {msb:02X} {(val >> 8) & 0xFF:02X}")
-      send_command(f"39 {'01' if i % 10 == 0 else '0F'} 00 00 0A 00 02 {lsb:02X} {val & 0xFF:02X}")
-  send_command(command_mode(0))
+      cmds.append(f"39 0F 00 00 0A 00 02 {msb:02X} {(val >> 8) & 0xFF:02X}")
+      cmds.append(f"39 {'01' if i % 10 == 0 else '0F'} 00 00 0A 00 02 {lsb:02X} {val & 0xFF:02X}")
+  cmds.append(command_mode(0))
+
+  data = b"".join(pack_command(c) for c in cmds)
+  with open(COMMAND_FILE, "wb") as f:
+    f.write(data)
   print("Successfully setup screen calibration")
 
 if __name__ == "__main__":
