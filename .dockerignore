@@ -6,5 +6,9 @@
 
 build/
 output/
+!output/
+output/*
+!output/linux-headers/
+!output/linux-headers/**
 edk2_tici/
 agnos-kernel-sdm845/
