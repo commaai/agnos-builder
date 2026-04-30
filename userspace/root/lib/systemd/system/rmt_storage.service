@@ -6,7 +6,7 @@ Before=init_sys_mss.service
 
 [Service]
 Restart=always
-ExecStartPre=/bin/bash -c "/usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/modemst1; /usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/modemst2; /usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/fsc; /usr/comma/wait_for_file.sh /dev/block/bootdevice/by-name/fsg"
+ExecStartPre=/bin/bash -c "mkdir -p /dev/block/bootdevice/by-name; for p in modemst1 modemst2 fsc fsg; do /usr/comma/wait_for_file.sh /dev/disk/by-partlabel/$$p; ln -sf /dev/disk/by-partlabel/$$p /dev/block/bootdevice/by-name/$$p; done"
 ExecStart=/sbin/rmt_storage
 
 [Install]

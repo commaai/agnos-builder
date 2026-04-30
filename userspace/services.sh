@@ -1,6 +1,7 @@
 #!/bin/bash -e
 
 # Enable DSP support services
+systemctl enable irsc_util.service
 systemctl enable adsp
 systemctl enable cdsp
 
