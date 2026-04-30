@@ -39,8 +39,3 @@ source /usr/local/venv/bin/activate
 
 # custom shims
 export PATH="/usr/comma/shims:${PATH}"
-
-# nice AT command helper
-atc() {
-  mmcli -m any --command="${@}"
-}

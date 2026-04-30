@@ -20,18 +20,6 @@ def test_reset():
   assert proc.poll() is None
   proc.terminate()
 
-def test_modem():
-  out = run("mmcli -m 0 --output-json")
-  mm = json.loads(out)
-  from pprint import pprint
-  pprint(mm)
-
-  # modem is up
-  g = mm['modem']['generic']
-  assert g['manufacturer'] == 'QUALCOMM INCORPORATED'
-  assert g['model'] == 'QUECTEL Mobile Broadband Module'
-  assert g['revision'] == 'EG25GGBR07A08M2G'
-
 def test_wifi():
   out = run("nmcli dev wifi")
   networks = out.strip().splitlines()[1:]
