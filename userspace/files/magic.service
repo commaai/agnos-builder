@@ -12,7 +12,7 @@ ExecStartPre=/bin/bash -c "mkdir -p /data/misc/display || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true"
 
-ExecStart=/bin/bash -c "source /etc/profile && LD_PRELOAD=/usr/comma/magic_gbm_compat.so /usr/local/venv/bin/python -u /usr/comma/magic.py"
+ExecStart=/bin/bash -c "source /etc/profile && /usr/local/venv/bin/python -u /usr/comma/magic.py"
 
 [Install]
 WantedBy=multi-user.target

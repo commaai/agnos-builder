@@ -42,12 +42,6 @@ COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
 RUN gcc -O2 -o /tmp/power_burn_max /tmp/agnos/power_burn_max.c \
     -lOpenCL -lpthread -ldl
 
-# magic GBM compatibility shim
-FROM agnos-compiler AS agnos-compiler-magic-gbm-compat
-COPY ./userspace/magic_gbm_compat.c /tmp/agnos/
-RUN gcc -shared -fPIC -O2 -o /tmp/magic_gbm_compat.so /tmp/agnos/magic_gbm_compat.c \
-    -ldl
-
 # irsc_util
 FROM agnos-compiler AS agnos-compiler-irsc-util
 COPY ./userspace/irsc_util/irsc_util.c /tmp/agnos/
@@ -116,6 +110,8 @@ RUN cd /tmp && \
     libmm-glib0 \
     libpolkit-gobject-1-0 \
     libsystemd0 \
+    libwayland-client0 \
+    libwayland-server0 \
     polkitd \
     mobile-broadband-provider-info && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
@@ -165,7 +161,6 @@ COPY ./output/linux-headers/include/ /usr/include/
 
 COPY --from=agnos-compiler-power-burn /tmp/power_burn_max /home/$USERNAME/power_burn_max
 RUN chown $USERNAME: /home/$USERNAME/power_burn_max
-COPY --from=agnos-compiler-magic-gbm-compat /tmp/magic_gbm_compat.so /usr/$USERNAME/magic_gbm_compat.so
 COPY --from=agnos-compiler-irsc-util /tmp/irsc_util /usr/bin/irsc_util
 
 # Setup systemd services
