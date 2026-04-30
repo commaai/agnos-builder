@@ -57,7 +57,7 @@ stop() {
 }
 
 ADB_PARAM="/data/params/d/AdbEnabled"
-if [ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]; then
+if ! mountpoint -q /data || ([ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]); then
   echo "Enabling ADB"
 
   setup
