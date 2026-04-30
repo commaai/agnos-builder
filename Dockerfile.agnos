@@ -33,6 +33,15 @@ COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
+# power_burn_max
+FROM agnos-compiler AS agnos-compiler-power-burn
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    opencl-c-headers
+COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
+COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
+RUN gcc -O2 -o /tmp/power_burn_max /tmp/agnos/power_burn_max.c \
+    -lOpenCL -lpthread -ldl
+
 # ################## #
 # ###### Base ###### #
 # ################## #
@@ -73,6 +82,7 @@ COPY ./userspace/root/lib64/ /usr/lib64/
 COPY ./userspace/root/sbin/ /usr/sbin/
 COPY ./userspace/root/system/ /system/
 COPY ./userspace/root/usr/ /usr/
+RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
 # Hardware setup
 COPY ./userspace/hardware_setup.sh /tmp/agnos
@@ -142,10 +152,8 @@ COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
 COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY ./output/linux-headers/include/ /usr/include/
 
-COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
-RUN gcc -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
-    -lOpenCL -lpthread -ldl && rm /tmp/agnos/power_burn_max.c \
-    && chown $USERNAME: /home/$USERNAME/power_burn_max
+COPY --from=agnos-compiler-power-burn /tmp/power_burn_max /home/$USERNAME/power_burn_max
+RUN chown $USERNAME: /home/$USERNAME/power_burn_max
 
 # Setup systemd services
 COPY ./userspace/services.sh /tmp/agnos

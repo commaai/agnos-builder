@@ -30,10 +30,6 @@ systemctl enable screen_calibration.service
 # Disable some of our services
 systemctl disable agnos-tests.service
 
-# Disable third party services
-systemctl disable darkstat.service
-systemctl disable vnstat.service
-
 # Disable SSH by default
 systemctl disable ssh
 
@@ -75,11 +71,6 @@ systemctl disable remote-fs-pre.target
 # networking service fails with "ifup: failed to bring up lo"
 # no influence on any interface, all interfaces work fine
 systemctl disable networking.service
-
-# TODO: this doesn't actually disable unless run twice...
-# Service fails with Status: "No devices to monitor"
-systemctl disable smartd.service
-systemctl disable smartd.service
 
 systemctl disable console-setup.service
 systemctl disable sfsconfig.service

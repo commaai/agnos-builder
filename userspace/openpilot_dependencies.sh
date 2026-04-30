@@ -5,51 +5,26 @@ echo "Installing openpilot dependencies"
 # Install necessary libs
 apt-fast update
 apt-fast install --no-install-recommends -yq \
-    autoconf \
-    automake \
     build-essential \
     casync \
     clang \
     curl \
     gpiod \
     libarchive-dev \
-    libass-dev \
     libcurl4-openssl-dev \
     libczmq-dev \
     libdbus-1-dev \
     libffi-dev \
     libfreetype6-dev \
-    libglfw3-dev \
     libglib2.0-0t64 \
     libi2c-dev \
     liblzma-dev \
     libomp-dev \
     libportaudio2 \
-    libsdl2-dev \
     libsqlite3-dev \
-    libtool \
     libusb-1.0-0-dev \
     libuv1-dev \
-    libva-dev \
-    libvdpau-dev \
-    libvorbis-dev \
-    libxcb-icccm4 \
-    libxcb-image0 \
-    libxcb-keysyms1 \
-    libxcb-render-util0 \
-    libxcb-shm0-dev \
-    libxcb-xfixes0-dev \
-    libxcb-xinerama0 \
-    libxcb-xinput0 \
-    libxcb-xkb1 \
-    libxcb1-dev \
-    libxkbcommon-x11-0 \
     locales \
-    nethogs \
     pkg-config \
-    portaudio19-dev \
-    texinfo \
-    vnstat \
     wget \
-    xvfb \
     zlib1g-dev
