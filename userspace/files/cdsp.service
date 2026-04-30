@@ -1,7 +1,6 @@
 [Unit]
 Description=Start cdsp
 SourcePath=/usr/bin/cdsp.sh
-Before=cdsprpcd.service
 
 [Service]
 Type=oneshot
