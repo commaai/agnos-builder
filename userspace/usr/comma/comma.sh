@@ -2,13 +2,14 @@
 
 source /etc/profile
 
-sudo /home/comma/power_burn_max
-
 SETUP="/usr/comma/setup"
 RESET="/usr/comma/reset"
 CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
+
+# blip power to ~10W to see if the PSU is stable
+sudo timeout --kill-after=2 5 /home/comma/power_burn_max
 
 echo "waiting for magic"
 for i in {1..200}; do

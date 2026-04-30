@@ -1,13 +1,12 @@
 /*
- * power_burn_max - CPU/GPU/DSP/LED power burn for tici.
+ * power_burn_max - CPU/GPU/LED power burn for tici.
  *
- *   power_burn_max [seconds] [n_dsp_workers] [gemm_loops] [n_perf_cores]
+ *   power_burn_max [seconds] [n_perf_cores]
  */
 
 #define _GNU_SOURCE
 #include <CL/cl.h>
 #include <arm_neon.h>
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <sched.h>
@@ -17,12 +16,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
 static volatile sig_atomic_t running = 1;
-static void stop_sig(int s) { (void)s; running = 0; }
+static volatile sig_atomic_t exit_signum = 0;
+static void stop_sig(int s) { exit_signum = s; running = 0; }
 
 /* End-of-ramoops DDR page. Survives warm reset if DDR stays in self-refresh
  * across a PSU dropout, so ABL reads this cookie on boot to detect a mid-burn
@@ -46,7 +45,6 @@ static void write_magic(uint32_t val) {
 #define MAX_SAVED 96
 static struct { char path[192]; char val[48]; } saved[MAX_SAVED];
 static int nsaved;
-static int is_child;
 
 static int sysfs_read(const char *p, char *b, int sz) {
     FILE *f = fopen(p, "r");
@@ -70,10 +68,16 @@ static void save_and_write(const char *p, const char *v) {
     sysfs_write(p, v);
 }
 static void restore_all(void) {
-    if (is_child) return;
     for (int i = nsaved - 1; i >= 0; i--) sysfs_write(saved[i].path, saved[i].val);
 }
 static void fatal_sig(int s) {
+    const char *m = "[power_burn_max] fault: signal\n";
+    switch (s) {
+        case SIGABRT: m = "[power_burn_max] fault: SIGABRT\n"; break;
+        case SIGSEGV: m = "[power_burn_max] fault: SIGSEGV\n"; break;
+        case SIGBUS:  m = "[power_burn_max] fault: SIGBUS\n";  break;
+    }
+    (void)!write(2, m, strlen(m));
     write_magic(0);
     restore_all();
     _exit(128 + s);
@@ -88,9 +92,10 @@ static void leds_on(void) {
     save_and_write("/sys/class/leds/led:switch_2/brightness", "255");
 }
 static void freq_max(void) {
+    /* max_pwrlevel=0 unlocks the 710MHz step that Adreno gates off by default
+     * even under governor=performance. */
     save_and_write("/sys/class/kgsl/kgsl-3d0/devfreq/governor", "performance");
     save_and_write("/sys/class/kgsl/kgsl-3d0/max_pwrlevel",     "0");
-    save_and_write("/sys/class/kgsl/kgsl-3d0/devfreq/min_freq", "710000000");
     save_and_write("/sys/class/kgsl/kgsl-3d0/force_bus_on",     "1");
     save_and_write("/sys/class/kgsl/kgsl-3d0/force_clk_on",     "1");
     save_and_write("/sys/class/kgsl/kgsl-3d0/force_rail_on",    "1");
@@ -101,7 +106,6 @@ static void freq_max(void) {
     save_and_write("/sys/class/devfreq/soc:qcom,l3-cpu0/governor","performance");
     save_and_write("/sys/class/devfreq/soc:qcom,l3-cpu4/governor","performance");
     save_and_write("/sys/class/devfreq/soc:qcom,l3-cdsp/governor","performance");
-    save_and_write("/sys/class/devfreq/soc:qcom,l3-cdsp/min_freq","1478400000");
 }
 static void pin_perf_core(int cpu) {
     char path[128];
@@ -109,10 +113,6 @@ static void pin_perf_core(int cpu) {
     save_and_write(path, "1");
     snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_governor", cpu);
     save_and_write(path, "performance");
-    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
-    save_and_write(path, "2649600");
-    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
-    save_and_write(path, "2649600");
 }
 
 static void *cpu_burn(void *arg) {
@@ -170,52 +170,10 @@ static const char *GPU_KSRC =
     "  if ((id&1023)==0) buf[id/1024] = a.x+b.x+c.x+d.x+e.x+f.x+g.x+h.x;"
     "}";
 
-typedef union { struct { void *pv; uint32_t len; } buf; uint64_t _pad; } remote_arg;
-
-static int dsp_worker(int gemm_loops) {
-    void *lib = dlopen("libcdsprpc.so", RTLD_LAZY);
-    if (!lib) return 2;
-    int (*open64)  (const char*, int64_t*)          = dlsym(lib, "remote_handle64_open");
-    int (*invoke64)(int64_t, uint32_t, remote_arg*) = dlsym(lib, "remote_handle64_invoke");
-    int (*close64) (int64_t)                        = dlsym(lib, "remote_handle64_close");
-
-    int64_t h;
-    if (open64("file:///libbenchmark_skel.so?benchmark_skel_handle_invoke&_modver=1.0&_dom=cdsp", &h)) return 3;
-
-    uint32_t gemm_h = 0;
-    remote_arg pra[2] = {{{&gemm_h, 4}}};
-    if (invoke64(h, (6u<<24) | (1u<<8), pra) || !gemm_h) { close64(h); return 4; }
-
-    uint32_t primIn[5]   = { gemm_h, (uint32_t)gemm_loops, 0, 0, 0 };
-    uint32_t primROut[2] = {0};
-    pra[0].buf.pv = primIn;   pra[0].buf.len = sizeof(primIn);
-    pra[1].buf.pv = primROut; pra[1].buf.len = sizeof(primROut);
-    const uint32_t sc_run = (7u<<24) | (1u<<16) | (1u<<8);
-
-    int errs = 0;
-    while (running) {
-        if (invoke64(h, sc_run, pra)) {
-            if (++errs > 100) break;
-            usleep(10000);
-        } else errs = 0;
-    }
-
-    /* gemmClose before close64 — skipping it leaks DSP state and blocks the
-     * next session-open in fastrpc_init_process. */
-    uint32_t closeIn[2] = { gemm_h, 0 };
-    pra[0].buf.pv = closeIn; pra[0].buf.len = sizeof(closeIn);
-    invoke64(h, (8u<<24) | (1u<<16), pra);
-    close64(h);
-    return 0;
-}
-
 int main(int argc, char **argv) {
-    int duration = 1, n_dsp = 4, gemm_loops = 100, n_perf = 3;
-    if (argc > 1) duration   = atoi(argv[1]);
-    if (argc > 2) n_dsp      = atoi(argv[2]);
-    if (argc > 3) gemm_loops = atoi(argv[3]);
-    if (argc > 4) n_perf     = atoi(argv[4]);
-    if (n_dsp  < 0) n_dsp  = 0;  if (n_dsp  > 8) n_dsp  = 8;
+    int duration = 1, n_perf = 4;
+    if (argc > 1) duration = atoi(argv[1]);
+    if (argc > 2) n_perf   = atoi(argv[2]);
     if (n_perf < 0) n_perf = 0;  if (n_perf > 4) n_perf = 4;
 
     signal(SIGTERM, stop_sig);
@@ -249,18 +207,6 @@ int main(int argc, char **argv) {
 
     leds_on();
 
-    pid_t pids[8]; int n_pids = 0;
-    for (int i = 0; i < n_dsp; i++) {
-        pid_t pid = fork();
-        if (pid == 0) {
-            is_child = 1;
-            signal(SIGTERM, stop_sig);
-            signal(SIGINT,  stop_sig);
-            _exit(dsp_worker(gemm_loops));
-        }
-        if (pid > 0) pids[n_pids++] = pid;
-    }
-
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     uint64_t t_end_ns = (uint64_t)ts.tv_sec * 1000000000ull + ts.tv_nsec + (uint64_t)duration * 1000000000ull;
@@ -274,19 +220,6 @@ int main(int argc, char **argv) {
     }
     running = 0;
 
-    /* SIGTERM only — SIGKILL would skip gemmClose and brick the next session. */
-    for (int i = 0; i < n_pids; i++) kill(pids[i], SIGTERM);
-    for (int t = 0; t < 100; t++) {
-        int alive = 0;
-        for (int i = 0; i < n_pids; i++)
-            if (pids[i] > 0 && waitpid(pids[i], NULL, WNOHANG) == 0) alive++;
-            else pids[i] = 0;
-        if (!alive) break;
-        usleep(100000);
-    }
-    for (int i = 0; i < n_pids; i++)
-        if (pids[i] > 0) { kill(pids[i], SIGKILL); waitpid(pids[i], NULL, 0); }
-
     for (int i = 0; i < n_perf; i++) pthread_join(cpu_th[i], NULL);
 
     clReleaseMemObject(buf);
@@ -296,5 +229,6 @@ int main(int argc, char **argv) {
     clReleaseContext(ctx);
     restore_all();
     write_magic(0);
+    if (exit_signum) fprintf(stderr, "[power_burn_max] interrupted by signal %d\n", (int)exit_signum);
     return 0;
 }
