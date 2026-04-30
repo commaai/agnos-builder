@@ -1,3 +1,5 @@
+exclude: '^userspace/root/'
+
 repos:
 -   repo: meta
     hooks:
