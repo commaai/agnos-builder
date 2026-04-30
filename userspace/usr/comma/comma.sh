@@ -2,7 +2,7 @@
 
 source /etc/profile
 
-sudo /home/comma/power_burn_max &
+sudo /home/comma/power_burn_max
 
 SETUP="/usr/comma/setup"
 RESET="/usr/comma/reset"
