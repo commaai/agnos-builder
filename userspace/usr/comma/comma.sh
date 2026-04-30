@@ -11,6 +11,10 @@ RESET_TRIGGER="/data/__system_reset__"
 # blip power to ~10W to see if the PSU is stable
 sudo timeout --kill-after=2 5 /home/comma/power_burn_max
 
+# use max freq to boot up quickly, then limit
+echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+
 echo "waiting for magic"
 for i in {1..200}; do
   if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
