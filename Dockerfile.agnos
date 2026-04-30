@@ -67,7 +67,12 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 FROM agnos-base
 
 # Hardware rootfs overlay
-COPY ./userspace/root/ /
+COPY ./userspace/root/etc/ /etc/
+COPY ./userspace/root/lib/ /usr/lib/
+COPY ./userspace/root/lib64/ /usr/lib64/
+COPY ./userspace/root/sbin/ /usr/sbin/
+COPY ./userspace/root/system/ /system/
+COPY ./userspace/root/usr/ /usr/
 
 # Hardware setup
 COPY ./userspace/hardware_setup.sh /tmp/agnos
