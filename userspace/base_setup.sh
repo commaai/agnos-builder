@@ -73,7 +73,6 @@ apt-fast install --no-install-recommends -yq \
     jq \
     landscape-common \
     libi2c-dev \
-    libqmi-utils \
     libtool \
     libncursesw5-dev \
     libnss-myhostname \

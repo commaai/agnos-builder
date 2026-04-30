@@ -1,7 +1,6 @@
-// Allow sudo users to control network & modem
+// Allow sudo users to control network
 polkit.addRule(function (action, subject) {
-  if ((action.id.startsWith("org.freedesktop.NetworkManager.") ||
-       action.id.startsWith("org.freedesktop.ModemManager1.")) &&
+  if (action.id.startsWith("org.freedesktop.NetworkManager.") &&
       subject.isInGroup("sudo")) {
     return polkit.Result.YES;
   }

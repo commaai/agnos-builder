@@ -1,39 +1,6 @@
 # check=error=true
 
 # ################## #
-# ### Package  ##### #
-# ### Compilation ## #
-# ################## #
-FROM ubuntu:24.04 AS agnos-compiler
-
-# Common packages
-RUN apt-get update && apt-get install -yq --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    ccache \
-    clang \
-    curl \
-    checkinstall \
-    git \
-    pkg-config \
-    wget
-
-# Enable ccache
-ENV PATH="/usr/lib/ccache:$PATH"
-
-# libqmi
-FROM agnos-compiler AS agnos-compiler-libqmi
-COPY ./userspace/compile-libqmi.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    /tmp/agnos/compile-libqmi.sh
-
-# ModemManager
-FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    /tmp/agnos/compile-modemmanager.sh
-
-# ################## #
 # ###### Base ###### #
 # ################## #
 FROM scratch AS agnos-base
@@ -73,27 +40,19 @@ COPY ./userspace/hardware_setup.sh /tmp/agnos
 RUN /tmp/agnos/hardware_setup.sh
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
-COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
-
 RUN cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
     python3 \
     python3-dev \
-    gir1.2-qmi-1.0 \
     libglib2.0-dev \
-    libqmi-glib5 \
     libc6 \
     libglib2.0-0t64 \
     libgudev-1.0-0 \
     libmm-glib0 \
     libpolkit-gobject-1-0 \
     libsystemd0 \
-    polkitd \
-    mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
+    polkitd
 
 ARG XDG_DATA_HOME="/usr/local"
 
@@ -155,10 +114,6 @@ COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
 COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
 COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
 
-# Add cellular connections
-COPY ./userspace/files/*.nmconnection /usr/lib/NetworkManager/system-connections/
-RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
-
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
@@ -176,13 +131,6 @@ COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d
 
 # Add iptable rules to block incoming traffic on wwan0
 COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
-
-# Run ModemManager in debug mode to allow AT commands
-COPY ./userspace/files/ModemManager.service /lib/systemd/system/
-RUN systemctl enable ModemManager
-
-# Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
-COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
 
 # Copy extra FW, rest comes from debs
 COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware

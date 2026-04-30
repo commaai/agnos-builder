@@ -32,13 +32,6 @@ def test_modem():
   assert g['model'] == 'QUECTEL Mobile Broadband Module'
   assert g['revision'] == 'EG25GGBR07A08M2G'
 
-  # sim is present
-  assert g['sim'] == '/org/freedesktop/ModemManager1/SIM/0'
-
-  # blue prime is active
-  out = run("nmcli con show --active")
-  assert "blue-prime" in out
-
 def test_wifi():
   out = run("nmcli dev wifi")
   networks = out.strip().splitlines()[1:]
