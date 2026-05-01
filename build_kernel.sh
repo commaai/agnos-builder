@@ -77,19 +77,19 @@ build_kernel() {
   echo "-- First make --"
   make $DEFCONFIG O=out
   echo "-- Second make: $(nproc --all) cores --"
-  make -j$(nproc --all) O=out  # Image.gz-dtb
+  make -j$(nproc --all) O=out  # Image-dtb
 
   # Turn on if you want perf
   # LDFLAGS=-static make -j$(nproc --all) -C tools/perf
 
-  # Copy over Image.gz-dtb
+  # Copy over Image-dtb
   mkdir -p $TMP_DIR
   cd $TMP_DIR
-  cp $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image.gz-dtb .
+  cp $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image-dtb .
 
   # Make boot image
   $TOOLS/mkbootimg \
-    --kernel Image.gz-dtb \
+    --kernel Image-dtb \
     --ramdisk /dev/null \
     --cmdline "console=ttyMSM0,115200n8 isolcpus=6,7 quiet loglevel=3 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 ehci-hcd.park=3 lpm_levels.sleep_disabled=1 service_locator.enable=1 androidboot.selinux=permissive firmware_class.path=/lib/firmware/updates net.ifnames=0 dyndbg=\"\"" \
     --pagesize 4096 \
