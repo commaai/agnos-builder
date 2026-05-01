@@ -2,6 +2,7 @@
 # /// script
 # dependencies = ["pyusb"]
 # ///
+import argparse
 import os
 import subprocess
 import sys
@@ -77,13 +78,20 @@ class Mdma:
 
 
 if __name__ == "__main__":
+  parser = argparse.ArgumentParser()
+  subparsers = parser.add_subparsers(dest="command", required=True)
+  subparsers.add_parser("reboot", help="power cycle into normal boot")
+  subparsers.add_parser("reboot-qdl", help="power cycle with AUX present to enter QDL")
+  subparsers.add_parser("serial", help="open the MSM UART console with screen")
+  if len(sys.argv) == 1:
+    parser.print_help()
+    raise SystemExit(0)
+  args = parser.parse_args()
+
   mdma = Mdma()
-  cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-  if cmd == "reboot":
+  if args.command == "reboot":
     mdma.reboot()
-  elif cmd == "reboot-qdl":
+  elif args.command == "reboot-qdl":
     mdma.reboot_qdl()
-  elif cmd == "serial":
+  elif args.command == "serial":
     mdma.serial()
-  else:
-    raise SystemExit(f"usage: {sys.argv[0]} {{reboot|reboot-qdl|serial}}")
