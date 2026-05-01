@@ -17,7 +17,7 @@ sudo rm -rf /usr/comma
 sudo ln -snf $ROOT/userspace/root/usr/comma/ /usr/comma
 
 echo "cp systemd services"
-for s in "$ROOT"/userspace/root/lib/systemd/system/*.{service,path,timer,mount} "$ROOT"/userspace/files/ModemManager.service; do
+for s in "$ROOT"/userspace/root/lib/systemd/system/*.{service,path,timer,mount}; do
   [ -e "$s" ] || continue
   service=$(basename $s)
   echo "- $service"
