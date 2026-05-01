@@ -33,6 +33,7 @@ class Pins:
   AUX_PORT = "1"
   PIO96_OEN = 0xBF800908
   PIO96_OUT = 0xBF800928
+  UART = "/dev/serial/by-id/usb-Microchip_Tech_USB2_Controller_Hub-if01"
 
   VIN_EN = Gpio("VIN_EN", 92, "PF28", 77)
   WATCHDOG_DISABLE_N = Gpio("WATCHDOG_DISABLE_N", 93, "PF29", 74)
@@ -125,6 +126,10 @@ class Mdma:
     self.gpio(Pins.VIN_EN, False); time.sleep(5)
     self.gpio(Pins.VIN_EN, True); time.sleep(float(os.getenv("MDMA_QDL_DELAY", "3")))
 
+  def serial(self):
+    port = os.getenv("MDMA_SERIAL", Pins.UART if os.path.exists(Pins.UART) else "/dev/ttyACM0")
+    os.execvp("screen", ["screen", port, os.getenv("MDMA_BAUD", "115200")])
+
 
 mdma = Mdma()
 cmd = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -132,5 +137,7 @@ if cmd == "reboot":
   mdma.reboot()
 elif cmd == "reboot-qdl":
   mdma.reboot_qdl()
+elif cmd == "serial":
+  mdma.serial()
 else:
-  raise SystemExit(f"usage: {sys.argv[0]} {{reboot|reboot-qdl}}")
+  raise SystemExit(f"usage: {sys.argv[0]} {{reboot|reboot-qdl|serial}}")
