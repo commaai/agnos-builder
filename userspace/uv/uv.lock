@@ -3,6 +3,14 @@ revision = 3
 requires-python = ">=3.12.3, <3.13"
 
 [[package]]
+name = "acados"
+version = "0.2.2"
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=acados&rev=release-acados#946daa695ae02173affd8c7c285286e3bfcd6c34" }
+dependencies = [
+    { name = "numpy" },
+]
+
+[[package]]
 name = "agnos"
 version = "0.1.0"
 source = { virtual = "." }
@@ -197,12 +205,12 @@ wheels = [
 [[package]]
 name = "bzip2"
 version = "1.0.8"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=bzip2&rev=release-bzip2#2083ff9525ebb12135fab36711f2d959ad75a848" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=bzip2&rev=release-bzip2#1d3cf44628a4dc8e2dfba7e3085deebeb6dab496" }
 
 [[package]]
 name = "capnproto"
 version = "1.0.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=capnproto&rev=release-capnproto#437b0c5b5d967e06da8f76ee755d60768bfda34d" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=capnproto&rev=release-capnproto#1049bb499c867bc30366b717e994f14878ac2243" }
 
 [[package]]
 name = "casadi"
@@ -424,7 +432,7 @@ wheels = [
 [[package]]
 name = "eigen"
 version = "3.4.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=eigen&rev=release-eigen#a8d3ceab76b9c8c2c6f1540af8ccd3ad863c01e4" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=eigen&rev=release-eigen#7a3527e305803b20b50e72622fa207e726123c30" }
 
 [[package]]
 name = "evdev"
@@ -453,7 +461,7 @@ wheels = [
 [[package]]
 name = "ffmpeg"
 version = "7.1.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ffmpeg&rev=release-ffmpeg#9621ada7dfedb624c2abafbfa6d8e2473af43a96" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ffmpeg&rev=release-ffmpeg#372b67b48f8a216be9a35ff14432d2d1090d76d4" }
 
 [[package]]
 name = "flaky"
@@ -492,12 +500,12 @@ wheels = [
 [[package]]
 name = "gcc-arm-none-eabi"
 version = "13.2.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=release-gcc-arm-none-eabi#94c98fa688e8f4bf68e2d96cbb3900925f6c76ff" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=release-gcc-arm-none-eabi#29e28168c055299fb2ee3c9650a04cab56bc226e" }
 
 [[package]]
 name = "git-lfs"
 version = "3.6.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=release-git-lfs#c2d44b18b87da51300bb84426e809db214290947" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=release-git-lfs#38d8696ee24f2d8ad6432434d2ae84a1f3e1797b" }
 
 [[package]]
 name = "google-crc32c"
@@ -645,12 +653,12 @@ wheels = [
 [[package]]
 name = "libjpeg"
 version = "3.1.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libjpeg&rev=release-libjpeg#90d0d6a55a7f5edabb19657295ef00cb1a5038ce" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libjpeg&rev=release-libjpeg#ac01d6d4b8192418df2d71204b72b8fdf0bd7001" }
 
 [[package]]
 name = "libusb"
 version = "1.0.29"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libusb&rev=release-libusb#1a60c15941939409bdea1b782a17a07ba1754388" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libusb&rev=release-libusb#13c111ad4fa10880932e8e8a071a8ff9d7b0c3bd" }
 
 [[package]]
 name = "libusb1"
@@ -666,7 +674,7 @@ wheels = [
 [[package]]
 name = "libyuv"
 version = "1922.0"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libyuv&rev=release-libyuv#2abe941ad891c09be217e36e030ad87f90c8256d" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=libyuv&rev=release-libyuv#a7bbe1c0f506d8d13b7b6ce97e7e5631a73b8cc2" }
 
 [[package]]
 name = "matplotlib-inline"
@@ -719,7 +727,7 @@ wheels = [
 [[package]]
 name = "ncurses"
 version = "6.5"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ncurses&rev=release-ncurses#112e29cccb8683318489484b0946bbc9c8c23049" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=ncurses&rev=release-ncurses#eea8acaa6c487295f5ec16a395e0df7f78e34836" }
 
 [[package]]
 name = "numpy"
@@ -745,6 +753,7 @@ name = "openpilot"
 version = "0.1.0"
 source = { directory = "openpilot" }
 dependencies = [
+    { name = "acados" },
     { name = "aiohttp" },
     { name = "aiortc" },
     { name = "av" },
@@ -775,7 +784,6 @@ dependencies = [
     { name = "pyserial" },
     { name = "pyzmq" },
     { name = "qrcode" },
-    { name = "raylib" },
     { name = "requests" },
     { name = "scons" },
     { name = "sentry-sdk" },
@@ -810,6 +818,7 @@ testing = [
 
 [package.metadata]
 requires-dist = [
+    { name = "acados", git = "https://github.com/commaai/dependencies.git?subdirectory=acados&rev=release-acados" },
     { name = "aiohttp" },
     { name = "aiortc" },
     { name = "av" },
@@ -855,7 +864,6 @@ requires-dist = [
     { name = "pytest-xdist", marker = "extra == 'testing'", git = "https://github.com/sshane/pytest-xdist?rev=2b4372bd62699fb412c4fe2f95bf9f01bd2018da" },
     { name = "pyzmq" },
     { name = "qrcode" },
-    { name = "raylib" },
     { name = "requests" },
     { name = "ruff", marker = "extra == 'testing'" },
     { name = "scons" },
@@ -1631,7 +1639,7 @@ wheels = [
 [[package]]
 name = "zeromq"
 version = "4.3.5"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zeromq&rev=release-zeromq#d5a1fb0fd7b9e56940c804513ec7d36975246d97" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zeromq&rev=release-zeromq#37534be1c38db94a13e1d98995caa93fdc74dc34" }
 
 [[package]]
 name = "zstandard"
@@ -1661,4 +1669,4 @@ wheels = [
 [[package]]
 name = "zstd"
 version = "1.5.6"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zstd&rev=release-zstd#7d375bb6315585cbb81754056b7f65c476cb1ee8" }
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=zstd&rev=release-zstd#80add1f4e37b134937563bb7169ac9bd042d9e33" }

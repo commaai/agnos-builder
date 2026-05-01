@@ -1,0 +1,19 @@
+# Copyright (c) 2018 Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+#
+
+[Unit]
+Description=SS-Services Service
+SourcePath=/etc/initscripts/start_pdmappersvc
+After=init_sys_mss.service
+Requires=init_sys_mss.service
+
+[Service]
+Restart=no
+RemainAfterExit=yes
+ExecStart=/etc/initscripts/start_pdmappersvc start
+ExecStop=/etc/initscripts/start_pdmappersvc stop
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,38 @@
 # check=error=true
 
 # ################## #
+# ### Package  ##### #
+# ### Compilation ## #
+# ################## #
+FROM ubuntu:24.04 AS agnos-compiler
+
+# Common packages
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    ccache \
+    clang \
+    curl \
+    checkinstall \
+    git \
+    pkg-config \
+    wget
+
+# Enable ccache
+ENV PATH="/usr/lib/ccache:$PATH"
+
+# power_burn_max
+FROM agnos-compiler AS agnos-compiler-power-burn
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    opencl-c-headers
+COPY ./userspace/root/usr/lib/aarch64-linux-gnu/libOpenCL.so* /usr/lib/aarch64-linux-gnu/
+COPY ./userspace/root/usr/lib/aarch64-linux-gnu/libcutils.so* /usr/lib/aarch64-linux-gnu/
+COPY ./userspace/root/usr/lib/aarch64-linux-gnu/liblog.so* /usr/lib/aarch64-linux-gnu/
+COPY ./userspace/power_burn_max.c /tmp/agnos/
+RUN gcc -O2 -o /tmp/power_burn_max /tmp/agnos/power_burn_max.c \
+    -lOpenCL -lpthread -ldl
+
+# ################## #
 # ###### Base ###### #
 # ################## #
 FROM scratch AS agnos-base
@@ -33,12 +65,14 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 # ################### #
 FROM agnos-base
 
-# Hardware setup
-RUN mkdir -p /tmp/agnos/debs
-COPY ./userspace/debs /tmp/agnos/debs
-COPY ./userspace/hardware_setup.sh /tmp/agnos
-RUN /tmp/agnos/hardware_setup.sh
-RUN mv /data/persist /system/ && rm -rf /data/*
+# Hardware rootfs overlay
+COPY ./userspace/root/etc/ /etc/
+COPY ./userspace/root/lib/ /usr/lib/
+COPY ./userspace/root/home/ /home/
+COPY ./userspace/root/sbin/ /usr/sbin/
+COPY ./userspace/root/system/ /system/
+COPY ./userspace/root/usr/ /usr/
+RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
 RUN cd /tmp && \
     apt-get update && \
@@ -52,6 +86,8 @@ RUN cd /tmp && \
     libmm-glib0 \
     libpolkit-gobject-1-0 \
     libsystemd0 \
+    libwayland-client0 \
+    libwayland-server0 \
     polkitd
 
 ARG XDG_DATA_HOME="/usr/local"
@@ -66,41 +102,20 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-COPY ./userspace/home/ /home/$USERNAME/
-COPY ./userspace/home/.config/ /root/.config
 RUN chown -R $USERNAME: /home/$USERNAME/.config
+RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config
 
-# populate /lib
-COPY ./userspace/files/*.path /lib/systemd/system/
-COPY ./userspace/files/*.mount /lib/systemd/system/
-COPY ./userspace/files/*.service /lib/systemd/system/
-COPY ./userspace/files/*.timer /lib/systemd/system/
-COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
-COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
-COPY ./userspace/firmware/* /lib/firmware/
-
-# populate /etc
-COPY ./userspace/files/fstab /etc
-COPY ./userspace/files/profile /etc/profile
-COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
-COPY ./userspace/files/*.rules /etc/udev/rules.d/
-COPY ./userspace/files/ssh*_config /etc/ssh/
-COPY ./userspace/files/logrotate.conf /etc/
-COPY ./userspace/files/rsyslog /etc/logrotate.d/
 RUN chmod 644 /etc/logrotate.conf
 RUN touch -r /lib/systemd/systemd /etc/fstab
 
-# populate /usr
-COPY ./userspace/usr/comma/ /usr/$USERNAME/
-COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
-COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
-COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
+# Install kernel headers
 COPY ./output/linux-headers/include/ /usr/include/
 
-COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
-RUN gcc -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
-    -lOpenCL -lpthread -ldl && rm /tmp/agnos/power_burn_max.c \
-    && chown $USERNAME: /home/$USERNAME/power_burn_max
+COPY --from=agnos-compiler-power-burn /tmp/power_burn_max /home/$USERNAME/power_burn_max
+RUN chown $USERNAME: /home/$USERNAME/power_burn_max
+
+COPY ./userspace/irsc_util.c /tmp/agnos/
+RUN gcc -O2 -Wall -Wextra -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
 
 # Setup systemd services
 COPY ./userspace/services.sh /tmp/agnos
@@ -108,32 +123,10 @@ RUN /tmp/agnos/services.sh
 
 # MOTD
 RUN rm -r /etc/update-motd.d/*
-COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
-
-# Let NetworkManager manage eth0
-COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
-COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+COPY --chown=root:root ./userspace/root/etc/update-motd.d/* /etc/update-motd.d/
 
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
-
-# Don't let logind delete /dev/shm
-COPY ./userspace/files/logind.conf /etc/systemd/logind.conf
-
-# Retry NTP sync every 10s instead of 30s for faster time sync after network connects
-COPY ./userspace/files/timesyncd.conf /etc/systemd/timesyncd.conf
-
-# Copy Avahi daemon override
-COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.service.d/override.conf
-
-# Prevent polkitd memory leak from getting out of hand by restarting it every ~day
-COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d/override.conf
-
-# Add iptable rules to block incoming traffic on wwan0
-COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
-
-# Copy extra FW, rest comes from debs
-COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware
 
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
