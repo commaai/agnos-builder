@@ -19,7 +19,94 @@ bash -c "$(curl -sL https://git.io/vokNn)"
 
 # Install packages
 export DEBIAN_FRONTEND=noninteractive
-apt-fast install --no-install-recommends -yq locales systemd adduser
+apt-fast upgrade -yq
+apt-fast install --no-install-recommends -yq \
+    adduser \
+    alsa-utils \
+    apport-retrace \
+    bc \
+    build-essential \
+    curl \
+    cpuset \
+    dnsmasq-base \
+    evtest \
+    git \
+    git-core \
+    git-lfs \
+    gdb \
+    hostapd \
+    htop \
+    i2c-tools \
+    ifmetric \
+    ifupdown \
+    iputils-ping \
+    iptables-persistent \
+    isc-dhcp-client \
+    jq \
+    kmod \
+    landscape-common \
+    libc6-dev \
+    libegl1 \
+    libegl-dev \
+    libffi-dev \
+    libgdbm-dev \
+    libgles1 \
+    libgles2 \
+    libgles-dev \
+    libgtk2.0-dev \
+    libi2c-dev \
+    libncursesw5-dev \
+    libnss-myhostname \
+    libqmi-utils \
+    libssl-dev \
+    locales \
+    llvm \
+    nano \
+    net-tools \
+    nload \
+    network-manager \
+    openssl \
+    openssh-server \
+    ppp \
+    rsyslog \
+    ssh \
+    sudo \
+    systemd \
+    systemd-resolved \
+    systemd-timesyncd \
+    ubuntu-minimal \
+    ubuntu-server \
+    ubuntu-standard \
+    udev \
+    udhcpc \
+    wget \
+    wireless-tools \
+    wpasupplicant \
+    zlib1g-dev
+
+# Enable serial console on UART
+systemctl enable serial-getty@ttyS0.service
+
+# set kernel params
+echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf
+echo "vm.dirty_expire_centisecs = 200" >> /etc/sysctl.conf
+
+# raise comma user's process priority limits
+echo "comma - rtprio 100" >> /etc/security/limits.conf
+echo "comma - nice -10" >> /etc/security/limits.conf
+
+# Locale setup
+locale-gen en_US.UTF-8
+update-locale LANG=en_US.UTF-8
+
+# Disable pstore service that moves files out of /sys/fs/pstore
+systemctl disable systemd-pstore.service
+
+# Nopasswd sudo
+echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# setup /bin/sh symlink
+ln -sf /bin/bash /bin/sh
 
 # Create privileged user
 useradd -G sudo -m -s /bin/bash $USERNAME
@@ -37,108 +124,7 @@ adduser $USERNAME netdev
 adduser $USERNAME dialout
 adduser $USERNAME systemd-journal
 
-# Enable serial console on UART
-systemctl enable serial-getty@ttyS0.service
-
-# set kernel params
-echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf
-echo "vm.dirty_expire_centisecs = 200" >> /etc/sysctl.conf
-
-# raise comma user's process priority limits
-echo "comma - rtprio 100" >> /etc/security/limits.conf
-echo "comma - nice -10" >> /etc/security/limits.conf
-
-# Locale setup
-locale-gen en_US.UTF-8
-update-locale LANG=en_US.UTF-8
-
-apt-fast upgrade -yq
-apt-fast install --no-install-recommends -yq \
-    alsa-utils \
-    apport-retrace \
-    bc \
-    build-essential \
-    curl \
-    cpuset \
-    dfu-util \
-    evtest \
-    git \
-    git-core \
-    git-lfs \
-    gdb \
-    htop \
-    i2c-tools \
-    ifmetric \
-    ifupdown \
-    iptables-persistent \
-    jq \
-    landscape-common \
-    libi2c-dev \
-    libqmi-utils \
-    libtool \
-    libncursesw5-dev \
-    libnss-myhostname \
-    libgdbm-dev \
-    libc6-dev \
-    libsqlite3-dev \
-    libssl-dev \
-    libffi-dev \
-    llvm \
-    nano \
-    net-tools \
-    nload \
-    network-manager \
-    openssl \
-    ppp \
-    speedtest-cli \
-    ssh \
-    sshfs \
-    sudo \
-    systemd-resolved \
-    systemd-timesyncd \
-    traceroute \
-    ubuntu-minimal \
-    ubuntu-server \
-    ubuntu-standard \
-    udev \
-    udhcpc \
-    wget \
-    wireless-tools \
-    zlib1g-dev
-
-rm -rf /var/lib/apt/lists/*
-
 # Create dirs
 mkdir /data && chown $USERNAME:$USERNAME /data
 mkdir /persist && chown $USERNAME:$USERNAME /persist
 mkdir /config && chown root:root /config
-
-# Disable pstore service that moves files out of /sys/fs/pstore
-systemctl disable systemd-pstore.service
-
-# Nopasswd sudo
-echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
-# setup /bin/sh symlink
-ln -sf /bin/bash /bin/sh
-
-# Install additional runtime packages
-apt-fast update -yq
-apt-fast install --no-install-recommends -yq \
-    libegl1 \
-    libegl-dev \
-    libgles1 \
-    libgles2 \
-    libgles-dev \
-    libx264-dev \
-    openssh-server \
-    dnsmasq-base \
-    isc-dhcp-client \
-    iputils-ping \
-    rsyslog \
-    kmod \
-    wpasupplicant \
-    hostapd \
-    libgtk2.0-dev
-
-rm -rf /var/lib/apt/lists/*

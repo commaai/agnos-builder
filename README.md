@@ -32,9 +32,9 @@ git submodule update --init agnos-kernel-sdm845
 
     ```
     cd /path/to/openpilot
-    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/setup openpilot.system.ui.mici_setup
-    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/reset openpilot.system.ui.reset
-    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/updater openpilot.system.ui.updater
+    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/setup openpilot.system.ui.mici_setup
+    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/reset openpilot.system.ui.reset
+    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/updater openpilot.system.ui.updater
     ```
 
 3. Build the kernel and system images:
