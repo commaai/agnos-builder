@@ -5,7 +5,7 @@ DefaultDependencies=no
 
 [Service]
 Type=oneshot
-ExecStart=/usr/comma/fs_setup.sh
+ExecStart=/usr/comma/boot/fs_setup.sh
 
 [Install]
 WantedBy=multi-user.target

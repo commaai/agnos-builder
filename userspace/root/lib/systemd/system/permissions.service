@@ -1,0 +1,11 @@
+[Unit]
+Description=Device permissions
+After=fs_setup.service
+Before=comma.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/boot/permissions.sh
+
+[Install]
+WantedBy=multi-user.target
