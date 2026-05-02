@@ -16,8 +16,6 @@ import usb.core
 
 SERIAL_DEV = "/dev/serial/by-id/usb-Microchip_Tech_USB2_Controller_Hub-if01"
 PROMPT_RE = re.compile(rb"(?:login:|[#\$])$")
-FIRST_LINE_TIMEOUT = 5
-PROMPT_TIMEOUT = 60
 USB_RT_PORT = 0x23
 USB_REQ_CLEAR_FEATURE = 1
 USB_REQ_SET_FEATURE = 3
@@ -33,9 +31,7 @@ class Pins:
   USB4002_PID = 0x4002
   PIO96_OEN = 0xBF800908
   PIO96_OUT = 0xBF800928
-  PF30_CTL = 0xBF800C21
   VIN_EN = 1 << (92 - 64)
-  MSM_SRST = 1 << (94 - 64)
 
 
 class Mdma:
@@ -120,20 +116,16 @@ class Mdma:
     termios.tcsetattr(fd, termios.TCSANOW, attrs)
     fcntl.fcntl(fd, fcntl.F_SETFL, fcntl.fcntl(fd, fcntl.F_GETFL) & ~os.O_NONBLOCK)
     termios.tcflush(fd, termios.TCIFLUSH)
+    while (data := os.read(fd, 4096)):
+      time.sleep(0.1)
 
     # boot!
     start = self.reboot(qdl=False)
 
     # show serial console with timestamps until boot is done
     pending = b""
-    seen_output = False
     while True:
       if not select.select([fd], [], [], 0.25)[0]:
-        elapsed = time.monotonic() - start
-        if not seen_output and elapsed > FIRST_LINE_TIMEOUT:
-          raise SystemExit("no serial output after reset")
-        if elapsed > PROMPT_TIMEOUT:
-          raise SystemExit("timed out waiting for prompt")
         continue
 
       data = os.read(fd, 4096)
@@ -143,7 +135,6 @@ class Mdma:
       while b"\n" in pending:
         line, pending = pending.split(b"\n", 1)
         line = line.rstrip()
-        seen_output = True
         print(f"[{time.monotonic() - start:8.3f}] {line.decode(errors='replace')}", flush=True)
         if PROMPT_RE.search(line):
           return
