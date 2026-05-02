@@ -21,6 +21,18 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
 
+# libqmi
+FROM agnos-compiler AS agnos-compiler-libqmi
+COPY ./userspace/compile-libqmi.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
+    /tmp/agnos/compile-libqmi.sh
+
+# ModemManager
+FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
+COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
+    /tmp/agnos/compile-modemmanager.sh
+
 # power_burn_max
 FROM agnos-compiler AS agnos-compiler-power-burn
 RUN apt-get update && apt-get install -yq --no-install-recommends \
@@ -74,12 +86,17 @@ COPY ./userspace/root/system/ /system/
 COPY ./userspace/root/usr/ /usr/
 RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
+COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
+COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+
 RUN cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
     python3 \
     python3-dev \
+    gir1.2-qmi-1.0 \
     libglib2.0-dev \
+    libqmi-glib5 \
     libc6 \
     libglib2.0-0t64 \
     libgudev-1.0-0 \
@@ -88,7 +105,10 @@ RUN cd /tmp && \
     libsystemd0 \
     libwayland-client0 \
     libwayland-server0 \
-    polkitd
+    polkitd \
+    mobile-broadband-provider-info && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
 
 ARG XDG_DATA_HOME="/usr/local"
 
@@ -125,8 +145,17 @@ RUN /tmp/agnos/services.sh
 RUN rm -r /etc/update-motd.d/*
 COPY --chown=root:root ./userspace/root/etc/update-motd.d/* /etc/update-motd.d/
 
+RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
+
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+
+# Run ModemManager in debug mode to allow AT commands
+COPY ./userspace/files/ModemManager.service /lib/systemd/system/
+RUN systemctl enable ModemManager
+
+# Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
+COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
 
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
