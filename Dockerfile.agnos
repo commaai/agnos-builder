@@ -106,7 +106,8 @@ RUN chown -R $USERNAME: /home/$USERNAME/.config
 RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config
 
 RUN chmod 644 /etc/logrotate.conf
-RUN touch -r /lib/systemd/systemd /etc/fstab
+RUN touch -r /lib/systemd/systemd
+RUN rm -f /etc/fstab
 
 # Install kernel headers
 COPY ./output/linux-headers/include/ /usr/include/

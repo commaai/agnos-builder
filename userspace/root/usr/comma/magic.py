@@ -10,6 +10,7 @@ WESTON_SOCK_PATH = os.path.join(WESTON_RUNTIME_DIR, "wayland-0")
 
 SOCK_PATH = "/tmp/drmfd.sock"
 DRM_DEVICE = "/dev/dri/card0"
+BACKLIGHT_POWER = "/sys/class/backlight/panel0-backlight/bl_power"
 BACKGROUND = "/usr/comma/bg.jpg"
 
 # This is needed to keep the old updater working. Updater used to be stored in
@@ -93,6 +94,9 @@ def main():
       time.sleep(0.1)
 
   os.environ['DRM_FD'] = str(drm_master)
+  while not os.access(BACKLIGHT_POWER, os.W_OK):
+    time.sleep(0.1)
+
   rl.init_window(0, 0, "not weston")
   img = rl.load_image(BACKGROUND)
   rl.image_resize(img, rl.get_screen_width(), rl.get_screen_width()//2)
