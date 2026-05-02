@@ -3,12 +3,26 @@
 # dependencies = ["pyusb"]
 # ///
 import argparse
+import errno
+import fcntl
 import os
-import subprocess
+import re
+import select
 import sys
+import termios
 import time
 
 import usb.core
+
+SERIAL_DEV = "/dev/serial/by-id/usb-Microchip_Tech_USB2_Controller_Hub-if01"
+PROMPT_RE = re.compile(rb"(?:login:|[#\$])$")
+FIRST_LINE_TIMEOUT = 5
+PROMPT_TIMEOUT = 60
+AUX_OFF_SETTLE = 1.0
+USB_RT_PORT = 0x23
+USB_REQ_CLEAR_FEATURE = 1
+USB_REQ_SET_FEATURE = 3
+USB_PORT_POWER = 8
 
 
 class Pins:
@@ -20,33 +34,23 @@ class Pins:
   USB4002_PID = 0x4002
   PIO96_OEN = 0xBF800908
   PIO96_OUT = 0xBF800928
+  PF30_CTL = 0xBF800C21
   VIN_EN = 1 << (92 - 64)
+  MSM_SRST = 1 << (94 - 64)
 
 
 class Mdma:
-  def __init__(self):
-    self.aux_ports = [
-      (self.hub_location(Pins.USB7002_VID, Pins.USB7002_PID), "1"),
-      (self.hub_location(Pins.USB4002_VID, Pins.USB4002_PID), "1"),
-    ]
-    self.dev = None
+  def _hub(self, vid, pid):
+    hub = usb.core.find(idVendor=vid, idProduct=pid)
+    if hub is None:
+      raise SystemExit(f"could not find hub {vid:04x}:{pid:04x}")
+    return hub
 
-  def hub_location(self, vid, pid):
-    needle = f"[{vid:04x}:{pid:04x} "
-    for line in subprocess.check_output(["uhubctl", "-S"], text=True).splitlines():
-      if line.startswith("Current status for hub ") and needle in line:
-        return line.split()[4]
-    raise SystemExit(f"could not find hub {vid:04x}:{pid:04x}")
-
-  def _dev(self):
-    self.dev = self.dev or usb.core.find(idVendor=Pins.HFC_VID, idProduct=Pins.HFC_PID)
-    return self.dev
-
-  def reg(self, addr, value=None):
-    dev = self._dev()
+  def reg(self, addr, value=None, size=4):
+    dev = usb.core.find(idVendor=Pins.HFC_VID, idProduct=Pins.HFC_PID)
     if value is None:
-      return int.from_bytes(bytes(dev.ctrl_transfer(0xC0, 0x04, addr & 0xFFFF, addr >> 16, 4)), "little")
-    dev.ctrl_transfer(0x40, 0x03, addr & 0xFFFF, addr >> 16, value.to_bytes(4, "little"))
+      return int.from_bytes(bytes(dev.ctrl_transfer(0xC0, 0x04, addr & 0xFFFF, addr >> 16, size)), "little")
+    dev.ctrl_transfer(0x40, 0x03, addr & 0xFFFF, addr >> 16, value.to_bytes(size, "little"))
 
   def gpio(self, bit, on):
     if on:
@@ -55,26 +59,119 @@ class Mdma:
       self.reg(Pins.PIO96_OUT, self.reg(Pins.PIO96_OUT) & ~bit)
       self.reg(Pins.PIO96_OEN, self.reg(Pins.PIO96_OEN) | bit)
 
-  def aux(self, action):
-    for hub, port in self.aux_ports:
-      subprocess.run(["uhubctl", "-S", "-e", "-l", hub, "-p", port, "-a", action], check=True)
+  def gpio_out(self, bit, high):
+    out = self.reg(Pins.PIO96_OUT)
+    self.reg(Pins.PIO96_OUT, (out | bit) if high else (out & ~bit))
+    self.reg(Pins.PIO96_OEN, self.reg(Pins.PIO96_OEN) | bit)
 
-  def reboot(self):
+  def aux(self, action):
+    request = USB_REQ_SET_FEATURE if action == "on" else USB_REQ_CLEAR_FEATURE
+    for vid, pid in [(Pins.USB7002_VID, Pins.USB7002_PID),  (Pins.USB4002_VID, Pins.USB4002_PID)]:
+      try:
+        self._hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
+      except usb.core.USBError:
+        self._hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
+
+  def power_off(self):
+    self.aux("off")
+    self.gpio(Pins.VIN_EN, False)
+
+  def reboot(self, qdl):
     self.aux("off")
     self.gpio(Pins.VIN_EN, False)
     time.sleep(0.1)
-    self.gpio(Pins.VIN_EN, True)
+    if qdl:
+      # on comma 3X and comma four, aux powering
+      # up first forces QDL mode on boot
+      self.aux("on")
+    else:
+      self.gpio(Pins.VIN_EN, True)
+    boot_time = time.monotonic()
     time.sleep(0.1)
+    self.gpio(Pins.VIN_EN, True)
     self.aux("on")
 
-  def reboot_qdl(self):
-    self.aux("on")
-    self.gpio(Pins.VIN_EN, False)
-    time.sleep(0.1)
-    self.gpio(Pins.VIN_EN, True)
+    return boot_time
 
   def serial(self):
-    os.execvp("screen", ["screen", "/dev/serial/by-id/usb-Microchip_Tech_USB2_Controller_Hub-if01", "115200"])
+    os.execvp("screen", ["screen", SERIAL_DEV, "115200"])
+
+  def _open_serial(self):
+    return fd
+
+  def _reset_msm_for_profile(self, fd):
+    self.aux("off")
+    time.sleep(AUX_OFF_SETTLE)
+    pf30_ctl = self.reg(Pins.PF30_CTL, size=1)
+    try:
+      self.reg(Pins.PF30_CTL, pf30_ctl & ~0xf, size=1)
+      self.gpio_out(Pins.MSM_SRST, True)
+      time.sleep(0.1)
+      termios.tcflush(fd, termios.TCIFLUSH)
+      start = time.monotonic()
+      self.gpio(Pins.MSM_SRST, True)
+      self.reg(Pins.PF30_CTL, pf30_ctl, size=1)
+      pf30_ctl = None
+      return start
+    finally:
+      self.gpio(Pins.MSM_SRST, True)
+      if pf30_ctl is not None:
+        self.reg(Pins.PF30_CTL, pf30_ctl, size=1)
+
+  def profile_boot(self):
+    # device off for clean serial
+    self.power_off()
+
+    # open the serial device
+    try:
+      fd = os.open(SERIAL_DEV, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    except OSError as e:
+      if e.errno == errno.EBUSY:
+        raise SystemExit(f"{SERIAL_DEV} is busy; close the serial console first")
+      raise
+
+    attrs = termios.tcgetattr(fd)
+    attrs[0] = 0
+    attrs[1] = 0
+    attrs[2] = termios.CS8 | termios.CREAD | termios.CLOCAL
+    attrs[3] = 0
+    attrs[4] = termios.B115200
+    attrs[5] = termios.B115200
+    attrs[6][termios.VMIN] = 0
+    attrs[6][termios.VTIME] = 0
+    termios.tcsetattr(fd, termios.TCSANOW, attrs)
+    fcntl.fcntl(fd, fcntl.F_SETFL, fcntl.fcntl(fd, fcntl.F_GETFL) & ~os.O_NONBLOCK)
+    termios.tcflush(fd, termios.TCIFLUSH)
+
+    # boot!
+    start = self.reboot(qdl=False)
+
+    # show serial console with timestamps until boot is done
+    pending = b""
+    seen_output = False
+    while True:
+      if not select.select([fd], [], [], 0.25)[0]:
+        elapsed = time.monotonic() - start
+        if not seen_output and elapsed > FIRST_LINE_TIMEOUT:
+          raise SystemExit("no serial output after reset")
+        if elapsed > PROMPT_TIMEOUT:
+          raise SystemExit("timed out waiting for prompt")
+        continue
+
+      data = os.read(fd, 4096)
+      if not data:
+        continue
+      pending += data.replace(b"\r\n", b"\n")
+      while b"\n" in pending:
+        line, pending = pending.split(b"\n", 1)
+        line = line.rstrip()
+        seen_output = True
+        print(f"[{time.monotonic() - start:8.3f}] {line.decode(errors='replace')}", flush=True)
+        if PROMPT_RE.search(line):
+          return
+      if PROMPT_RE.search(pending.strip()):
+        print(f"[{time.monotonic() - start:8.3f}] {pending.strip().decode(errors='replace')}", flush=True)
+        return
 
 
 if __name__ == "__main__":
@@ -83,6 +180,7 @@ if __name__ == "__main__":
   subparsers.add_parser("reboot", help="power cycle into normal boot")
   subparsers.add_parser("reboot-qdl", help="power cycle with AUX present to enter QDL")
   subparsers.add_parser("serial", help="open the MSM UART console with screen")
+  subparsers.add_parser("profile-boot", help="reset and timestamp serial output until prompt")
   if len(sys.argv) == 1:
     parser.print_help()
     raise SystemExit(0)
@@ -90,8 +188,10 @@ if __name__ == "__main__":
 
   mdma = Mdma()
   if args.command == "reboot":
-    mdma.reboot()
+    mdma.reboot(qdl=False)
   elif args.command == "reboot-qdl":
-    mdma.reboot_qdl()
+    mdma.reboot(qdl=True)
   elif args.command == "serial":
     mdma.serial()
+  elif args.command == "profile-boot":
+    mdma.profile_boot()
