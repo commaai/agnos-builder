@@ -18,7 +18,6 @@ SERIAL_DEV = "/dev/serial/by-id/usb-Microchip_Tech_USB2_Controller_Hub-if01"
 PROMPT_RE = re.compile(rb"(?:login:|[#\$])$")
 FIRST_LINE_TIMEOUT = 5
 PROMPT_TIMEOUT = 60
-AUX_OFF_SETTLE = 1.0
 USB_RT_PORT = 0x23
 USB_REQ_CLEAR_FEATURE = 1
 USB_REQ_SET_FEATURE = 3
@@ -40,7 +39,7 @@ class Pins:
 
 
 class Mdma:
-  def _hub(self, vid, pid):
+  def hub(self, vid, pid):
     hub = usb.core.find(idVendor=vid, idProduct=pid)
     if hub is None:
       raise SystemExit(f"could not find hub {vid:04x}:{pid:04x}")
@@ -68,9 +67,10 @@ class Mdma:
     request = USB_REQ_SET_FEATURE if action == "on" else USB_REQ_CLEAR_FEATURE
     for vid, pid in [(Pins.USB7002_VID, Pins.USB7002_PID),  (Pins.USB4002_VID, Pins.USB4002_PID)]:
       try:
-        self._hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
+        self.hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
       except usb.core.USBError:
-        self._hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
+        # try one more time
+        self.hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
 
   def power_off(self):
     self.aux("off")
@@ -95,28 +95,6 @@ class Mdma:
 
   def serial(self):
     os.execvp("screen", ["screen", SERIAL_DEV, "115200"])
-
-  def _open_serial(self):
-    return fd
-
-  def _reset_msm_for_profile(self, fd):
-    self.aux("off")
-    time.sleep(AUX_OFF_SETTLE)
-    pf30_ctl = self.reg(Pins.PF30_CTL, size=1)
-    try:
-      self.reg(Pins.PF30_CTL, pf30_ctl & ~0xf, size=1)
-      self.gpio_out(Pins.MSM_SRST, True)
-      time.sleep(0.1)
-      termios.tcflush(fd, termios.TCIFLUSH)
-      start = time.monotonic()
-      self.gpio(Pins.MSM_SRST, True)
-      self.reg(Pins.PF30_CTL, pf30_ctl, size=1)
-      pf30_ctl = None
-      return start
-    finally:
-      self.gpio(Pins.MSM_SRST, True)
-      if pf30_ctl is not None:
-        self.reg(Pins.PF30_CTL, pf30_ctl, size=1)
 
   def profile_boot(self):
     # device off for clean serial
@@ -175,23 +153,22 @@ class Mdma:
 
 
 if __name__ == "__main__":
+
+  cmds = {
+    "reboot":       (lambda: Mdma().reboot(qdl=False), "reboot comma four into normal boot"),
+    "reboot-qdl":   (lambda: Mdma().reboot(qdl=True), "reboot comma four into QDL mode for flashing"),
+    "serial":       (lambda: Mdma().serial(), "open the MSM UART console with screen"),
+    "serial":       (lambda: Mdma().serial(), "open the MSM UART console with screen"),
+    "profile-boot": (lambda: Mdma().profile_boot(), "reboot comma four and profile boot time"),
+  }
+
   parser = argparse.ArgumentParser()
   subparsers = parser.add_subparsers(dest="command", required=True)
-  subparsers.add_parser("reboot", help="power cycle into normal boot")
-  subparsers.add_parser("reboot-qdl", help="power cycle with AUX present to enter QDL")
-  subparsers.add_parser("serial", help="open the MSM UART console with screen")
-  subparsers.add_parser("profile-boot", help="reset and timestamp serial output until prompt")
+  for cmd, (_, hlp) in cmds.items():
+    subparsers.add_parser(cmd, help=hlp)
   if len(sys.argv) == 1:
     parser.print_help()
     raise SystemExit(0)
   args = parser.parse_args()
 
-  mdma = Mdma()
-  if args.command == "reboot":
-    mdma.reboot(qdl=False)
-  elif args.command == "reboot-qdl":
-    mdma.reboot(qdl=True)
-  elif args.command == "serial":
-    mdma.serial()
-  elif args.command == "profile-boot":
-    mdma.profile_boot()
+  cmds[args.command][0]()
