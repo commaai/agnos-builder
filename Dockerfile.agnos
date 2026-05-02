@@ -154,9 +154,6 @@ RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 COPY ./userspace/files/ModemManager.service /lib/systemd/system/
 RUN systemctl enable ModemManager
 
-# Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
-COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
-
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
 
