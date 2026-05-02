@@ -1,2 +1,0 @@
-SUBSYSTEM=="tty", KERNEL=="ttyHS0", GROUP="gpio", MODE="0660"
-SUBSYSTEM=="tty", KERNEL=="ttyUSB2", GROUP="gpio", MODE="0660"

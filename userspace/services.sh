@@ -1,10 +1,5 @@
 #!/bin/bash -e
 
-# Enable DSP support services
-systemctl enable irsc_util.service
-systemctl enable adsp
-systemctl enable cdsp
-
 # Enable our services
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
@@ -41,7 +36,6 @@ systemctl disable apt-daily.service
 systemctl disable apt-daily-upgrade.timer
 systemctl disable apt-daily.timer
 systemctl disable serial-getty@ttyS0.service
-systemctl disable wlan_daemon.service
 systemctl disable remote-fs.target
 systemctl disable remote-fs-pre.target
 systemctl disable e2scrub_all.timer
@@ -50,7 +44,6 @@ systemctl disable motd-news.service
 systemctl disable motd-news.timer
 systemctl disable multipathd.service
 systemctl disable multipathd.socket
-systemctl disable chgrp-diag.service
 systemctl disable lvm2-monitor.service
 systemctl mask systemd-backlight@.service
 systemctl disable dpkg-db-backup.timer
@@ -74,4 +67,3 @@ systemctl disable remote-fs-pre.target
 systemctl disable networking.service
 
 systemctl disable console-setup.service
-systemctl disable sfsconfig.service
