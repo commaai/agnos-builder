@@ -4,6 +4,7 @@
 
 - [ ] [`test_onroad`](https://github.com/commaai/openpilot/blob/master/selfdrive/test/test_onroad.py) passes
 - [ ] Wi-Fi: lists networks and connects
+- [ ] Modem: connects to cell network
 - [ ] Image sizes haven't increased
 - [ ] Sounds work: `pkill -f manager ; /data/openpilot/scripts/disable-powersave.py && aplay /data/openpilot/selfdrive/assets/sounds/engage.wav`
 - [ ] Clean openpilot build: `scons -c && scons -j8`
