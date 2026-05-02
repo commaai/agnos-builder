@@ -67,4 +67,3 @@ systemctl disable remote-fs-pre.target
 systemctl disable networking.service
 
 systemctl disable console-setup.service
-systemctl disable sfsconfig.service
