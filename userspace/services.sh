@@ -45,7 +45,6 @@ systemctl disable motd-news.service
 systemctl disable motd-news.timer
 systemctl disable multipathd.service
 systemctl disable multipathd.socket
-systemctl disable chgrp-diag.service
 systemctl disable lvm2-monitor.service
 systemctl mask systemd-backlight@.service
 systemctl disable dpkg-db-backup.timer
