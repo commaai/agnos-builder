@@ -43,6 +43,30 @@ mount_fs() {
   return 1
 }
 
+create_bootdevice_links() {
+  # this is just needed for rmt_storage
+  # can probably be removed once we go mainline
+
+  local failed_links
+
+  log "creating bootdevice links"
+  mkdir -p /dev/block/bootdevice/by-name
+
+  failed_links=0
+  wait_for_block /dev/sdf2 && ln -sf /dev/sdf2 /dev/block/bootdevice/by-name/modemst1 || failed_links=1
+  wait_for_block /dev/sdf3 && ln -sf /dev/sdf3 /dev/block/bootdevice/by-name/modemst2 || failed_links=1
+  wait_for_block /dev/sdf4 && ln -sf /dev/sdf4 /dev/block/bootdevice/by-name/fsg || failed_links=1
+  wait_for_block /dev/sdf5 && ln -sf /dev/sdf5 /dev/block/bootdevice/by-name/fsc || failed_links=1
+
+  if [[ "$failed_links" -ne 0 ]]; then
+    log "failed creating bootdevice links"
+    failed=1
+    return 1
+  fi
+
+  log "created bootdevice links"
+}
+
 log "start"
 
 failed=0
@@ -52,6 +76,7 @@ mount_fs /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec
 mount_fs /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev
 mount_fs /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev
 mount_fs /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
+create_bootdevice_links
 mount_fs tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755
 mount_fs tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777
 mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777

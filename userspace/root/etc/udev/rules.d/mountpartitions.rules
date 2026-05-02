@@ -1,2 +1,0 @@
-# Create Android-style boot partition links for vendor services.
-KERNEL=="[hs]d[a-z][0-9]*", SUBSYSTEM=="block", ACTION=="add", RUN+="/etc/udev/scripts/bootdevice-by-name.sh %k"
