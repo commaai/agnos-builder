@@ -1,8 +1,5 @@
 #!/bin/bash -e
 
-# Enable DSP support services
-systemctl enable adsp
-
 # Enable our services
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
