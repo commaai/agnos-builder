@@ -65,7 +65,6 @@ apt-fast install --no-install-recommends -yq \
     git-core \
     git-lfs \
     gdb \
-    htop \
     i2c-tools \
     ifmetric \
     ifupdown \
