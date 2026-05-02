@@ -1,9 +1,0 @@
-/dev/sde9 /dsp ext4 ro,noauto 0 0
-/dev/sde4 /firmware vfat ro,noauto 0 0
-/dev/sda2 /persist squashfs ro,nosuid,nodev,noexec,noauto 0 0
-/dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,noauto 0 0
-/dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev,nofail,noauto 0 0
-/dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid,noauto 0 0
-tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755,noauto 0 0
-tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777,noauto 0 0
-tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777,noauto 0 0
