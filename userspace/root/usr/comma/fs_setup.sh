@@ -1,5 +1,35 @@
 #!/bin/bash
 
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+log() {
+  echo "fs_setup[$$]: $(cut -d' ' -f1 /proc/uptime) $*" > /dev/kmsg
+}
+
+mount_fstab() {
+  local where="$1"
+  log "mounting $where from fstab"
+  if mount --mkdir "$where"; then
+    log "mounted $where"
+    return 0
+  fi
+
+  log "failed mounting $where from fstab"
+  return 1
+}
+
+log "start"
+
+failed=0
+while read -r mountpoint; do
+  mount_fstab "$mountpoint" || failed=1
+done < <(findmnt --fstab --list --noheadings --output TARGET)
+
+if [[ "$failed" -ne 0 ]]; then
+  log "mounts failed"
+  exit 1
+fi
+
 # Ensure the symlinks in the read only rootfs are
 # backed by real files and directories on userdata.
 
@@ -39,3 +69,5 @@ mkdir -p /data/tmp/
 if [[ ! -d /data/persist ]]; then
   sudo cp -r /system/persist /data
 fi
+
+log "done"

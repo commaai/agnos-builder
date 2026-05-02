@@ -1,6 +1,5 @@
 [Unit]
 Description=Setup rootfs
-After=data.mount tmp.mount rwtmp.mount var.mount
 Before=local-fs.target
 DefaultDependencies=no
 
