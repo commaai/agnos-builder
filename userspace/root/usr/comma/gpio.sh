@@ -25,19 +25,20 @@ pins=(
 for p in ${pins[@]}; do
   echo $p
 
-  # this is SSD_3v3 EN on tici
-  if [ "$p" -eq 41 ] && grep -q "comma tici" /sys/firmware/devicetree/base/model; then
-    echo "Skipping $p"
-    continue
-  fi
-
   echo $p > /sys/class/gpio/export
-  until [ -d /sys/class/gpio/gpio$p ]
-  do
+  until [ -d /sys/class/gpio/gpio$p ]; do
     sleep .05
   done
 done
 
 
+# still needed on devices after comma three?
 HUB_RST_N=30
 gpio $HUB_RST_N 1
+
+# add gpio sysfs nodes to gpio group
+find -L /sys/class/gpio/ -maxdepth 2 -exec chown root:gpio {} \; -exec chmod 770 {} \;
+
+# setup gpiochip for the gpio group
+chgrp gpio /dev/gpiochip0
+chmod 660 /dev/gpiochip0
