@@ -28,6 +28,7 @@ mount_fs() {
   local options="$4"
 
   if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
+    failed=1
     return 1
   fi
 
@@ -38,21 +39,22 @@ mount_fs() {
   fi
 
   log "failed mounting $where"
+  failed=1
   return 1
 }
 
 log "start"
 
 failed=0
-mount_fs /dev/sde9 /dsp ext4 ro || failed=1
-mount_fs /dev/sde4 /firmware vfat ro || failed=1
-mount_fs /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec || failed=1
-mount_fs /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev || failed=1
-mount_fs /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev || failed=1
-mount_fs /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid || failed=1
-mount_fs tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755 || failed=1
-mount_fs tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777 || failed=1
-mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 || failed=1
+mount_fs /dev/sde9 /dsp ext4 ro
+mount_fs /dev/sde4 /firmware vfat ro
+mount_fs /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec
+mount_fs /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev
+mount_fs /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev
+mount_fs /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
+mount_fs tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755
+mount_fs tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777
+mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777
 
 # Ensure the symlinks in the read only rootfs are
 # backed by real files and directories on userdata.
