@@ -46,27 +46,6 @@ set_group_writable() {
   done
 }
 
-set_usb_mode() {
-  local vendor="$1"
-  local product="$2"
-  local mode="$3"
-  local devdir devnode
-
-  for devdir in /sys/bus/usb/devices/*; do
-    [[ -f "$devdir/idVendor" && -f "$devdir/idProduct" ]] || continue
-    [[ "$(< "$devdir/idVendor")" == "$vendor" ]] || continue
-    [[ "$(< "$devdir/idProduct")" == "$product" ]] || continue
-    [[ -f "$devdir/busnum" && -f "$devdir/devnum" ]] || continue
-
-    printf -v devnode "/dev/bus/usb/%03d/%03d" "$(< "$devdir/busnum")" "$(< "$devdir/devnum")"
-    if [[ -e "$devnode" ]]; then
-      chmod "$mode" "$devnode"
-    else
-      log "missing $devnode for usb $vendor:$product"
-    fi
-  done
-}
-
 create_touch_input_link() {
   local event name
 
@@ -107,10 +86,7 @@ set_group_mode gpu 660 /dev/kgsl-3d0 /dev/ion /dev/dri/card* /dev/dri/controlD* 
 # 96-i2c.rules
 set_group_mode gpio 660 /dev/i2c-[0-9]*
 
-# 98-panda.rules
-set_usb_mode bbaa ddee 666
-set_usb_mode bbaa ddcc 666
-set_usb_mode 0483 df11 666
+# SPI panda devices
 set_mode 666 /dev/spidev*
 
 log "done"
