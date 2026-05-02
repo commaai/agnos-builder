@@ -35,6 +35,16 @@ class Pins:
 
 
 class Mdma:
+  """
+    MDMA: the mici debug and monitoring adapter
+
+    an MDMA is your best friend for low level mici (aka comma four) development.
+    - power the SOC on and off
+    - force the SOC into QDL mode for un-brickability
+    - read and write to the SOC's UART
+    - and more!
+  """
+
   def hub(self, vid, pid):
     hub = usb.core.find(idVendor=vid, idProduct=pid)
     if hub is None:
@@ -54,18 +64,12 @@ class Mdma:
       self.reg(Pins.PIO96_OUT, self.reg(Pins.PIO96_OUT) & ~bit)
       self.reg(Pins.PIO96_OEN, self.reg(Pins.PIO96_OEN) | bit)
 
-  def gpio_out(self, bit, high):
-    out = self.reg(Pins.PIO96_OUT)
-    self.reg(Pins.PIO96_OUT, (out | bit) if high else (out & ~bit))
-    self.reg(Pins.PIO96_OEN, self.reg(Pins.PIO96_OEN) | bit)
-
   def aux(self, action):
     request = USB_REQ_SET_FEATURE if action == "on" else USB_REQ_CLEAR_FEATURE
     for vid, pid in [(Pins.USB7002_VID, Pins.USB7002_PID),  (Pins.USB4002_VID, Pins.USB4002_PID)]:
       try:
         self.hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
-      except usb.core.USBError:
-        # try one more time
+      except usb.core.USBError: # try one more time
         self.hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
 
   def power_off(self):
@@ -144,7 +148,6 @@ class Mdma:
 
 
 if __name__ == "__main__":
-
   cmds = {
     "reboot":       (lambda: Mdma().reboot(qdl=False), "reboot comma four into normal boot"),
     "reboot-qdl":   (lambda: Mdma().reboot(qdl=True), "reboot comma four into QDL mode for flashing"),
