@@ -78,12 +78,7 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 FROM agnos-base
 
 # Hardware rootfs overlay
-COPY ./userspace/root/etc/ /etc/
-COPY ./userspace/root/lib/ /usr/lib/
-COPY ./userspace/root/home/ /home/
-COPY ./userspace/root/sbin/ /usr/sbin/
-COPY ./userspace/root/system/ /system/
-COPY ./userspace/root/usr/ /usr/
+COPY ./userspace/root/ /
 RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
@@ -165,8 +160,6 @@ RUN mkdir -p /rwtmp
 RUN mkdir -p /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
-
-COPY ./userspace/root/VERSION /VERSION
 
 # ################# #
 # #### Cleanup #### #
