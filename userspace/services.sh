@@ -23,9 +23,6 @@ systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
 systemctl enable screen_calibration.service
 
-# Disable some of our services
-systemctl disable agnos-tests.service
-
 # Disable SSH by default
 systemctl disable ssh
 
