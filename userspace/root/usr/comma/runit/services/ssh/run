@@ -1,0 +1,11 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+if ! param_enabled /data/params/d/SshEnabled; then
+  log "disabled"
+  while sleep 3600; do :; done
+fi
+mkdir -p /data/etc/ssh /run/sshd
+ssh-keygen -A -f /data
+/usr/sbin/sshd -t
+exec /usr/sbin/sshd -D

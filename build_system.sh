@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-UBUNTU_BASE_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
-UBUNTU_FILE="ubuntu-base-24.04.3-base-arm64.tar.gz"
-UBUNTU_FILE_CHECKSUM="7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48dabb048"
+VOID_ROOTFS_URL="https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz"
+VOID_ROOTFS_SHA256="01a30f17ae06d4d5b322cd579ca971bc479e02cc284ec1e5a4255bea6bac3ce6"
 
 # Make sure we're in the correct spot
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -23,18 +22,19 @@ ROOTFS_IMAGE_SIZE=4500M
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
 
-# Download Ubuntu Base if not done already
-if [ ! -f $UBUNTU_FILE ]; then
-  echo -e "Downloading Ubuntu Base: $UBUNTU_FILE"
-  if ! curl -C - -o $UBUNTU_FILE $UBUNTU_BASE_URL/$UBUNTU_FILE --silent --remote-time --fail; then
-    echo "Download failed, please check Ubuntu releases: $UBUNTU_BASE_URL"
+# Download Void rootfs if not done already
+VOID_ROOTFS_FILE="$DIR/void-aarch64-ROOTFS-20250202.tar.xz"
+if [ ! -f "$VOID_ROOTFS_FILE" ]; then
+  echo -e "Downloading Void Linux rootfs: $VOID_ROOTFS_FILE"
+  if ! curl -C - -o "$VOID_ROOTFS_FILE" "$VOID_ROOTFS_URL" --silent --remote-time --fail; then
+    echo "Download failed, please check Void releases: $VOID_ROOTFS_URL"
     exit 1
   fi
 fi
 
 # Check SHA256 sum
-if [ "$(shasum -a 256 "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECKSUM" ]; then
-  echo "Checksum mismatch, please check Ubuntu releases: $UBUNTU_BASE_URL"
+if [ "$(shasum -a 256 "$VOID_ROOTFS_FILE" | awk '{print $1}')" != "$VOID_ROOTFS_SHA256" ]; then
+  echo "Checksum mismatch, please check Void releases: $VOID_ROOTFS_URL"
   exit 1
 fi
 
@@ -46,7 +46,9 @@ fi
 
 # Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
-docker buildx build -f Dockerfile.agnos --check $DIR
+docker buildx build -f Dockerfile.agnos --check \
+  --build-arg VOID_ROOTFS="${VOID_ROOTFS_FILE#"$DIR/"}" \
+  $DIR
 
 # Check agnos-meta-builder Dockerfile
 docker buildx build --load -f Dockerfile.builder --check $DIR \
@@ -99,7 +101,7 @@ fi
 $BUILD -f Dockerfile.agnos \
   --output "type=tar,dest=-" \
   --provenance=false \
-  --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
+  --build-arg VOID_ROOTFS="${VOID_ROOTFS_FILE#"$DIR/"}" \
   --platform=linux/arm64 \
   "$DIR" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
 
@@ -116,11 +118,11 @@ set_network_stuff() {
   bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
   bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
-  # Fix resolv config
-  bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
+  # Fix resolv config. NetworkManager writes this file on the runtime tmpfs.
+  bash -c "ln -sf /run/NetworkManager/resolv.conf etc/resolv.conf"
 
   # Set capability for ping
-  bash -c "setcap cap_net_raw+ep bin/ping"
+  bash -c "setcap cap_net_raw+ep bin/iputils-ping 2>/dev/null || setcap cap_net_raw+ep bin/ping"
 
   # Write build info
   DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')

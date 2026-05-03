@@ -1,0 +1,67 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+
+EVENTS=/run/modemmanager-kernel-events
+
+wait_modem_ports() {
+  local i
+
+  for i in $(seq 1 300); do
+    if [ -e /dev/ttyUSB3 ] || [ -e /dev/ttyACM0 ] || [ -e /dev/cdc-wdm0 ]; then
+      sleep 0.2
+      return 0
+    fi
+    sleep 0.1
+  done
+
+  log "timeout waiting for modem ports"
+  return 1
+}
+
+add_event() {
+  local subsystem="$1"
+  local name="$2"
+
+  printf 'action=add,subsystem=%s,name=%s\n' "$subsystem" "$name" >>"$EVENTS"
+}
+
+write_initial_kernel_events() {
+  local path name
+
+  # No udev daemon runs, so seed ModemManager with the kernel add events it
+  # would normally receive from udev.
+  : >"$EVENTS"
+
+  for path in /dev/ttyUSB* /dev/ttyACM*; do
+    [ -e "$path" ] || continue
+    add_event tty "${path##*/}"
+  done
+
+  for path in /dev/cdc-wdm*; do
+    [ -e "$path" ] || continue
+    add_event usbmisc "${path##*/}"
+  done
+
+  for path in /sys/class/net/usb* /sys/class/net/wwan* /sys/class/net/rmnet_usb*; do
+    [ -d "$path" ] || continue
+    name="${path##*/}"
+    add_event net "$name"
+  done
+
+  if [ ! -s "$EVENTS" ]; then
+    log "no modem kernel events found"
+  fi
+}
+
+wait_dbus || true
+wait_path /run/bootsh/fs-setup-done || true
+wait_modem_ports || true
+write_initial_kernel_events
+
+exec /usr/sbin/ModemManager \
+  --test-no-udev \
+  --no-auto-scan \
+  --initial-kernel-events="$EVENTS" \
+  --filter-policy=strict \
+  --debug

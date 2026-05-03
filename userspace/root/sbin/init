@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ "$$" = "1" ]; then
+  if [ -x /usr/bin/runit ]; then
+    exec /usr/bin/runit "$@"
+  fi
+  exec /sbin/runit "$@"
+fi
+
+exec /usr/bin/runit-init "$@"

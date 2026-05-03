@@ -1,0 +1,10 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+for _ in $(seq 1 100); do
+  pgrep -x leprop-service >/dev/null 2>&1 && break
+  sleep 0.1
+done
+/sbin/persist-prop.sh
+log "done"
+while sleep 3600; do :; done

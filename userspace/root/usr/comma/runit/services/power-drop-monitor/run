@@ -1,0 +1,8 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+if ! grep -q -E "tici|tizi" /sys/firmware/devicetree/base/model 2>/dev/null; then
+  log "not supported on this hardware"
+  while sleep 3600; do :; done
+fi
+exec /usr/local/venv/bin/python -u /usr/comma/power_drop_monitor.py

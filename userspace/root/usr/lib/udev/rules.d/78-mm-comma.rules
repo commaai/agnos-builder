@@ -1,0 +1,19 @@
+# Minimal ModemManager tags for its no-udev kernel event path.
+# The generic no-udev loader only reads 77-mm through 80-mm rule files from
+# /usr/lib/udev/rules.d.
+
+# EG25
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{.MM_USBIFNUM}=="00",ENV{ID_MM_PORT_IGNORE}="1"
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{.MM_USBIFNUM}=="02",ENV{ID_MM_PORT_IGNORE}="1"
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{.MM_USBIFNUM}=="03",ENV{ID_MM_PORT_IGNORE}="1"
+
+# EG91 / EG916
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{.MM_USBIFNUM}=="00",ENV{ID_MM_PORT_IGNORE}="1"
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{.MM_USBIFNUM}=="01",ENV{ID_MM_PORT_IGNORE}="1"
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{.MM_USBIFNUM}=="02",ENV{ID_MM_PORT_TYPE_AT_PRIMARY}="1"
+SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{.MM_USBIFNUM}=="03",ENV{ID_MM_PORT_TYPE_AT_SECONDARY}="1"
+
+# C16
+KERNEL=="ttyACM1",ENV{ID_MM_PORT_IGNORE}="1"
+KERNEL=="ttyACM0",ENV{ID_MM_PORT_TYPE_AT_PRIMARY}="1"
+KERNEL=="ttyACM2",ENV{ID_MM_PORT_TYPE_AT_SECONDARY}="1"

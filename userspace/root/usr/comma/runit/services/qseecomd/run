@@ -1,0 +1,7 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+wait_path /dev/qseecom || true
+chmod 0666 /dev/qseecom 2>/dev/null || true
+chmod 0664 /dev/ion /dev/sde20 2>/dev/null || true
+exec /usr/bin/qseecomd

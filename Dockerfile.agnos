@@ -1,81 +1,30 @@
+# AGNOS Void Linux build
 # check=error=true
-
-# ################## #
-# ### Package  ##### #
-# ### Compilation ## #
-# ################## #
-FROM ubuntu:24.04 AS agnos-compiler
-
-# Common packages
-RUN apt-get update && apt-get install -yq --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    ccache \
-    clang \
-    curl \
-    checkinstall \
-    git \
-    pkg-config \
-    wget
-
-# Enable ccache
-ENV PATH="/usr/lib/ccache:$PATH"
-
-# libqmi
-FROM agnos-compiler AS agnos-compiler-libqmi
-COPY ./userspace/compile-libqmi.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    /tmp/agnos/compile-libqmi.sh
-
-# ModemManager
-FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    /tmp/agnos/compile-modemmanager.sh
-
-# power_burn_max
-FROM agnos-compiler AS agnos-compiler-power-burn
-RUN apt-get update && apt-get install -yq --no-install-recommends \
-    opencl-c-headers
-COPY ./userspace/root/usr/lib/aarch64-linux-gnu/libOpenCL.so* /usr/lib/aarch64-linux-gnu/
-COPY ./userspace/root/usr/lib/aarch64-linux-gnu/libcutils.so* /usr/lib/aarch64-linux-gnu/
-COPY ./userspace/root/usr/lib/aarch64-linux-gnu/liblog.so* /usr/lib/aarch64-linux-gnu/
-COPY ./userspace/power_burn_max.c /tmp/agnos/
-RUN gcc -O2 -o /tmp/power_burn_max /tmp/agnos/power_burn_max.c \
-    -lOpenCL -lpthread -ldl
 
 # ################## #
 # ###### Base ###### #
 # ################## #
 FROM scratch AS agnos-base
 
-# Add Ubuntu Base image files
-ARG UBUNTU_BASE_IMAGE
-ADD ${UBUNTU_BASE_IMAGE} /
+ARG VOID_ROOTFS
+ADD ${VOID_ROOTFS} /
 
-# Build folder
 RUN mkdir -p /tmp/agnos
-
-# Stop on error
-RUN set -xe
 
 ARG USERNAME=comma
 
-# Base system setup
-RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/base_setup.sh /tmp/agnos
+COPY ./userspace/base_setup.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
-
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
 FROM agnos-base
+
+ARG USERNAME=comma
+ARG XDG_DATA_HOME="/usr/local"
+
+ENV PATH="/root/.local/bin:$XDG_DATA_HOME/venv/bin:$PATH"
 
 # Hardware rootfs overlay
 COPY ./userspace/root/etc/ /etc/
@@ -83,91 +32,73 @@ COPY ./userspace/root/lib/ /usr/lib/
 COPY ./userspace/root/home/ /home/
 COPY ./userspace/root/sbin/ /usr/sbin/
 COPY ./userspace/root/system/ /system/
-COPY ./userspace/root/usr/ /usr/
-RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
+COPY ./userspace/root/usr/bin/ /usr/bin/
+COPY ./userspace/root/usr/comma/ /usr/comma/
+COPY ./userspace/root/usr/lib/ /usr/lib/
+COPY ./userspace/root/usr/sbin/ /usr/sbin/
+COPY ./userspace/root/usr/share/ /usr/share/
 
-COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
-COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp /root/.config && \
+    rm -f /usr/bin/systemctl && \
+    ln -sf /usr/comma/shims/systemctl /usr/bin/systemctl && \
+    for cmd in init reboot poweroff halt shutdown; do \
+      if [ ! "/sbin/$cmd" -ef "/usr/sbin/$cmd" ]; then \
+        ln -sf "/usr/sbin/$cmd" "/sbin/$cmd"; \
+      fi; \
+    done
 
-RUN cd /tmp && \
-    apt-get update && \
-    apt-get install -yq --no-install-recommends \
-    python3 \
-    python3-dev \
-    gir1.2-qmi-1.0 \
-    libglib2.0-dev \
-    libqmi-glib5 \
-    libc6 \
-    libglib2.0-0t64 \
-    libgudev-1.0-0 \
-    libmm-glib0 \
-    libpolkit-gobject-1-0 \
-    libsystemd0 \
-    libwayland-client0 \
-    libwayland-server0 \
-    polkitd \
-    mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
+RUN chown -R "$USERNAME:" "/home/$USERNAME" && \
+    rm -rf /root/.config && \
+    ln -s "/home/$USERNAME/.config" /root/.config
 
-ARG XDG_DATA_HOME="/usr/local"
-
-# Install openpilot python packages
+# Python packages via uv
 COPY ./userspace/uv /tmp/agnos/uv
-RUN source $XDG_DATA_HOME/venv/bin/activate && \
-    cd /tmp/agnos/uv && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
-
-# Install nice to haves
-COPY ./userspace/install_extras.sh /tmp/agnos/
-RUN /tmp/agnos/install_extras.sh
-
-RUN chown -R $USERNAME: /home/$USERNAME/.config
-RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config
-
-RUN chmod 644 /etc/logrotate.conf
-RUN rm -f /etc/fstab
+RUN cd /tmp/agnos/uv && \
+    export PYOPENCL_CL_PRETEND_VERSION="2.0" && \
+    MAKEFLAGS="-j$(nproc)" UV_CONCURRENT_BUILDS=4 UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT="$XDG_DATA_HOME/venv" \
+    uv sync --frozen --inexact --compile-bytecode
 
 # Install kernel headers
 COPY ./output/linux-headers/include/ /usr/include/
 
-COPY --from=agnos-compiler-power-burn /tmp/power_burn_max /home/$USERNAME/power_burn_max
-RUN chown $USERNAME: /home/$USERNAME/power_burn_max
-
 COPY ./userspace/irsc_util.c /tmp/agnos/
 RUN gcc -O2 -Wall -Wextra -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
 
-# Setup systemd services
-COPY ./userspace/services.sh /tmp/agnos
-RUN /tmp/agnos/services.sh
+COPY ./userspace/power_burn_max.c /tmp/agnos/
+RUN gcc -O2 -o "/home/$USERNAME/power_burn_max" /tmp/agnos/power_burn_max.c \
+      -L/usr/lib/aarch64-linux-gnu -Wl,-rpath-link,/usr/lib/aarch64-linux-gnu -lOpenCL -lpthread -ldl && \
+    chown "$USERNAME:" "/home/$USERNAME/power_burn_max"
 
-# MOTD
-RUN rm -r /etc/update-motd.d/*
-COPY --chown=root:root ./userspace/root/etc/update-motd.d/* /etc/update-motd.d/
+RUN chmod 644 /etc/logrotate.conf && \
+    chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection && \
+    rm -f /etc/fstab && \
+    mkdir -p /etc/iptables && \
+    ln -sf /etc/iptables/rules.v4 /etc/iptables/iptables.rules
 
-RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
+# runit owns ModemManager; D-Bus activation would race a second instance.
+RUN sed -i 's#^Exec=.*#Exec=/bin/false#' /usr/share/dbus-1/system-services/org.freedesktop.ModemManager1.service
+
+# The journalctl shim reads rsyslog files directly.
+RUN sed -i 's/FileCreateMode 0640/FileCreateMode 0644/' /etc/rsyslog.conf
 
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
-# Run ModemManager in debug mode to allow AT commands
-COPY ./userspace/files/ModemManager.service /lib/systemd/system/
-RUN systemctl enable ModemManager
-
-# Setup hostname resolution for our custom hostname
-RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
-
-# keep this last
-RUN ldconfig
+# Make the Ubuntu-style vendor library directory visible to Void's loader.
+RUN printf '/usr/lib/aarch64-linux-gnu\n' > /etc/ld.so.conf.d/agnos.conf && \
+    for lib in /usr/lib/aarch64-linux-gnu/*.so; do \
+      base="${lib##*/}"; \
+      [ -e "/usr/lib/$base" ] || ln -s "aarch64-linux-gnu/$base" "/usr/lib/$base"; \
+    done && \
+    if [ ! -e /usr/lib/libffi.so.6 ]; then \
+      ln -sf "$(find /usr/lib /usr/lib/aarch64-linux-gnu -maxdepth 1 -name 'libffi.so.*' ! -name 'libffi.so.6' | sort | head -1)" /usr/lib/libffi.so.6; \
+    fi && \
+    ldconfig
 
 # Setup RO rootfs
-RUN mkdir -p /rwtmp
-RUN mkdir -p /tmptmp
+RUN mkdir -p /rwtmp /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
-
-# copy at the end, after all apt usage
-COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
 # copy version file
 COPY VERSION /VERSION
@@ -177,7 +108,9 @@ COPY VERSION /VERSION
 # ################# #
 
 RUN rm -rf /usr/share/icons/* && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /home/$USERNAME/.cache && \
-    rm -rf /root/.cache && \
-    apt-get clean
+    find /usr/share/locale -maxdepth 1 -mindepth 1 ! -name en_US ! -name en -exec rm -rf {} + && \
+    rm -rf /etc/systemd /usr/lib/systemd /lib/systemd \
+      /usr/lib/pulseaudio/modules/module-systemd-login.so \
+      /usr/lib/resolvconf/systemd-resolved && \
+    rm -rf /usr/share/man /usr/share/doc /usr/share/info /var/cache/xbps && \
+    rm -rf "/home/$USERNAME/.cache" /root/.cache

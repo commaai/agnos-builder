@@ -3,10 +3,10 @@
 
 if [ "${PS1-}" ]; then
   if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
-    # The file bash.bashrc already sets the default PS1.
-    # PS1='\h:\w\$ '
     if [ -f /etc/bash.bashrc ]; then
       . /etc/bash.bashrc
+    elif [ -f /etc/bash/bashrc ]; then
+      . /etc/bash/bashrc
     fi
   else
     if [ "`id -u`" -eq 0 ]; then
@@ -35,7 +35,8 @@ export PATH="/usr/local/.cargo/bin:$PATH"
 export UV_PYTHON_INSTALL_DIR="/usr/local/uv/python"
 export UV_PYTHON_PREFERENCE=only-system
 export UV_LINK_MODE=copy
-source /usr/local/venv/bin/activate
+export VIRTUAL_ENV_DISABLE_PROMPT=1
+[ -r /usr/local/venv/bin/activate ] && source /usr/local/venv/bin/activate
 
 # custom shims
 export PATH="/usr/comma/shims:${PATH}"

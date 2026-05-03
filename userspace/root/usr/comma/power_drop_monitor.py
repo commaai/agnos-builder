@@ -119,4 +119,3 @@ if __name__ == '__main__':
           perform_controlled_shutdown()
     except Exception:
       pass
-

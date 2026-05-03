@@ -1,0 +1,28 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+
+wait_modemmanager() {
+  local i
+
+  for i in $(seq 1 300); do
+    if dbus-send --system \
+        --dest=org.freedesktop.DBus \
+        --type=method_call \
+        --print-reply \
+        /org/freedesktop/DBus \
+        org.freedesktop.DBus.NameHasOwner \
+        string:org.freedesktop.ModemManager1 2>/dev/null | grep -q 'boolean true'; then
+      return 0
+    fi
+    sleep 0.1
+  done
+
+  log "timeout waiting for ModemManager"
+  return 1
+}
+
+wait_dbus || true
+wait_modemmanager || true
+mkdir -p /run/NetworkManager /var/lib/NetworkManager
+exec /usr/sbin/NetworkManager --no-daemon

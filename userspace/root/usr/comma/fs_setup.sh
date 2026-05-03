@@ -27,6 +27,11 @@ mount_fs() {
   local type="$3"
   local options="$4"
 
+  if mountpoint -q "$where"; then
+    log "$where already mounted"
+    return 0
+  fi
+
   if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
     failed=1
     return 1
@@ -45,6 +50,11 @@ mount_fs() {
 
 log "start"
 
+if [[ -e /run/bootsh/fs-setup-done ]]; then
+  log "already done by boot.sh"
+  exit 0
+fi
+
 failed=0
 mount_fs /dev/sde9 /dsp ext4 ro
 mount_fs /dev/sde4 /firmware vfat ro
@@ -59,8 +69,12 @@ mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777
 # Ensure the symlinks in the read only rootfs are
 # backed by real files and directories on userdata.
 
-# tmpfiles
-systemd-tmpfiles --create /usr/comma/tmpfiles.conf
+# Runtime files normally created by tmpfiles.d.
+mkdir -p /var/crash /var/tmp /var/lib/logrotate \
+  /var/spool/cron/atjobs /var/cache/pollinate /var/chroot/ssh /var/db
+chmod 1777 /var/tmp
+chmod 755 /var/chroot /var/chroot/ssh
+[ -d /usr/lib/xbps-db ] && ln -sf /usr/lib/xbps-db /var/db/xbps
 
 # /var/log/ tmpfs
 mkdir -p /var/log/

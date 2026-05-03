@@ -1,9 +1,8 @@
-/var/log/syslog
-/var/log/mail.log
-/var/log/kern.log
-/var/log/auth.log
-/var/log/user.log
+/var/log/messages
+/var/log/secure
+/var/log/maillog
 /var/log/cron.log
+/var/log/cron
 {
 	rotate 4
 	size 10M
@@ -13,6 +12,6 @@
 	delaycompress
 	sharedscripts
 	postrotate
-		/usr/lib/rsyslog/rsyslog-rotate
+		pkill -HUP rsyslogd 2>/dev/null || true
 	endscript
 }

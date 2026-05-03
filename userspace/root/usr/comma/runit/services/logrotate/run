@@ -1,0 +1,10 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+
+mkdir -p /var/lib/logrotate
+
+while true; do
+  /usr/sbin/logrotate /etc/logrotate.conf || true
+  sleep 3600
+done

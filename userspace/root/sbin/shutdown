@@ -1,0 +1,2 @@
+#!/bin/bash
+exec -a "${0##*/}" /usr/bin/shutdown "$@"

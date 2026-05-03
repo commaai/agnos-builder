@@ -3,16 +3,27 @@
 UV_PATH=/usr/bin/uv
 export TMPDIR=/tmp/uv-tmp
 
+case "${1:-}" in
+  ""|-h|--help|-V|--version|help|version)
+    exec "$UV_PATH" "$@"
+    ;;
+esac
+
+cleanup() {
+  local status=$?
+  sudo mount -o ro,remount / >/dev/null 2>&1 || true
+  sudo rm -rf "$TMPDIR"
+  sudo mount -o remount /tmp >/dev/null 2>&1 || true
+  exit "$status"
+}
+trap cleanup EXIT
+
 # setup large tmp for install
-mkdir -p $TMPDIR
+mkdir -p "$TMPDIR"
 sudo mount -o remount,size=2G /tmp
 sudo mount -o rw,remount /
-sudo resize2fs $(findmnt -n -o SOURCE /) &>/dev/null || sudo resize2fs $(findmnt -n -o SOURCE /)
+root_dev="$(findmnt -n -o SOURCE /)"
+sudo resize2fs "$root_dev" &>/dev/null || sudo resize2fs "$root_dev"
 
 # run command
-sudo -E TMPDIR=$TMPDIR UV_NO_CACHE=1 $UV_PATH "$@"
-
-# cleanup
-sudo mount -o ro,remount /
-sudo rm -rf $TMPDIR
-sudo mount -o remount /tmp
+sudo -E TMPDIR="$TMPDIR" UV_NO_CACHE=1 "$UV_PATH" "$@"

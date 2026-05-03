@@ -1,0 +1,10 @@
+#!/bin/bash
+
+PATH=/usr/comma/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+/usr/comma/boot.sh
+
+mkdir -p /run
+install -m000 /dev/null /run/runit.stopit
+install -m000 /dev/null /run/runit.reboot

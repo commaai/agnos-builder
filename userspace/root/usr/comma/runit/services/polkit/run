@@ -1,0 +1,11 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+wait_dbus || true
+if ! pgrep -u polkitd -x polkitd >/dev/null 2>&1; then
+  setpriv --reuid=polkitd --regid=polkitd --init-groups /usr/lib/polkit-1/polkitd --no-debug
+fi
+
+while sleep 5; do
+  pgrep -u polkitd -x polkitd >/dev/null 2>&1 || exit 1
+done

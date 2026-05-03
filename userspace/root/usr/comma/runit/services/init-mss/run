@@ -1,0 +1,5 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+wait_path /firmware/verinfo/ver_info.txt || true
+exec /sbin/init_mss
