@@ -1,0 +1,8 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+mkdir -p /var/log /var/spool/rsyslog
+chown root:syslog /var/log 2>/dev/null || true
+chmod 775 /var/log 2>/dev/null || true
+chown syslog:adm /var/spool/rsyslog 2>/dev/null || true
+exec /usr/sbin/rsyslogd -n -iNONE

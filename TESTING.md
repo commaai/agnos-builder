@@ -14,8 +14,8 @@
   - [ ] corrupt userdata: `dd if=/dev/zero of=/dev/disk/by-partlabel/userdata count=10 bs=1M`
 - [ ] Clean setup: factory reset -> install openpilot -> openpilot works
 - [ ] Color calibration works from `/persist/comma/`
-  - [ ] tizi: `journalctl -u magic | grep 'Successfully setup color correction'`
-  - [ ] mici: `journalctl -u screen_calibration | grep -i 'Successfully setup screen calibration'`
+  - [ ] tizi: `grep 'Successfully setup color correction' /tmp/magic.log`
+  - [ ] mici: `grep -i 'Successfully setup screen calibration' /tmp/screen-calibration.log`
 - [ ] AGNOS update works on warm boot
   - [ ] previous -> new
   - [ ] new -> previous

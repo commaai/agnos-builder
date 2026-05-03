@@ -1,0 +1,13 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+last=""
+while true; do
+  cur="$(cat /data/params/d/SshEnabled 2>/dev/null || true)"
+  if [ "$cur" != "$last" ]; then
+    last="$cur"
+    log "SshEnabled changed to ${cur:-unset}"
+    sv restart /run/runit/services/ssh 2>/dev/null || true
+  fi
+  sleep 2
+done

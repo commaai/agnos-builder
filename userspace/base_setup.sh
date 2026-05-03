@@ -68,11 +68,9 @@ apt-fast install --no-install-recommends -yq \
     openssh-server \
     ppp \
     rsyslog \
+    runit \
     ssh \
     sudo \
-    systemd \
-    systemd-resolved \
-    systemd-timesyncd \
     ubuntu-minimal \
     ubuntu-server \
     ubuntu-standard \
@@ -82,9 +80,6 @@ apt-fast install --no-install-recommends -yq \
     wireless-tools \
     wpasupplicant \
     zlib1g-dev
-
-# Enable serial console on UART
-systemctl enable serial-getty@ttyS0.service
 
 # set kernel params
 echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf
@@ -97,9 +92,6 @@ echo "comma - nice -10" >> /etc/security/limits.conf
 # Locale setup
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8
-
-# Disable pstore service that moves files out of /sys/fs/pstore
-systemctl disable systemd-pstore.service
 
 # Nopasswd sudo
 echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
@@ -121,7 +113,6 @@ adduser $USERNAME audio
 adduser $USERNAME disk
 adduser $USERNAME netdev
 adduser $USERNAME dialout
-adduser $USERNAME systemd-journal
 
 # Create dirs
 mkdir /data && chown $USERNAME:$USERNAME /data

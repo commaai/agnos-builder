@@ -1,0 +1,15 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+mkdir -p /dev/socket
+chmod 777 /dev/socket
+echo 600 >/proc/sys/net/unix/max_dgram_qlen 2>/dev/null || true
+/sbin/logd &
+pid=$!
+for _ in $(seq 1 50); do
+  [ -S /dev/socket/logd ] && break
+  sleep 0.02
+done
+chmod 0666 /dev/socket/logd /dev/socket/logdr 2>/dev/null || true
+chmod 0222 /dev/socket/logdw 2>/dev/null || true
+wait "$pid"

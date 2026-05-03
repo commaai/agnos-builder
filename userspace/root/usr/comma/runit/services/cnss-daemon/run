@@ -1,0 +1,13 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+if ! pgrep -x cnss_daemon >/dev/null 2>&1; then
+  if [ -e /tmp/cnss_daemon.log ]; then
+    /usr/sbin/cnss_daemon -d -f /tmp/cnss_daemon.log
+  else
+    /usr/sbin/cnss_daemon
+  fi
+fi
+while sleep 5; do
+  pgrep -x cnss_daemon >/dev/null 2>&1 || exit 1
+done

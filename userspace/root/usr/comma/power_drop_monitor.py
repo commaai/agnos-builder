@@ -95,7 +95,7 @@ def perform_controlled_shutdown():
 
   # Kill services that draw a lot of power
   printk("Killing services")
-  subprocess.call(["/usr/bin/systemctl", "kill", "--signal=9", "comma"])
+  subprocess.call(["/usr/comma/shims/systemctl", "kill", "--signal=9", "comma"])
   set_screen_power(False)
 
   printk("Halt")
@@ -122,4 +122,3 @@ if __name__ == '__main__':
           perform_controlled_shutdown()
     except Exception:
       pass
-

@@ -116,8 +116,8 @@ set_network_stuff() {
   bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
   bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
 
-  # Fix resolv config
-  bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
+  # Fix resolv config. NetworkManager writes this file on the runtime tmpfs.
+  bash -c "ln -sf /run/NetworkManager/resolv.conf etc/resolv.conf"
 
   # Set capability for ping
   bash -c "setcap cap_net_raw+ep bin/ping"

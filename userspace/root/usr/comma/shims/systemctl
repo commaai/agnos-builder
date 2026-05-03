@@ -1,0 +1,95 @@
+#!/bin/bash
+
+set -u
+
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --root=*|--system|--user|--global|--preset-mode=*|--no-reload|--no-ask-password|--quiet)
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+service_dir() {
+  local name="${1%.service}"
+  case "$name" in
+    magic) name=magic ;;
+    comma) name=comma ;;
+    ssh|sshd) name=ssh ;;
+    adbd) name=adbd ;;
+  esac
+  if [ -d "/run/runit/services/$name" ]; then
+    printf '/run/runit/services/%s\n' "$name"
+  else
+    printf '/usr/comma/runit/services/%s\n' "$name"
+  fi
+}
+
+case "${1:-}" in
+  "")
+    exit 0
+    ;;
+  daemon-reload|daemon-reexec|preset|preset-all|enable|disable|reenable|mask|unmask|try-reload-or-restart|reload)
+    exit 0
+    ;;
+esac
+
+if [ "${1:-}" = "is-enabled" ]; then
+  exit 1
+fi
+
+if [ "${1:-}" = "daemon-reload" ]; then
+  exit 0
+fi
+
+if [ "${1:-}" = "is-active" ] && [ "${2:-}" = "--quiet" ]; then
+  case "${3:-}" in
+    magic|magic.service)
+      pgrep -u comma -f "/usr/comma/magic.py" >/dev/null 2>&1 && [ -S /tmp/drmfd.sock ] && exit 0
+      exit 3
+      ;;
+    comma|comma.service)
+      /usr/bin/tmux has-session -t comma >/dev/null 2>&1 && exit 0
+      exit 3
+      ;;
+  esac
+  sv status "$(service_dir "${3:-}")" >/dev/null 2>&1 && exit 0
+  exit 3
+fi
+
+case "${1:-}" in
+  start)
+    exec sv up "$(service_dir "${2:-}")"
+    ;;
+  stop)
+    exec sv down "$(service_dir "${2:-}")"
+    ;;
+  restart)
+    exec sv restart "$(service_dir "${2:-}")"
+    ;;
+  kill)
+    signal=TERM
+    shift
+    if [[ "${1:-}" == --signal=* ]]; then
+      signal="${1#--signal=}"
+      shift
+    fi
+    name="${1:-}"
+    if [ "${name%.service}" = "comma" ]; then
+      pkill "-$signal" -f "/usr/comma/comma.sh" 2>/dev/null || true
+      pkill "-$signal" -f "tmux new-session -s comma" 2>/dev/null || true
+      exit 0
+    fi
+    exec sv force-stop "$(service_dir "$name")"
+    ;;
+esac
+
+echo "systemctl shim: unsupported command: $*" >&2
+exit 1

@@ -1,0 +1,6 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+wait_dbus || true
+sleep 1
+run_as_comma /usr/comma/avahi-publish-service.sh

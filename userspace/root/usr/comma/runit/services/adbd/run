@@ -1,0 +1,37 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+if ! param_enabled /data/params/d/AdbEnabled; then
+  log "disabled"
+  [ -d /config/usb_gadget/g1 ] && echo "" >/config/usb_gadget/g1/UDC 2>/dev/null || true
+  while sleep 3600; do :; done
+fi
+
+mkdir -p /config /dev/usb-ffs/adb
+mountpoint -q /config || mount -t configfs none /config
+mkdir -p /config/usb_gadget/g1
+cd /config/usb_gadget/g1
+echo "" > UDC 2>/dev/null || true
+mkdir -p strings/0x409 configs/c.1/strings/0x409 functions/ncm.0 functions/ffs.adb
+echo 0x04D8 > idVendor
+echo 0x1234 > idProduct
+sed -n 's/^.*androidboot.serialno=\([^ ]*\).*$/\1/p' /proc/cmdline > strings/0x409/serialnumber
+echo comma.ai > strings/0x409/manufacturer
+echo "Linux USB Gadget" > strings/0x409/product
+echo 250 > configs/c.1/MaxPower
+echo "NCM+ADB" > configs/c.1/strings/0x409/configuration
+mountpoint -q /dev/usb-ffs/adb || mount -t functionfs adb /dev/usb-ffs/adb
+rm -f configs/c.1/ncm.0 configs/c.1/ffs.adb
+ln -sf functions/ncm.0 configs/c.1/ncm.0
+ln -sf functions/ffs.adb configs/c.1/ffs.adb
+command -v setprop >/dev/null && setprop service.adb.tcp.port -1 2>/dev/null || true
+
+/usr/comma/adbd &
+pid=$!
+sleep 2
+for _ in $(seq 1 40); do
+  echo a600000.dwc3 > UDC 2>/tmp/adbd-udc.err || true
+  [ "$(cat UDC 2>/dev/null)" = "a600000.dwc3" ] && break
+  sleep 0.25
+done
+wait "$pid"

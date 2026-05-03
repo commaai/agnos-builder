@@ -15,7 +15,8 @@ import time
 import usb.core
 
 SERIAL_DEV = "/dev/serial/by-id/usb-Microchip_Tech_USB2_Controller_Hub-if01"
-PROMPT_RE = re.compile(rb"(?:login:|[#\$])$")
+PROMPT_RE = re.compile(rb"(?:login:|(?:\x1b\[\?2004h)?(?:\([^)]+\) )?[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[^\r\n]*[#\$]\s*)$")
+BOOT_DONE_RE = re.compile(rb"boot\.sh\[\d+\]: .* boot path done")
 USB_RT_PORT = 0x23
 USB_REQ_CLEAR_FEATURE = 1
 USB_REQ_SET_FEATURE = 3
@@ -128,6 +129,7 @@ class Mdma:
 
     # show serial console with timestamps until boot is done
     pending = b""
+    bootsh_seen = False
     while True:
       if not select.select([fd], [], [], 0.25)[0]:
         continue
@@ -140,11 +142,13 @@ class Mdma:
         line, pending = pending.split(b"\n", 1)
         line = line.rstrip()
         print(f"[{time.monotonic() - start:8.3f}] {line.decode(errors='replace')}", flush=True)
-        if PROMPT_RE.search(line):
+        bootsh_seen = bootsh_seen or b"boot.sh[" in line
+        if BOOT_DONE_RE.search(line) or (PROMPT_RE.search(line) and not bootsh_seen):
           return
       if PROMPT_RE.search(pending.strip()):
         print(f"[{time.monotonic() - start:8.3f}] {pending.strip().decode(errors='replace')}", flush=True)
-        return
+        if not bootsh_seen:
+          return
 
 
 if __name__ == "__main__":

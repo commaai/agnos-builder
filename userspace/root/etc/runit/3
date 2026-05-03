@@ -1,0 +1,15 @@
+#!/bin/bash
+
+PATH=/usr/comma/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+printf '<6>runit-shutdown[%d]: stopping services\n' "$$" >/dev/kmsg 2>/dev/null || true
+sv -w 5 force-stop /run/runit/services/* 2>/dev/kmsg || true
+sv exit /run/runit/services/* 2>/dev/kmsg || true
+
+/usr/comma/lte/lte.sh stop >/tmp/lte-stop.log 2>&1 || true
+if [ -d /config/usb_gadget/g1 ]; then
+  echo "" >/config/usb_gadget/g1/UDC 2>/dev/null || true
+fi
+
+sync

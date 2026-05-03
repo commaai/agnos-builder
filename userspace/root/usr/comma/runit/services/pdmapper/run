@@ -1,0 +1,8 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+for _ in $(seq 1 100); do
+  pgrep -x init_mss >/dev/null 2>&1 && break
+  sleep 0.1
+done
+exec /usr/bin/pdmappersvc

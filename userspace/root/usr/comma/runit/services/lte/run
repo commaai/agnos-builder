@@ -1,0 +1,8 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+wait_path /run/bootsh/gpio-ready || true
+/usr/comma/lte/lte.sh start
+log "started"
+trap '/usr/comma/lte/lte.sh stop' TERM INT
+while sleep 3600; do :; done

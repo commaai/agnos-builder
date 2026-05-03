@@ -78,12 +78,14 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 FROM agnos-base
 
 # Hardware rootfs overlay
+RUN rm -f /usr/sbin/init /usr/sbin/reboot /usr/sbin/poweroff /usr/sbin/halt /usr/sbin/shutdown
 COPY ./userspace/root/etc/ /etc/
 COPY ./userspace/root/lib/ /usr/lib/
 COPY ./userspace/root/home/ /home/
 COPY ./userspace/root/sbin/ /usr/sbin/
 COPY ./userspace/root/system/ /system/
 COPY ./userspace/root/usr/ /usr/
+RUN rm -f /usr/bin/systemctl && ln -sf /usr/comma/shims/systemctl /usr/bin/systemctl
 RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
@@ -122,6 +124,8 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
+# Remove systemd as an installed init/service stack. libsystemd0/libudev1 stay
+# as compatibility libraries for dbus, polkit, NetworkManager, and ModemManager.
 RUN chown -R $USERNAME: /home/$USERNAME/.config
 RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config
 
@@ -137,10 +141,6 @@ RUN chown $USERNAME: /home/$USERNAME/power_burn_max
 COPY ./userspace/irsc_util.c /tmp/agnos/
 RUN gcc -O2 -Wall -Wextra -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
 
-# Setup systemd services
-COPY ./userspace/services.sh /tmp/agnos
-RUN /tmp/agnos/services.sh
-
 # MOTD
 RUN rm -r /etc/update-motd.d/*
 COPY --chown=root:root ./userspace/root/etc/update-motd.d/* /etc/update-motd.d/
@@ -150,12 +150,117 @@ RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
-# Run ModemManager in debug mode to allow AT commands
-COPY ./userspace/files/ModemManager.service /lib/systemd/system/
-RUN systemctl enable ModemManager
-
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
+
+# The image boots under runit; remove systemd activation paths brought in by Ubuntu packages.
+RUN rm -rf /etc/systemd /usr/lib/systemd /run/systemd /var/lib/systemd /usr/share/systemd && \
+    rm -f /usr/bin/systemd* && \
+    find /usr/share/dbus-1 \( \
+      -name '*systemd*' -o \
+      -name '*hostname1*' -o \
+      -name '*login1*' -o \
+      -name '*network1*' -o \
+      -name '*timedate1*' -o \
+      -name '*locale1*' -o \
+      -name '*machine1*' -o \
+      -name '*home1*' \
+    \) -delete && \
+    rm -f /usr/share/dbus-1/system-services/org.freedesktop.hostname1.service \
+      /usr/share/dbus-1/system-services/org.freedesktop.systemd1.service \
+      /usr/share/dbus-1/system.d/org.freedesktop.hostname1.conf \
+      /usr/share/dbus-1/system.d/org.freedesktop.systemd1.conf \
+      /usr/share/dbus-1/interfaces/org.freedesktop.hostname1.xml \
+      /usr/share/dbus-1/interfaces/org.freedesktop.systemd1*.xml && \
+    rm -rf /usr/include/systemd && \
+    rm -f /usr/lib/modprobe.d/systemd.conf \
+      /usr/lib/sysctl.d/50-pid-max.conf \
+      /usr/lib/sysusers.d/systemd-*.conf \
+      /usr/lib/tmpfiles.d/systemd*.conf \
+      /usr/lib/tmpfiles.d/credstore.conf \
+      /usr/lib/tmpfiles.d/debian.conf \
+      /usr/lib/tmpfiles.d/home.conf \
+      /usr/lib/tmpfiles.d/journal-nocow.conf \
+      /usr/lib/tmpfiles.d/legacy.conf \
+      /usr/lib/tmpfiles.d/provision.conf \
+      /usr/lib/tmpfiles.d/static-nodes-permissions.conf \
+      /usr/lib/tmpfiles.d/tmp.conf \
+      /usr/lib/tmpfiles.d/var.conf \
+      /usr/lib/tmpfiles.d/x11.conf \
+      /usr/lib/pam.d/systemd-user \
+      /usr/lib/lsb/init-functions.d/40-systemd \
+      /usr/lib/NetworkManager/conf.d/10-dns-resolved.conf \
+      /usr/libexec/netplan/generate \
+      /usr/lib/udev/rules.d/99-systemd.rules \
+      /usr/lib/apt/apt.systemd.daily \
+      /usr/bin/deb-systemd-helper \
+      /usr/bin/deb-systemd-invoke \
+      /usr/bin/journalctl \
+      /usr/lib/aarch64-linux-gnu/libsystemd.a \
+      /usr/lib/aarch64-linux-gnu/pkgconfig/libsystemd.pc \
+      /usr/lib/aarch64-linux-gnu/libsystemd.so \
+      /usr/lib/aarch64-linux-gnu/security/pam_systemd.so \
+      /usr/lib/aarch64-linux-gnu/security/pam_systemd_loadkey.so \
+      /usr/lib/aarch64-linux-gnu/cryptsetup/libcryptsetup-token-systemd-fido2.so \
+      /usr/lib/aarch64-linux-gnu/cryptsetup/libcryptsetup-token-systemd-pkcs11.so \
+      /usr/lib/aarch64-linux-gnu/cryptsetup/libcryptsetup-token-systemd-tpm2.so \
+      /etc/dhcp/dhclient-enter-hooks.d/resolved-enter \
+      /etc/dhcp/dhclient-exit-hooks.d/resolved \
+      /etc/network/if-up.d/resolved \
+      /etc/network/if-down.d/resolved \
+      /etc/apt/apt.conf.d/20apt-esm-hook.conf \
+      /etc/cron.daily/apt-compat \
+      /usr/share/apport/package-hooks/systemd.py \
+      /usr/share/dnsmasq/systemd-helper \
+      /usr/share/mime/text/x-systemd-unit.xml \
+      /usr/share/polkit-1/actions/org.freedesktop.systemd1.policy \
+      /usr/share/vim/vim91/ftplugin/systemd.vim \
+      /usr/share/vim/vim91/syntax/systemd.vim && \
+    rm -rf /etc/xdg/systemd \
+      /usr/lib/aarch64-linux-gnu/systemd \
+      /usr/lib/python3/dist-packages/sos/policies/init_systems/__pycache__/systemd.cpython-312.pyc \
+      /usr/lib/python3/dist-packages/sos/policies/init_systems/systemd.py \
+      /usr/lib/python3/dist-packages/sos/report/plugins/__pycache__/systemd.cpython-312.pyc \
+      /usr/lib/python3/dist-packages/sos/report/plugins/systemd.py \
+      /usr/lib/python3/dist-packages/twisted/python/__pycache__/systemd.cpython-312.pyc \
+      /usr/lib/python3/dist-packages/twisted/python/systemd.py \
+      /usr/lib/python3/dist-packages/twisted/python/test/__pycache__/test_systemd.cpython-312.pyc \
+      /usr/lib/python3/dist-packages/twisted/python/test/test_systemd.py \
+      /usr/local/venv/lib/python3.12/site-packages/jedi/third_party/typeshed/stubs/gunicorn/gunicorn/systemd.pyi \
+      /usr/local/venv/lib/python3.12/site-packages/xvfb/install/lib/libsystemd.so.0 \
+      /usr/share/bug/systemd \
+      /usr/share/doc/systemd \
+      /usr/share/doc/systemd-dev \
+      /usr/share/doc/systemd-sysv \
+      /usr/share/doc/libpam-systemd \
+      /usr/share/doc/libsystemd-dev \
+      /usr/share/doc/libsystemd-shared \
+      /usr/share/doc/libsystemd0 \
+      /usr/share/lintian/overrides/systemd \
+      /usr/share/lintian/overrides/libpam-systemd \
+      /usr/share/lintian/overrides/libsystemd-shared \
+      /usr/share/pam-configs/systemd && \
+    rm -f /usr/share/bash-completion/completions/journalctl \
+      /usr/share/bash-completion/completions/systemctl \
+      /usr/share/bash-completion/completions/systemd-* \
+      /usr/share/pkgconfig/systemd.pc \
+      /usr/share/polkit-1/rules.d/systemd-networkd.rules \
+      /usr/share/zsh/vendor-completions/_journalctl \
+      /usr/share/zsh/vendor-completions/_systemctl \
+      /usr/share/zsh/vendor-completions/_systemd* && \
+    sed -i '/^SystemdService=/d' /usr/share/dbus-1/system-services/*.service && \
+    sed -i '/pam_systemd/d' /etc/pam.d/common-session /etc/pam.d/runuser-l && \
+    sed -i '/^systemd-/d' /etc/passwd /etc/group /etc/shadow /etc/gshadow && \
+    find /var/lib/dpkg/info -maxdepth 1 \( \
+      -name 'systemd*' -o \
+      -name 'libpam-systemd*' -o \
+      -name 'libsystemd-dev*' -o \
+      -name 'libsystemd-shared*' \
+    \) -delete && \
+    perl -0pi -e 's/(^|\n)Package: (systemd|systemd-sysv|systemd-dev|libpam-systemd|libsystemd-dev|libsystemd-shared)\n.*?(?=\nPackage: |\z)/$1/gs' /var/lib/dpkg/status && \
+    if [ -e /var/lib/dpkg/status-old ]; then \
+      perl -0pi -e 's/(^|\n)Package: (systemd|systemd-sysv|systemd-dev|libpam-systemd|libsystemd-dev|libsystemd-shared)\n.*?(?=\nPackage: |\z)/$1/gs' /var/lib/dpkg/status-old; \
+    fi
 
 # keep this last
 RUN ldconfig

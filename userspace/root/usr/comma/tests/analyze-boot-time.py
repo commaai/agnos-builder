@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
 import subprocess
+import re
 from tabulate import tabulate
 
 # serial with timestamps:
 # grabserial -d /dev/serial/by-id/usb-FTDI_FT230X* -t
 
-# systemd-analyze critical-chain comma.service
-
-# boot chart:
-# systemd-analyze plot > /tmp/bootup.svg
-
-def get_journal_time(x):
-  out = subprocess.check_output("journalctl -x -o short-monotonic", shell=True, encoding='utf8')
-  jlines = out.strip().splitlines()
-  for l in jlines:
-    if x in l:
-      t = l.split('[')[1].split(']')[0]
-      return float(t)
+def get_bootsh_time(x):
+  out = subprocess.check_output("dmesg | grep 'boot.sh'", shell=True, encoding='utf8')
+  for line in out.strip().splitlines():
+    if x in line:
+      m = re.search(r"boot\.sh\[\d+\]: ([0-9.]+)", line)
+      if m:
+        return float(m.group(1))
   return None
 
 if __name__ == "__main__":
@@ -30,12 +26,8 @@ if __name__ == "__main__":
   def tot_since_kern():
     return sum(ts.values()) - (ts['PON'] + ts['XBL'] + ts['ABL'])
 
-  out = subprocess.check_output("systemd-analyze", shell=True, encoding='utf8')
-  l = out.splitlines()[0].split(' ')
-  ts['kernel'] = float(l[3][:-1])
-  #ts['systemd'] = float(l[6][:-1])
-
-  ts['comma'] = get_journal_time("Starting comma.service") - tot_since_kern()
+  ts['kernel-to-pid1'] = get_bootsh_time("pid1 start") or 0.0
+  ts['comma'] = (get_bootsh_time("comma launched") or 0.0) - ts['kernel-to-pid1']
 
   # print
   tot = 0

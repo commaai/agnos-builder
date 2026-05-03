@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import re
 import time
 import subprocess
 
@@ -51,13 +52,21 @@ def test_dmesg():
   # TODO: ensure no new errors in dmesg. would catch things like the brightness setting bug
   pass
 
-def test_systemd_services():
-  pass
+def test_runit_services():
+  assert run("cat /proc/1/comm").strip() == "runit"
+  assert run("pgrep -a 'systemd|journald|udevd' || true").strip() == ""
+
+  out = run("sv status /run/runit/services/*")
+  failed = [line for line in out.splitlines() if not line.startswith("run:")]
+  assert failed == []
 
 def test_boot_time():
-  out = subprocess.check_output("systemd-analyze", shell=True, encoding='utf8')
+  out = run("dmesg | grep 'boot.sh'")
+  marks = {}
+  for line in out.splitlines():
+    m = re.search(r"boot\.sh\[\d+\]: ([0-9.]+) (.*)", line)
+    if m:
+      marks[m.group(2)] = float(m.group(1))
 
-  a = out.splitlines()[0]
-  print(out, a)
-
-  # check comma service
+  assert "comma launched" in marks
+  print(marks)

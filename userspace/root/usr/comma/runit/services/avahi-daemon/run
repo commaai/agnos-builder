@@ -1,0 +1,5 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+wait_dbus || true
+exec /usr/sbin/avahi-daemon -s

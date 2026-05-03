@@ -1,0 +1,6 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+wait_dbus || true
+wait_path /run/bootsh/fs-setup-done || true
+exec /usr/sbin/ModemManager --filter-policy=strict --debug

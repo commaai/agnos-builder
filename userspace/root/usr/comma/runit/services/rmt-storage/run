@@ -1,0 +1,8 @@
+#!/bin/bash
+exec 2>&1
+. /usr/comma/runit/common.sh
+wait_path /dev/block/bootdevice/by-name/modemst1 || true
+wait_path /dev/block/bootdevice/by-name/modemst2 || true
+wait_path /dev/block/bootdevice/by-name/fsc || true
+wait_path /dev/block/bootdevice/by-name/fsg || true
+exec /sbin/rmt_storage

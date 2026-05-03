@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ "$$" = "1" ]; then
+  exec /sbin/runit "$@"
+fi
+
+exec /lib/runit/runit-init "$@"

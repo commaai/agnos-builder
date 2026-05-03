@@ -61,12 +61,12 @@ if [ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]; then
   echo "Enabling ADB"
 
   setup
-  systemctl start adbd
+  /usr/comma/shims/systemctl start adbd
   sleep 1  # adbd does some setup before we can enable the gadget
   start
 else
   echo "Disabling ADB"
 
-  systemctl stop adbd
+  /usr/comma/shims/systemctl stop adbd
   stop
 fi

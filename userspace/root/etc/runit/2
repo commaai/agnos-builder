@@ -1,0 +1,18 @@
+#!/bin/bash
+
+PATH=/usr/comma/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+mkdir -p /run/runit/supervise /run/runit/sv /run/runit/services /usr/comma/runit/services
+
+rm -rf /run/runit/services
+mkdir -p /run/runit/services
+for service in /usr/comma/runit/services/*; do
+  [ -d "$service" ] || continue
+  name="${service##*/}"
+  mkdir -p "/run/runit/services/$name"
+  ln -sf "$service/run" "/run/runit/services/$name/run"
+  [ -e "$service/finish" ] && ln -sf "$service/finish" "/run/runit/services/$name/finish"
+done
+
+exec runsvdir -P /run/runit/services 'log: ...........................................................................................................................................................................................................................................................................................................................................................................................................'
