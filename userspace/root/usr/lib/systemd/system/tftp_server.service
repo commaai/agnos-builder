@@ -1,0 +1,12 @@
+[Unit]
+Description=Qualcomm TFTP server
+After=fs_setup.service
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c 'while [ ! -e /data/persist/rfs ]; do sleep 0.1; done'
+ExecStart=/usr/sbin/tftp_server
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
