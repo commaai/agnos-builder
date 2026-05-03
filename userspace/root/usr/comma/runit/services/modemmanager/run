@@ -54,7 +54,7 @@ write_initial_kernel_events() {
   fi
 }
 
-wait_dbus || true
+wait_dbus || exit 1
 wait_path /run/bootsh/fs-setup-done || true
 wait_modem_ports || true
 write_initial_kernel_events

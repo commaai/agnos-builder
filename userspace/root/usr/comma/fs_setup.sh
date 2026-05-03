@@ -70,6 +70,11 @@ mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777
 # backed by real files and directories on userdata.
 
 # Runtime files normally created by tmpfiles.d.
+rm -rf /var/run /var/lock
+mkdir -p /run/lock
+ln -s /run /var/run
+ln -s /run/lock /var/lock
+
 mkdir -p /var/crash /var/tmp /var/lib/logrotate \
   /var/spool/cron/atjobs /var/cache/pollinate /var/chroot/ssh /var/db
 chmod 1777 /var/tmp

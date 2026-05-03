@@ -89,11 +89,56 @@ set_device_perms() {
 }
 
 create_tmpfiles() {
+  rm -rf /var/run /var/lock
+  mkdir -p /run/lock
+  ln -s /run /var/run
+  ln -s /run/lock /var/lock
+
   mkdir -p /var/crash /var/tmp /var/lib/logrotate \
     /var/spool/cron/atjobs /var/cache/pollinate /var/chroot/ssh /var/db
   chmod 1777 /var/tmp 2>/dev/null || true
   chmod 755 /var/chroot /var/chroot/ssh 2>/dev/null || true
   [ -d /usr/lib/xbps-db ] && ln -sf /usr/lib/xbps-db /var/db/xbps
+}
+
+dbus_running() {
+  local pid
+
+  [ -S /run/dbus/system_bus_socket ] || return 1
+  [ -s /run/dbus/pid ] || return 1
+  pid="$(cat /run/dbus/pid 2>/dev/null || true)"
+  [ -n "$pid" ] || return 1
+  [ -r "/proc/$pid/comm" ] || return 1
+  [ "$(cat "/proc/$pid/comm" 2>/dev/null)" = "dbus-daemon" ]
+}
+
+start_dbus() {
+  local i
+
+  mkdir -p /run/dbus /var/lib/dbus
+  if dbus_running; then
+    log "dbus already running"
+    return 0
+  fi
+
+  rm -f /run/dbus/pid /run/dbus/system_bus_socket
+  log "start dbus"
+  if ! dbus-daemon --system --fork --nopidfile --print-pid=1 >/run/dbus/pid 2>/tmp/dbus.log; then
+    log "failed to start dbus"
+    return 1
+  fi
+
+  for i in $(seq 1 100); do
+    if [ -S /run/dbus/system_bus_socket ]; then
+      touch "$BOOTSH_RUN/dbus-ready"
+      log "dbus ready"
+      return 0
+    fi
+    sleep 0.01
+  done
+
+  log "timeout waiting for dbus"
+  return 1
 }
 
 permission_loop() {
@@ -298,6 +343,8 @@ mount_data &
 data_mount_pid=$!
 
 mount_early_state
+start_dbus &
+dbus_pid=$!
 /usr/comma/set-hostname.sh >/tmp/set-hostname.log 2>&1 || true
 permission_loop &
 setup_gpios &
@@ -309,6 +356,7 @@ wait "$data_mount_pid" || true
 data_late_setup
 touch "$BOOTSH_RUN/data-ready"
 
+wait "$dbus_pid" || true
 start_comma
 
 mount_deferred &

@@ -2,4 +2,5 @@
 exec 2>&1
 . /usr/comma/runit/common.sh
 wait_path /run/bootsh/data-ready || true
+wait_dbus || exit 1
 exec /usr/comma/start-comma.sh --monitor

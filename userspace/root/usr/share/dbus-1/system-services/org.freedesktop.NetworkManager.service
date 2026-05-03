@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.freedesktop.NetworkManager
+Exec=/usr/sbin/NetworkManager --no-daemon
+User=root

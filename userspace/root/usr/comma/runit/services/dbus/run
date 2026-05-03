@@ -1,6 +1,27 @@
 #!/bin/bash
 exec 2>&1
 . /usr/comma/runit/common.sh
+
+dbus_running() {
+  local pid
+
+  [ -S /run/dbus/system_bus_socket ] || return 1
+  [ -s /run/dbus/pid ] || return 1
+  pid="$(cat /run/dbus/pid 2>/dev/null || true)"
+  [ -n "$pid" ] || return 1
+  [ -r "/proc/$pid/comm" ] || return 1
+  [ "$(cat "/proc/$pid/comm" 2>/dev/null)" = "dbus-daemon" ]
+}
+
 mkdir -p /run/dbus /var/lib/dbus
-rm -f /run/dbus/pid
+if dbus_running; then
+  log "watching existing dbus-daemon"
+  while dbus_running; do
+    sleep 5
+  done
+  log "existing dbus-daemon exited"
+fi
+
+rm -f /run/dbus/pid /run/dbus/system_bus_socket
+echo "$$" >/run/dbus/pid
 exec dbus-daemon --system --nofork --nopidfile

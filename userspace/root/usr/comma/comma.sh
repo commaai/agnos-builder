@@ -12,8 +12,20 @@ RESET_TRIGGER="/data/__system_reset__"
 sudo timeout --kill-after=2 5 /home/comma/power_burn_max
 
 # use max freq to boot up quickly, then limit
-echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
-echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+limit_cpu_policy() {
+  local policy="$1"
+  local freq="$2"
+
+  if [ -e "$policy/scaling_min_freq" ]; then
+    echo "$freq" | sudo tee "$policy/scaling_min_freq" >/dev/null 2>&1 || true
+  fi
+  if [ -e "$policy/scaling_max_freq" ]; then
+    echo "$freq" | sudo tee "$policy/scaling_max_freq" >/dev/null 2>&1 || true
+  fi
+}
+
+limit_cpu_policy /sys/devices/system/cpu/cpufreq/policy0 1689600
+limit_cpu_policy /sys/devices/system/cpu/cpufreq/policy4 1689600
 
 echo "waiting for magic"
 for i in {1..200}; do
@@ -52,6 +64,21 @@ handle_setup_keys () {
   fi
 }
 
+mark_boot_success() {
+  local i out
+
+  for i in {1..20}; do
+    if out="$(sudo abctl --set_success 2>&1)"; then
+      return 0
+    fi
+
+    echo "abctl --set_success failed ($i/20): $out"
+    sleep 0.25
+  done
+
+  return 1
+}
+
 # factory reset handling
 if [ ! -f /tmp/booted ]; then
   touch /tmp/booted
@@ -86,7 +113,7 @@ while true; do
     exec "$CONTINUE"
   fi
 
-  sudo abctl --set_success
+  mark_boot_success
 
   # cleanup installers from previous runs
   rm -f $INSTALLER
