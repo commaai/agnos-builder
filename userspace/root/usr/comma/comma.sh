@@ -17,13 +17,13 @@ echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
 
 echo "waiting for magic"
 for i in {1..200}; do
-  if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
+  if [ -S /tmp/drmfd.sock ]; then
     break
   fi
   sleep 0.1
 done
 
-if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
+if [ -S /tmp/drmfd.sock ]; then
   echo "magic ready after ${SECONDS}s"
 else
   echo "timed out waiting for magic, ${SECONDS}s"
