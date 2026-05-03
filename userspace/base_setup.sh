@@ -32,19 +32,13 @@ xbps-install -y \
   bluez \
   btop \
   busybox \
-  bzip2-devel \
   clang \
-  cmake \
   cronie \
-  czmq-devel \
   dbus-devel \
-  dfu-util \
   dhcpcd \
   dnsmasq \
   eudev \
   evtest \
-  ffmpeg6 \
-  ffmpeg-devel \
   freetype-devel \
   fuse-sshfs \
   gdb \
@@ -114,7 +108,6 @@ xbps-install -y \
   smartmontools \
   socat \
   sqlite-devel \
-  squashfs-tools \
   stress-ng \
   tmux \
   traceroute \
@@ -125,7 +118,6 @@ xbps-install -y \
   wavemon \
   wireless_tools \
   wpa_supplicant \
-  zeromq-devel \
   zlib-devel \
   zstd
 
