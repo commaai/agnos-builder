@@ -10,11 +10,11 @@ wait_for_block() {
   local device="$1"
   local i
 
-  for ((i = 0; i < 150; i++)); do
+  for ((i = 0; i < 200; i++)); do
     if [[ -b "$device" ]]; then
       return 0
     fi
-    sleep 0.02
+    sleep 0.01
   done
 
   log "timed out waiting for $device"
@@ -28,7 +28,6 @@ mount_fs() {
   local options="$4"
 
   if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
-    failed=1
     return 1
   fi
 
@@ -39,22 +38,41 @@ mount_fs() {
   fi
 
   log "failed mounting $where"
-  failed=1
+  return 1
+}
+
+# Create /dev/block/bootdevice/by-name/* ahead of udev so rmt_storage doesn't
+# block ~8s waiting for udev to settle on the modem partitions.
+make_bootdevice_links() {
+  mkdir -p /dev/block/bootdevice/by-name
+  for ((i = 0; i < 200; i++)); do
+    for uevent in /sys/class/block/sd*[0-9]*/uevent; do
+      [ -e "$uevent" ] || continue
+      dev=${uevent#/sys/class/block/}; dev=${dev%/uevent}
+      while IFS='=' read -r k v; do
+        [ "$k" = "PARTNAME" ] && ln -sf "/dev/$dev" "/dev/block/bootdevice/by-name/$v" && break
+      done <"$uevent"
+    done
+    [ -e /dev/block/bootdevice/by-name/modemst1 ] && return 0
+    sleep 0.01
+  done
+  log "timed out creating bootdevice links"
   return 1
 }
 
 log "start"
 
-failed=0
-mount_fs /dev/sde9 /dsp ext4 ro
-mount_fs /dev/sde4 /firmware vfat ro
-mount_fs /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec
-mount_fs /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev
-mount_fs /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev
-mount_fs /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
-mount_fs tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755
-mount_fs tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777
-mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777
+make_bootdevice_links &
+mount_fs /dev/sde9 /dsp ext4 ro &
+mount_fs /dev/sde4 /firmware vfat ro &
+mount_fs /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec &
+mount_fs /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev &
+mount_fs /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev &
+mount_fs /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid &
+mount_fs tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755 &
+mount_fs tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777 &
+mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 &
+wait
 
 # Ensure the symlinks in the read only rootfs are
 # backed by real files and directories on userdata.
@@ -96,8 +114,8 @@ if [[ ! -d /data/persist ]]; then
   sudo cp -r /system/persist /data
 fi
 
-if [[ "$failed" -ne 0 ]]; then
-  log "mounts failed"
+if ! mountpoint -q /data; then
+  log "data mount failed"
   exit 1
 fi
 

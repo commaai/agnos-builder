@@ -1,5 +1,7 @@
 [Unit]
+DefaultDependencies=no
 After=local-fs.target
+Before=comma-early.target sysinit.target
 
 [Service]
 Type=oneshot

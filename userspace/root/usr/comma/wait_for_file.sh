@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
-until [ -e $1 ]
+until [ -e "$1" ]
 do
-  sleep 1
+  sleep 0.01
 done
 
