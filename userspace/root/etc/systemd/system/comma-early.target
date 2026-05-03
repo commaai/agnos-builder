@@ -1,0 +1,8 @@
+[Unit]
+Description=comma early-boot phase
+DefaultDependencies=no
+Conflicts=shutdown.target
+Before=shutdown.target sysinit.target
+
+[Install]
+WantedBy=sysinit.target

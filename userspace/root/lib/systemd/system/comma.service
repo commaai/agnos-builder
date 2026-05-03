@@ -1,5 +1,7 @@
 [Unit]
+DefaultDependencies=no
 After=local-fs.target
+Before=comma-early.target sysinit.target
 
 [Service]
 Type=oneshot
@@ -13,4 +15,4 @@ LimitRTPRIO=100
 LimitNICE=-10
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=comma-early.target
