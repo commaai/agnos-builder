@@ -12,7 +12,6 @@ systemctl enable magic.service
 systemctl enable init-qcom.service
 systemctl enable varwatch.service
 systemctl enable power_monitor.service
-systemctl enable power_drop_monitor.service
 systemctl enable brightnessd.service
 systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
