@@ -59,7 +59,7 @@ jobs:
     - name: Update VERSION
       if: github.event_name == 'pull_request'
       run: |
-        echo -n $(cat VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > VERSION
+        echo -n $(cat userspace/root/VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > userspace/root/VERSION
 
     - name: Build system
       env:
@@ -86,7 +86,7 @@ jobs:
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
       run: |
         echo ${{ github.event.number }} > output/ota/PR
-        cp VERSION output/ota
+        cp userspace/root/VERSION output/ota
         echo "${{ steps.stats.outputs.stats_summary }}" > output/ota/agnos_stats.txt
 
     - name: Upload artifacts
