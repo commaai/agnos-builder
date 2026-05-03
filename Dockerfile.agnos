@@ -166,8 +166,7 @@ RUN mkdir -p /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 
-# copy version file
-COPY VERSION /VERSION
+COPY ./userspace/root/VERSION /VERSION
 
 # ################# #
 # #### Cleanup #### #
