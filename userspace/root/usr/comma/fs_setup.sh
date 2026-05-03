@@ -27,6 +27,11 @@ mount_fs() {
   local type="$3"
   local options="$4"
 
+  if mountpoint -q "$where"; then
+    log "$where already mounted"
+    return 0
+  fi
+
   if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
     failed=1
     return 1
@@ -44,6 +49,11 @@ mount_fs() {
 }
 
 log "start"
+
+if [[ -e /run/bootsh/fs-setup-done ]]; then
+  log "already done by boot.sh"
+  exit 0
+fi
 
 failed=0
 mount_fs /dev/sde9 /dsp ext4 ro

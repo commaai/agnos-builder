@@ -5,14 +5,15 @@ Description=Magic
 Type=simple
 User=comma
 PermissionsStartOnly=true
-ExecStartPre=/bin/bash -c "chgrp gpu /dev/ion /dev/kgsl-3d0"
-ExecStartPre=/bin/bash -c "chmod 660 /dev/ion /dev/kgsl-3d0"
+ExecStartPre=/bin/bash -c "chgrp gpu /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/* 2>/dev/null || true"
+ExecStartPre=/bin/bash -c "chmod 660 /dev/adsprpc-smd /dev/kgsl-3d0 /dev/dri/* 2>/dev/null || true"
+ExecStartPre=/bin/bash -c "chmod 664 /dev/ion 2>/dev/null || true"
 
 ExecStartPre=/bin/bash -c "mkdir -p /data/misc/display || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true"
 
-ExecStart=/bin/bash -c "source /etc/profile && /usr/local/venv/bin/python -u /usr/comma/magic.py"
+ExecStart=/usr/comma/start-magic.sh --monitor
 
 [Install]
 WantedBy=multi-user.target

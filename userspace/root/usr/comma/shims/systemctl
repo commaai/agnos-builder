@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ "$1" = "is-active" ] && [ "$2" = "--quiet" ] && [ "$3" = "magic" ]; then
+  if pgrep -u comma -f "/usr/comma/magic.py" >/dev/null 2>&1 && [ -S /tmp/drmfd.sock ]; then
+    exit 0
+  fi
+  exit 3
+fi
+
+if [ "$1" = "daemon-reload" ]; then
+  exit 0
+fi
+
+exec /usr/bin/systemctl "$@"
