@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
-# Skip while Docker is assembling the image.
-if [ -f /.dockerenv ]; then
+# Skip unless this is a booted systemd system.
+if [ ! -d /run/systemd/system ]; then
   exit 0
 fi
 
