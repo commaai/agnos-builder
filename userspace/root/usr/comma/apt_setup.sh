@@ -1,5 +1,10 @@
 #!/bin/bash -e
 
+# Skip while Docker is assembling the image.
+if [ -f /.dockerenv ]; then
+  exit 0
+fi
+
 sudo mount -o rw,remount /
 sudo resize2fs $(findmnt -n -o SOURCE /) &>/dev/null || sudo resize2fs $(findmnt -n -o SOURCE /)
 sudo mount -o remount,size=1500M /var

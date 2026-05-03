@@ -166,9 +166,6 @@ RUN mkdir -p /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 
-# copy at the end, after all apt usage
-COPY ./userspace/files/apt.conf /etc/apt/apt.conf
-
 # copy version file
 COPY VERSION /VERSION
 
