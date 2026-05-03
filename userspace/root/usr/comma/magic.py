@@ -2,7 +2,7 @@
 import os, socket, struct, subprocess, threading, time
 from array import array
 
-rl = None
+import pyray as rl
 
 UPDATER_PATH = "/usr/comma/updater"
 WESTON_RUNTIME_DIR = "/var/tmp/weston"
@@ -12,14 +12,6 @@ SOCK_PATH = "/tmp/drmfd.sock"
 DRM_DEVICE = "/dev/dri/card0"
 BACKLIGHT_POWER = "/sys/class/backlight/panel0-backlight/bl_power"
 BACKGROUND = "/usr/comma/bg.jpg"
-
-def log(msg):
-  print(f"MAGIC {time.monotonic():.2f} {msg}", flush=True)
-  try:
-    with open("/dev/kmsg", "w") as f:
-      f.write(f"magic: {time.monotonic():.2f} {msg}\n")
-  except Exception:
-    pass
 
 # This is needed to keep the old updater working. Updater used to be stored in
 # openpilot directly instead of in AGNOS. This will intercept the old updater
@@ -91,8 +83,6 @@ def handle_client(client, drm_master):
       pass
 
 def main():
-  global rl
-
   threading.Thread(target=updater_weston, daemon=True).start()
 
   while True:
@@ -104,21 +94,6 @@ def main():
       time.sleep(0.1)
 
   os.environ['DRM_FD'] = str(drm_master)
-
-  try:
-    os.unlink(SOCK_PATH)
-  except FileNotFoundError:
-    pass
-
-  server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-  server.bind(SOCK_PATH)
-  server.settimeout(0.1)
-  server.listen(1)
-  log("drmfd socket ready")
-
-  import pyray as rl
-  log("raylib imported")
-
   while not os.access(BACKLIGHT_POWER, os.W_OK):
     time.sleep(0.1)
 
@@ -130,7 +105,16 @@ def main():
   pos = rl.Vector2((rl.get_screen_width() - tex.width)/2.0, (rl.get_screen_height() - tex.height)/2.0)
   rl.unload_image(img)
   show_background(tex, pos)
-  log("splash drawn")
+
+  try:
+    os.unlink(SOCK_PATH)
+  except FileNotFoundError:
+    pass
+
+  server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+  server.bind(SOCK_PATH)
+  server.settimeout(0.1)
+  server.listen(1)
 
   clients = set()
   need_background = False
