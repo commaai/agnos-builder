@@ -13,4 +13,4 @@ ExecStartPre=/bin/bash -c "chgrp gpu /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /de
 ExecStart=/usr/local/venv/bin/python -u /usr/comma/magic.py
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=comma-early.target
