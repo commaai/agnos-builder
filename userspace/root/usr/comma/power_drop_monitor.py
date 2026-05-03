@@ -93,9 +93,6 @@ def perform_controlled_shutdown():
 
   update_param("SHUTDOWN", v_initial, i_initial, v_now, i_now)
 
-  # Kill services that draw a lot of power
-  printk("Killing services")
-  subprocess.call(["/usr/bin/systemctl", "kill", "--signal=9", "comma"])
   set_screen_power(False)
 
   printk("Halt")
