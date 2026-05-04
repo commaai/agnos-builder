@@ -9,7 +9,6 @@ function gpio {
 }
 
 pins=(
-30  # HUB_RST_N
 49  # SOM_ST_IO
 134 # ST_BOOT0
 41  # PANDA_1V8_EN_N
@@ -31,10 +30,6 @@ for p in ${pins[@]}; do
     sleep .05
   done
 done
-
-
-HUB_RST_N=30
-gpio $HUB_RST_N 1
 
 # *** sound init ***
 echo "waiting for sound card to come online"

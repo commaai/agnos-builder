@@ -5,7 +5,6 @@ function gpio {
   echo $2 > /sys/class/gpio/gpio$1/value
 }
 
-HUB_RST_N=30
 LTE_RST_N=50
 LTE_BOOT=52
 LTE_PWRKEY=116
