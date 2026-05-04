@@ -58,8 +58,6 @@ RUN /tmp/agnos/base_setup.sh
 # Install openpilot dependencies
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_dependencies.sh
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
 
 # ################### #
 # ###### AGNOS ###### #
