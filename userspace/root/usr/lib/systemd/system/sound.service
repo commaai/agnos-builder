@@ -1,5 +1,7 @@
 [Unit]
 Description=Sound
+Requires=init-qcom.service
+After=init-qcom.service
 
 [Service]
 Type=oneshot

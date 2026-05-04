@@ -1,7 +1,5 @@
 #!/bin/bash
 
-/usr/comma/sound/adsp-start.sh
-
 echo "waiting for sound card to come online"
 while [ ! -d /proc/asound/sdm845tavilsndc ] || [ "$(cat /proc/asound/card0/state 2> /dev/null)" != "ONLINE" ] ; do
   sleep 0.01
@@ -20,6 +18,3 @@ else
   /usr/comma/sound/tinymix set "MultiMedia1 Mixer TERT_MI2S_TX" 1
   /usr/comma/sound/tinymix set "TERT_MI2S_TX Channels" Two
 fi
-
-# setup the amplifier registers
-/usr/local/venv/bin/python /usr/comma/sound/amplifier.py
