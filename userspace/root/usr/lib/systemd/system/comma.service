@@ -1,5 +1,6 @@
 [Unit]
-After=local-fs.target
+After=comma-init.service local-fs.target
+Requires=comma-init.service
 
 [Service]
 Type=oneshot
