@@ -126,10 +126,8 @@ COPY ./userspace/power_burn_max.c /tmp/agnos/
 RUN gcc -O2 -o /usr/comma/power_burn_max /tmp/agnos/power_burn_max.c \
     -lOpenCL -lpthread -ldl
 
-
-
 COPY ./userspace/irsc_util.c /tmp/agnos/
-RUN gcc -O2 -Wall -Wextra -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
+RUN gcc -O2 -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
 
 # MOTD
 RUN rm -r /etc/update-motd.d/*
@@ -149,8 +147,7 @@ COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh
 
 # Setup RO rootfs
-RUN mkdir -p /rwtmp
-RUN mkdir -p /tmptmp
+RUN mkdir -p /rwtmp /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 
