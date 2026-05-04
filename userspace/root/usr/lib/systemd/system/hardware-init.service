@@ -1,6 +1,7 @@
 [Unit]
 Description=Hardware init
-Before=lte.service
+DefaultDependencies=no
+Before=network.target lte.service
 
 [Service]
 Type=oneshot
