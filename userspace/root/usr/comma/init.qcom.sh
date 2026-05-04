@@ -16,13 +16,12 @@ echo 2649600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
 echo -n "/firmware/image" > /sys/module/firmware_class/parameters/path
 count=0
 while [ ! -s /firmware/image/adsp.mdt ]; do
-  sleep 0.1
   # wait 10s for /firmware mounted
   count=$(( $count + 1 ))
   if [ $count -ge 100 ]; then
-    echo "[ERROR] Can not find the adsp's firmware"
-    exit 1
+    echo "[ERROR] /firmware not mounted"
   fi
+  sleep 0.1
 done
 
 # boot wifi
