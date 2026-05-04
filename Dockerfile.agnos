@@ -23,15 +23,15 @@ ENV PATH="/usr/lib/ccache:$PATH"
 
 # libqmi
 FROM agnos-compiler AS agnos-compiler-libqmi
-COPY ./userspace/compile-libqmi.sh /tmp/agnos/
+COPY ./userspace/compile-libqmi.sh /tmp/
 RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    /tmp/agnos/compile-libqmi.sh
+    /tmp/compile-libqmi.sh
 
 # ModemManager
 FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
+COPY ./userspace/compile-modemmanager.sh /tmp/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    /tmp/agnos/compile-modemmanager.sh
+    /tmp/compile-modemmanager.sh
 
 # ################## #
 # ###### Base ###### #
@@ -42,9 +42,6 @@ FROM scratch AS agnos-base
 ARG UBUNTU_BASE_IMAGE
 ADD ${UBUNTU_BASE_IMAGE} /
 
-# Build folder
-RUN mkdir -p /tmp/agnos
-
 # Stop on error
 RUN set -xe
 
@@ -52,12 +49,12 @@ ARG USERNAME=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/base_setup.sh /tmp/agnos
-RUN /tmp/agnos/base_setup.sh
+COPY ./userspace/base_setup.sh /tmp
+RUN /tmp/base_setup.sh
 
 # Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
+COPY ./userspace/openpilot_dependencies.sh /tmp/
+RUN /tmp/openpilot_dependencies.sh
 
 # ################### #
 # ###### AGNOS ###### #
@@ -95,14 +92,14 @@ RUN cd /tmp && \
 ARG XDG_DATA_HOME="/usr/local"
 
 # Install openpilot python packages
-COPY ./userspace/uv /tmp/agnos/uv
+COPY ./userspace/uv /tmp/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
-    cd /tmp/agnos/uv && \
+    cd /tmp/uv && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # Install nice to haves
-COPY ./userspace/install_extras.sh /tmp/agnos/
-RUN /tmp/agnos/install_extras.sh
+COPY ./userspace/install_extras.sh /tmp/
+RUN /tmp/install_extras.sh
 
 RUN chown -R $USERNAME: /home/$USERNAME/.config
 RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config
@@ -122,12 +119,12 @@ COPY ./output/linux-headers/include/ /usr/include/
 #COPY ./userspace/root/usr/lib/aarch64-linux-gnu/libOpenCL.so* /usr/lib/aarch64-linux-gnu/
 #COPY ./userspace/root/usr/lib/aarch64-linux-gnu/libcutils.so* /usr/lib/aarch64-linux-gnu/
 #COPY ./userspace/root/usr/lib/aarch64-linux-gnu/liblog.so* /usr/lib/aarch64-linux-gnu/
-COPY ./userspace/power_burn_max.c /tmp/agnos/
-RUN gcc -O2 -o /usr/comma/power_burn_max /tmp/agnos/power_burn_max.c \
+COPY ./userspace/power_burn_max.c /tmp/
+RUN gcc -O2 -o /usr/comma/power_burn_max /tmp/power_burn_max.c \
     -lOpenCL -lpthread -ldl
 
-COPY ./userspace/irsc_util.c /tmp/agnos/
-RUN gcc -O2 -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
+COPY ./userspace/irsc_util.c /tmp/
+RUN gcc -O2 -o /usr/bin/irsc_util /tmp/irsc_util.c
 
 # MOTD
 RUN rm -r /etc/update-motd.d/*
@@ -143,8 +140,8 @@ RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostn
 
 # keep this last
 RUN ldconfig
-COPY ./userspace/services.sh /tmp/agnos
-RUN /tmp/agnos/services.sh
+COPY ./userspace/services.sh /tmp
+RUN /tmp/services.sh
 
 # Setup RO rootfs
 RUN mkdir -p /rwtmp /tmptmp
