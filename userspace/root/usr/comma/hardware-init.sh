@@ -111,11 +111,25 @@ function init_debug {
   sudo -u comma /usr/comma/debug.py
 }
 
-init_qcom &
-init_gpio &
-init_sound &
-init_screen_calibration &
-init_hostname &
-init_debug &
+function run_init {
+  local name="$1"
+  local start_time end_time elapsed
+
+  echo "$name started"
+  start_time="$EPOCHREALTIME"
+
+  "$name"
+
+  end_time="$EPOCHREALTIME"
+  elapsed="$(awk "BEGIN { printf \"%.1f\", $end_time - $start_time }")"
+  echo "$name finished after ${elapsed}s"
+}
+
+run_init init_qcom &
+run_init init_gpio &
+run_init init_sound &
+run_init init_screen_calibration &
+run_init init_hostname &
+run_init init_debug &
 
 wait
