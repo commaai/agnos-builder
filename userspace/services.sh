@@ -8,7 +8,6 @@ systemctl enable agnos-debug.service
 systemctl enable hardware-init.service
 systemctl enable lte.service
 systemctl enable magic.service
-systemctl enable init-qcom.service
 systemctl enable varwatch.service
 systemctl enable power_monitor.service
 systemctl enable power_drop_monitor.service

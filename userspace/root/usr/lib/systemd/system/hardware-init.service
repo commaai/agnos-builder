@@ -1,6 +1,5 @@
 [Unit]
 Description=Hardware init
-After=init-qcom.service
 Before=lte.service
 
 [Service]
