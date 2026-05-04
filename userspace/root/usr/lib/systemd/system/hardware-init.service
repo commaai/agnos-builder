@@ -1,11 +1,11 @@
 [Unit]
-Description=Sound
-Requires=init-qcom.service
+Description=Hardware init
 After=init-qcom.service
+Before=lte.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/comma/sound/sound_init.sh
+ExecStart=/usr/comma/hardware-init.sh
 
 [Install]
 WantedBy=multi-user.target
