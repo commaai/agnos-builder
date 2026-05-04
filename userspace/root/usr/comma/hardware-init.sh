@@ -115,14 +115,21 @@ function run_init {
   local name="$1"
   local start_time end_time elapsed
 
-  echo "$name started"
+  log_init "$name started"
   start_time="$EPOCHREALTIME"
 
   "$name"
 
   end_time="$EPOCHREALTIME"
   elapsed="$(awk "BEGIN { printf \"%.1f\", $end_time - $start_time }")"
-  echo "$name finished after ${elapsed}s"
+  log_init "$name finished after ${elapsed}s"
+}
+
+function log_init {
+  local msg="hardware-init: $*"
+
+  echo "$msg"
+  echo "$msg" > /dev/console
 }
 
 run_init init_qcom &
