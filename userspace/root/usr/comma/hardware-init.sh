@@ -1,20 +1,20 @@
 #!/bin/bash
 
-pins=(
-49  # SOM_ST_IO
-134 # ST_BOOT0
-41  # PANDA_1V8_EN_N
-50  # LTE_RST_N
-116 # LTE_PWRKEY
-124 # ST_RST_N
-34  # GPS_PWR_EN
-33  # GPS_SAFEBOOT_N
-32  # GPS_RST_N
-52  # LTE_BOOT
-1264  # POWER ALERT
-)
-
 function init_gpio {
+  local pins=(
+    49  # SOM_ST_IO
+    134 # ST_BOOT0
+    41  # PANDA_1V8_EN_N
+    50  # LTE_RST_N
+    116 # LTE_PWRKEY
+    124 # ST_RST_N
+    34  # GPS_PWR_EN
+    33  # GPS_SAFEBOOT_N
+    32  # GPS_RST_N
+    52  # LTE_BOOT
+    1264  # POWER ALERT
+  )
+
   echo "initializing gpio"
 
   for p in ${pins[@]}; do
