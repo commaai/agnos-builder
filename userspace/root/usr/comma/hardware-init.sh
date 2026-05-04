@@ -129,7 +129,7 @@ function log_init {
   local msg="hardware-init: $*"
 
   echo "$msg"
-  printf "<4>%s\n" "$msg" > /dev/kmsg
+  echo "$msg" > /dev/console
 }
 
 run_init init_qcom &
