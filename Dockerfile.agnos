@@ -6,7 +6,7 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
-# Common packages
+ENV PATH="/usr/lib/ccache:$PATH"
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     build-essential \
     ca-certificates \
@@ -17,9 +17,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     git \
     pkg-config \
     wget
-
-# Enable ccache
-ENV PATH="/usr/lib/ccache:$PATH"
 
 # libqmi
 FROM agnos-compiler AS agnos-compiler-libqmi
@@ -61,13 +58,12 @@ RUN /tmp/openpilot_dependencies.sh
 # ################### #
 FROM agnos-base
 
-# Hardware rootfs overlay
+# base rootfs overlay
 COPY ./userspace/root/ /
 RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
-
 RUN cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
@@ -110,15 +106,6 @@ RUN rm -f /etc/fstab
 # Install kernel headers
 COPY ./output/linux-headers/include/ /usr/include/
 
-#COPY --from=agnos-compiler-power-burn /tmp/power_burn_max /home/$USERNAME/power_burn_max
-#RUN chown $USERNAME: /home/$USERNAME/power_burn_max
-# power_burn_max
-#FROM agnos-compiler AS agnos-compiler-power-burn
-#RUN apt-get update && apt-get install -yq --no-install-recommends \
-#    opencl-c-headers
-#COPY ./userspace/root/usr/lib/aarch64-linux-gnu/libOpenCL.so* /usr/lib/aarch64-linux-gnu/
-#COPY ./userspace/root/usr/lib/aarch64-linux-gnu/libcutils.so* /usr/lib/aarch64-linux-gnu/
-#COPY ./userspace/root/usr/lib/aarch64-linux-gnu/liblog.so* /usr/lib/aarch64-linux-gnu/
 COPY ./userspace/power_burn_max.c /tmp/
 RUN gcc -O2 -o /usr/comma/power_burn_max /tmp/power_burn_max.c \
     -lOpenCL -lpthread -ldl
