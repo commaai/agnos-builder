@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# boot audio DSP
 /usr/comma/sound/adsp-start.sh
 
 echo "waiting for sound card to come online"
