@@ -25,7 +25,7 @@ while [ ! -s /firmware/image/adsp.mdt ]; do
 done
 
 # boot wifi
-echo 1 | sudo tee /sys/kernel/boot_wlan/boot_wlan
+echo 1 > /sys/kernel/boot_wlan/boot_wlan
 /usr/bin/irsc_util /etc/sec_config
 
 # boot audio + compute DSPs
