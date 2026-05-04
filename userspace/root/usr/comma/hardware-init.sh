@@ -92,9 +92,15 @@ function init_screen_calibration {
   /usr/comma/screen_calibration.py
 }
 
+
 init_qcom &
 init_gpio &
 init_sound &
 init_screen_calibration &
+
+# set hostname
+SERIAL="$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')"
+echo "serial: '$SERIAL'"
+sysctl kernel.hostname="comma-$SERIAL"
 
 wait
