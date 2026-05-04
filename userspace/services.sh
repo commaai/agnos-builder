@@ -2,13 +2,10 @@
 
 # Enable our services
 systemctl enable fs_setup.service
-systemctl enable serial-hostname.service
 systemctl enable comma.service
-systemctl enable agnos-debug.service
 systemctl enable hardware-init.service
 systemctl enable lte.service
 systemctl enable magic.service
-systemctl enable init-qcom.service
 systemctl enable varwatch.service
 systemctl enable power_monitor.service
 systemctl enable power_drop_monitor.service

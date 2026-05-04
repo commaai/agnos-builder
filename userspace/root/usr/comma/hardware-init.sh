@@ -1,5 +1,41 @@
 #!/bin/bash
 
+function init_qcom {
+  # don't restart whole SoC on subsystem crash
+  for i in {0..7}; do
+    echo "related" | sudo tee /sys/bus/msm_subsys/devices/subsys${i}/restart_level
+  done
+
+  # raise scaling_max so policy=performance can reach the BOOST top step
+  echo 2649600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+  echo 2649600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+
+  # setup firmware
+  echo -n "/firmware/image" > /sys/module/firmware_class/parameters/path
+  count=0
+  while [ ! -s /firmware/image/adsp.mdt ]; do
+    # wait 10s for /firmware mounted
+    count=$(( $count + 1 ))
+    if [ $count -ge 100 ]; then
+      echo "[ERROR] /firmware not mounted"
+    fi
+    sleep 0.1
+  done
+
+  # boot wifi
+  echo 1 > /sys/kernel/boot_wlan/boot_wlan
+  /usr/bin/irsc_util /etc/sec_config
+
+  # boot audio + compute DSPs
+  echo 1 > /sys/kernel/boot_adsp/boot
+  echo 1 > /sys/kernel/boot_cdsp/boot
+
+  # ipa
+  echo 1 > /dev/ipa
+
+  echo "qcom init done"
+}
+
 function init_gpio {
   local pins=(
     49  # SOM_ST_IO
@@ -56,8 +92,51 @@ function init_screen_calibration {
   /usr/comma/screen_calibration.py
 }
 
-init_gpio &
-init_sound &
-init_screen_calibration &
+function init_hostname {
+  local serial
+  while [ ! -r /proc/cmdline ]; do
+    sleep 0.1
+  done
+
+  serial="$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')"
+  echo "serial: '$serial'"
+  sysctl kernel.hostname="comma-$serial"
+}
+
+function init_debug {
+  while ! mountpoint -q /cache; do
+    sleep 0.1
+  done
+
+  sudo -u comma /usr/comma/debug.py
+}
+
+function run_init {
+  local name="$1"
+  local start_time end_time elapsed
+
+  log_init "$name started"
+  start_time="$EPOCHREALTIME"
+
+  "$name"
+
+  end_time="$EPOCHREALTIME"
+  elapsed="$(awk "BEGIN { printf \"%.1f\", $end_time - $start_time }")"
+  log_init "$name finished after ${elapsed}s"
+}
+
+function log_init {
+  local msg="hardware-init: $*"
+
+  echo "$msg"
+  echo "$msg" > /dev/console
+}
+
+run_init init_qcom &
+run_init init_gpio &
+run_init init_sound &
+run_init init_screen_calibration &
+run_init init_hostname &
+run_init init_debug &
 
 wait
