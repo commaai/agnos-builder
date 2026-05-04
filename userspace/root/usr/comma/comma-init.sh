@@ -221,7 +221,7 @@ function init_debug {
   sudo -u comma /usr/comma/debug.py
 }
 
-run_init setup_filesystems || exit 1
+run_init setup_filesystems
 
 run_init init_qcom &
 run_init init_gpio &
