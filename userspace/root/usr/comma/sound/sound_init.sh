@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# boot audio DSP
-/usr/comma/sound/adsp-start.sh
-
 echo "waiting for sound card to come online"
 while [ ! -d /proc/asound/sdm845tavilsndc ] || [ "$(cat /proc/asound/card0/state 2> /dev/null)" != "ONLINE" ] ; do
   sleep 0.01
