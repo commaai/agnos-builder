@@ -3,7 +3,6 @@
 # Enable our services
 systemctl enable fs_setup.service
 systemctl enable comma.service
-systemctl enable agnos-debug.service
 systemctl enable hardware-init.service
 systemctl enable lte.service
 systemctl enable magic.service

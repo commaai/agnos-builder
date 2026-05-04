@@ -92,15 +92,26 @@ function init_screen_calibration {
   /usr/comma/screen_calibration.py
 }
 
+function init_hostname {
+  local serial
+  serial="$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')"
+  echo "serial: '$serial'"
+  sysctl kernel.hostname="comma-$serial"
+}
+
+function init_debug {
+  while ! mountpoint -q /cache; do
+    sleep 0.1
+  done
+
+  sudo -u comma /usr/comma/debug.py
+}
 
 init_qcom &
 init_gpio &
 init_sound &
 init_screen_calibration &
-
-# set hostname
-SERIAL="$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')"
-echo "serial: '$SERIAL'"
-sysctl kernel.hostname="comma-$SERIAL"
+init_hostname &
+init_debug &
 
 wait
