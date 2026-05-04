@@ -5,9 +5,8 @@ systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
 systemctl enable comma.service
 systemctl enable agnos-debug.service
-systemctl enable gpio.service
+systemctl enable hardware-init.service
 systemctl enable lte.service
-systemctl enable sound.service
 systemctl enable magic.service
 systemctl enable init-qcom.service
 systemctl enable varwatch.service
@@ -21,7 +20,6 @@ systemctl enable adb-param-watcher.service
 systemctl enable logrotate-hourly.timer
 systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
-systemctl enable screen_calibration.service
 systemctl enable tftp_server.service
 
 # Disable SSH by default
