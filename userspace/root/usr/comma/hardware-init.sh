@@ -94,6 +94,10 @@ function init_screen_calibration {
 
 function init_hostname {
   local serial
+  while [ ! -r /proc/cmdline ]; do
+    sleep 0.1
+  done
+
   serial="$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')"
   echo "serial: '$serial'"
   sysctl kernel.hostname="comma-$serial"
