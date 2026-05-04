@@ -142,9 +142,6 @@ COPY --chown=root:root ./userspace/root/etc/update-motd.d/* /etc/update-motd.d/
 
 RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
 
-# Prefer ipv4 over ipv6
-RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
-
 # Run ModemManager in debug mode to allow AT commands
 COPY ./userspace/files/ModemManager.service /lib/systemd/system/
 RUN systemctl enable ModemManager

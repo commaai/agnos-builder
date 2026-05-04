@@ -23,9 +23,13 @@ systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
 systemctl enable screen_calibration.service
 systemctl enable tftp_server.service
+systemctl enable serial-getty@ttyS0.service  # serial console on UART
 
 # Disable SSH by default
 systemctl disable ssh
+
+# Disable pstore service that moves files out of /sys/fs/pstore
+systemctl disable systemd-pstore.service
 
 # Disable all useless systemctl services
 systemctl disable hostapd.service

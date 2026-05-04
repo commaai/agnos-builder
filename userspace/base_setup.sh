@@ -83,12 +83,12 @@ apt-fast install --no-install-recommends -yq \
     wpasupplicant \
     zlib1g-dev
 
-# Enable serial console on UART
-systemctl enable serial-getty@ttyS0.service
-
 # set kernel params
 echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf
 echo "vm.dirty_expire_centisecs = 200" >> /etc/sysctl.conf
+
+# Prefer ipv4 over ipv6
+RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
 # raise comma user's process priority limits
 echo "comma - rtprio 100" >> /etc/security/limits.conf
@@ -97,12 +97,6 @@ echo "comma - nice -10" >> /etc/security/limits.conf
 # Locale setup
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8
-
-# Disable pstore service that moves files out of /sys/fs/pstore
-systemctl disable systemd-pstore.service
-
-# Nopasswd sudo
-echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # setup /bin/sh symlink
 ln -sf /bin/bash /bin/sh
@@ -122,6 +116,9 @@ adduser $USERNAME disk
 adduser $USERNAME netdev
 adduser $USERNAME dialout
 adduser $USERNAME systemd-journal
+
+# Nopasswd sudo
+echo "comma ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Create dirs
 mkdir /data && chown $USERNAME:$USERNAME /data
