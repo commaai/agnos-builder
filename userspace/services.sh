@@ -24,6 +24,7 @@ systemctl enable avahi-ssh-publish.service
 systemctl enable screen_calibration.service
 systemctl enable tftp_server.service
 systemctl enable serial-getty@ttyS0.service  # serial console on UART
+systemctl enable ModemManager
 
 # Disable SSH by default
 systemctl disable ssh
