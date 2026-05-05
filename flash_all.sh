@@ -14,3 +14,5 @@ done
 tools/qdl flash boot $DIR/output/boot.img
 tools/qdl flash system $DIR/output/system.img
 tools/qdl reset
+
+scripts/mdma.py reboot --missing-ok

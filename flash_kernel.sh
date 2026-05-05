@@ -6,3 +6,5 @@ cd $DIR
 
 scripts/mdma.py reboot-qdl --missing-ok
 tools/qdl flash boot $DIR/output/boot.img
+tools/qdl reset
+scripts/mdma.py reboot --missing-ok
