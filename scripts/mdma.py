@@ -51,6 +51,21 @@ class Mdma:
       raise SystemExit(f"could not find hub {vid:04x}:{pid:04x}")
     return hub
 
+  def available(self):
+    hfc = False
+    hub = False
+    try:
+      devices = usb.core.find(find_all=True)
+      for dev in devices or []:
+        hfc |= dev.idVendor == Pins.HFC_VID and dev.idProduct == Pins.HFC_PID
+        hub |= dev.idVendor == Pins.USB7002_VID and dev.idProduct == Pins.USB7002_PID
+        hub |= dev.idVendor == Pins.USB4002_VID and dev.idProduct == Pins.USB4002_PID
+        if hfc and hub:
+          return True
+    except usb.core.NoBackendError:
+      pass
+    return False
+
   def reg(self, addr, value=None, size=4):
     dev = usb.core.find(idVendor=Pins.HFC_VID, idProduct=Pins.HFC_PID)
     if value is None:
@@ -157,12 +172,18 @@ if __name__ == "__main__":
   }
 
   parser = argparse.ArgumentParser()
+  parser.set_defaults(missing_ok=False)
+  parser.add_argument("--missing-ok", action="store_true", help="continue successfully when no MDMA is connected")
   subparsers = parser.add_subparsers(dest="command", required=True)
   for cmd, (_, hlp) in cmds.items():
-    subparsers.add_parser(cmd, help=hlp)
+    subparser = subparsers.add_parser(cmd, help=hlp)
   if len(sys.argv) == 1:
     parser.print_help()
     raise SystemExit(0)
   args = parser.parse_args()
+
+  if not Mdma().available():
+    print("MDMA not found.")
+    raise SystemExit(0 if args.missing_ok else 1)
 
   cmds[args.command][0]()
