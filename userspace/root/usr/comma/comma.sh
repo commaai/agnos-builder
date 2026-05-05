@@ -9,7 +9,7 @@ INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
 # blip power to ~10W to see if the PSU is stable
-sudo timeout --kill-after=2 5 /home/comma/power_burn_max
+sudo chrt -i 0 timeout --kill-after=1 1 /home/comma/power_burn_max 0.5 8 &
 
 # use max freq to boot up quickly, then limit
 echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
