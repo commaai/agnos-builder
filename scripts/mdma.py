@@ -52,19 +52,7 @@ class Mdma:
     return hub
 
   def available(self):
-    hfc = False
-    hub = False
-    try:
-      devices = usb.core.find(find_all=True)
-      for dev in devices or []:
-        hfc |= dev.idVendor == Pins.HFC_VID and dev.idProduct == Pins.HFC_PID
-        hub |= dev.idVendor == Pins.USB7002_VID and dev.idProduct == Pins.USB7002_PID
-        hub |= dev.idVendor == Pins.USB4002_VID and dev.idProduct == Pins.USB4002_PID
-        if hfc and hub:
-          return True
-    except usb.core.NoBackendError:
-      pass
-    return False
+    return os.path.exists(SERIAL_DEV)
 
   def reg(self, addr, value=None, size=4):
     dev = usb.core.find(idVendor=Pins.HFC_VID, idProduct=Pins.HFC_PID)
@@ -172,7 +160,6 @@ if __name__ == "__main__":
   }
 
   parser = argparse.ArgumentParser()
-  parser.set_defaults(missing_ok=False)
   parser.add_argument("--missing-ok", action="store_true", help="continue successfully when no MDMA is connected")
   subparsers = parser.add_subparsers(dest="command", required=True)
   for cmd, (_, hlp) in cmds.items():
