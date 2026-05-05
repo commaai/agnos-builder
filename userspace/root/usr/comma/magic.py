@@ -1,55 +1,13 @@
 #!/usr/bin/env python3
-import os, socket, struct, subprocess, threading, time
+import os, socket, threading, time
 from array import array
 
 import pyray as rl
-
-UPDATER_PATH = "/usr/comma/updater"
-WESTON_RUNTIME_DIR = "/var/tmp/weston"
-WESTON_SOCK_PATH = os.path.join(WESTON_RUNTIME_DIR, "wayland-0")
 
 SOCK_PATH = "/tmp/drmfd.sock"
 DRM_DEVICE = "/dev/dri/card0"
 BACKLIGHT_POWER = "/sys/class/backlight/panel0-backlight/bl_power"
 BACKGROUND = "/usr/comma/bg.jpg"
-
-# This is needed to keep the old updater working. Updater used to be stored in
-# openpilot directly instead of in AGNOS. This will intercept the old updater
-# trying to use a Weston socket and start our own.
-def updater_weston():
-  os.makedirs(WESTON_RUNTIME_DIR, exist_ok=True)
-  os.chmod(WESTON_RUNTIME_DIR, 0o700)
-
-  try:
-    os.unlink(WESTON_SOCK_PATH)
-  except FileNotFoundError:
-    pass
-
-  server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-  server.bind(WESTON_SOCK_PATH)
-  server.listen(1)
-
-  while True:
-    try:
-      client, _ = server.accept()
-      creds = client.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
-      pid, _, _ = struct.unpack("3i", creds)
-      with open(f"/proc/{pid}/comm", "r") as f:
-        comm = f.read().strip()
-        if comm == "updater":
-          with open(f"/proc/{pid}/cmdline", "rb") as f:
-            updater, manifest = [p.decode("utf-8") for p in f.read().split(b"\0") if p != b""][1:]
-            env = os.environ.copy()
-            env.pop("DRM_FD", None)
-            subprocess.run([UPDATER_PATH, updater, manifest], env=env)
-    except Exception:
-      pass
-    finally:
-      try:
-        client.shutdown(socket.SHUT_RDWR)
-        client.close()
-      except Exception:
-        pass
 
 def power_screen():
   try:
@@ -83,8 +41,6 @@ def handle_client(client, drm_master):
       pass
 
 def main():
-  threading.Thread(target=updater_weston, daemon=True).start()
-
   while True:
     try:
       drm_master = os.open(DRM_DEVICE, os.O_RDWR | os.O_CLOEXEC)
