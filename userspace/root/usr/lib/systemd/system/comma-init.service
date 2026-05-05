@@ -5,6 +5,7 @@ Before=local-fs.target sysinit.target network.target comma.service magic.service
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 ExecStart=/usr/comma/comma-init.sh
 
 [Install]
