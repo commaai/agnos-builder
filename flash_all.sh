@@ -4,7 +4,7 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd $DIR
 
-scripts/mdma.py reboot-qdl --missing-ok
+scripts/mdma.py --missing-ok reboot-qdl
 
 for part in aop abl xbl xbl_config devcfg; do
   tools/qdl flash ${part}_a $DIR/firmware/$part.img
@@ -15,4 +15,4 @@ tools/qdl flash boot $DIR/output/boot.img
 tools/qdl flash system $DIR/output/system.img
 tools/qdl reset
 
-scripts/mdma.py reboot --missing-ok
+scripts/mdma.py --missing-ok reboot
