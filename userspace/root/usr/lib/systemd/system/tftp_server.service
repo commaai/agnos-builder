@@ -1,6 +1,6 @@
 [Unit]
 Description=Qualcomm TFTP server
-After=fs_setup.service
+After=comma-init.service
 
 [Service]
 Type=simple

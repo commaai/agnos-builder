@@ -1,9 +1,8 @@
 #!/bin/bash -e
 
 # Enable our services
-systemctl enable fs_setup.service
+systemctl enable comma-init.service
 systemctl enable comma.service
-systemctl enable hardware-init.service
 systemctl enable lte.service
 systemctl enable magic.service
 systemctl enable varwatch.service

@@ -1,5 +1,7 @@
 [Unit]
 Description=Magic
+After=comma-init.service
+Requires=comma-init.service
 
 [Service]
 Type=simple

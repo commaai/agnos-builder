@@ -1,6 +1,6 @@
 [Unit]
 Description=LTE
-After=hardware-init.service network.target
+After=comma-init.service network.target
 
 [Service]
 Restart=no

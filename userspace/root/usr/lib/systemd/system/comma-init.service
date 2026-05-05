@@ -1,0 +1,12 @@
+[Unit]
+Description=comma init
+DefaultDependencies=no
+Before=local-fs.target sysinit.target network.target comma.service magic.service lte.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/comma/comma-init.sh
+
+[Install]
+WantedBy=sysinit.target
