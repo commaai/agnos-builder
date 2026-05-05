@@ -163,7 +163,7 @@ if __name__ == "__main__":
   parser.add_argument("--missing-ok", action="store_true", help="continue successfully when no MDMA is connected")
   subparsers = parser.add_subparsers(dest="command", required=True)
   for cmd, (_, hlp) in cmds.items():
-    subparser = subparsers.add_parser(cmd, help=hlp)
+    subparsers.add_parser(cmd, help=hlp)
   if len(sys.argv) == 1:
     parser.print_help()
     raise SystemExit(0)
