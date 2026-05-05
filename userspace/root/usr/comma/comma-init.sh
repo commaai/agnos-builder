@@ -5,7 +5,8 @@
 
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 
-function log_init {
+function log_console {
+  # log to the serial console to make boot time debugging ez pz
   local msg="comma-init: $*"
 
   echo "$msg"
@@ -16,7 +17,7 @@ function run_init {
   local name="$1"
   local start_time end_time elapsed_us elapsed_tenths elapsed ret
 
-  log_init "$name started"
+  log_console "$name started"
   start_time="${EPOCHREALTIME/./}"
 
   "$name"
@@ -26,57 +27,57 @@ function run_init {
   elapsed_us=$((end_time - start_time))
   elapsed_tenths=$(((elapsed_us + 50000) / 100000))
   printf -v elapsed "%d.%d" "$((elapsed_tenths / 10))" "$((elapsed_tenths % 10))"
-  log_init "$name finished after ${elapsed}s"
+  log_console "$name finished after ${elapsed}s"
 
   return $ret
 }
 
-function wait_for_block {
-  local device="$1"
-  local i
-
-  for ((i = 0; i < 150; i++)); do
-    if [[ -b "$device" ]]; then
-      return 0
-    fi
-    sleep 0.02
-  done
-
-  log_init "timed out waiting for $device"
-  return 1
-}
-
-function mount_fs {
-  local what="$1"
-  local where="$2"
-  local type="$3"
-  local options="$4"
-
-  if mountpoint -q "$where"; then
-    log_init "$where already mounted"
-    return 0
-  fi
-
-  if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
-    failed=1
-    return 1
-  fi
-
-  log_init "mounting $where"
-  if mount --mkdir -t "$type" -o "$options" "$what" "$where"; then
-    log_init "mounted $where"
-    return 0
-  fi
-
-  log_init "failed mounting $where"
-  failed=1
-  return 1
-}
-
-function setup_filesystems {
+function init_filesystems {
   local failed=0
   local pids=()
   local pid
+
+  function wait_for_block {
+    local device="$1"
+    local i
+
+    for ((i = 0; i < 150; i++)); do
+      if [[ -b "$device" ]]; then
+        return 0
+      fi
+      sleep 0.02
+    done
+
+    log_console "timed out waiting for $device"
+    return 1
+  }
+
+  function mount_fs {
+    local what="$1"
+    local where="$2"
+    local type="$3"
+    local options="$4"
+
+    if mountpoint -q "$where"; then
+      log_console "$where already mounted"
+      return 0
+    fi
+
+    if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
+      failed=1
+      return 1
+    fi
+
+    log_console "mounting $where"
+    if mount --mkdir -t "$type" -o "$options" "$what" "$where"; then
+      log_console "mounted $where"
+      return 0
+    fi
+
+    log_console "failed mounting $where"
+    failed=1
+    return 1
+  }
 
   function mount_fs_bg {
     mount_fs "$@" &
@@ -97,7 +98,7 @@ function setup_filesystems {
     wait "$pid" || failed=1
   done
 
-  unset -f mount_fs_bg
+  unset -f mount_fs_bg mount_fs wait_for_block
 
   systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 
@@ -105,7 +106,7 @@ function setup_filesystems {
   chown root:syslog /var/log
   if ! mountpoint -q /var/log; then
     if ! mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log; then
-      log_init "failed mounting /var/log"
+      log_console "failed mounting /var/log"
       failed=1
     fi
   fi
@@ -115,7 +116,7 @@ function setup_filesystems {
   chmod 755 /rwtmp/*
   if ! mountpoint -q /home; then
     if ! mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home; then
-      log_init "failed mounting /home"
+      log_console "failed mounting /home"
       failed=1
     fi
   fi
@@ -139,7 +140,7 @@ function setup_filesystems {
   fi
 
   if [[ "$failed" -ne 0 ]]; then
-    log_init "mounts failed"
+    log_console "mounts failed"
     return 1
   fi
 }
@@ -176,8 +177,6 @@ function init_qcom {
 
   # ipa
   echo 1 > /dev/ipa
-
-  echo "qcom init done"
 }
 
 function init_gpio {
@@ -198,8 +197,6 @@ function init_gpio {
   echo "initializing gpio"
 
   for p in ${pins[@]}; do
-    echo $p
-
     if [[ ! -d /sys/class/gpio/gpio$p ]]; then
       echo $p > /sys/class/gpio/export
     fi
@@ -264,7 +261,7 @@ function init_debug {
   sudo -u comma /usr/comma/debug.py
 }
 
-run_init setup_filesystems &
+run_init init_filesystems &
 run_init init_qcom &
 run_init init_gpio &
 run_init init_sound &
@@ -273,3 +270,5 @@ run_init init_hostname &
 run_init init_debug &
 
 wait
+
+log_console "********** init done **********"
