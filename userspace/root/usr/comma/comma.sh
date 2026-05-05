@@ -29,9 +29,6 @@ else
   echo "timed out waiting for magic, ${SECONDS}s"
 fi
 
-sudo chown comma: /data
-sudo chown comma: /data/media
-
 handle_setup_keys () {
   # install default SSH key while still in setup
   if [[ ! -e /data/params/d/GithubSshKeys && ! -e /data/continue.sh ]]; then

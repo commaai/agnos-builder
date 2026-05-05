@@ -58,17 +58,11 @@ function init_filesystems {
     local type="$3"
     local options="$4"
 
-    if mountpoint -q "$where"; then
-      log_console "$where already mounted"
-      return 0
-    fi
-
     if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
       failed=1
       return 1
     fi
 
-    log_console "mounting $where"
     if mount --mkdir -t "$type" -o "$options" "$what" "$where"; then
       log_console "mounted $where"
       return 0
@@ -84,6 +78,7 @@ function init_filesystems {
     pids+=("$!")
   }
 
+  # mount base filesystems
   mount_fs_bg /dev/sde9 /dsp ext4 ro
   mount_fs_bg /dev/sde4 /firmware vfat ro
   mount_fs_bg /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec
@@ -93,34 +88,31 @@ function init_filesystems {
   mount_fs_bg tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755
   mount_fs_bg tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777
   mount_fs_bg tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777
-
   for pid in "${pids[@]}"; do
     wait "$pid" || failed=1
   done
 
-  unset -f mount_fs_bg mount_fs wait_for_block
+  # *** setup RW areas ***
 
   systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 
   mkdir -p /var/log/
   chown root:syslog /var/log
-  if ! mountpoint -q /var/log; then
-    if ! mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log; then
-      log_console "failed mounting /var/log"
-      failed=1
-    fi
+  if ! mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log; then
+    log_console "failed mounting /var/log"
+    failed=1
   fi
 
   mkdir -p /rwtmp/home_work
   mkdir -p /rwtmp/home_upper
   chmod 755 /rwtmp/*
-  if ! mountpoint -q /home; then
-    if ! mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home; then
-      log_console "failed mounting /home"
-      failed=1
-    fi
+  if ! mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home; then
+    log_console "failed mounting /home"
+    failed=1
   fi
 
+
+  chown comma:comma /data/
   mkdir -p /data/etc
   touch /data/etc/timezone
   touch /data/etc/localtime
