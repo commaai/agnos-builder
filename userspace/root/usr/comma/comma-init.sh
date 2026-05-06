@@ -27,14 +27,12 @@ function run_init {
   elapsed_us=$((end_time - start_time))
   elapsed_tenths=$(((elapsed_us + 50000) / 100000))
   printf -v elapsed "%d.%d" "$((elapsed_tenths / 10))" "$((elapsed_tenths % 10))"
-  log_console "$name finished after ${elapsed}s"
-
+  log_console "$name finished after ${elapsed}s with ${ret}"
   return $ret
 }
 
-function init_permissions {
-  local path
-  local video_paths=(
+function init_permissions (
+  video_paths=(
     /sys/class/backlight/panel0-backlight/brightness
     /sys/class/backlight/panel0-backlight/bl_power
     /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent
@@ -50,27 +48,25 @@ function init_permissions {
     chmod g+w "$path"
   done
 
+  # gpu group
   for path in /dev/kgsl-3d0 /dev/ion /dev/dri/card* /dev/dri/controlD* /dev/dri/renderD*; do
     [[ -c "$path" ]] || continue
     chgrp gpu "$path"
     chmod 0660 "$path"
   done
 
+  # setup gpio group
   for path in /dev/i2c-* /dev/gpiochip0; do
     [[ -c "$path" ]] || continue
     chgrp gpio "$path"
     chmod 0660 "$path"
   done
+  find -L /sys/class/gpio/ -maxdepth 2 -exec chown root:gpio {} + -exec chmod 770 {} +
+)
 
-  [[ -d /sys/class/gpio ]] && find -L /sys/class/gpio/ -maxdepth 2 \
-    -exec chown root:gpio {} + \
-    -exec chmod 770 {} +
-}
-
-function init_filesystems {
-  local failed=0
-  local pids=()
-  local pid
+function init_filesystems (
+  failed=0
+  pids=()
 
   function wait_for_block {
     local device="$1"
@@ -146,21 +142,16 @@ function init_filesystems {
     failed=1
   fi
 
-  mkdir -p /rwtmp/home_work
-  mkdir -p /rwtmp/home_upper
+  mkdir -p /rwtmp/home_work /rwtmp/home_upper
   chmod 755 /rwtmp/*
   if ! mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home; then
     log_console "failed mounting /home"
     failed=1
   fi
 
-
   chown comma:comma /data/
-  mkdir -p /data/etc
-  touch /data/etc/timezone
-  touch /data/etc/localtime
-  mkdir -p /data/etc/netplan
-  mkdir -p /data/etc/NetworkManager/system-connections
+  mkdir -p /data/etc /data/etc/netplan /data/etc/NetworkManager/system-connections
+  touch /data/etc/timezone /data/etc/localtime
 
   chown -R comma:comma /cache/
 
@@ -171,32 +162,33 @@ function init_filesystems {
   mkdir -p /data/tmp/
 
   if [[ ! -d /data/persist ]]; then
-    sudo cp -r /system/persist /data
+    cp -r /system/persist /data
   fi
 
-  if [[ "$failed" -ne 0 ]]; then
+  if ((failed != 0)); then
     log_console "mounts failed"
     return 1
   fi
-}
+)
 
-function init_qcom {
-  # don't restart whole SoC on subsystem crash
-  for i in {0..7}; do
-    echo "related" > /sys/bus/msm_subsys/devices/subsys${i}/restart_level
-  done
+function init_qcom (
+  count=0
 
   # raise scaling_max so policy=performance can reach the BOOST top step
   echo 2649600 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
   echo 2649600 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
 
+  # don't restart whole SoC on subsystem crash
+  for i in {0..7}; do
+    echo "related" > /sys/bus/msm_subsys/devices/subsys${i}/restart_level
+  done
+
   # setup firmware
-  echo -n "/firmware/image" > /sys/module/firmware_class/parameters/path
-  count=0
-  while [ ! -s /firmware/image/adsp.mdt ]; do
+  printf "%s" "/firmware/image" > /sys/module/firmware_class/parameters/path
+  while [[ ! -s /firmware/image/adsp.mdt ]]; do
     # wait 10s for /firmware mounted
-    count=$(( $count + 1 ))
-    if [ $count -ge 1000 ]; then
+    ((count += 1))
+    if ((count >= 1000)); then
       echo "[ERROR] /firmware not mounted"
     fi
     sleep 0.01
@@ -212,10 +204,10 @@ function init_qcom {
 
   # ipa
   echo 1 > /dev/ipa
-}
+)
 
-function init_gpio {
-  local pins=(
+function init_gpio (
+  pins=(
     49  # SOM_ST_IO
     134 # ST_BOOT0
     41  # PANDA_1V8_EN_N
@@ -229,23 +221,14 @@ function init_gpio {
     1264  # POWER ALERT
   )
 
-  echo "initializing gpio"
-
-  for p in ${pins[@]}; do
-    if [[ ! -d /sys/class/gpio/gpio$p ]]; then
-      echo $p > /sys/class/gpio/export
-    fi
-    until [ -d /sys/class/gpio/gpio$p ]; do
-      sleep .05
-    done
+  for p in "${pins[@]}"; do
+    echo "$p" > /sys/class/gpio/export
   done
 
   init_permissions
-}
+)
 
-function init_sound {
-  local state
-
+function init_sound (
   echo "waiting for sound card to come online"
   while true; do
     if [[ -d /proc/asound/sdm845tavilsndc && -r /proc/asound/card0/state ]]; then
@@ -267,19 +250,17 @@ function init_sound {
     /usr/comma/sound/tinymix set "MultiMedia1 Mixer TERT_MI2S_TX" 1
     /usr/comma/sound/tinymix set "TERT_MI2S_TX Channels" Two
   fi
-}
+)
 
-function init_screen_calibration {
+function init_screen_calibration (
   while ! mountpoint -q /persist; do
     sleep 0.01
   done
-
   /usr/comma/screen_calibration.py
-}
+)
 
-function init_hostname {
-  local serial
-  while [ ! -r /proc/cmdline ]; do
+function init_hostname (
+  while [[ ! -r /proc/cmdline ]]; do
     sleep 0.01
   done
 
@@ -288,15 +269,15 @@ function init_hostname {
   serial="${serial%% *}"
   echo "serial: '$serial'"
   sysctl kernel.hostname="comma-$serial"
-}
+)
 
-function init_debug {
+function init_debug (
   while ! mountpoint -q /cache; do
     sleep 0.01
   done
 
   sudo -u comma /usr/comma/debug.py
-}
+)
 
 run_init init_permissions &
 run_init init_filesystems &
