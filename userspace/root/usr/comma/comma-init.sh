@@ -42,7 +42,7 @@ function init_permissions {
     /sys/class/leds/led:switch_2/brightness
   )
 
-  find /dev -maxdepth 1 \( -name binder -o -name 'spidev*' \) -type c -exec chmod 0666 {} +
+  find /dev -maxdepth 1 \( -o -name 'spidev*' \) -type c -exec chmod 0666 {} +
   [[ -d /dev/input ]] && find /dev/input -maxdepth 1 -type c -exec chmod 0666 {} +
 
   for path in "${video_paths[@]}"; do
