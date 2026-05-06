@@ -12,7 +12,8 @@ apt-get install -y --no-install-recommends \
       gettext \
       libdbus-1-dev \
       libpolkit-gobject-1-dev \
-      libsystemd-dev
+      libsystemd-dev \
+      systemd-dev
 
 cd ModemManager
 meson setup build \
