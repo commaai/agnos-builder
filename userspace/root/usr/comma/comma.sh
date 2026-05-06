@@ -8,15 +8,6 @@ CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
-# blip power to ~10W to see if the PSU is stable
-function power_burn {
-  sudo chrt -i 0 timeout --kill-after=1 1 /home/comma/power_burn_max 0.5 8
-  # limit after burn
-  echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
-  echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
-}
-power_burn &
-
 echo "waiting for magic"
 for i in {1..200}; do
   if [ -S /tmp/drmfd.sock ]; then

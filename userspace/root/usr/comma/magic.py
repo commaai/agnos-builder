@@ -2,12 +2,11 @@
 import os, socket, threading, time
 from array import array
 
-import pyray as rl
-
 SOCK_PATH = "/tmp/drmfd.sock"
 DRM_DEVICE = "/dev/dri/card0"
 BACKLIGHT_POWER = "/sys/class/backlight/panel0-backlight/bl_power"
 BACKGROUND = "/usr/comma/bg.jpg"
+rl = None
 
 def power_screen():
   try:
@@ -41,6 +40,8 @@ def handle_client(client, drm_master):
       pass
 
 def main():
+  global rl
+
   while True:
     try:
       drm_master = os.open(DRM_DEVICE, os.O_RDWR | os.O_CLOEXEC)
@@ -50,18 +51,6 @@ def main():
       time.sleep(0.1)
 
   os.environ['DRM_FD'] = str(drm_master)
-  while not os.access(BACKLIGHT_POWER, os.W_OK):
-    time.sleep(0.1)
-
-  rl.init_window(0, 0, "not weston")
-  img = rl.load_image(BACKGROUND)
-  rl.image_resize(img, rl.get_screen_width(), rl.get_screen_width()//2)
-  tex = rl.load_texture_from_image(img)
-  rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
-  pos = rl.Vector2((rl.get_screen_width() - tex.width)/2.0, (rl.get_screen_height() - tex.height)/2.0)
-  rl.unload_image(img)
-  show_background(tex, pos)
-
   try:
     os.unlink(SOCK_PATH)
   except FileNotFoundError:
@@ -71,9 +60,11 @@ def main():
   server.bind(SOCK_PATH)
   server.settimeout(0.1)
   server.listen(1)
+  print("magic: socket listening", flush=True)
 
   clients = set()
   need_background = False
+  tex = pos = None
 
   while True:
     dead = [t for t in list(clients) if not t.is_alive()]
@@ -82,6 +73,17 @@ def main():
       clients.discard(t)
     if not clients and need_background:
       need_background = False
+      if rl is None:
+        import pyray as rl
+        while not os.access(BACKLIGHT_POWER, os.W_OK):
+          time.sleep(0.1)
+        rl.init_window(0, 0, "not weston")
+        img = rl.load_image(BACKGROUND)
+        rl.image_resize(img, rl.get_screen_width(), rl.get_screen_width()//2)
+        tex = rl.load_texture_from_image(img)
+        rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
+        pos = rl.Vector2((rl.get_screen_width() - tex.width)/2.0, (rl.get_screen_height() - tex.height)/2.0)
+        rl.unload_image(img)
       show_background(tex, pos)
 
     try:
