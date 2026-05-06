@@ -6,9 +6,24 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
-# Skip dpkg fsync calls for the duration of the build. Equivalent to the
-# eatmydata LD_PRELOAD trick but using dpkg's own native flag.
-RUN echo "force-unsafe-io" > /etc/dpkg/dpkg.cfg.d/02-unsafe-io
+# dpkg tuning for build speed. force-unsafe-io skips fsync (same effect as
+# eatmydata LD_PRELOAD); path-exclude skips installing man/docs/locale
+# files, which dpkg otherwise writes to disk for every package. Keep
+# copyright files (legal requirement) and en_US locale.
+RUN cat > /etc/dpkg/dpkg.cfg.d/02-build-speed <<'EOF'
+force-unsafe-io
+path-exclude /usr/share/doc/*
+path-include /usr/share/doc/*/copyright
+path-exclude /usr/share/man/*
+path-exclude /usr/share/info/*
+path-exclude /usr/share/groff/*
+path-exclude /usr/share/lintian/*
+path-exclude /usr/share/linda/*
+path-exclude /usr/share/locale/*
+path-include /usr/share/locale/en/*
+path-include /usr/share/locale/en_US/*
+path-include /usr/share/locale/locale.alias
+EOF
 
 # Common packages + union of libqmi and ModemManager build deps so each
 # compile stage doesn't re-run apt update/install.
@@ -73,9 +88,23 @@ ADD ${UBUNTU_BASE_IMAGE} /
 # Build folder
 RUN mkdir -p /tmp/agnos
 
-# Skip dpkg fsync calls for the duration of the build (~30-60s save on apt
-# installs). Same effect as eatmydata, using dpkg's native flag.
-RUN echo "force-unsafe-io" > /etc/dpkg/dpkg.cfg.d/02-unsafe-io
+# dpkg tuning for build speed. See agnos-compiler stage for rationale; same
+# config repeated here because agnos-base is FROM scratch + ubuntu base ADD,
+# so it doesn't inherit the agnos-compiler stage's dpkg config.
+RUN cat > /etc/dpkg/dpkg.cfg.d/02-build-speed <<'EOF'
+force-unsafe-io
+path-exclude /usr/share/doc/*
+path-include /usr/share/doc/*/copyright
+path-exclude /usr/share/man/*
+path-exclude /usr/share/info/*
+path-exclude /usr/share/groff/*
+path-exclude /usr/share/lintian/*
+path-exclude /usr/share/linda/*
+path-exclude /usr/share/locale/*
+path-include /usr/share/locale/en/*
+path-include /usr/share/locale/en_US/*
+path-include /usr/share/locale/locale.alias
+EOF
 
 # Stop on error
 RUN set -xe
