@@ -49,6 +49,7 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     libgirepository1.0-dev \
     libglib2.0-dev \
     libgudev-1.0-dev \
+    libmbim-glib-dev \
     libpolkit-gobject-1-dev \
     libqmi-glib-dev \
     libsystemd-dev \
