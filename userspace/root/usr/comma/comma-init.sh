@@ -41,7 +41,7 @@ function init_permissions (
   )
 
   chmod 0666 /dev/spidev0.0
-  find /dev/input -maxdepth 1 -type c -exec chmod 0666 {} +
+  chmod 0666 /dev/input/event2
 
   for path in "${video_paths[@]}"; do
     chgrp video "$path"
