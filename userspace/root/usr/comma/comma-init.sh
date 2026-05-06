@@ -32,7 +32,7 @@ function run_init {
   return $ret
 }
 
-function apply_permissions {
+function init_permissions {
   local log_name path
 
   find /dev -maxdepth 1 \( -name binder -o -name 'spidev*' \) -type c -exec chmod 0666 {} +
@@ -49,16 +49,16 @@ function apply_permissions {
     [[ -e "/dev/log_$log_name" || -L "/dev/log_$log_name" ]] && chmod 0644 "/dev/log_$log_name"
   done
 
-  for path in \
-    /sys/class/backlight/panel0-backlight/brightness \
-    /sys/class/backlight/panel0-backlight/bl_power \
-    /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent \
-    /sys/class/leds/led:torch_2/brightness \
-    /sys/class/leds/led:switch_2/brightness; do
-    [[ -e "$path" || -L "$path" ]] || continue
-    chgrp video "$path"
-    chmod g+w "$path"
-  done
+  chgrp video /sys/class/backlight/panel0-backlight/brightness
+  chmod g+w /sys/class/backlight/panel0-backlight/brightness
+  chgrp video /sys/class/backlight/panel0-backlight/bl_power
+  chmod g+w /sys/class/backlight/panel0-backlight/bl_power
+  chgrp video /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent
+  chmod g+w /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent
+  chgrp video /sys/class/leds/led:torch_2/brightness
+  chmod g+w /sys/class/leds/led:torch_2/brightness
+  chgrp video /sys/class/leds/led:switch_2/brightness
+  chmod g+w /sys/class/leds/led:switch_2/brightness
 
   for path in /dev/kgsl-3d0 /dev/ion /dev/dri/card* /dev/dri/controlD* /dev/dri/renderD*; do
     [[ -c "$path" ]] || continue
@@ -75,18 +75,6 @@ function apply_permissions {
   [[ -d /sys/class/gpio ]] && find -L /sys/class/gpio/ -maxdepth 2 \
     -exec chown root:gpio {} + \
     -exec chmod 770 {} +
-}
-
-function init_permissions {
-  apply_permissions
-  (
-    local i
-    # Keep correcting default/udev permission races without waiting for udev.
-    for ((i = 0; i < 200; i++)); do
-      apply_permissions
-      sleep 0.05
-    done
-  ) &
 }
 
 function init_filesystems {
@@ -261,7 +249,7 @@ function init_gpio {
     done
   done
 
-  apply_permissions
+  init_permissions
 }
 
 function init_sound {
