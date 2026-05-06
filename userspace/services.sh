@@ -2,6 +2,7 @@
 
 # Enable our services
 systemctl enable comma-init.service
+systemctl enable wlan-nm-init.service
 systemctl enable comma.service
 systemctl enable lte.service
 systemctl enable magic.service
