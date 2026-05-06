@@ -52,18 +52,16 @@ function await {
 }
 
 function init_permissions (
-  video_paths=(
-    /sys/class/backlight/panel0-backlight/brightness
-    /sys/class/backlight/panel0-backlight/bl_power
-    /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent
-    /sys/class/leds/led:torch_2/brightness
-    /sys/class/leds/led:switch_2/brightness
-  )
-
   chmod 0666 /dev/spidev0.0
   chmod 0666 /dev/input/event2
 
-  for path in "${video_paths[@]}"; do
+  for path in \
+    /sys/class/backlight/panel0-backlight/brightness \
+    /sys/class/backlight/panel0-backlight/bl_power \
+    /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent \
+    /sys/class/leds/led:torch_2/brightness \
+    /sys/class/leds/led:switch_2/brightness
+  do
     chgrp video "$path"
     chmod g+w "$path"
   done
@@ -86,18 +84,6 @@ function init_permissions (
 
 function init_filesystems (
   failed=0
-  pids=()
-
-  function wait_for_block {
-    local device="$1"
-
-    if await 3 test -b "$device"; then
-      return 0
-    fi
-
-    log_console "timed out waiting for $device"
-    return 1
-  }
 
   function mount_fs {
     local what="$1"
@@ -105,7 +91,7 @@ function init_filesystems (
     local type="$3"
     local options="$4"
 
-    if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
+    if [[ "$what" == /dev/* ]] && ! await 3 test -b "$what"; then
       failed=1
       return 1
     fi
@@ -120,24 +106,17 @@ function init_filesystems (
     return 1
   }
 
-  function mount_fs_bg {
-    mount_fs "$@" &
-    pids+=("$!")
-  }
-
   # mount base filesystems
-  mount_fs_bg /dev/sde9 /dsp ext4 ro
-  mount_fs_bg /dev/sde4 /firmware vfat ro
-  mount_fs_bg /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec
-  mount_fs_bg /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev
-  mount_fs_bg /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev
-  mount_fs_bg /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
-  mount_fs_bg tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755
-  mount_fs_bg tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777
-  mount_fs_bg tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777
-  for pid in "${pids[@]}"; do
-    wait "$pid" || failed=1
-  done
+  mount_fs /dev/sde9 /dsp ext4 ro &
+  mount_fs /dev/sde4 /firmware vfat ro &
+  mount_fs /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec &
+  mount_fs /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev &
+  mount_fs /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev &
+  mount_fs /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid &
+  mount_fs tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755 &
+  mount_fs tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777 &
+  mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 &
+  wait
 
   # rmt_storage and qseecomd are the only users of /dev/block/bootdevice/by-name.
   mkdir -p /dev/block/bootdevice/by-name
@@ -179,11 +158,6 @@ function init_filesystems (
 
   if [[ ! -d /data/persist ]]; then
     cp -r /system/persist /data
-  fi
-
-  if ((failed != 0)); then
-    log_console "mounts failed"
-    return 1
   fi
 )
 
@@ -260,16 +234,13 @@ function init_screen_calibration (
 )
 
 function init_hostname (
+  # set the device's hostname to "comma-<device_serial_number>"
   await test -r /proc/cmdline
-
-  serial="$(sed -n 's/.*androidboot.serialno=\([^ ]*\).*/\1/p' /proc/cmdline)"
-  echo "serial: '$serial'"
-  sysctl kernel.hostname="comma-$serial"
+  sysctl kernel.hostname="comma-$(sed -n 's/.*androidboot.serialno=\([^ ]*\).*/\1/p' /proc/cmdline)"
 )
 
 function init_debug (
   await mountpoint -q /cache
-
   sudo -u comma /usr/comma/debug.py
 )
 
@@ -284,7 +255,6 @@ run_init init_sound &
 run_init init_screen_calibration &
 run_init init_hostname &
 run_init init_debug &
-
 wait
 
 log_console "********** init done **********"
