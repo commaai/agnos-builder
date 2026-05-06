@@ -31,6 +31,26 @@ function run_init {
   return $ret
 }
 
+function await {
+  local timeout=0
+  local start now timeout_us
+
+  if [[ "$1" =~ ^[0-9]+$ ]]; then
+    timeout="$1"
+    shift
+    start="${EPOCHREALTIME/./}"
+    timeout_us=$((timeout * 1000000))
+  fi
+
+  while ! "$@"; do
+    if ((timeout > 0)); then
+      now="${EPOCHREALTIME/./}"
+      ((now - start >= timeout_us)) && return 1
+    fi
+    sleep 0.01
+  done
+}
+
 function init_permissions (
   video_paths=(
     /sys/class/backlight/panel0-backlight/brightness
@@ -70,14 +90,10 @@ function init_filesystems (
 
   function wait_for_block {
     local device="$1"
-    local i
 
-    for ((i = 0; i < 150; i++)); do
-      if [[ -b "$device" ]]; then
-        return 0
-      fi
-      sleep 0.02
-    done
+    if await 3 test -b "$device"; then
+      return 0
+    fi
 
     log_console "timed out waiting for $device"
     return 1
@@ -172,8 +188,6 @@ function init_filesystems (
 )
 
 function init_qcom (
-  count=0
-
   # raise scaling_max so policy=performance can reach the BOOST top step
   echo 2649600 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
   echo 2649600 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
@@ -185,14 +199,10 @@ function init_qcom (
 
   # setup firmware
   printf "%s" "/firmware/image" > /sys/module/firmware_class/parameters/path
-  while [[ ! -s /firmware/image/adsp.mdt ]]; do
-    # wait 10s for /firmware mounted
-    ((count += 1))
-    if ((count >= 1000)); then
-      echo "[ERROR] /firmware not mounted"
-    fi
-    sleep 0.01
-  done
+  if ! await 10 test -s /firmware/image/adsp.mdt; then
+    log_console "timed out waiting for /firmware/image/adsp.mdt"
+    await test -s /firmware/image/adsp.mdt
+  fi
 
   # boot audio + compute DSPs
   echo 1 > /sys/kernel/boot_adsp/boot
@@ -230,18 +240,10 @@ function init_gpio (
 
 function init_sound (
   echo "waiting for sound card to come online"
-  while true; do
-    if [[ -d /proc/asound/sdm845tavilsndc && -r /proc/asound/card0/state ]]; then
-      read -r state < /proc/asound/card0/state
-      [[ "$state" == "ONLINE" ]] && break
-    fi
-    sleep 0.01
-  done
+  await grep -qs "^ONLINE$" /proc/asound/card0/state
   echo "sound card online"
 
-  while ! /usr/comma/sound/tinymix set "SEC_MI2S_RX Audio Mixer MultiMedia1" 1; do
-    sleep 0.01
-  done
+  await /usr/comma/sound/tinymix set "SEC_MI2S_RX Audio Mixer MultiMedia1" 1
   echo "tinymix controls ready"
 
   if [[ "$(< /sys/firmware/devicetree/base/model)" == *mici* ]]; then
@@ -253,28 +255,20 @@ function init_sound (
 )
 
 function init_screen_calibration (
-  while ! mountpoint -q /persist; do
-    sleep 0.01
-  done
+  await mountpoint -q /persist
   /usr/comma/screen_calibration.py
 )
 
 function init_hostname (
-  while [[ ! -r /proc/cmdline ]]; do
-    sleep 0.01
-  done
+  await test -r /proc/cmdline
 
-  read -r cmdline < /proc/cmdline
-  serial="${cmdline#*androidboot.serialno=}"
-  serial="${serial%% *}"
+  serial="$(sed -n 's/.*androidboot.serialno=\([^ ]*\).*/\1/p' /proc/cmdline)"
   echo "serial: '$serial'"
   sysctl kernel.hostname="comma-$serial"
 )
 
 function init_debug (
-  while ! mountpoint -q /cache; do
-    sleep 0.01
-  done
+  await mountpoint -q /cache
 
   sudo -u comma /usr/comma/debug.py
 )
