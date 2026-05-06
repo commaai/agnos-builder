@@ -1,7 +1,10 @@
 [Unit]
 Description=Magic
+DefaultDependencies=no
 After=comma-init.service
 Requires=comma-init.service
+Before=basic.target shutdown.target
+Conflicts=shutdown.target
 
 [Service]
 Type=simple

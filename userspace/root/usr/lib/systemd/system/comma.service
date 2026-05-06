@@ -1,6 +1,10 @@
 [Unit]
-After=comma-init.service local-fs.target
+DefaultDependencies=no
 Requires=comma-init.service
+Wants=magic.service
+After=comma-init.service magic.service
+Before=basic.target shutdown.target
+Conflicts=shutdown.target
 
 [Service]
 Type=oneshot
