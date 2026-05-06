@@ -163,10 +163,8 @@ function init_qcom (
   done
 
   # setup firmware
-  printf "%s" "/firmware/image" > /sys/module/firmware_class/parameters/path
   if ! await 10 test -s /firmware/image/adsp.mdt; then
     log_console "timed out waiting for /firmware/image/adsp.mdt"
-    await test -s /firmware/image/adsp.mdt
   fi
 
   # boot audio + compute DSPs
@@ -204,7 +202,6 @@ function init_gpio (
 )
 
 function init_sound (
-  echo "waiting for sound card to come online"
   await grep -qs "^ONLINE$" /proc/asound/card0/state
   echo "sound card online"
 
