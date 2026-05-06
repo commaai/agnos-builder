@@ -94,6 +94,10 @@ class Mdma:
     self.gpio(Pins.VIN_EN, True)
     self.aux("on")
 
+    # give time to enumerate
+    if qdl:
+      time.sleep(1)
+
     return boot_time
 
   def serial(self):
