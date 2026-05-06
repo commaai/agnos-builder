@@ -32,6 +32,106 @@ function run_init {
   return $ret
 }
 
+function apply_bootdevice_links {
+  local boot_dev dev partition_name real_sysfs_path uevent
+
+  boot_dev="$(sed -n 's/.*androidboot.bootdevice=\([^ ]*\).*/\1/p' /proc/cmdline | awk '{print $NF}')"
+  [[ -n "$boot_dev" ]] || return 0
+
+  mkdir -p /dev/block/bootdevice/by-name 2>/dev/null || true
+  for uevent in /sys/class/block/mmcblk[0-9]*p[0-9]*/uevent /sys/class/block/[hs]d[a-z][0-9]*/uevent; do
+    [[ -e "$uevent" ]] || continue
+
+    dev="${uevent%/uevent}"
+    dev="${dev##*/}"
+    real_sysfs_path="$(realpath "/sys/class/block/$dev" 2>/dev/null)" || continue
+    [[ "$real_sysfs_path" == *"$boot_dev"* ]] || continue
+
+    partition_name="$(sed -n 's/^PARTNAME=//p' "$uevent")"
+    [[ -n "$partition_name" ]] || continue
+
+    ln -sf "/dev/$dev" "/dev/block/bootdevice/by-name/$partition_name" 2>/dev/null || true
+  done
+}
+
+function apply_panda_usb_permissions {
+  local busnum devnum node product sysdev vendor
+
+  for sysdev in /sys/bus/usb/devices/*; do
+    [[ -r "$sysdev/idVendor" && -r "$sysdev/idProduct" ]] || continue
+
+    read -r vendor < "$sysdev/idVendor" || continue
+    read -r product < "$sysdev/idProduct" || continue
+    case "$vendor:$product" in
+      bbaa:ddee|bbaa:ddcc|0483:df11) ;;
+      *) continue ;;
+    esac
+
+    [[ -r "$sysdev/busnum" && -r "$sysdev/devnum" ]] || continue
+    read -r busnum < "$sysdev/busnum" || continue
+    read -r devnum < "$sysdev/devnum" || continue
+    [[ "$busnum" =~ ^[0-9]+$ && "$devnum" =~ ^[0-9]+$ ]] || continue
+    printf -v node "/dev/bus/usb/%03d/%03d" "$((10#$busnum))" "$((10#$devnum))"
+    chmod 0666 "$node" 2>/dev/null || true
+  done
+}
+
+function apply_permissions {
+  local log_name
+
+  chmod 0666 /dev/binder /dev/spidev* 2>/dev/null || true
+  find /dev/input -maxdepth 1 -type c -exec chmod 0666 {} + 2>/dev/null || true
+
+  [[ -e /dev/log || -L /dev/log ]] || mkdir -p /dev/log 2>/dev/null || true
+  for log_name in main radio system events; do
+    if [[ ! -e "/dev/log/$log_name" && ! -L "/dev/log/$log_name" ]]; then
+      ln -s "../log_$log_name" "/dev/log/$log_name" 2>/dev/null || true
+    fi
+    chmod 0644 "/dev/log/$log_name" "/dev/log_$log_name" 2>/dev/null || true
+  done
+
+  chgrp video \
+    /sys/class/backlight/panel0-backlight/brightness \
+    /sys/class/backlight/panel0-backlight/bl_power \
+    /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent \
+    /sys/class/leds/led:torch_2/brightness \
+    /sys/class/leds/led:switch_2/brightness 2>/dev/null || true
+  chmod g+w \
+    /sys/class/backlight/panel0-backlight/brightness \
+    /sys/class/backlight/panel0-backlight/bl_power \
+    /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent \
+    /sys/class/leds/led:torch_2/brightness \
+    /sys/class/leds/led:switch_2/brightness 2>/dev/null || true
+
+  chgrp gpu /dev/kgsl-3d0 /dev/ion /dev/dri/* 2>/dev/null || true
+  chmod 0660 /dev/kgsl-3d0 /dev/ion /dev/dri/* 2>/dev/null || true
+
+  chgrp gpio /dev/i2c-* /dev/gpiochip0 2>/dev/null || true
+  chmod 0660 /dev/i2c-* /dev/gpiochip0 2>/dev/null || true
+  find -L /sys/class/gpio/ -maxdepth 2 \
+    -exec chown root:gpio {} + \
+    -exec chmod 770 {} + 2>/dev/null || true
+
+  apply_panda_usb_permissions
+  apply_bootdevice_links
+}
+
+function init_permissions {
+  local pid
+
+  apply_permissions
+  (
+    local i
+    # Keep correcting default/udev permission races without waiting for udev.
+    for ((i = 0; i < 200; i++)); do
+      apply_permissions
+      sleep 0.05
+    done
+  ) &
+  pid="$!"
+  disown "$pid" 2>/dev/null || true
+}
+
 function init_filesystems {
   local failed=0
   local pids=()
@@ -196,6 +296,8 @@ function init_gpio {
       sleep .05
     done
   done
+
+  apply_permissions
 }
 
 function init_sound {
@@ -253,6 +355,7 @@ function init_debug {
   sudo -u comma /usr/comma/debug.py
 }
 
+run_init init_permissions
 run_init init_filesystems &
 run_init init_qcom &
 run_init init_gpio &
