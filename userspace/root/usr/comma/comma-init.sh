@@ -33,21 +33,10 @@ function run_init {
 }
 
 function init_permissions {
-  local log_name path
+  local path
 
   find /dev -maxdepth 1 \( -name binder -o -name 'spidev*' \) -type c -exec chmod 0666 {} +
   [[ -d /dev/input ]] && find /dev/input -maxdepth 1 -type c -exec chmod 0666 {} +
-
-  [[ -e /dev/log || -L /dev/log ]] || mkdir -p /dev/log
-  for log_name in main radio system events; do
-    if [[ ! -e "/dev/log/$log_name" &&
-          ! -L "/dev/log/$log_name" &&
-          ( -e "/dev/log_$log_name" || -L "/dev/log_$log_name" ) ]]; then
-      ln -s "../log_$log_name" "/dev/log/$log_name"
-    fi
-    [[ -e "/dev/log/$log_name" || -L "/dev/log/$log_name" ]] && chmod 0644 "/dev/log/$log_name"
-    [[ -e "/dev/log_$log_name" || -L "/dev/log_$log_name" ]] && chmod 0644 "/dev/log_$log_name"
-  done
 
   chgrp video /sys/class/backlight/panel0-backlight/brightness
   chmod g+w /sys/class/backlight/panel0-backlight/brightness

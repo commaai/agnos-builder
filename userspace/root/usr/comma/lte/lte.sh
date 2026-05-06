@@ -17,6 +17,38 @@ function is_modem_up {
   fi
 }
 
+function is_modem_sysfs {
+  local path="$1"
+  local parent vendor product
+
+  parent="$(realpath "$path")"
+  while [[ -n "$parent" && "$parent" != "/" ]]; do
+    if [[ -r "$parent/idVendor" && -r "$parent/idProduct" ]]; then
+      read -r vendor < "$parent/idVendor"
+      read -r product < "$parent/idProduct"
+      [[ "$vendor" == "2c7c" || "$vendor:$product" == "05c6:9330" ]]
+      return
+    fi
+    parent="${parent%/*}"
+  done
+
+  return 1
+}
+
+function report_modem_kernel_events {
+  local path name subsystem
+
+  for path in /sys/class/tty/ttyUSB* /sys/class/tty/ttyACM* /sys/class/usbmisc/cdc-wdm* /sys/class/net/*; do
+    [[ -e "$path" ]] || continue
+    is_modem_sysfs "$path" || continue
+
+    name="${path##*/}"
+    subsystem="${path%/*}"
+    subsystem="${subsystem##*/}"
+    mmcli --report-kernel-event="action=add,subsystem=$subsystem,name=$name"
+  done
+}
+
 function reset {
   echo " Resetting..."
   gpio $LTE_RST_N 1
@@ -76,6 +108,7 @@ case "$1" in
       reset
       power_button
     done
+    report_modem_kernel_events
 
     ;;
   stop)

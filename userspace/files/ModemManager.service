@@ -6,7 +6,7 @@ Requires=polkit.service
 [Service]
 Type=dbus
 BusName=org.freedesktop.ModemManager1
-ExecStart=/usr/sbin/ModemManager --filter-policy=strict --debug
+ExecStart=/usr/sbin/ModemManager --filter-policy=strict --debug --no-auto-scan
 StandardError=null
 Restart=on-abort
 CapabilityBoundingSet=CAP_SYS_ADMIN

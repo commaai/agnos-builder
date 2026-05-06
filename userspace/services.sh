@@ -38,6 +38,11 @@ systemctl disable multipathd.service
 systemctl disable multipathd.socket
 systemctl disable lvm2-monitor.service
 systemctl mask systemd-backlight@.service
+systemctl mask systemd-udevd.service
+systemctl mask systemd-udevd-control.socket
+systemctl mask systemd-udevd-kernel.socket
+systemctl mask systemd-udev-trigger.service
+systemctl mask systemd-udev-settle.service
 systemctl disable dpkg-db-backup.timer
 systemctl disable ua-reboot-cmds.service
 systemctl disable ubuntu-advantage.service
