@@ -17,6 +17,10 @@ apt-get update
 apt-get install -yq curl sudo wget
 bash -c "$(curl -sL https://git.io/vokNn)"
 
+# Source openpilot deps so they're installed in the same apt-fast invocation
+# as the base packages.
+source /tmp/agnos/openpilot_dependencies.sh
+
 # Install packages
 export DEBIAN_FRONTEND=noninteractive
 apt-fast upgrade -yq
@@ -25,8 +29,6 @@ apt-fast install --no-install-recommends -yq \
     alsa-utils \
     apport-retrace \
     bc \
-    build-essential \
-    curl \
     cpuset \
     dnsmasq-base \
     evtest \
@@ -47,18 +49,15 @@ apt-fast install --no-install-recommends -yq \
     libc6-dev \
     libegl1 \
     libegl-dev \
-    libffi-dev \
     libgdbm-dev \
     libgles1 \
     libgles2 \
     libgles-dev \
     libgtk2.0-dev \
-    libi2c-dev \
     libncursesw5-dev \
     libnss-myhostname \
     libqmi-utils \
     libssl-dev \
-    locales \
     llvm \
     nano \
     net-tools \
@@ -77,10 +76,9 @@ apt-fast install --no-install-recommends -yq \
     ubuntu-server \
     ubuntu-standard \
     udhcpc \
-    wget \
     wireless-tools \
     wpasupplicant \
-    zlib1g-dev
+    "${OPENPILOT_DEPENDENCIES[@]}"
 
 # Enable serial console on UART
 systemctl enable serial-getty@ttyS0.service

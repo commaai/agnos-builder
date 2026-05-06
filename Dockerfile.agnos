@@ -74,14 +74,13 @@ RUN set -xe
 
 ARG USERNAME=comma
 
-# Base system setup
+# Base system setup. base_setup.sh sources openpilot_dependencies.sh and
+# installs both lists in a single apt-fast invocation.
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/base_setup.sh /tmp/agnos
+COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
+# Install openpilot python deps
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
@@ -97,26 +96,33 @@ RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
 
-RUN cd /tmp && \
-    apt-get update && \
-    apt-get install -yq --no-install-recommends \
-    python3 \
-    python3-dev \
-    gir1.2-qmi-1.0 \
-    libglib2.0-dev \
-    libqmi-glib5 \
-    libc6 \
-    libglib2.0-0t64 \
-    libgudev-1.0-0 \
-    libmm-glib0 \
-    libpolkit-gobject-1-0 \
-    libsystemd0 \
-    libwayland-client0 \
-    libwayland-server0 \
-    polkitd \
-    mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
+# Install runtime libs, the locally-built libqmi/modemmanager debs, and the
+# non-essential "extras" all in a single apt invocation. install_extras.sh is
+# sourced as a list so dpkg is exercised once instead of three times.
+COPY ./userspace/install_extras.sh /tmp/agnos/
+RUN cd /tmp \
+ && . /tmp/agnos/install_extras.sh \
+ && apt-get update \
+ && apt-fast install -yq --no-install-recommends \
+        python3 \
+        python3-dev \
+        gir1.2-qmi-1.0 \
+        libglib2.0-dev \
+        libqmi-glib5 \
+        libc6 \
+        libglib2.0-0t64 \
+        libgudev-1.0-0 \
+        libmm-glib0 \
+        libpolkit-gobject-1-0 \
+        libsystemd0 \
+        libwayland-client0 \
+        libwayland-server0 \
+        polkitd \
+        mobile-broadband-provider-info \
+        $EXTRAS_PACKAGES \
+ && apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
+        ./libqmi.deb ./modemmanager.deb \
+ && sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /home/comma/.bashrc
 
 ARG XDG_DATA_HOME="/usr/local"
 
@@ -125,10 +131,6 @@ COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
     MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
-
-# Install nice to haves
-COPY ./userspace/install_extras.sh /tmp/agnos/
-RUN /tmp/agnos/install_extras.sh
 
 RUN chown -R $USERNAME: /home/$USERNAME/.config
 RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config
