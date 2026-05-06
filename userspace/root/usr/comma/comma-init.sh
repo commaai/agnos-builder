@@ -32,6 +32,41 @@ function run_init {
   return $ret
 }
 
+function init_permissions {
+  local path
+  local video_paths=(
+    /sys/class/backlight/panel0-backlight/brightness
+    /sys/class/backlight/panel0-backlight/bl_power
+    /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent
+    /sys/class/leds/led:torch_2/brightness
+    /sys/class/leds/led:switch_2/brightness
+  )
+
+  find /dev -maxdepth 1 \( -name binder -o -name 'spidev*' \) -type c -exec chmod 0666 {} +
+  [[ -d /dev/input ]] && find /dev/input -maxdepth 1 -type c -exec chmod 0666 {} +
+
+  for path in "${video_paths[@]}"; do
+    chgrp video "$path"
+    chmod g+w "$path"
+  done
+
+  for path in /dev/kgsl-3d0 /dev/ion /dev/dri/card* /dev/dri/controlD* /dev/dri/renderD*; do
+    [[ -c "$path" ]] || continue
+    chgrp gpu "$path"
+    chmod 0660 "$path"
+  done
+
+  for path in /dev/i2c-* /dev/gpiochip0; do
+    [[ -c "$path" ]] || continue
+    chgrp gpio "$path"
+    chmod 0660 "$path"
+  done
+
+  [[ -d /sys/class/gpio ]] && find -L /sys/class/gpio/ -maxdepth 2 \
+    -exec chown root:gpio {} + \
+    -exec chmod 770 {} +
+}
+
 function init_filesystems {
   local failed=0
   local pids=()
@@ -91,6 +126,13 @@ function init_filesystems {
   for pid in "${pids[@]}"; do
     wait "$pid" || failed=1
   done
+
+  # rmt_storage is the only thing that relies on /dev/block/bootdevice/by-name.
+  mkdir -p /dev/block/bootdevice/by-name
+  ln -sf /dev/sdf2 /dev/block/bootdevice/by-name/modemst1
+  ln -sf /dev/sdf3 /dev/block/bootdevice/by-name/modemst2
+  ln -sf /dev/sdf4 /dev/block/bootdevice/by-name/fsg
+  ln -sf /dev/sdf5 /dev/block/bootdevice/by-name/fsc
 
   # *** setup RW areas ***
 
@@ -196,6 +238,8 @@ function init_gpio {
       sleep .05
     done
   done
+
+  init_permissions
 }
 
 function init_sound {
@@ -253,6 +297,7 @@ function init_debug {
   sudo -u comma /usr/comma/debug.py
 }
 
+run_init init_permissions &
 run_init init_filesystems &
 run_init init_qcom &
 run_init init_gpio &

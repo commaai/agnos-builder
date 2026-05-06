@@ -13,7 +13,7 @@ apt-get install -y --no-install-recommends \
       libdbus-1-dev \
       libpolkit-gobject-1-dev \
       libsystemd-dev \
-      udev
+      systemd-dev
 
 cd ModemManager
 meson setup build \
@@ -21,6 +21,8 @@ meson setup build \
       --libdir=/usr/lib/aarch64-linux-gnu \
       --sysconfdir=/etc \
       --buildtype=release \
+      -Dudev=false \
+      -Dudevdir=/usr/lib/udev \
       -Dqmi=true \
       -Dmbim=false \
       -Dqrtr=false \

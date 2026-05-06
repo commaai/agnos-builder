@@ -76,7 +76,6 @@ apt-fast install --no-install-recommends -yq \
     ubuntu-minimal \
     ubuntu-server \
     ubuntu-standard \
-    udev \
     udhcpc \
     wget \
     wireless-tools \
