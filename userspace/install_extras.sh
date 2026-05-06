@@ -1,8 +1,9 @@
 #!/bin/bash -e
 
 # for all the non-essential nice to haves
+# Apt cache was refreshed earlier in the final stage; no update needed.
 
-apt-fast update && apt-fast install -y --no-install-recommends \
+apt-fast install -y --no-install-recommends \
   bash-completion \
   btop \
   hyperfine \

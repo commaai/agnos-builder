@@ -11,6 +11,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint-dockerfiles:
+    name: lint Dockerfiles
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    - name: Check Dockerfile.agnos
+      run: docker buildx build -f Dockerfile.agnos --check .
+    - name: Check Dockerfile.builder
+      run: |
+        docker buildx build -f Dockerfile.builder --check . \
+          --build-arg UNAME=$(id -nu) \
+          --build-arg UID=$(id -u) \
+          --build-arg GID=$(id -g)
+
   build:
     name: build kernel and system
     runs-on: ubuntu-24.04-arm

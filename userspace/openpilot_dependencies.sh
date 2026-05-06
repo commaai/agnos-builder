@@ -2,8 +2,7 @@
 
 echo "Installing openpilot dependencies"
 
-# Install necessary libs
-apt-fast update
+# Apt cache was refreshed by base_setup.sh in the same stage; no update needed.
 apt-fast install --no-install-recommends -yq \
     build-essential \
     casync \

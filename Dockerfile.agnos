@@ -6,17 +6,36 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
-# Common packages
+# Common packages + union of libqmi and ModemManager build deps so each
+# compile stage doesn't re-run apt update/install.
 RUN apt-get update && apt-get install -yq --no-install-recommends \
+    bash-completion \
     build-essential \
     ca-certificates \
     ccache \
-    clang \
-    curl \
     checkinstall \
+    clang \
+    cmake \
+    curl \
+    gettext \
     git \
+    gobject-introspection \
+    gtk-doc-tools \
+    help2man \
+    libdbus-1-dev \
+    libgirepository1.0-dev \
+    libglib2.0-dev \
+    libgudev-1.0-dev \
+    libpolkit-gobject-1-dev \
+    libsystemd-dev \
+    meson \
+    ninja-build \
     pkg-config \
+    systemd-dev \
     wget
+
+# meson-install: shared between libqmi and ModemManager checkinstall steps
+RUN git clone https://github.com/keithbowes/meson-install.git /tmp/meson-install
 
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"

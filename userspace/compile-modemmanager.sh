@@ -7,14 +7,6 @@ cd /tmp
 
 git clone -b $MM_VERSION --depth 1 https://gitlab.freedesktop.org/mobile-broadband/ModemManager.git
 
-apt-get install -y --no-install-recommends \
-      cmake \
-      gettext \
-      libdbus-1-dev \
-      libpolkit-gobject-1-dev \
-      libsystemd-dev \
-      systemd-dev
-
 cd ModemManager
 meson setup build \
       --prefix=/usr \
