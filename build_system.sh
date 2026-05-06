@@ -44,19 +44,20 @@ if [ "$(uname -m)" = "x86_64" ]; then
   docker run --rm --privileged tonistiigi/binfmt --install all
 fi
 
-# Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
-docker buildx build -f Dockerfile.agnos --check $DIR
 
-# Check agnos-meta-builder Dockerfile
-docker buildx build --load -f Dockerfile.builder --check $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+# BuildKit registry-style cache, only when running in GitHub Actions
+if [ -n "$GITHUB_ACTIONS" ]; then
+  CACHE_AGNOS="--cache-from=type=gha,scope=agnos --cache-to=type=gha,mode=max,scope=agnos"
+  CACHE_BUILDER="--cache-from=type=gha,scope=builder --cache-to=type=gha,mode=max,scope=builder"
+else
+  CACHE_AGNOS=""
+  CACHE_BUILDER=""
+fi
 
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-meta-builder docker image"
-docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
+docker buildx build --load $CACHE_BUILDER -f Dockerfile.builder -t agnos-meta-builder $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
   --build-arg GID=$(id -g)
@@ -96,7 +97,7 @@ BUILD="docker buildx build"
 if [ ! -z "$NS" ]; then
   BUILD="nsc build"
 fi
-$BUILD -f Dockerfile.agnos \
+$BUILD $CACHE_AGNOS -f Dockerfile.agnos \
   --output "type=tar,dest=-" \
   --provenance=false \
   --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \

@@ -7,7 +7,10 @@
 FROM ubuntu:24.04 AS agnos-compiler
 
 # Common packages
-RUN apt-get update && apt-get install -yq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    apt-get update && apt-get install -yq --no-install-recommends \
     build-essential \
     ca-certificates \
     ccache \
@@ -20,18 +23,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
-
-# libqmi
-FROM agnos-compiler AS agnos-compiler-libqmi
-COPY ./userspace/compile-libqmi.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    /tmp/agnos/compile-libqmi.sh
-
-# ModemManager
-FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    /tmp/agnos/compile-modemmanager.sh
 
 # power_burn_max
 FROM agnos-compiler AS agnos-compiler-power-burn
@@ -58,11 +49,16 @@ ARG USERNAME=comma
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh /tmp/agnos
-RUN /tmp/agnos/base_setup.sh
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    /tmp/agnos/base_setup.sh
 
 # Install openpilot dependencies
 COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    /tmp/agnos/openpilot_dependencies.sh
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
@@ -75,10 +71,11 @@ FROM agnos-base
 COPY ./userspace/root/ /
 RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
-COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
-COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+COPY ./deps/libqmi.deb ./deps/modemmanager.deb /tmp/
 
-RUN cd /tmp && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    cd /tmp && \
     apt-get update && \
     apt-get install -yq --no-install-recommends \
     python3 \
@@ -103,13 +100,16 @@ ARG XDG_DATA_HOME="/usr/local"
 
 # Install openpilot python packages
 COPY ./userspace/uv /tmp/agnos/uv
-RUN source $XDG_DATA_HOME/venv/bin/activate && \
+RUN --mount=type=cache,target=/root/.cache/uv \
+    source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
+    MAKEFLAGS="-j$(nproc)" UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
-RUN /tmp/agnos/install_extras.sh
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    /tmp/agnos/install_extras.sh
 
 RUN chown -R $USERNAME: /home/$USERNAME/.config
 RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config

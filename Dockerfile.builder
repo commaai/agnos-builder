@@ -8,7 +8,10 @@ ARG GID
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
     python2 \
     build-essential \
@@ -18,8 +21,7 @@ RUN apt-get update && \
     openssl \
     ccache \
     libcap2-bin \
-    android-sdk-libsparse-utils \
-    && rm -rf /var/lib/apt/lists/*
+    android-sdk-libsparse-utils
 
 RUN if [ ${UID:-0} -ne 0 ] && [ ${GID:-0} -ne 0 ]; then \
     userdel -r `getent passwd ${UID} | cut -d : -f 1` > /dev/null 2>&1; \

@@ -21,6 +21,15 @@ jobs:
         lfs: true
         submodules: true
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Cache Ubuntu base tarball
+      uses: actions/cache@v4
+      with:
+        path: ubuntu-base-24.04.3-base-arm64.tar.gz
+        key: ubuntu-base-24.04.3-arm64
+
     - name: Get commit message
       run: |
         {
