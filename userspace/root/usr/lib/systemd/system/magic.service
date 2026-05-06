@@ -9,6 +9,8 @@ Conflicts=shutdown.target
 [Service]
 Type=simple
 User=comma
+PermissionsStartOnly=true
+ExecStartPre=/bin/bash -c "mkdir -p /data/misc/display && printf '0\n' > /data/misc/display/sdm_dbg_cfg.txt && printf '0\n' > /data/misc/display/gbm_dbg_cfg.txt"
 
 ExecStart=/usr/local/venv/bin/python -u /usr/comma/magic.py
 
