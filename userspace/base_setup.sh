@@ -25,11 +25,18 @@ source /tmp/agnos/openpilot_dependencies.sh
 # Install packages
 export DEBIAN_FRONTEND=noninteractive
 apt-fast upgrade -yq
+# Note: ubuntu-server intentionally NOT installed — it pulls in ~100
+# server-oriented packages (multipath-tools, open-iscsi, xfsprogs, htop,
+# tcpdump, dnsutils, ufw, hdparm, etc.) that AGNOS doesn't use, and the
+# postinst chain dominated build time. The load-bearing pieces it
+# provided (cron, netplan.io, tmux, vim-tiny) are listed explicitly
+# below.
 apt-fast install --no-install-recommends -yq \
     adduser \
     alsa-utils \
     bc \
     cpuset \
+    cron \
     dnsmasq-base \
     evtest \
     git \
@@ -56,6 +63,7 @@ apt-fast install --no-install-recommends -yq \
     libssl-dev \
     nano \
     net-tools \
+    netplan.io \
     nload \
     network-manager \
     openssl \
@@ -67,10 +75,11 @@ apt-fast install --no-install-recommends -yq \
     systemd \
     systemd-resolved \
     systemd-timesyncd \
+    tmux \
     ubuntu-minimal \
-    ubuntu-server \
     ubuntu-standard \
     udhcpc \
+    vim-tiny \
     wireless-tools \
     wpasupplicant \
     "${OPENPILOT_DEPENDENCIES[@]}"
