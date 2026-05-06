@@ -12,6 +12,7 @@ Requires=leprop.service
 [Service]
 Restart=no
 RemainAfterExit=yes
+ExecStartPre=/bin/bash -c 'for i in {1..100}; do : < /dev/ion && exit 0; sleep 0.05; done; exit 1'
 ExecStart=/etc/initscripts/qseecomd start
 ExecStop=/etc/initscripts/qseecomd stop
 

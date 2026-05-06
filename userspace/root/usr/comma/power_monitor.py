@@ -29,7 +29,7 @@ def check_touches():
   event_format = "llHHi"
   event_size = struct.calcsize(event_format)
 
-  with open("/dev/input/by-path/platform-894000.i2c-event", "rb") as event_file:
+  with open("/dev/input/event2", "rb") as event_file:
     fcntl.fcntl(event_file, fcntl.F_SETFL, os.O_NONBLOCK)
     while True:
       while (event := event_file.read(event_size)):

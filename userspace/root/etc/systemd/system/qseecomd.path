@@ -10,7 +10,7 @@ Conflicts=shutdown.target
 Before=paths.target shutdown.target
 
 [Path]
-PathModified=/dev/qseecom
+PathExists=/dev/qseecom
 
 [Install]
 WantedBy=multi-user.target

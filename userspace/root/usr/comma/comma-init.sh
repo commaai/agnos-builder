@@ -127,8 +127,9 @@ function init_filesystems {
     wait "$pid" || failed=1
   done
 
-  # rmt_storage is the only thing that relies on /dev/block/bootdevice/by-name.
+  # rmt_storage and qseecomd are the only users of /dev/block/bootdevice/by-name.
   mkdir -p /dev/block/bootdevice/by-name
+  ln -sf /dev/sda1 /dev/block/bootdevice/by-name/ssd
   ln -sf /dev/sdf2 /dev/block/bootdevice/by-name/modemst1
   ln -sf /dev/sdf3 /dev/block/bootdevice/by-name/modemst2
   ln -sf /dev/sdf4 /dev/block/bootdevice/by-name/fsg
