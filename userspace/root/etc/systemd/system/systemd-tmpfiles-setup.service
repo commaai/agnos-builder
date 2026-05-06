@@ -1,0 +1,13 @@
+[Unit]
+Description=tmpfiles setup handled by comma-init
+Documentation=man:tmpfiles.d(5) man:systemd-tmpfiles(8)
+DefaultDependencies=no
+After=comma-init.service
+Before=sysinit.target shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Preserve ordering for units with After=systemd-tmpfiles-setup.service.
+ExecStart=/bin/true

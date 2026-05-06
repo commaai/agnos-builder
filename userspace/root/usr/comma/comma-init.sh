@@ -122,6 +122,7 @@ function init_filesystems (
 
   # *** setup RW areas ***
 
+  systemd-tmpfiles --create --remove --boot --exclude-prefix=/dev
   systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 
   # setup /var and /home overlays
@@ -144,7 +145,8 @@ function init_filesystems (
   fi
 
   # /cache
-  chown -R comma:comma /cache/
+  mkdir -p /cache/debug
+  chown comma:comma /cache /cache/debug
 )
 
 function init_qcom (
@@ -172,6 +174,15 @@ function init_qcom (
   echo 1 > /dev/ipa
 )
 
+function init_power_burn (
+  # blip power to ~10W to see if the PSU is stable
+  chrt -i 0 timeout --kill-after=1 1 /usr/comma/power_burn_max 0.5 8
+
+  # limit after burn
+  echo 1689600 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+  echo 1689600 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+)
+
 function init_gpio (
   pins=(
     49  # SOM_ST_IO
@@ -192,7 +203,8 @@ function init_gpio (
   done
 
   # set permissions
-  find -L /sys/class/gpio/ -maxdepth 2 -exec chown root:gpio {} + -exec chmod 770 {} +
+  find -H /sys/class/gpio/export /sys/class/gpio/unexport /sys/class/gpio/gpio* \
+    -maxdepth 1 -exec chown root:gpio {} + -exec chmod 770 {} +
 )
 
 function init_sound (
@@ -232,6 +244,7 @@ function init_debug (
 run_init init_permissions &
 run_init init_filesystems &
 run_init init_qcom &
+run_init init_power_burn &
 run_init init_gpio &
 run_init init_sound &
 run_init init_screen_calibration &
