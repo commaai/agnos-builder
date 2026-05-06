@@ -15,8 +15,6 @@ OUTPUT_DIR="$DIR/output"
 ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
 ROOTFS_IMAGE="$BUILD_DIR/system.img"
 OUT_IMAGE="$OUTPUT_DIR/system.img"
-AGNOS_TAR="$BUILD_DIR/agnos.tar"
-META_BUILDER_LOG="$BUILD_DIR/meta-builder.log"
 
 # the partition is 10G, but openpilot's updater didn't always handle the full size
 # openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
@@ -48,51 +46,18 @@ fi
 
 export DOCKER_BUILDKIT=1
 
-# Build agnos-meta-builder in the background. It's a small image (~200MB) but
-# was previously a serial gate before the long agnos build. By backgrounding
-# it and writing the agnos build output to a temp tar, both run concurrently
-# under buildkit and we save the meta-builder time on the critical path.
-echo "Building agnos-meta-builder docker image (in background)"
-(
-  docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
-    --build-arg UNAME=$(id -nu) \
-    --build-arg UID=$(id -u) \
-    --build-arg GID=$(id -g)
-) >"$META_BUILDER_LOG" 2>&1 &
-META_BUILDER_PID=$!
-
-# Kill the background process if the script exits before it finishes.
-trap "kill $META_BUILDER_PID 2>/dev/null || true; rm -f $AGNOS_TAR" EXIT
-
-# Build the agnos image to a temp tar. This is the long pole.
-echo "Building agnos-builder docker image"
-BUILD="docker buildx build"
-if [ ! -z "$NS" ]; then
-  BUILD="nsc build"
-fi
-$BUILD -f Dockerfile.agnos \
-  --output "type=tar,dest=$AGNOS_TAR" \
-  --provenance=false \
-  --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
-  --platform=linux/arm64 \
-  "$DIR"
-
-# Wait for meta-builder if it hasn't completed alongside the agnos build.
-echo "Waiting for agnos-meta-builder..."
-if ! wait $META_BUILDER_PID; then
-  echo "agnos-meta-builder build failed:"
-  cat "$META_BUILDER_LOG"
-  exit 1
-fi
-META_BUILDER_PID=
-
+# Setup mount container for macOS and CI support (namespace.so)
+echo "Building agnos-meta-builder docker image"
+docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
+  --build-arg UNAME=$(id -nu) \
+  --build-arg UID=$(id -u) \
+  --build-arg GID=$(id -g)
 echo "Starting agnos-meta-builder container"
 MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-meta-builder)
 
 # Cleanup containers on possible exit
 trap "echo \"Cleaning up containers:\"; \
-docker container rm -f $MOUNT_CONTAINER_ID; \
-rm -f $AGNOS_TAR" EXIT
+docker container rm -f $MOUNT_CONTAINER_ID" EXIT
 
 # Define functions for docker execution
 exec_as_user() {
@@ -116,13 +81,19 @@ exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
 # Also unmount filesystem (overwrite previous trap)
 trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
 echo \"Cleaning up containers:\"; \
-docker container rm -f $MOUNT_CONTAINER_ID; \
-rm -f $AGNOS_TAR" EXIT
+docker container rm -f $MOUNT_CONTAINER_ID" EXIT
 
-# Extract the tar into the mounted rootfs
-echo "Extracting agnos image into rootfs"
-docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR < "$AGNOS_TAR"
-rm -f "$AGNOS_TAR"
+echo "Building and extracting agnos-builder docker image"
+BUILD="docker buildx build"
+if [ ! -z "$NS" ]; then
+  BUILD="nsc build"
+fi
+$BUILD -f Dockerfile.agnos \
+  --output "type=tar,dest=-" \
+  --provenance=false \
+  --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
+  --platform=linux/arm64 \
+  "$DIR" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
 
 # Avoid detecting as container
 echo "Removing .dockerenv file"
