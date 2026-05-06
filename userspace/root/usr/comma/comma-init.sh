@@ -27,74 +27,69 @@ function run_init {
   elapsed_us=$((end_time - start_time))
   elapsed_tenths=$(((elapsed_us + 50000) / 100000))
   printf -v elapsed "%d.%d" "$((elapsed_tenths / 10))" "$((elapsed_tenths % 10))"
-  log_console "$name finished after ${elapsed}s"
-
+  log_console "$name finished after ${elapsed}s with ${ret}"
   return $ret
 }
 
-function init_permissions {
-  local path
-  local video_paths=(
-    /sys/class/backlight/panel0-backlight/brightness
-    /sys/class/backlight/panel0-backlight/bl_power
-    /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent
-    /sys/class/leds/led:torch_2/brightness
+function await {
+  local timeout=0
+  local start now timeout_us
+
+  if [[ "$1" =~ ^[0-9]+$ ]]; then
+    timeout="$1"
+    shift
+    start="${EPOCHREALTIME/./}"
+    timeout_us=$((timeout * 1000000))
+  fi
+
+  while ! "$@"; do
+    if ((timeout > 0)); then
+      now="${EPOCHREALTIME/./}"
+      ((now - start >= timeout_us)) && return 1
+    fi
+    sleep 0.01
+  done
+}
+
+function init_permissions (
+  chmod 0666 /dev/spidev0.0
+  chmod 0666 /dev/input/event2
+
+  for path in \
+    /sys/class/backlight/panel0-backlight/brightness \
+    /sys/class/backlight/panel0-backlight/bl_power \
+    /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent \
+    /sys/class/leds/led:torch_2/brightness \
     /sys/class/leds/led:switch_2/brightness
-  )
-
-  find /dev -maxdepth 1 \( -o -name 'spidev*' \) -type c -exec chmod 0666 {} +
-  [[ -d /dev/input ]] && find /dev/input -maxdepth 1 -type c -exec chmod 0666 {} +
-
-  for path in "${video_paths[@]}"; do
+  do
     chgrp video "$path"
     chmod g+w "$path"
   done
 
+  # gpu group
   for path in /dev/kgsl-3d0 /dev/ion /dev/dri/card* /dev/dri/controlD* /dev/dri/renderD*; do
     [[ -c "$path" ]] || continue
     chgrp gpu "$path"
     chmod 0660 "$path"
   done
 
+  # setup gpio group
   for path in /dev/i2c-* /dev/gpiochip0; do
     [[ -c "$path" ]] || continue
     chgrp gpio "$path"
     chmod 0660 "$path"
   done
+)
 
-  [[ -d /sys/class/gpio ]] && find -L /sys/class/gpio/ -maxdepth 2 \
-    -exec chown root:gpio {} + \
-    -exec chmod 770 {} +
-}
-
-function init_filesystems {
-  local failed=0
-  local pids=()
-  local pid
-
-  function wait_for_block {
-    local device="$1"
-    local i
-
-    for ((i = 0; i < 150; i++)); do
-      if [[ -b "$device" ]]; then
-        return 0
-      fi
-      sleep 0.02
-    done
-
-    log_console "timed out waiting for $device"
-    return 1
-  }
-
+function init_filesystems (
   function mount_fs {
     local what="$1"
     local where="$2"
     local type="$3"
     local options="$4"
 
-    if [[ "$what" == /dev/* ]] && ! wait_for_block "$what"; then
-      failed=1
+    if [[ "$what" == /dev/* ]] && ! await 3 test -b "$what"; then
+      log_console "timed out waiting for $where"
       return 1
     fi
 
@@ -102,30 +97,20 @@ function init_filesystems {
       log_console "mounted $where"
       return 0
     fi
-
     log_console "failed mounting $where"
-    failed=1
-    return 1
-  }
-
-  function mount_fs_bg {
-    mount_fs "$@" &
-    pids+=("$!")
   }
 
   # mount base filesystems
-  mount_fs_bg /dev/sde9 /dsp ext4 ro
-  mount_fs_bg /dev/sde4 /firmware vfat ro
-  mount_fs_bg /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec
-  mount_fs_bg /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev
-  mount_fs_bg /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev
-  mount_fs_bg /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
-  mount_fs_bg tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755
-  mount_fs_bg tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777
-  mount_fs_bg tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777
-  for pid in "${pids[@]}"; do
-    wait "$pid" || failed=1
-  done
+  mount_fs /dev/sde9 /dsp ext4 ro &
+  mount_fs /dev/sde4 /firmware vfat ro &
+  mount_fs /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec &
+  mount_fs /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev &
+  mount_fs /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev &
+  mount_fs /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid &
+  mount_fs tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755 &
+  mount_fs tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777 &
+  mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 &
+  wait
 
   # rmt_storage and qseecomd are the only users of /dev/block/bootdevice/by-name.
   mkdir -p /dev/block/bootdevice/by-name
@@ -139,68 +124,41 @@ function init_filesystems {
 
   systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 
+  # setup /var and /home overlays
   mkdir -p /var/log/
   chown root:syslog /var/log
-  if ! mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log; then
-    log_console "failed mounting /var/log"
-    failed=1
-  fi
+  mount_fs tmpfs /var/log tmpfs rw,nosuid,nodev,size=128M,mode=755
 
-  mkdir -p /rwtmp/home_work
-  mkdir -p /rwtmp/home_upper
+  mkdir -p /rwtmp/home_work /rwtmp/home_upper
   chmod 755 /rwtmp/*
-  if ! mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home; then
-    log_console "failed mounting /home"
-    failed=1
-  fi
+  mount_fs overlay /home overlay lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work
 
-
-  chown comma:comma /data/
-  mkdir -p /data/etc
-  touch /data/etc/timezone
-  touch /data/etc/localtime
-  mkdir -p /data/etc/netplan
-  mkdir -p /data/etc/NetworkManager/system-connections
-
-  chown -R comma:comma /cache/
-
-  mkdir -p /data/ssh
-  chown comma: /data/ssh
-
+  # /data setup
   rm -rf /data/tmp/
-  mkdir -p /data/tmp/
-
+  mkdir -p /data/etc /data/ssh /data/tmp /data/etc/netplan /data/etc/NetworkManager/system-connections
+  touch /data/etc/timezone /data/etc/localtime
+  chown comma: /data/ssh
+  chown comma:comma /data/
   if [[ ! -d /data/persist ]]; then
-    sudo cp -r /system/persist /data
+    cp -r /system/persist /data
   fi
 
-  if [[ "$failed" -ne 0 ]]; then
-    log_console "mounts failed"
-    return 1
-  fi
-}
+  # /cache
+  chown -R comma:comma /cache/
+)
 
-function init_qcom {
-  # don't restart whole SoC on subsystem crash
-  for i in {0..7}; do
-    echo "related" > /sys/bus/msm_subsys/devices/subsys${i}/restart_level
-  done
-
+function init_qcom (
   # raise scaling_max so policy=performance can reach the BOOST top step
   echo 2649600 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
   echo 2649600 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
 
+  # don't restart whole SoC on subsystem crash
+  printf "%s\n" related | tee /sys/bus/msm_subsys/devices/subsys*/restart_level > /dev/null
+
   # setup firmware
-  echo -n "/firmware/image" > /sys/module/firmware_class/parameters/path
-  count=0
-  while [ ! -s /firmware/image/adsp.mdt ]; do
-    # wait 10s for /firmware mounted
-    count=$(( $count + 1 ))
-    if [ $count -ge 1000 ]; then
-      echo "[ERROR] /firmware not mounted"
-    fi
-    sleep 0.01
-  done
+  if ! await 10 test -s /firmware/image/adsp.mdt; then
+    log_console "timed out waiting for /firmware/image/adsp.mdt"
+  fi
 
   # boot audio + compute DSPs
   echo 1 > /sys/kernel/boot_adsp/boot
@@ -212,10 +170,10 @@ function init_qcom {
 
   # ipa
   echo 1 > /dev/ipa
-}
+)
 
-function init_gpio {
-  local pins=(
+function init_gpio (
+  pins=(
     49  # SOM_ST_IO
     134 # ST_BOOT0
     41  # PANDA_1V8_EN_N
@@ -229,36 +187,19 @@ function init_gpio {
     1264  # POWER ALERT
   )
 
-  echo "initializing gpio"
-
-  for p in ${pins[@]}; do
-    if [[ ! -d /sys/class/gpio/gpio$p ]]; then
-      echo $p > /sys/class/gpio/export
-    fi
-    until [ -d /sys/class/gpio/gpio$p ]; do
-      sleep .05
-    done
+  for p in "${pins[@]}"; do
+    echo "$p" > /sys/class/gpio/export
   done
 
-  init_permissions
-}
+  # set permissions
+  find -L /sys/class/gpio/ -maxdepth 2 -exec chown root:gpio {} + -exec chmod 770 {} +
+)
 
-function init_sound {
-  local state
-
-  echo "waiting for sound card to come online"
-  while true; do
-    if [[ -d /proc/asound/sdm845tavilsndc && -r /proc/asound/card0/state ]]; then
-      read -r state < /proc/asound/card0/state
-      [[ "$state" == "ONLINE" ]] && break
-    fi
-    sleep 0.01
-  done
+function init_sound (
+  await grep -qs "^ONLINE$" /proc/asound/card0/state
   echo "sound card online"
 
-  while ! /usr/comma/sound/tinymix set "SEC_MI2S_RX Audio Mixer MultiMedia1" 1; do
-    sleep 0.01
-  done
+  await /usr/comma/sound/tinymix set "SEC_MI2S_RX Audio Mixer MultiMedia1" 1
   echo "tinymix controls ready"
 
   if [[ "$(< /sys/firmware/devicetree/base/model)" == *mici* ]]; then
@@ -267,37 +208,27 @@ function init_sound {
     /usr/comma/sound/tinymix set "MultiMedia1 Mixer TERT_MI2S_TX" 1
     /usr/comma/sound/tinymix set "TERT_MI2S_TX Channels" Two
   fi
-}
+)
 
-function init_screen_calibration {
-  while ! mountpoint -q /persist; do
-    sleep 0.01
-  done
-
+function init_screen_calibration (
+  await mountpoint -q /persist
   /usr/comma/screen_calibration.py
-}
+)
 
-function init_hostname {
-  local serial
-  while [ ! -r /proc/cmdline ]; do
-    sleep 0.01
-  done
+function init_hostname (
+  # set the device's hostname to "comma-<device_serial_number>"
+  await test -r /proc/cmdline
+  sysctl kernel.hostname="comma-$(sed -n 's/.*androidboot.serialno=\([^ ]*\).*/\1/p' /proc/cmdline)"
+)
 
-  read -r cmdline < /proc/cmdline
-  serial="${cmdline#*androidboot.serialno=}"
-  serial="${serial%% *}"
-  echo "serial: '$serial'"
-  sysctl kernel.hostname="comma-$serial"
-}
-
-function init_debug {
-  while ! mountpoint -q /cache; do
-    sleep 0.01
-  done
-
+function init_debug (
+  await mountpoint -q /cache
   sudo -u comma /usr/comma/debug.py
-}
+)
 
+# each init function should:
+# - start immediately in the background
+# - manage its own dependencies
 run_init init_permissions &
 run_init init_filesystems &
 run_init init_qcom &
@@ -306,7 +237,6 @@ run_init init_sound &
 run_init init_screen_calibration &
 run_init init_hostname &
 run_init init_debug &
-
 wait
 
 log_console "********** init done **********"
