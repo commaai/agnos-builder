@@ -83,8 +83,6 @@ function init_permissions (
 )
 
 function init_filesystems (
-  failed=0
-
   function mount_fs {
     local what="$1"
     local where="$2"
@@ -92,7 +90,7 @@ function init_filesystems (
     local options="$4"
 
     if [[ "$what" == /dev/* ]] && ! await 3 test -b "$what"; then
-      failed=1
+      log_console "timed out waiting for $where"
       return 1
     fi
 
@@ -100,10 +98,7 @@ function init_filesystems (
       log_console "mounted $where"
       return 0
     fi
-
     log_console "failed mounting $where"
-    failed=1
-    return 1
   }
 
   # mount base filesystems
@@ -130,35 +125,31 @@ function init_filesystems (
 
   systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 
+  # setup /var and /home overlays
   mkdir -p /var/log/
   chown root:syslog /var/log
   if ! mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log; then
     log_console "failed mounting /var/log"
-    failed=1
   fi
 
   mkdir -p /rwtmp/home_work /rwtmp/home_upper
   chmod 755 /rwtmp/*
   if ! mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home; then
     log_console "failed mounting /home"
-    failed=1
   fi
 
-  chown comma:comma /data/
-  mkdir -p /data/etc /data/etc/netplan /data/etc/NetworkManager/system-connections
-  touch /data/etc/timezone /data/etc/localtime
-
-  chown -R comma:comma /cache/
-
-  mkdir -p /data/ssh
-  chown comma: /data/ssh
-
+  # /data setup
   rm -rf /data/tmp/
-  mkdir -p /data/tmp/
-
+  touch /data/etc/timezone /data/etc/localtime
+  mkdir -p /data/etc /data/ssh /data/tmp /data/etc/netplan /data/etc/NetworkManager/system-connections
+  chown comma: /data/ssh
+  chown comma:comma /data/
   if [[ ! -d /data/persist ]]; then
     cp -r /system/persist /data
   fi
+
+  # /cache
+  chown -R comma:comma /cache/
 )
 
 function init_qcom (
