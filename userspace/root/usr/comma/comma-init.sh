@@ -79,7 +79,6 @@ function init_permissions (
     chgrp gpio "$path"
     chmod 0660 "$path"
   done
-  find -L /sys/class/gpio/ -maxdepth 2 -exec chown root:gpio {} + -exec chmod 770 {} +
 )
 
 function init_filesystems (
@@ -128,20 +127,16 @@ function init_filesystems (
   # setup /var and /home overlays
   mkdir -p /var/log/
   chown root:syslog /var/log
-  if ! mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log; then
-    log_console "failed mounting /var/log"
-  fi
+  mount_fs tmpfs /var/log tmpfs rw,nosuid,nodev,size=128M,mode=755
 
   mkdir -p /rwtmp/home_work /rwtmp/home_upper
   chmod 755 /rwtmp/*
-  if ! mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home; then
-    log_console "failed mounting /home"
-  fi
+  mount_fs overlay /home overlay lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work
 
   # /data setup
   rm -rf /data/tmp/
-  touch /data/etc/timezone /data/etc/localtime
   mkdir -p /data/etc /data/ssh /data/tmp /data/etc/netplan /data/etc/NetworkManager/system-connections
+  touch /data/etc/timezone /data/etc/localtime
   chown comma: /data/ssh
   chown comma:comma /data/
   if [[ ! -d /data/persist ]]; then
@@ -158,9 +153,7 @@ function init_qcom (
   echo 2649600 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
 
   # don't restart whole SoC on subsystem crash
-  for i in {0..7}; do
-    echo "related" > /sys/bus/msm_subsys/devices/subsys${i}/restart_level
-  done
+  printf "%s\n" related | tee /sys/bus/msm_subsys/devices/subsys*/restart_level > /dev/null
 
   # setup firmware
   if ! await 10 test -s /firmware/image/adsp.mdt; then
@@ -198,7 +191,8 @@ function init_gpio (
     echo "$p" > /sys/class/gpio/export
   done
 
-  init_permissions
+  # set permissions
+  find -L /sys/class/gpio/ -maxdepth 2 -exec chown root:gpio {} + -exec chmod 770 {} +
 )
 
 function init_sound (
