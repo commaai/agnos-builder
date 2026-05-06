@@ -6,6 +6,10 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
+# Skip dpkg fsync calls for the duration of the build. Equivalent to the
+# eatmydata LD_PRELOAD trick but using dpkg's own native flag.
+RUN echo "force-unsafe-io" > /etc/dpkg/dpkg.cfg.d/02-unsafe-io
+
 # Common packages + union of libqmi and ModemManager build deps so each
 # compile stage doesn't re-run apt update/install.
 RUN apt-get update && apt-get install -yq --no-install-recommends \
@@ -69,6 +73,10 @@ ADD ${UBUNTU_BASE_IMAGE} /
 # Build folder
 RUN mkdir -p /tmp/agnos
 
+# Skip dpkg fsync calls for the duration of the build (~30-60s save on apt
+# installs). Same effect as eatmydata, using dpkg's native flag.
+RUN echo "force-unsafe-io" > /etc/dpkg/dpkg.cfg.d/02-unsafe-io
+
 # Stop on error
 RUN set -xe
 
@@ -126,11 +134,13 @@ RUN cd /tmp \
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Install openpilot python packages
+# Install openpilot python packages.
+# Bytecode (.pyc) is compiled lazily on first import on device — saves
+# ~30-60s during the image build, with a one-time first-boot cost.
 COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact
 
 RUN chown -R $USERNAME: /home/$USERNAME/.config
 RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config

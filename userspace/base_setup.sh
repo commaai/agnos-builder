@@ -27,7 +27,6 @@ apt-fast upgrade -yq
 apt-fast install --no-install-recommends -yq \
     adduser \
     alsa-utils \
-    apport-retrace \
     bc \
     cpuset \
     dnsmasq-base \
@@ -45,20 +44,15 @@ apt-fast install --no-install-recommends -yq \
     isc-dhcp-client \
     jq \
     kmod \
-    landscape-common \
     libc6-dev \
     libegl1 \
     libegl-dev \
-    libgdbm-dev \
     libgles1 \
     libgles2 \
     libgles-dev \
-    libgtk2.0-dev \
-    libncursesw5-dev \
     libnss-myhostname \
     libqmi-utils \
     libssl-dev \
-    llvm \
     nano \
     net-tools \
     nload \
