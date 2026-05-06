@@ -33,11 +33,6 @@ COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
-# power_burn_max
-FROM agnos-compiler AS agnos-compiler-power-burn
-COPY ./userspace/power_burn_max.c /tmp/agnos/
-RUN gcc -O2 -o /tmp/power_burn_max /tmp/agnos/power_burn_max.c -lpthread
-
 # ################## #
 # ###### Base ###### #
 # ################## #
@@ -120,10 +115,9 @@ RUN rm -f /etc/fstab
 # Install kernel headers
 COPY ./output/linux-headers/include/ /usr/include/
 
-COPY --from=agnos-compiler-power-burn /tmp/power_burn_max /home/$USERNAME/power_burn_max
-RUN chown $USERNAME: /home/$USERNAME/power_burn_max
-
-COPY ./userspace/irsc_util.c /tmp/agnos/
+# builds
+COPY ./userspace/power_burn_max.c ./userspace/irsc_util.c /tmp/agnos/
+RUN gcc -O2 -o /usr/comma/power_burn_max /tmp/agnos/power_burn_max.c -lpthread
 RUN gcc -O2 -Wall -Wextra -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
 
 # Setup systemd services
