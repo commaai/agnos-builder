@@ -40,8 +40,8 @@ function init_permissions (
     /sys/class/leds/led:switch_2/brightness
   )
 
-  find /dev -maxdepth 1 \( -name binder -o -name 'spidev*' \) -type c -exec chmod 0666 {} +
-  [[ -d /dev/input ]] && find /dev/input -maxdepth 1 -type c -exec chmod 0666 {} +
+  chmod 0666 /dev/spidev0.0
+  find /dev/input -maxdepth 1 -type c -exec chmod 0666 {} +
 
   for path in "${video_paths[@]}"; do
     chgrp video "$path"
@@ -279,6 +279,9 @@ function init_debug (
   sudo -u comma /usr/comma/debug.py
 )
 
+# each init function should:
+# - start immediately in the background
+# - manage its own dependencies
 run_init init_permissions &
 run_init init_filesystems &
 run_init init_qcom &
