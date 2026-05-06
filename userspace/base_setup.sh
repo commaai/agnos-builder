@@ -43,7 +43,6 @@ apt-fast install --no-install-recommends -yq \
     isc-dhcp-client \
     jq \
     kmod \
-    landscape-common \
     libc6-dev \
     libegl1 \
     libegl-dev \
@@ -59,7 +58,6 @@ apt-fast install --no-install-recommends -yq \
     libqmi-utils \
     libssl-dev \
     locales \
-    llvm \
     nano \
     net-tools \
     nload \
