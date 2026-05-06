@@ -32,51 +32,6 @@ function run_init {
   return $ret
 }
 
-function apply_bootdevice_links {
-  local boot_dev dev partition_name real_sysfs_path uevent
-
-  boot_dev="$(sed -n 's/.*androidboot.bootdevice=\([^ ]*\).*/\1/p' /proc/cmdline | awk '{print $NF}')"
-  [[ -n "$boot_dev" ]] || return 0
-
-  mkdir -p /dev/block/bootdevice/by-name
-  for uevent in /sys/class/block/mmcblk[0-9]*p[0-9]*/uevent /sys/class/block/[hs]d[a-z][0-9]*/uevent; do
-    [[ -e "$uevent" ]] || continue
-
-    dev="${uevent%/uevent}"
-    dev="${dev##*/}"
-    [[ -e "/sys/class/block/$dev" ]] || continue
-    real_sysfs_path="$(realpath "/sys/class/block/$dev")"
-    [[ "$real_sysfs_path" == *"$boot_dev"* ]] || continue
-
-    partition_name="$(sed -n 's/^PARTNAME=//p' "$uevent")"
-    [[ -n "$partition_name" ]] || continue
-
-    ln -sf "/dev/$dev" "/dev/block/bootdevice/by-name/$partition_name"
-  done
-}
-
-function apply_panda_usb_permissions {
-  local busnum devnum node product sysdev vendor
-
-  for sysdev in /sys/bus/usb/devices/*; do
-    [[ -r "$sysdev/idVendor" && -r "$sysdev/idProduct" ]] || continue
-
-    read -r vendor < "$sysdev/idVendor" || continue
-    read -r product < "$sysdev/idProduct" || continue
-    case "$vendor:$product" in
-      bbaa:ddee|bbaa:ddcc|0483:df11) ;;
-      *) continue ;;
-    esac
-
-    [[ -r "$sysdev/busnum" && -r "$sysdev/devnum" ]] || continue
-    read -r busnum < "$sysdev/busnum" || continue
-    read -r devnum < "$sysdev/devnum" || continue
-    [[ "$busnum" =~ ^[0-9]+$ && "$devnum" =~ ^[0-9]+$ ]] || continue
-    printf -v node "/dev/bus/usb/%03d/%03d" "$((10#$busnum))" "$((10#$devnum))"
-    [[ -e "$node" ]] && chmod 0666 "$node"
-  done
-}
-
 function apply_permissions {
   local log_name path
 
@@ -120,9 +75,6 @@ function apply_permissions {
   [[ -d /sys/class/gpio ]] && find -L /sys/class/gpio/ -maxdepth 2 \
     -exec chown root:gpio {} + \
     -exec chmod 770 {} +
-
-  apply_panda_usb_permissions
-  apply_bootdevice_links
 }
 
 function init_permissions {
@@ -196,6 +148,13 @@ function init_filesystems {
   for pid in "${pids[@]}"; do
     wait "$pid" || failed=1
   done
+
+  # rmt_storage is the only thing that relies on /dev/block/bootdevice/by-name.
+  mkdir -p /dev/block/bootdevice/by-name
+  ln -sf /dev/sdf2 /dev/block/bootdevice/by-name/modemst1
+  ln -sf /dev/sdf3 /dev/block/bootdevice/by-name/modemst2
+  ln -sf /dev/sdf4 /dev/block/bootdevice/by-name/fsg
+  ln -sf /dev/sdf5 /dev/block/bootdevice/by-name/fsc
 
   # *** setup RW areas ***
 
