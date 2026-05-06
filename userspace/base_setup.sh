@@ -12,10 +12,11 @@ touch /AGNOS
 mkdir -p /usr/lib64
 ln -sTfn usr/lib64 /lib64
 
-# Install apt-fast
+# Install apt-fast. Use the canonical raw URL — git.io was sunset by GitHub
+# and intermittently returns an HTML deprecation page instead of the script.
 apt-get update
 apt-get install -yq curl sudo wget
-bash -c "$(curl -sL https://git.io/vokNn)"
+bash -c "$(curl -sL https://raw.githubusercontent.com/ilikenwf/apt-fast/master/quick-install.sh)"
 
 # Source openpilot deps so they're installed in the same apt-fast invocation
 # as the base packages.
