@@ -84,12 +84,14 @@ function init_permissions (
 
 function init_video (
   await 3 test -e /sys/class/video4linux/v4l-subdev11/uevent
+  await 3 test -e /sys/class/video4linux/video33/uevent
 
   mkdir -p /dev/v4l/by-path
   ln -sfn ../../video0 /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
   ln -sfn ../../video1 /dev/v4l/by-path/platform-cam_sync-video-index0
+  ln -sfn ../../video33 /dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1
 
-  for path in /dev/video0 /dev/video1 /dev/v4l-subdev*; do
+  for path in /dev/video0 /dev/video1 /dev/video33 /dev/v4l-subdev*; do
     [[ -c "$path" ]] || continue
     chgrp video "$path"
     chmod 0660 "$path"
@@ -127,10 +129,16 @@ function init_filesystems (
   mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 &
   wait
 
-  for path in /dev/sd[a-f]*; do
-    [[ -b "$path" ]] || continue
-    chgrp disk "$path"
-    chmod 0660 "$path"
+  mkdir -p /dev/disk/by-partlabel
+  for path in /sys/class/block/sd[a-f]*; do
+    dev="${path##*/}"
+    [[ -b "/dev/$dev" ]] || continue
+    chgrp disk "/dev/$dev"
+    chmod 0660 "/dev/$dev"
+
+    partname="$(sed -n 's/^PARTNAME=//p' "$path/uevent")"
+    [[ -n "$partname" ]] || continue
+    ln -sfn "../../$dev" "/dev/disk/by-partlabel/$partname"
   done
 
   # rmt_storage and qseecomd are the only users of /dev/block/bootdevice/by-name.
