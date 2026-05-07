@@ -55,8 +55,8 @@ function setup_modem_ttys {
         iface="${iface%/*}"
       done
 
-      [[ -r "$iface/bInterfaceNumber" && -r "${iface%:*}/idVendor" ]] || continue
-      [[ "$(< "${iface%:*}/idVendor")" == "2c7c" ]] || continue
+      [[ -r "$iface/bInterfaceNumber" && -r "${iface%/*}/idVendor" ]] || continue
+      [[ "$(< "${iface%/*}/idVendor")" == "2c7c" ]] || continue
       case "$(< "$iface/bInterfaceNumber")" in
         02) ln -sfn "/dev/$name" /dev/modem_at0 ;;
         03) ln -sfn "/dev/$name" /dev/modem_at1 ;;
