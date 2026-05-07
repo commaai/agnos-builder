@@ -80,6 +80,10 @@ function init_permissions (
     chmod 0660 "$path"
   done
 
+  if [[ -c /dev/ttyHS0 ]]; then
+    chgrp dialout /dev/ttyHS0
+    chmod 0660 /dev/ttyHS0
+  fi
 )
 
 function init_video (
