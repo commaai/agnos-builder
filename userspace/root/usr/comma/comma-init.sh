@@ -211,6 +211,8 @@ function init_sound (
   await grep -qs "^ONLINE$" /proc/asound/card0/state
   echo "sound card online"
 
+  find /dev/snd -maxdepth 1 -type c -exec chgrp audio {} + -exec chmod 0660 {} +
+
   await /usr/comma/sound/tinymix set "SEC_MI2S_RX Audio Mixer MultiMedia1" 1
   echo "tinymix controls ready"
 
