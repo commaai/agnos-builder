@@ -204,8 +204,10 @@ function init_qcom (
 )
 
 function init_power_burn (
-  # blip power to ~10W to see if the PSU is stable
-  chrt -i 0 timeout --kill-after=1 1 /usr/comma/power_burn_max 0.5 8
+  if [[ "$(< /sys/firmware/devicetree/base/model)" == *mici* ]]; then
+    # blip power to ~10W to see if the PSU is stable
+    chrt -i 0 timeout --kill-after=1 1 /usr/comma/power_burn_max 0.5 8
+  fi
 
   # limit after burn
   echo 1689600 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
