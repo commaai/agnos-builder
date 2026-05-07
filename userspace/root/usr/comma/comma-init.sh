@@ -81,6 +81,20 @@ function init_permissions (
   done
 )
 
+function init_video (
+  await 3 test -e /sys/class/video4linux/v4l-subdev11/uevent
+
+  mkdir -p /dev/v4l/by-path
+  ln -sfn ../../video0 /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
+  ln -sfn ../../video1 /dev/v4l/by-path/platform-cam_sync-video-index0
+
+  for path in /dev/video0 /dev/video1 /dev/v4l-subdev*; do
+    [[ -c "$path" ]] || continue
+    chgrp video "$path"
+    chmod 0660 "$path"
+  done
+)
+
 function init_filesystems (
   function mount_fs {
     local what="$1"
@@ -244,6 +258,7 @@ function init_debug (
 # - start immediately in the background
 # - manage its own dependencies
 run_init init_permissions &
+run_init init_video &
 run_init init_filesystems &
 run_init init_qcom &
 run_init init_power_burn &
