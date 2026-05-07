@@ -80,12 +80,6 @@ function init_permissions (
     chmod 0660 "$path"
   done
 
-  # serial tty group
-  for path in /dev/tty[A-Z]*[0-9] /dev/ttymxc[0-9]*; do
-    [[ -c "$path" ]] || continue
-    chgrp dialout "$path"
-    chmod 0660 "$path"
-  done
 )
 
 function init_video (

@@ -35,6 +35,38 @@ function is_modem_sysfs {
   return 1
 }
 
+function setup_modem_ttys {
+  local path name iface found i
+
+  for i in {0..300}; do
+    found=0
+    for path in /sys/class/tty/ttyUSB* /sys/class/tty/ttyACM*; do
+      [[ -e "$path" ]] || continue
+      is_modem_sysfs "$path" || continue
+
+      name="${path##*/}"
+      [[ -c "/dev/$name" ]] || continue
+      chgrp dialout "/dev/$name"
+      chmod 0660 "/dev/$name"
+      found=1
+
+      iface="$(realpath "$path")"
+      while [[ "$iface" != "/" && ! -r "$iface/bInterfaceNumber" ]]; do
+        iface="${iface%/*}"
+      done
+
+      [[ -r "$iface/bInterfaceNumber" && "$(< "${iface%:*}/idVendor")" == "2c7c" ]] || continue
+      case "$(< "$iface/bInterfaceNumber")" in
+        02) ln -sfn "/dev/$name" /dev/modem_at0 ;;
+        03) ln -sfn "/dev/$name" /dev/modem_at1 ;;
+      esac
+    done
+
+    ((found)) && return
+    sleep 0.01
+  done
+}
+
 function report_modem_kernel_events {
   local path name subsystem
 
@@ -108,6 +140,7 @@ case "$1" in
       reset
       power_button
     done
+    setup_modem_ttys
     report_modem_kernel_events
 
     ;;
