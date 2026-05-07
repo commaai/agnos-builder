@@ -127,6 +127,12 @@ function init_filesystems (
   mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 &
   wait
 
+  for path in /dev/sd[a-f]*; do
+    [[ -b "$path" ]] || continue
+    chgrp disk "$path"
+    chmod 0660 "$path"
+  done
+
   # rmt_storage and qseecomd are the only users of /dev/block/bootdevice/by-name.
   mkdir -p /dev/block/bootdevice/by-name
   ln -sf /dev/sda1 /dev/block/bootdevice/by-name/ssd
