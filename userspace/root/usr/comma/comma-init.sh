@@ -51,9 +51,17 @@ function await {
   done
 }
 
+function is_mici {
+  local model
+  IFS= read -r -d '' model < /sys/firmware/devicetree/base/model || true
+  [[ "$model" == *mici* ]]
+}
+
 function init_permissions (
-  chmod 0666 /dev/spidev0.0
-  chmod 0666 /dev/input/event2
+  for path in /dev/input/* /dev/spidev*; do
+    [[ -c "$path" ]] || continue
+    chmod 0666 "$path"
+  done
 
   for path in \
     /sys/class/backlight/panel0-backlight/brightness \
@@ -62,12 +70,13 @@ function init_permissions (
     /sys/class/leds/led:torch_2/brightness \
     /sys/class/leds/led:switch_2/brightness
   do
+    [[ -e "$path" ]] || continue
     chgrp video "$path"
     chmod g+w "$path"
   done
 
   # gpu group
-  for path in /dev/kgsl-3d0 /dev/ion /dev/dri/card* /dev/dri/controlD* /dev/dri/renderD*; do
+  for path in /dev/kgsl-* /dev/ion /dev/dri/* /dev/adsprpc-smd; do
     [[ -c "$path" ]] || continue
     chgrp gpu "$path"
     chmod 0660 "$path"
@@ -91,15 +100,26 @@ function init_video (
   await 3 test -e /sys/class/video4linux/video33/uevent
 
   mkdir -p /dev/v4l/by-path
-  ln -sfn ../../video0 /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
-  ln -sfn ../../video1 /dev/v4l/by-path/platform-cam_sync-video-index0
-  ln -sfn ../../video33 /dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1
 
-  for path in /dev/video0 /dev/video1 /dev/video33 /dev/v4l-subdev*; do
+  for path in /sys/class/video4linux/video*; do
+    [[ -e "$path" && -r "$path/index" ]] || continue
+
+    dev="${path##*/}"
+    parent="$(basename "$(dirname "$(dirname "$(realpath "$path")")")")"
+    parent="${parent//,/_}"
+    ln -sfn "../../$dev" "/dev/v4l/by-path/platform-${parent}-video-index$(< "$path/index")"
+  done
+
+  for path in /dev/video* /dev/v4l-subdev* /dev/media*; do
     [[ -c "$path" ]] || continue
     chgrp video "$path"
     chmod 0660 "$path"
   done
+)
+
+function init_block_devices (
+  await 3 test -e /sys/class/block/sdf5/uevent
+  /usr/comma/init_block_devices.py
 )
 
 function init_filesystems (
@@ -133,30 +153,20 @@ function init_filesystems (
   mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 &
   wait
 
-  mkdir -p /dev/disk/by-partlabel
-  for path in /sys/class/block/sd[a-f]*; do
-    dev="${path##*/}"
-    [[ -b "/dev/$dev" ]] || continue
-    chgrp disk "/dev/$dev"
-    chmod 0660 "/dev/$dev"
-
-    partname="$(sed -n 's/^PARTNAME=//p' "$path/uevent")"
-    [[ -n "$partname" ]] || continue
-    ln -sfn "../../$dev" "/dev/disk/by-partlabel/$partname"
-  done
-
-  # rmt_storage and qseecomd are the only users of /dev/block/bootdevice/by-name.
-  mkdir -p /dev/block/bootdevice/by-name
-  ln -sf /dev/sda1 /dev/block/bootdevice/by-name/ssd
-  ln -sf /dev/sdf2 /dev/block/bootdevice/by-name/modemst1
-  ln -sf /dev/sdf3 /dev/block/bootdevice/by-name/modemst2
-  ln -sf /dev/sdf4 /dev/block/bootdevice/by-name/fsg
-  ln -sf /dev/sdf5 /dev/block/bootdevice/by-name/fsc
-
   # *** setup RW areas ***
 
-  systemd-tmpfiles --create --remove --boot --exclude-prefix=/dev
-  systemd-tmpfiles --create /usr/comma/tmpfiles.conf
+  mkdir -p \
+    /var/crash \
+    /var/tmp \
+    /var/lib/dpkg \
+    /var/lib/logrotate \
+    /var/spool/cron/atjobs \
+    /var/cache/pollinate
+  touch \
+    /var/lib/dpkg/lock-frontend \
+    /var/lib/dpkg/status
+  chmod 1777 /var/tmp
+  chown pollinate:daemon /var/cache/pollinate
 
   # setup /var and /home overlays
   mkdir -p /var/log/
@@ -172,6 +182,7 @@ function init_filesystems (
   mkdir -p /data/etc /data/ssh /data/tmp /data/etc/netplan /data/etc/NetworkManager/system-connections
   touch /data/etc/timezone /data/etc/localtime
   chown comma: /data/ssh
+  chown comma:comma /data/tmp
   chown comma:comma /data/
   if [[ ! -d /data/persist ]]; then
     cp -r /system/persist /data
@@ -208,9 +219,9 @@ function init_qcom (
 )
 
 function init_power_burn (
-  if [[ "$(< /sys/firmware/devicetree/base/model)" == *mici* ]]; then
+  if is_mici; then
     # blip power to ~10W to see if the PSU is stable
-    chrt -i 0 timeout --kill-after=1 1 /usr/comma/power_burn_max 0.5 8
+    chrt -i 0 timeout --kill-after=1 1 /usr/comma/power_burn_max 0.3 8
   fi
 
   # limit after burn
@@ -251,7 +262,7 @@ function init_sound (
   await /usr/comma/sound/tinymix set "SEC_MI2S_RX Audio Mixer MultiMedia1" 1
   echo "tinymix controls ready"
 
-  if [[ "$(< /sys/firmware/devicetree/base/model)" == *mici* ]]; then
+  if is_mici; then
     /usr/comma/sound/tinymix set "MultiMedia1 Mixer SEC_MI2S_TX" 1
   else
     /usr/comma/sound/tinymix set "MultiMedia1 Mixer TERT_MI2S_TX" 1
@@ -280,6 +291,7 @@ function init_debug (
 # - manage its own dependencies
 run_init init_permissions &
 run_init init_video &
+run_init init_block_devices &
 run_init init_filesystems &
 run_init init_qcom &
 run_init init_power_burn &
