@@ -1,19 +1,13 @@
 [Unit]
-Description=Create Volatile Files and Directories
+Description=tmpfiles setup handled by comma-init
 Documentation=man:tmpfiles.d(5) man:systemd-tmpfiles(8)
 DefaultDependencies=no
-After=comma-init.service systemd-sysusers.service systemd-journald.service
-Before=sysinit.target shutdown.target initrd-switch-root.target
-Conflicts=shutdown.target initrd-switch-root.target
-RefuseManualStop=yes
+After=comma-init.service
+Before=sysinit.target shutdown.target
+Conflicts=shutdown.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=systemd-tmpfiles --create --remove --boot --exclude-prefix=/dev --exclude-prefix=/etc --exclude-prefix=/tmp --exclude-prefix=/var/tmp
-SuccessExitStatus=DATAERR CANTCREAT
-ImportCredential=tmpfiles.*
-ImportCredential=login.motd
-ImportCredential=login.issue
-ImportCredential=network.hosts
-ImportCredential=ssh.authorized_keys.root
+# Preserve ordering for units with After=systemd-tmpfiles-setup.service.
+ExecStart=/bin/true

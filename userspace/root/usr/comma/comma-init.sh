@@ -161,10 +161,14 @@ function init_filesystems (
     /var/lib/dpkg \
     /var/lib/logrotate \
     /var/spool/cron/atjobs \
-    /var/cache/pollinate
+    /var/cache/pollinate \
+    /run/lock/subsys
   touch \
     /var/lib/dpkg/lock-frontend \
     /var/lib/dpkg/status
+  rm -rf /var/run /var/lock
+  ln -s ../run /var/run
+  ln -s ../run/lock /var/lock
   chmod 1777 /var/tmp
   chown pollinate:daemon /var/cache/pollinate
 

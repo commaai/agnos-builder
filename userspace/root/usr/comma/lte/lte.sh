@@ -36,10 +36,14 @@ function is_modem_sysfs {
 }
 
 function setup_modem_ttys {
-  local path name iface found i
+  local path name iface usb vendor found quectel at0 at1 i
+
+  found=0
+  quectel=0
+  at0=0
+  at1=0
 
   for i in {0..300}; do
-    found=0
     for path in /sys/class/tty/ttyUSB* /sys/class/tty/ttyACM*; do
       [[ -e "$path" ]] || continue
       is_modem_sysfs "$path" || continue
@@ -55,15 +59,20 @@ function setup_modem_ttys {
         iface="${iface%/*}"
       done
 
-      [[ -r "$iface/bInterfaceNumber" && -r "${iface%/*}/idVendor" ]] || continue
-      [[ "$(< "${iface%/*}/idVendor")" == "2c7c" ]] || continue
+      usb="${iface%/*}"
+      [[ -r "$iface/bInterfaceNumber" && -r "$usb/idVendor" ]] || continue
+      read -r vendor < "$usb/idVendor"
+      [[ "$vendor" == "2c7c" ]] || continue
+      quectel=1
+
       case "$(< "$iface/bInterfaceNumber")" in
-        02) ln -sfn "/dev/$name" /dev/modem_at0 ;;
-        03) ln -sfn "/dev/$name" /dev/modem_at1 ;;
+        02) ln -sfn "/dev/$name" /dev/modem_at0; at0=1 ;;
+        03) ln -sfn "/dev/$name" /dev/modem_at1; at1=1 ;;
       esac
     done
 
-    ((found)) && return
+    ((at0 && at1)) && return
+    ((found && !quectel)) && return
     sleep 0.01
   done
 }
