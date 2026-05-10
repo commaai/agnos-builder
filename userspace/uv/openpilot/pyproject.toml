@@ -27,6 +27,7 @@ dependencies = [
 
   # vendored native dependencies
   "bzip2 @ git+https://github.com/commaai/dependencies.git@release-bzip2#subdirectory=bzip2",
+  "bootstrap-icons @ git+https://github.com/commaai/dependencies.git@release-bootstrap-icons#subdirectory=bootstrap-icons",
   "capnproto @ git+https://github.com/commaai/dependencies.git@release-capnproto#subdirectory=capnproto",
   "catch2 @ git+https://github.com/commaai/dependencies.git@release-catch2#subdirectory=catch2",
   "acados @ git+https://github.com/commaai/dependencies.git@release-acados#subdirectory=acados",
@@ -38,6 +39,7 @@ dependencies = [
   "ncurses @ git+https://github.com/commaai/dependencies.git@release-ncurses#subdirectory=ncurses",
   "zeromq @ git+https://github.com/commaai/dependencies.git@release-zeromq#subdirectory=zeromq",
   "libusb @ git+https://github.com/commaai/dependencies.git@release-libusb#subdirectory=libusb",
+  "json11 @ git+https://github.com/commaai/dependencies.git@release-json11#subdirectory=json11",
   "git-lfs @ git+https://github.com/commaai/dependencies.git@release-git-lfs#subdirectory=git-lfs",
   "gcc-arm-none-eabi @ git+https://github.com/commaai/dependencies.git@release-gcc-arm-none-eabi#subdirectory=gcc-arm-none-eabi",
   "xvfb @ git+https://github.com/commaai/dependencies.git@release-xvfb#subdirectory=xvfb",
@@ -73,7 +75,7 @@ dependencies = [
   "zstandard",
 
   # ui
-  #"raylib > 5.5.0.3",
+  "raylib > 5.5.0.3",
   "qrcode",
   "jeepney",
   "pillow",
