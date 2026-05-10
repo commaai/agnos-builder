@@ -223,6 +223,15 @@ RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostn
 
 # keep this last
 RUN ldconfig
+# ldconfig rewrites these SONAME links back to Mesa; raylib COMMA needs Adreno.
+RUN cd /usr/lib/aarch64-linux-gnu && \
+    test -f libEGL_adreno.so && \
+    test -f libGLESv2_adreno.so && \
+    install -m 755 libgbm.so /tmp/libgbm_adreno.so && \
+    ln -sf libEGL_adreno.so libEGL.so.1 && \
+    ln -sf libGLESv2_adreno.so libGLESv2.so.2 && \
+    rm -f libgbm.so.1 && \
+    mv /tmp/libgbm_adreno.so libgbm.so.1
 
 # Setup RO rootfs
 RUN mkdir -p /rwtmp
