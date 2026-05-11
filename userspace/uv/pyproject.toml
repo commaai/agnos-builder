@@ -8,6 +8,8 @@ dependencies = [
   "openpilot",
   "openpilot[testing]",
 
+  "pycapnp==2.1.0", # >=2.2 leaks memory :(
+
   # hardware.py
   "dbus-python",
   # amplifier.py
