@@ -8,9 +8,9 @@ CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
-# blip power to ~10W to see if the PSU is stable
+# blip power to ~5W to see if the PSU is stable
 if grep -q mici /sys/firmware/devicetree/base/model; then
-  sudo timeout --kill-after=2 5 /home/comma/power_burn_max 0.3 8
+  sudo timeout --kill-after=2 5 /home/comma/power_burn_max 0.3 2
 fi
 
 # use max freq to boot up quickly, then limit
