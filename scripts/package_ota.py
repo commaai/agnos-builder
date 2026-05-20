@@ -58,7 +58,6 @@ PARTITIONS = [
   Partition('system', OUTPUT_DIR / 'system.img', True, True, False, True),
   Partition('userdata_90', OUTPUT_DIR / 'userdata_90.img', False, False, True, True),
   Partition('userdata_89', OUTPUT_DIR / 'userdata_89.img', False, False, True, True),
-  Partition('userdata_30', OUTPUT_DIR / 'userdata_30.img', False, False, True, True),
 ]
 
 

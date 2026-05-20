@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+
+if ! command -v bun &> /dev/null; then
+  echo "Installing bun..." >&2
+  curl -fsSL https://bun.sh/install | bash >&2
+  export PATH="$HOME/.bun/bin:$PATH"
+fi
+
+QDL="bunx --bun commaai/qdl.js"
+
+# preload package so bunx output doesn't pollute stdout on first run
+$QDL --help > /dev/null 2>&1 || true
+
+exec $QDL "$@"

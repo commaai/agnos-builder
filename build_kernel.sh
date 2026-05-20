@@ -109,6 +109,11 @@ build_kernel() {
   # Copy to output dir
   mkdir -p $OUTPUT_DIR
   mv $BOOT_IMG $OUTPUT_DIR/
+  cd $DIR/agnos-kernel-sdm845
+
+  echo "-- Install kernel UAPI headers --"
+  rm -rf $OUTPUT_DIR/linux-headers
+  make headers_install O=out INSTALL_HDR_PATH=$OUTPUT_DIR/linux-headers
 }
 
 # Run build_kernel in container

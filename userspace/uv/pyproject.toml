@@ -17,6 +17,8 @@ dependencies = [
 
   # provisioning
   "pyusb",
+  # pandad
+  "libusb1 ==3.1.0", # recent versions segfault on comma three
   "paramiko",
 
   # extra nice-to-haves
@@ -25,9 +27,10 @@ dependencies = [
   "py-spy",
   "spidev2",
   "flaky",
+  "matplotlib",
 
   # GUIs
-  "raylib @ https://github.com/commaai/raylib-python-cffi/releases/download/8/raylib-5.5.0.2-cp312-cp312-linux_aarch64.whl",
+  "raylib @ git+https://github.com/commaai/dependencies.git@release-raylib#subdirectory=raylib",
 ]
 
 [tool.uv.sources]

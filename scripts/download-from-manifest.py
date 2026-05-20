@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 MASTER_MANIFEST = "https://raw.githubusercontent.com/commaai/openpilot/master/system/hardware/tici/agnos.json"
-RELEASE_MANIFEST = "https://raw.githubusercontent.com/commaai/openpilot/release3/system/hardware/tici/agnos.json"
+RELEASE_MANIFEST = "https://raw.githubusercontent.com/commaai/openpilot/release-mici/system/hardware/tici/agnos.json"
 
 ROOT = Path(__file__).parent.parent
 

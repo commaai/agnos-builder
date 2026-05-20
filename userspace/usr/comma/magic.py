@@ -10,7 +10,7 @@ WESTON_SOCK_PATH = os.path.join(WESTON_RUNTIME_DIR, "wayland-0")
 
 SOCK_PATH = "/tmp/drmfd.sock"
 DRM_DEVICE = "/dev/dri/card0"
-BACKGROUND = "/usr/comma/bg.jpg"
+BACKGROUND = "/usr/comma/bg.png"
 
 # This is needed to keep the old updater working. Updater used to be stored in
 # openpilot directly instead of in AGNOS. This will intercept the old updater

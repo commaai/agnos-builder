@@ -21,12 +21,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
 
-# ffmpeg
-FROM agnos-compiler AS agnos-compiler-ffmpeg
-COPY ./userspace/compile-ffmpeg.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=ffmpeg,sharing=shared \
-    /tmp/agnos/compile-ffmpeg.sh
-
 # libqmi
 FROM agnos-compiler AS agnos-compiler-libqmi
 COPY ./userspace/compile-libqmi.sh /tmp/agnos/
@@ -118,10 +112,6 @@ RUN cd /tmp && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
 
-# Use other pre-compiled packages
-COPY --from=agnos-compiler-ffmpeg /tmp/ffmpeg.deb /tmp/ffmpeg.deb
-RUN cd /tmp && apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./ffmpeg.deb
-
 ARG XDG_DATA_HOME="/usr/local"
 
 # Install openpilot python packages
@@ -169,11 +159,13 @@ COPY ./userspace/usr/comma/ /usr/$USERNAME/
 COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
 COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY ./userspace/libs32/* /usr/lib/arm-linux-gnueabihf/
+COPY ./output/linux-headers/include/ /usr/include/
+COPY ./userspace/files/amdgpu/ /usr/lib/firmware/amdgpu/
 
-# this is big, only enable when we need it
-# kernel headers for the AGNOS kernel (built on device)
-#COPY ./userspace/files/linux-headers-4.9.103+_4.9.103+-1_arm64.deb /tmp/
-#RUN dpkg -i /tmp/linux-headers-4.9.103+_4.9.103+-1_arm64.deb
+COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
+RUN gcc -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
+    -lOpenCL -lpthread -ldl && rm /tmp/agnos/power_burn_max.c \
+    && chown $USERNAME: /home/$USERNAME/power_burn_max
 
 # Weston with hacked touch rotate and color correction
 COPY ./userspace/files/weston /usr/bin/weston
@@ -234,6 +226,15 @@ RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostn
 
 # keep this last
 RUN ldconfig
+# ldconfig rewrites these SONAME links back to Mesa; raylib COMMA needs Adreno.
+RUN cd /usr/lib/aarch64-linux-gnu && \
+    test -f libEGL_adreno.so && \
+    test -f libGLESv2_adreno.so && \
+    install -m 755 libgbm.so /tmp/libgbm_adreno.so && \
+    ln -sf libEGL_adreno.so libEGL.so.1 && \
+    ln -sf libGLESv2_adreno.so libGLESv2.so.2 && \
+    rm -f libgbm.so.1 && \
+    mv /tmp/libgbm_adreno.so libgbm.so.1
 
 # Setup RO rootfs
 RUN mkdir -p /rwtmp
