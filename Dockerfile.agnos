@@ -1,37 +1,44 @@
 # check=error=true
 
 # ################## #
-# ### Package  ##### #
+# ### Package ##### #
 # ### Compilation ## #
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
 # Common packages
 RUN apt-get update && apt-get install -yq --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    ccache \
-    clang \
-    curl \
-    checkinstall \
-    git \
-    pkg-config \
-    wget
+ build-essential \
+ ca-certificates \
+ ccache \
+ clang \
+ curl \
+ checkinstall \
+ git \
+ pkg-config \
+ wget
 
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
 
-# libqmi
+# libqmi (independent stage - builds in parallel with ModemManager)
 FROM agnos-compiler AS agnos-compiler-libqmi
 COPY ./userspace/compile-libqmi.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    /tmp/agnos/compile-libqmi.sh
+ /tmp/agnos/compile-libqmi.sh
 
-# ModemManager
-FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
+# ModemManager (independent stage - builds in parallel with libqmi)
+# Uses system libqmi-dev for compilation headers; our custom .deb overwrites in final stage
+FROM agnos-compiler AS agnos-compiler-modemmanager
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+ libglib2.0-dev \
+ libgudev-1.0-dev \
+ libqmi-dev \
+ libqmi-proxy \
+ gir1.2-qmi-1.0
 COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    /tmp/agnos/compile-modemmanager.sh
+ /tmp/agnos/compile-modemmanager.sh
 
 # ################## #
 # ###### Base ###### #
@@ -55,11 +62,10 @@ RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-
 COPY ./userspace/base_setup.sh /tmp/agnos
 RUN /tmp/agnos/base_setup.sh
 
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
-COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_python_dependencies.sh
+# Install openpilot dependencies - combined into single layer
+COPY ./userspace/openpilot_dependencies.sh ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
+RUN /tmp/agnos/openpilot_dependencies.sh && \
+ /tmp/agnos/openpilot_python_dependencies.sh
 
 # ################### #
 # ###### AGNOS ###### #
@@ -73,79 +79,76 @@ RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
 
+# Install ModemManager deps and custom .debs, then clean apt lists in same layer
 RUN cd /tmp && \
-    apt-get update && \
-    apt-get install -yq --no-install-recommends \
-    python3 \
-    python3-dev \
-    gir1.2-qmi-1.0 \
-    libglib2.0-dev \
-    libqmi-glib5 \
-    libc6 \
-    libglib2.0-0t64 \
-    libgudev-1.0-0 \
-    libmm-glib0 \
-    libpolkit-gobject-1-0 \
-    libsystemd0 \
-    libwayland-client0 \
-    libwayland-server0 \
-    polkitd \
-    mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
+ apt-get update && \
+ apt-get install -yq --no-install-recommends \
+ python3 \
+ python3-dev \
+ gir1.2-qmi-1.0 \
+ libglib2.0-dev \
+ libqmi-glib5 \
+ libc6 \
+ libglib2.0-0t64 \
+ libgudev-1.0-0 \
+ libmm-glib0 \
+ libpolkit-gobject-1-0 \
+ libsystemd0 \
+ libwayland-client0 \
+ libwayland-server0 \
+ polkitd \
+ mobile-broadband-provider-info && \
+ apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
+ apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
+ rm -f /tmp/libqmi.deb /tmp/modemmanager.deb && \
+ rm -rf /var/lib/apt/lists/*
 
 ARG XDG_DATA_HOME="/usr/local"
 
-# Install openpilot python packages
+# Install openpilot python packages - use uv cache for faster rebuilds
 COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
-    cd /tmp/agnos/uv && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
+ cd /tmp/agnos/uv && \
+ MAKEFLAGS="-j$(nproc)" UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode && \
+ rm -rf /tmp/agnos/uv
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-RUN chown -R $USERNAME: /home/$USERNAME/.config
-RUN rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config
-
-RUN chmod 644 /etc/logrotate.conf
-RUN rm -f /etc/fstab
+# Consolidate misc setup into fewer layers
+RUN chown -R $USERNAME: /home/$USERNAME/.config && \
+ rm -rf /root/.config && ln -s /home/$USERNAME/.config /root/.config && \
+ chmod 644 /etc/logrotate.conf && \
+ rm -f /etc/fstab
 
 # Install kernel headers
 COPY ./output/linux-headers/include/ /usr/include/
 
 # builds
 COPY ./userspace/power_burn_max.c ./userspace/irsc_util.c /tmp/agnos/
-RUN gcc -O2 -o /usr/comma/power_burn_max /tmp/agnos/power_burn_max.c -lpthread
-RUN gcc -O2 -Wall -Wextra -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
+RUN gcc -O2 -o /usr/comma/power_burn_max /tmp/agnos/power_burn_max.c -lpthread && \
+ gcc -O2 -Wall -Wextra -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
 
 # Setup systemd services
 COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh
 
-# MOTD
+# MOTD + network config consolidated
 RUN rm -r /etc/update-motd.d/*
 COPY --chown=root:root ./userspace/root/etc/update-motd.d/* /etc/update-motd.d/
 
-RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
-
-# Prefer ipv4 over ipv6
-RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection && \
+ echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
 # Run ModemManager in debug mode to allow AT commands
 COPY ./userspace/files/ModemManager.service /lib/systemd/system/
-RUN systemctl enable ModemManager
-
-# Setup hostname resolution for our custom hostname
-RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
-
-# keep this last
-RUN ldconfig
+RUN systemctl enable ModemManager && \
+ sed -i 's/hosts: files dns myhostname/hosts: files myhostname dns/g' /etc/nsswitch.conf && \
+ ldconfig
 
 # Setup RO rootfs
-RUN mkdir -p /rwtmp
-RUN mkdir -p /tmptmp
+RUN mkdir -p /rwtmp /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 
@@ -154,7 +157,7 @@ RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
 # ################# #
 
 RUN rm -rf /usr/share/icons/* && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /home/$USERNAME/.cache && \
-    rm -rf /root/.cache && \
-    apt-get clean
+ rm -rf /var/lib/apt/lists/* && \
+ rm -rf /home/$USERNAME/.cache && \
+ rm -rf /root/.cache && \
+ apt-get clean
