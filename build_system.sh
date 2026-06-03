@@ -48,18 +48,16 @@ fi
 export DOCKER_BUILDKIT=1
 docker buildx build -f Dockerfile.agnos --check $DIR
 
-# Check agnos-meta-builder Dockerfile
-docker buildx build --load -f Dockerfile.builder --check $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
-
-# Setup mount container for macOS and CI support (namespace.so)
-echo "Building agnos-meta-builder docker image"
-docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+# Reuse builder image from kernel build if available, otherwise build it
+if ! docker image inspect agnos-meta-builder:latest >/dev/null 2>&1; then
+  echo "Building agnos-meta-builder docker image"
+  docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
+    --build-arg UNAME=$(id -nu) \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g)
+else
+  echo "Reusing agnos-meta-builder image from kernel build"
+fi
 echo "Starting agnos-meta-builder container"
 MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-meta-builder)
 
@@ -96,11 +94,17 @@ BUILD="docker buildx build"
 if [ ! -z "$NS" ]; then
   BUILD="nsc build"
 fi
+BUILD_ARGS=""
+if [ ! -z "$GITHUB_ACTIONS" ]; then
+  BUILD_ARGS="--cache-from type=local,src=/tmp/.buildx-cache \
+    --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max"
+fi
 $BUILD -f Dockerfile.agnos \
   --output "type=tar,dest=-" \
   --provenance=false \
   --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
   --platform=linux/arm64 \
+  $BUILD_ARGS \
   "$DIR" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
 
 # Avoid detecting as container
