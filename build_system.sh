@@ -74,21 +74,6 @@ exec_as_root() {
   docker exec $MOUNT_CONTAINER_ID "$@"
 }
 
-# Create filesystem ext4 image
-echo "Creating empty filesystem"
-exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
-
-# Mount filesystem
-echo "Mounting empty filesystem"
-exec_as_root mkdir -p $ROOTFS_DIR
-exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
-
-# Also unmount filesystem (overwrite previous trap)
-trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
-echo \"Cleaning up containers:\"; \
-docker container rm -f $MOUNT_CONTAINER_ID" EXIT
-
 # CI optimization: Use smaller ext4 image for CI validation
 # Production builds use full 4500M, CI uses minimal size for speed
 if [ ! -z "$GITHUB_ACTIONS" ]; then
