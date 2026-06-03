@@ -1,3 +1,4 @@
+```bash
 #!/usr/bin/env bash
 set -e
 
@@ -116,5 +117,6 @@ build_kernel() {
   make headers_install O=out INSTALL_HDR_PATH=$OUTPUT_DIR/linux-headers
 }
 
-# Run build_kernel in container
+# Run build_kernel in container with parallelization
 docker exec -u $(id -nu) $CONTAINER_ID bash -c "set -e; export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
+```
