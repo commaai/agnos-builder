@@ -50,7 +50,7 @@ jobs:
           ccache-kernel-${{ steps.kernel-submodule.outputs.ref }}-
           ccache-kernel-
 
-        - name: Build agnos-meta-builder
+    - name: Build agnos-meta-builder
       run: |
         docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder . \
           --build-arg UNAME=$(id -nu) \
