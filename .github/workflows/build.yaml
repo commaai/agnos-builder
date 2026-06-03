@@ -50,6 +50,23 @@ jobs:
           ccache-kernel-${{ steps.kernel-submodule.outputs.ref }}-
           ccache-kernel-
 
+    - name: Cache Ubuntu Base image
+      uses: actions/cache@v4
+      with:
+        path: ubuntu-base-24.04.3-base-arm64.tar.gz
+        key: ubuntu-base-24.04.3-arm64
+        restore-keys: ubuntu-base-
+
+    - name: Set up Docker buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Docker buildx cache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: buildx-agnos-${{ github.sha }}
+        restore-keys: buildx-agnos-
+
     - name: Build kernel
       env:
         CCACHE_DIR: ${{ github.workspace }}/.ccache
@@ -65,6 +82,20 @@ jobs:
       env:
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
       run: ./build_system.sh
+
+    - name: Trim Docker buildx cache
+      if: always()
+      run: |
+        # Prevent cache from growing unbounded
+        if [ -d /tmp/.buildx-cache-new ]; then
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+        fi
+        # Clean old cache entries
+        if [ -d /tmp/.buildx-cache ]; then
+          du -sh /tmp/.buildx-cache
+          find /tmp/.buildx-cache -type f -mtime +7 -delete 2>/dev/null || true
+        fi
 
     - name: Statistics
       id: stats
