@@ -136,7 +136,10 @@ BUILD_START=$(date +%s)
 if [ ! -z "$GITHUB_ACTIONS" ] && [ -f "$DOCKER_IMAGE_CACHE" ]; then
   echo "CI: Docker image cache hit! Loading cached image ($(du -h "$DOCKER_IMAGE_CACHE" | cut -f1))..."
   docker load -i "$DOCKER_IMAGE_CACHE"
-  docker save agnos-rootfs:latest | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
+  # Use docker export to get plain filesystem tar from the loaded image
+  CONTAINER_ID=$(docker create agnos-rootfs:latest)
+  docker export $CONTAINER_ID | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
+  docker rm -f $CONTAINER_ID
   echo "CI: Loaded from cache in $(($(date +%s) - $BUILD_START))s"
 else
   BUILD="docker buildx build"
@@ -159,8 +162,10 @@ else
     $BUILD_ARGS \
     "$DIR" | docker load
 
-  # Extract to rootfs
-  docker save agnos-rootfs:latest | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
+  # Extract filesystem using docker export (plain filesystem tar)
+  CONTAINER_ID=$(docker create agnos-rootfs:latest)
+  docker export $CONTAINER_ID | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
+  docker rm -f $CONTAINER_ID
 
   # Save to cache for next CI run
   if [ ! -z "$GITHUB_ACTIONS" ]; then
