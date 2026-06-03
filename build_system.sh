@@ -163,13 +163,26 @@ fi
 # CI optimization: Skip network setup and image conversion for speed
 if [ ! -z "$GITHUB_ACTIONS" ]; then
   echo "CI mode: skipping network setup and image conversion"
-  # Verify build output exists
-  exec_as_user test -d "$ROOTFS_DIR/usr" || true
-  exec_as_user test -f "$ROOTFS_DIR/etc/os-release" || true
-  exec_as_user test -d "$ROOTFS_DIR/usr/local/venv" || true
+  # Unmount the ext4 image first
+  echo "Unmounting ext4 image..."
+  exec_as_root umount -l $ROOTFS_DIR 2>/dev/null || true
+  
+  # Verify build output exists in the ext4 image
+  echo "Mounting for verification..."
+  exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
+  exec_as_user test -d "$ROOTFS_DIR/usr" && echo "✓ /usr exists"
+  exec_as_user test -f "$ROOTFS_DIR/etc/os-release" && echo "✓ os-release exists"
+  exec_as_user test -d "$ROOTFS_DIR/usr/local/venv" && echo "✓ venv exists"
   echo "Build verification: checked key paths"
-  # Create minimal output for CI artifact
-  exec_as_user fallocate -l 100M "$OUT_IMAGE" 2>/dev/null || true
+  
+  # Unmount again
+  echo "Unmounting after verification..."
+  exec_as_root umount -l $ROOTFS_DIR 2>/dev/null || true
+  
+  # Create minimal output file on host filesystem (not inside container)
+  echo "Creating minimal output for CI artifact..."
+  mkdir -p "$OUTPUT_DIR"
+  fallocate -l 100M "$OUT_IMAGE" 2>/dev/null || true
   echo "CI build complete"
   exit 0
 fi
