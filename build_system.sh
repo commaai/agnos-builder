@@ -1,3 +1,4 @@
+```bash
 #!/usr/bin/env bash
 set -eo pipefail
 
@@ -46,13 +47,12 @@ fi
 
 # Check agnos-builder Dockerfile
 export DOCKER_BUILDKIT=1
-docker buildx build -f Dockerfile.agnos --check $DIR
-
-# Check agnos-meta-builder Dockerfile
+docker buildx build -f Dockerfile.agnos --check $DIR &
 docker buildx build --load -f Dockerfile.builder --check $DIR \
   --build-arg UNAME=$(id -nu) \
   --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+  --build-arg GID=$(id -g) &
+wait
 
 # Setup mount container for macOS and CI support (namespace.so)
 echo "Building agnos-meta-builder docker image"
@@ -101,11 +101,10 @@ $BUILD -f Dockerfile.agnos \
   --provenance=false \
   --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
   --platform=linux/arm64 \
-  "$DIR" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
+  "$DIR" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR &
 
-# Avoid detecting as container
 echo "Removing .dockerenv file"
-exec_as_root rm -f $ROOTFS_DIR/.dockerenv
+exec_as_root rm -f $ROOTFS_DIR/.dockerenv &
 
 echo "Setting network stuff"
 set_network_stuff() {
@@ -127,7 +126,9 @@ set_network_stuff() {
   bash -c "printf \"$GIT_HASH\n$DATETIME\n\" > BUILD"
 }
 GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
-exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; $(declare -f set_network_stuff); set_network_stuff"
+exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; $(declare -f set_network_stuff); set_network_stuff" &
+
+wait
 
 # Unmount image
 echo "Unmount filesystem"
@@ -137,3 +138,4 @@ exec_as_root umount -l $ROOTFS_DIR
 exec_as_user img2simg $ROOTFS_IMAGE $OUT_IMAGE
 
 echo "Done!"
+```
