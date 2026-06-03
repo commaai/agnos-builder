@@ -114,19 +114,20 @@ BUILD_START=$(date +%s)
 
 echo "Building and extracting agnos-builder docker image"
 
-# CI optimization: Use full Docker image cache to skip build entirely
+# CI optimization: Use buildx cache + Docker image cache
 DOCKER_IMAGE_CACHE="/tmp/.agnos-docker-image.tar"
 BUILD_START=$(date +%s)
 
 if [ ! -z "$GITHUB_ACTIONS" ] && [ -f "$DOCKER_IMAGE_CACHE" ]; then
   echo "CI: Docker image cache hit! Loading cached image ($(du -h "$DOCKER_IMAGE_CACHE" | cut -f1))..."
   docker load -i "$DOCKER_IMAGE_CACHE"
-  # Use docker export to get plain filesystem tar from the loaded image
+  # Use docker export to get filesystem from loaded image
   CONTAINER_ID=$(docker create agnos-rootfs:latest)
-  docker export $CONTAINER_ID | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
-  docker rm -f $CONTAINER_ID
+  docker export "$CONTAINER_ID" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
+  docker rm "$CONTAINER_ID"
   echo "CI: Loaded from cache in $(($(date +%s) - $BUILD_START))s"
 else
+  # Original approach: build and output as tar for direct extraction
   BUILD="docker buildx build"
   if [ ! -z "$NS" ]; then
     BUILD="nsc build"
@@ -137,23 +138,27 @@ else
       --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max"
   fi
 
-  # Build and tag image for caching
+  # Build and extract directly as filesystem tar (original working approach)
   $BUILD -f Dockerfile.agnos \
-    -t agnos-rootfs:latest \
-    --output "type=docker,dest=-" \
+    --output "type=tar,dest=-" \
     --provenance=false \
     --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
     --platform=linux/arm64 \
     $BUILD_ARGS \
-    "$DIR" | docker load
+    "$DIR" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
 
-  # Extract filesystem using docker export (plain filesystem tar)
-  CONTAINER_ID=$(docker create agnos-rootfs:latest)
-  docker export $CONTAINER_ID | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
-  docker rm -f $CONTAINER_ID
-
-  # Save to cache for next CI run
+  # Also build as Docker image and save to cache for future runs
   if [ ! -z "$GITHUB_ACTIONS" ]; then
+    echo "CI: Building Docker image for cache..."
+    docker buildx build -f Dockerfile.agnos \
+      -t agnos-rootfs:latest \
+      --output "type=docker" \
+      --provenance=false \
+      --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
+      --platform=linux/arm64 \
+      --cache-from type=local,src=/tmp/.buildx-cache \
+      "$DIR"
+
     echo "CI: Saving Docker image to cache..."
     docker save agnos-rootfs:latest -o "$DOCKER_IMAGE_CACHE"
     echo "CI: Cache saved ($(du -h "$DOCKER_IMAGE_CACHE" | cut -f1))"
