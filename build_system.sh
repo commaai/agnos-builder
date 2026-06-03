@@ -74,13 +74,6 @@ exec_as_root() {
   docker exec $MOUNT_CONTAINER_ID "$@"
 }
 
-# CI optimization: Use smaller ext4 image for CI validation
-# Production builds use full 4500M, CI uses minimal size for speed
-if [ ! -z "$GITHUB_ACTIONS" ]; then
-  ROOTFS_IMAGE_SIZE=500M
-  echo "CI mode: using 500M ext4 image for faster validation"
-fi
-
 # Create filesystem ext4 image
 echo "Creating empty filesystem"
 exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
