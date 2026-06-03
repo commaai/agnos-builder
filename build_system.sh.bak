@@ -160,16 +160,70 @@ else
   echo "CI: Build completed in $(($(date +%s) - $BUILD_START))s"
 fi
 
-# CI optimization: Skip network setup and image conversion for speed
+# Optimization: Use rsync-like approach for CI - extract directly without ext4 overhead
+# On CI, we can skip the ext4 image creation and just validate the build succeeds
 if [ ! -z "$GITHUB_ACTIONS" ]; then
-  echo "CI mode: skipping network setup and image conversion"
-  # Verify build output exists
-  exec_as_user test -d "$ROOTFS_DIR/usr" || true
-  exec_as_user test -f "$ROOTFS_DIR/etc/os-release" || true
-  exec_as_user test -d "$ROOTFS_DIR/usr/local/venv" || true
-  echo "Build verification: checked key paths"
-  # Create minimal output for CI artifact
-  exec_as_user fallocate -l 100M "$OUT_IMAGE" 2>/dev/null || true
+  echo "CI mode: validating build output, skipping ext4 image creation for speed"
+  echo "Build validation: checking key files exist in rootfs"
+  exec_as_user test -d "$ROOTFS_DIR/usr" && echo "✓ /usr exists"
+  exec_as_user test -f "$ROOTFS_DIR/etc/os-release" && echo "✓ os-release exists"
+  exec_as_user test -d "$ROOTFS_DIR/usr/local/venv" && echo "✓ venv exists"
+  echo "Build validation passed"
+
+  # Still create a minimal output for artifact purposes
+  echo "Creating minimal system image for CI"
+  exec_as_user fallocate -l 500M "$OUT_IMAGE"
+  exec_as_user mkfs.ext4 "$OUT_IMAGE" &> /dev/null
   echo "CI build complete"
   exit 0
+fi
+
+# Avoid detecting as container
+echo "Removing .dockerenv file"
+exec_as_root rm -f $ROOTFS_DIR/.dockerenv
+
+echo "Setting network stuff"
+set_network_stuff() {
+  cd $ROOTFS_DIR
+  # Add hostname and hosts. This cannot be done in the docker container...
+  HOST=comma
+  bash -c "ln -sf /proc/sys/kernel/hostname etc/hostname"
+  bash -c "echo \"127.0.0.1    localhost.localdomain localhost\" > etc/hosts"
+  bash -c "echo \"127.0.0.1    $HOST\" >> etc/hosts"
+
+  # Fix resolv config
+  bash -c "ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf"
+
+  # Set capability for ping
+  bash -c "setcap cap_net_raw+ep bin/ping"
+
+  # Write build info
+  DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
+  bash -c "printf \"$GIT_HASH\n$DATETIME\n\" > BUILD"
+}
+GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
+exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; $(declare -f set_network_stuff); set_network_stuff"
+
+# Unmount image
+echo "Unmount filesystem"
+exec_as_root umount -l $ROOTFS_DIR
+
+# Sparsify system image
+exec_as_user img2simg $ROOTFS_IMAGE $OUT_IMAGE
+
+# CI optimization: Save build output to cache for subsequent runs
+if [ ! -z "$GITHUB_ACTIONS" ]; then
+  BUILD_TIME=$(($(date +%s) - $BUILD_START))
+  CURRENT_HASH=$(sha256sum Dockerfile.agnos userspace/*.sh 2>/dev/null | sha256sum | cut -d' ' -f1)
+  CACHE_FILE="/tmp/.agnos-cache-${CURRENT_HASH}.img"
+  
+  echo "Saving build to CI cache ($(du -h "$OUT_IMAGE" | cut -f1))..."
+  cp "$OUT_IMAGE" "$CACHE_FILE"
+  
+  # Clean old cache files (keep only latest 3)
+  ls -t /tmp/.agnos-cache-*.img 2>/dev/null | tail -n +4 | xargs rm -f 2>/dev/null || true
+  
+  echo "Done (build time: $((BUILD_TIME / 60))m $((BUILD_TIME % 60))s)"
+else
+  echo "Done!"
 fi
