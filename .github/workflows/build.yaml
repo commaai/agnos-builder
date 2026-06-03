@@ -67,6 +67,13 @@ jobs:
         key: buildx-agnos-${{ github.sha }}
         restore-keys: buildx-agnos-
 
+    - name: Cache Docker image
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.agnos-docker-image.tar
+        key: agnos-docker-${{ hashFiles('Dockerfile.agnos', 'userspace/*.sh') }}
+        restore-keys: agnos-docker-
+
     - name: Cache built system image
       uses: actions/cache@v4
       with:

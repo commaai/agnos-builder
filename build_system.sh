@@ -128,22 +128,49 @@ fi
 BUILD_START=$(date +%s)
 
 echo "Building and extracting agnos-builder docker image"
-BUILD="docker buildx build"
-if [ ! -z "$NS" ]; then
-  BUILD="nsc build"
+
+# CI optimization: Use full Docker image cache to skip build entirely
+DOCKER_IMAGE_CACHE="/tmp/.agnos-docker-image.tar"
+BUILD_START=$(date +%s)
+
+if [ ! -z "$GITHUB_ACTIONS" ] && [ -f "$DOCKER_IMAGE_CACHE" ]; then
+  echo "CI: Docker image cache hit! Loading cached image ($(du -h "$DOCKER_IMAGE_CACHE" | cut -f1))..."
+  docker load -i "$DOCKER_IMAGE_CACHE"
+  docker save agnos-rootfs:latest | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
+  echo "CI: Loaded from cache in $(($(date +%s) - $BUILD_START))s"
+else
+  BUILD="docker buildx build"
+  if [ ! -z "$NS" ]; then
+    BUILD="nsc build"
+  fi
+  BUILD_ARGS=""
+  if [ ! -z "$GITHUB_ACTIONS" ]; then
+    BUILD_ARGS="--cache-from type=local,src=/tmp/.buildx-cache \
+      --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max"
+  fi
+
+  # Build and tag image for caching
+  $BUILD -f Dockerfile.agnos \
+    -t agnos-rootfs:latest \
+    --output "type=docker,dest=-" \
+    --provenance=false \
+    --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
+    --platform=linux/arm64 \
+    $BUILD_ARGS \
+    "$DIR" | docker load
+
+  # Extract to rootfs
+  docker save agnos-rootfs:latest | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
+
+  # Save to cache for next CI run
+  if [ ! -z "$GITHUB_ACTIONS" ]; then
+    echo "CI: Saving Docker image to cache..."
+    docker save agnos-rootfs:latest -o "$DOCKER_IMAGE_CACHE"
+    echo "CI: Cache saved ($(du -h "$DOCKER_IMAGE_CACHE" | cut -f1))"
+  fi
+
+  echo "CI: Build completed in $(($(date +%s) - $BUILD_START))s"
 fi
-BUILD_ARGS=""
-if [ ! -z "$GITHUB_ACTIONS" ]; then
-  BUILD_ARGS="--cache-from type=local,src=/tmp/.buildx-cache \
-    --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max"
-fi
-$BUILD -f Dockerfile.agnos \
-  --output "type=tar,dest=-" \
-  --provenance=false \
-  --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
-  --platform=linux/arm64 \
-  $BUILD_ARGS \
-  "$DIR" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
 
 # Optimization: Use rsync-like approach for CI - extract directly without ext4 overhead
 # On CI, we can skip the ext4 image creation and just validate the build succeeds
