@@ -115,7 +115,8 @@ if [ ! -z "$GITHUB_ACTIONS" ] && [ -f "$DOCKER_IMAGE_CACHE" ]; then
   echo "CI: Docker image cache hit! Loading cached image ($(du -h "$DOCKER_IMAGE_CACHE" | cut -f1))..."
   docker load -i "$DOCKER_IMAGE_CACHE"
   # Use docker export to get filesystem from loaded image
-  CONTAINER_ID=$(docker create agnos-rootfs:latest)
+  # Add /bin/true as dummy command since image has no CMD/ENTRYPOINT
+  CONTAINER_ID=$(docker create agnos-rootfs:latest /bin/true)
   docker export "$CONTAINER_ID" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
   docker rm "$CONTAINER_ID"
   echo "CI: Loaded from cache in $(($(date +%s) - $BUILD_START))s"
