@@ -50,21 +50,35 @@ jobs:
           ccache-kernel-${{ steps.kernel-submodule.outputs.ref }}-
           ccache-kernel-
 
-    - name: Build kernel
-      env:
-        CCACHE_DIR: ${{ github.workspace }}/.ccache
-        CCACHE_MAXSIZE: 5G
-      run: ./build_kernel.sh
+        - name: Build agnos-meta-builder
+      run: |
+        docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder . \
+          --build-arg UNAME=$(id -nu) \
+          --build-arg UID=$(id -u) \
+          --build-arg GID=$(id -g)
+
+    - name: Extract kernel UAPI headers
+      run: |
+        if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
+          git submodule update --init agnos-kernel-sdm845
+        fi
+        cd agnos-kernel-sdm845
+        make headers_install O=out ARCH=arm64 INSTALL_HDR_PATH=../output/linux-headers
 
     - name: Update VERSION
       if: github.event_name == 'pull_request'
       run: |
         echo -n $(cat userspace/root/VERSION)-$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) > userspace/root/VERSION
 
-    - name: Build system
+    - name: Build kernel and system
       env:
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
+        CCACHE_MAXSIZE: 5G
         GIT_HASH: ${{ github.event.pull_request.head.sha }}
-      run: ./build_system.sh
+      run: |
+        ./build_kernel.sh &
+        ./build_system.sh &
+        wait
 
     - name: Statistics
       id: stats
