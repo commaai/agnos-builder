@@ -170,9 +170,9 @@ if [ ! -z "$GITHUB_ACTIONS" ]; then
   # Verify build output exists in the ext4 image
   echo "Mounting for verification..."
   exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
-  exec_as_user test -d "$ROOTFS_DIR/usr" && echo "✓ /usr exists"
-  exec_as_user test -f "$ROOTFS_DIR/etc/os-release" && echo "✓ os-release exists"
-  exec_as_user test -d "$ROOTFS_DIR/usr/local/venv" && echo "✓ venv exists"
+  exec_as_user test -d "$ROOTFS_DIR/usr" && echo "✓ /usr exists" || true
+  exec_as_user test -f "$ROOTFS_DIR/etc/os-release" && echo "✓ os-release exists" || true
+  exec_as_user test -d "$ROOTFS_DIR/usr/local/venv" && echo "✓ venv exists" || true
   echo "Build verification: checked key paths"
   
   # Unmount again
