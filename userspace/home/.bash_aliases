@@ -7,4 +7,4 @@ alias gst='git status'
 alias gco='git checkout'
 alias gsu='git submodule update'
 
-alias op='/data/openpilot/tools/op.sh "$@"'
+alias op='/data/openpilot/openpilot/tools/op.sh "$@"'
