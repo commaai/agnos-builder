@@ -1,0 +1,14 @@
+[Unit]
+Description=Start the modem (mss) remoteproc (mainline-kernel only)
+ConditionPathExists=/sys/class/remoteproc
+After=mainline-firmware.service rmtfs.service tqftpserv.service pd-mapper.service
+Requires=mainline-firmware.service rmtfs.service tqftpserv.service pd-mapper.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Find the remoteproc whose name contains mpss/modem and start it if not already running.
+ExecStart=/bin/sh -c 'for rp in /sys/class/remoteproc/remoteproc*; do name=$(cat "$rp/name" 2>/dev/null); case "$name" in *mpss*|*modem*) state=$(cat "$rp/state" 2>/dev/null); [ "$state" = "running" ] || echo start > "$rp/state"; exit 0;; esac; done; echo "no mss remoteproc found" >&2; exit 0'
+
+[Install]
+WantedBy=multi-user.target

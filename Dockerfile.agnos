@@ -33,6 +33,14 @@ COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
+# linux-msm daemons (qrtr, rmtfs, tqftpserv, pd-mapper) for mainline-kernel
+# wifi/modem bring-up. Their systemd units are gated on /sys/class/remoteproc,
+# so they are inert on the downstream 4.9 kernel.
+FROM agnos-compiler AS agnos-compiler-msm-daemons
+COPY ./userspace/compile-msm-daemons.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=msm-daemons,sharing=shared \
+    /tmp/agnos/compile-msm-daemons.sh
+
 # ################## #
 # ###### Base ###### #
 # ################## #
@@ -72,6 +80,7 @@ RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+COPY --from=agnos-compiler-msm-daemons /tmp/msm-daemons-root/ /
 
 RUN cd /tmp && \
     apt-get update && \

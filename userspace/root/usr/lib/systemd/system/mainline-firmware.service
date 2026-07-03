@@ -1,0 +1,16 @@
+[Unit]
+Description=Populate /usr/lib/firmware for mainline-kernel modem/wifi bring-up
+# Inert on the downstream 4.9 kernel.
+ConditionPathExists=/sys/class/remoteproc
+# comma-init mounts /firmware and the tmpfs over /usr/lib/firmware.
+After=comma-init.service
+Requires=comma-init.service
+Before=rmtfs.service tqftpserv.service pd-mapper.service mss-start.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/comma/setup-mainline-firmware.sh
+
+[Install]
+WantedBy=multi-user.target
