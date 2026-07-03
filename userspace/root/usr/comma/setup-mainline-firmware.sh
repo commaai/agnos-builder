@@ -102,4 +102,17 @@ ln -sf "$VENDORED/ath10k/WCN3990/hw1.0/board-2.bin" "$FARM/ath10k/WCN3990/hw1.0/
 
 mount --bind "$FARM" "$FW"
 
+# rmtfs -P discovers the modem EFS partitions via /dev/disk/by-partlabel,
+# but AGNOS removed udev (nothing populates /dev/disk) and the UFS GPT
+# carries no labels for them anyway. Create the links with the same fixed
+# mapping comma-init.sh uses for /dev/block/bootdevice/by-name.
+mkdir -p /dev/disk/by-partlabel
+ln -sf /dev/sdf2 /dev/disk/by-partlabel/modemst1
+ln -sf /dev/sdf3 /dev/disk/by-partlabel/modemst2
+ln -sf /dev/sdf4 /dev/disk/by-partlabel/fsg
+# The modem fatal-errors at boot if its /boot/modem_fsc request is rejected.
+# No labeled fsc partition exists; sdf1 (104K, zeroed) is the LUN5 cookie
+# partition, and rmtfs runs read-only so this can never corrupt flash.
+ln -sf /dev/sdf1 /dev/disk/by-partlabel/fsc
+
 echo "mainline firmware tree populated in $FW"
