@@ -8,7 +8,7 @@ timeout=300
 
 # mainline kernel: wlan0 only appears after the modem remoteproc chain
 # (mainline-firmware -> rmtfs/tqftpserv/pd-mapper -> mss-start -> ath10k),
-# typically 60-90s into boot. NM must not start before the fake udev entry
+# ~16s into boot but potentially much later if the modem retries. NM must not start before the fake udev entry
 # below exists, or it pins wlan0 unmanaged (platform-init) until restarted.
 if [[ -d /sys/class/remoteproc ]]; then
   timeout=3000

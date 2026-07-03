@@ -110,9 +110,6 @@ mkdir -p /dev/disk/by-partlabel
 ln -sf /dev/sdf2 /dev/disk/by-partlabel/modemst1
 ln -sf /dev/sdf3 /dev/disk/by-partlabel/modemst2
 ln -sf /dev/sdf4 /dev/disk/by-partlabel/fsg
-# The modem fatal-errors at boot if its /boot/modem_fsc request is rejected.
-# No labeled fsc partition exists; sdf1 (104K, zeroed) is the LUN5 cookie
-# partition, and rmtfs runs read-only so this can never corrupt flash.
-ln -sf /dev/sdf1 /dev/disk/by-partlabel/fsc
+ln -sf /dev/sdf5 /dev/disk/by-partlabel/fsc
 
 echo "mainline firmware tree populated in $FW"
