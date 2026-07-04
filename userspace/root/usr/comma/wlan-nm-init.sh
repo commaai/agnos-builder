@@ -4,7 +4,7 @@ set -e
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 
 iface=wlan0
-timeout=300
+timeout=3000
 
 for ((i = 0; i < timeout; i++)); do
   [[ -r "/sys/class/net/$iface/ifindex" ]] && break

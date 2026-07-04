@@ -33,6 +33,12 @@ COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
+# linux-msm daemons
+FROM agnos-compiler AS agnos-compiler-msm-daemons
+COPY ./userspace/compile-msm-daemons.sh /tmp/agnos/
+RUN --mount=type=cache,target=/root/.ccache,id=msm-daemons,sharing=shared \
+    /tmp/agnos/compile-msm-daemons.sh
+
 # ################## #
 # ###### Base ###### #
 # ################## #
@@ -72,6 +78,7 @@ RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+COPY --from=agnos-compiler-msm-daemons /tmp/msm-daemons-root/ /
 
 RUN cd /tmp && \
     apt-get update && \

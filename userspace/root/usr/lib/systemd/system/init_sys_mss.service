@@ -29,6 +29,7 @@
 SourcePath=/sbin/init_mss
 Description=Modem Init Service
 After=firmware-mount.service
+ConditionPathExists=!/sys/class/remoteproc
 
 [Service]
 Restart=on-failure
