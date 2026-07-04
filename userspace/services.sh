@@ -22,7 +22,6 @@ systemctl enable mainline-firmware.service
 systemctl enable rmtfs.service
 systemctl enable tqftpserv.service
 systemctl enable pd-mapper.service
-systemctl enable mss-start.service
 
 # Disable SSH by default
 systemctl disable ssh
