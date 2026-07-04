@@ -18,6 +18,10 @@ systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
 systemctl enable tftp_server.service
 
+systemctl enable rmtfs.service
+systemctl enable tqftpserv.service
+systemctl enable pd-mapper.service
+
 # Disable SSH by default
 systemctl disable ssh
 

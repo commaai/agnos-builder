@@ -1,6 +1,7 @@
 [Unit]
 Description=Qualcomm TFTP server
 After=comma-init.service
+ConditionPathExists=!/sys/class/remoteproc
 
 [Service]
 Type=simple
