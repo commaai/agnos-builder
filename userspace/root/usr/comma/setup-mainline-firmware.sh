@@ -21,7 +21,11 @@ if mountpoint -q "$FW"; then
 fi
 
 mkdir -p "$ORIG"
-mountpoint -q "$ORIG" || mount --bind "$FW" "$ORIG"
+if ! mountpoint -q "$ORIG"; then
+  mount --bind "$FW" "$ORIG"
+  # /run is a shared mount tree; keep the farm bind from propagating back
+  mount --make-private "$ORIG"
+fi
 
 rm -rf "$FARM"
 mkdir -p "$FARM"
