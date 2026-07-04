@@ -265,6 +265,12 @@ function init_firmware (
     ln -sf "$seg" "$FARM/qcom/sdm845/modem_nm.${seg##*/modem.}"
   done
 
+  ln -sf "$IMG/adsp.mdt" "$FARM/qcom/sdm845/adsp.mbn"
+  for seg in "$IMG"/adsp.b*; do
+    [[ -e "$seg" ]] || continue
+    ln -sf "$seg" "$FARM/qcom/sdm845/adsp.${seg##*/adsp.}"
+  done
+
   for jsn in "$IMG"/*.jsn; do
     [[ -e "$jsn" ]] || continue
     ln -sf "$jsn" "$FARM/qcom/sdm845/${jsn##*/}"
@@ -293,6 +299,37 @@ function init_firmware (
 )
 
 function init_sound (
+  if [[ -d /sys/class/remoteproc ]]; then
+    if ! await 60 test -e /usr/lib/firmware/qcom/sdm845/adsp.mbn; then
+      log_console "timed out waiting for adsp firmware"
+      exit 1
+    fi
+
+    for rproc in /sys/class/remoteproc/remoteproc*; do
+      [[ "$(< "$rproc/name")" == adsp ]] || continue
+      [[ "$(< "$rproc/state")" == running ]] || echo start > "$rproc/state"
+      break
+    done
+
+    if ! await 30 /usr/comma/sound/tinymix set "SEC_MI2S_RX Audio Mixer MultiMedia1" 1; then
+      log_console "timed out waiting for sound card"
+      exit 1
+    fi
+    echo "sound card online"
+
+    for path in /dev/snd/controlC* /dev/snd/pcmC*; do
+      [[ -c "$path" ]] || continue
+      chgrp audio "$path"
+      chmod 0660 "$path"
+    done
+
+    if [[ "$(< /sys/firmware/devicetree/base/model)" == *mici* ]]; then
+      /usr/comma/sound/tinymix set "MultiMedia2 Mixer SEC_MI2S_TX" 1
+    fi
+    echo "tinymix controls ready"
+    exit 0
+  fi
+
   await grep -qs "^ONLINE$" /proc/asound/card0/state
   echo "sound card online"
 
