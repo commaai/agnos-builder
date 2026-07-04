@@ -3,6 +3,8 @@ Description=Qualcomm remote filesystem service
 Documentation=https://github.com/linux-msm/rmtfs
 ConditionPathExists=/sys/class/remoteproc
 ConditionPathExistsGlob=/dev/qcom_rmtfs_mem*
+After=comma-init.service
+Requires=comma-init.service
 
 [Service]
 Type=simple
