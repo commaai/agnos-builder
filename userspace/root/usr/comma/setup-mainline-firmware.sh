@@ -69,7 +69,13 @@ done
 ln -sf "$IMG/wlanmdsp.mbn" "$FARM/qcom/sdm845/wlanmdsp.mbn"
 
 ln -sf "$VENDORED/ath10k/WCN3990/hw1.0/firmware-5.bin" "$FARM/ath10k/WCN3990/hw1.0/firmware-5.bin"
-ln -sf "$VENDORED/ath10k/WCN3990/hw1.0/board-2.bin" "$FARM/ath10k/WCN3990/hw1.0/board-2.bin"
+
+# same SOM-tuned board data cnss_daemon serves on the downstream kernel
+case "$(tr -d '\0' < /proc/device-tree/compatible)" in
+  *tizi*) bdwlan=bdwlan.b00 ;;
+  *)      bdwlan=bdwlan.b01 ;;
+esac
+ln -sf "/usr/comma/wlan/$bdwlan" "$FARM/ath10k/WCN3990/hw1.0/board.bin"
 
 mount --bind "$FARM" "$FW"
 
