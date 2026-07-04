@@ -18,9 +18,6 @@ systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
 systemctl enable tftp_server.service
 
-# linux-msm daemons for mainline-kernel wifi/modem bring-up. All are gated
-# with ConditionPathExists=/sys/class/remoteproc (plus a /dev/qcom_rmtfs_mem*
-# glob for rmtfs), so they are inert on the downstream 4.9 kernel.
 systemctl enable mainline-firmware.service
 systemctl enable rmtfs.service
 systemctl enable tqftpserv.service

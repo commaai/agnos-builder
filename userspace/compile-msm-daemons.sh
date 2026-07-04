@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-# Build linux-msm QRTR, rmtfs, tqftpserv, and pd-mapper for the AGNOS userspace image.
-
 QRTR_VERSION="v1.2"
 QMIC_VERSION="v1.0"
 RMTFS_VERSION="v1.3"
@@ -30,7 +28,6 @@ apt-get install -yq --no-install-recommends \
   liblzma-dev \
   systemd-dev
 
-# /usr/lib/aarch64-linux-gnu in the real (arm64) image build
 MULTIARCH_LIBDIR="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
 export PKG_CONFIG_PATH="$MULTIARCH_LIBDIR/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
 
@@ -51,9 +48,6 @@ meson setup build --prefix=/usr
 ninja -C build
 DESTDIR="$STAGE_ROOT" ninja -C build install
 
-# rmtfs (and pd-mapper) generate their QMI stubs at build time with `qmic`,
-# a codegen tool from linux-msm. It is a build-time-only host tool: install it
-# into the compiler image's /usr/bin, not into the staged image root.
 cd "$BUILD_ROOT"
 git clone -b "$QMIC_VERSION" --depth 1 https://github.com/linux-msm/qmic
 cd "$BUILD_ROOT/qmic"

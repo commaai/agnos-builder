@@ -1,5 +1,5 @@
 [Unit]
-Description=Start the modem (mss) remoteproc (mainline-kernel only)
+Description=Start the modem (mss) remoteproc
 ConditionPathExists=/sys/class/remoteproc
 After=mainline-firmware.service rmtfs.service tqftpserv.service pd-mapper.service
 Requires=mainline-firmware.service rmtfs.service tqftpserv.service pd-mapper.service
@@ -7,9 +7,6 @@ Requires=mainline-firmware.service rmtfs.service tqftpserv.service pd-mapper.ser
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# Find the mss remoteproc and start it if not already running. Match on the
-# name (mpss/modem) or the firmware it loads (mba.mbn) — on mici the name is
-# just "4080000.remoteproc", so the firmware field is the reliable signal.
 ExecStart=/bin/sh -c 'for rp in /sys/class/remoteproc/remoteproc*; do name=$(cat "$rp/name" 2>/dev/null); fw=$(cat "$rp/firmware" 2>/dev/null); case "$name $fw" in *mpss*|*modem*|*mba.mbn*) state=$(cat "$rp/state" 2>/dev/null); [ "$state" = "running" ] || echo start > "$rp/state"; exit 0;; esac; done; echo "no mss remoteproc found" >&2; exit 0'
 
 [Install]

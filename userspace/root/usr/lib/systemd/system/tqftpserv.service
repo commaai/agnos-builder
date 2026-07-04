@@ -1,5 +1,5 @@
 [Unit]
-Description=Qualcomm TFTP-over-QRTR firmware server (linux-msm, mainline-kernel only)
+Description=Qualcomm TFTP-over-QRTR firmware server
 Documentation=https://github.com/andersson/tqftpserv
 ConditionPathExists=/sys/class/remoteproc
 After=comma-init.service
@@ -7,7 +7,6 @@ Requires=comma-init.service
 
 [Service]
 Type=simple
-# tqftpserv writes uploaded (readwrite) blobs here.
 RuntimeDirectory=tqftpserv
 StateDirectory=tqftpserv
 ExecStart=/usr/bin/tqftpserv

@@ -1,5 +1,5 @@
 [Unit]
-Description=Qualcomm protection-domain mapper (linux-msm, mainline-kernel only)
+Description=Qualcomm protection-domain mapper
 Documentation=https://github.com/linux-msm/pd-mapper
 ConditionPathExists=/sys/class/remoteproc
 After=comma-init.service
