@@ -29,6 +29,8 @@ dependencies = [
   "flaky",
   "matplotlib",
 
+  "libdatachannel-py>=2026.1.0.dev2",
+
   # GUIs
   "raylib @ git+https://github.com/commaai/dependencies.git@release-raylib#subdirectory=raylib",
 ]
