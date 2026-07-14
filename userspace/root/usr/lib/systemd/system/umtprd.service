@@ -1,0 +1,9 @@
+[Unit]
+Description=uMTP Responder
+After=comma-init.service
+Requires=comma-init.service
+
+[Service]
+ExecStart=/usr/bin/umtprd -c /etc/umtprd/umtprd.conf
+Restart=on-failure
+RestartSec=2
