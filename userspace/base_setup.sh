@@ -81,7 +81,7 @@ apt-fast install --no-install-recommends -yq \
     wireless-tools \
     wpasupplicant \
     zlib1g-dev  \
-    umtprd
+    umtp-responder
 
 # Enable serial console on UART
 systemctl enable serial-getty@ttyS0.service
