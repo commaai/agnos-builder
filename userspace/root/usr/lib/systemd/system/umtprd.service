@@ -7,6 +7,3 @@ Requires=comma-init.service
 ExecStart=/usr/bin/umtprd -c /etc/umtprd/umtprd.conf
 Restart=on-failure
 RestartSec=2
-
-[Install]
-WantedBy=multi-user.target

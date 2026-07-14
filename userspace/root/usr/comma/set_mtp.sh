@@ -23,33 +23,22 @@ setup() {
   echo "$(cat /proc/cmdline | sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//')" | sudo tee strings/0x409/serialnumber
   echo "comma.ai" | sudo tee strings/0x409/manufacturer
   echo "Linux USB Gadget" | sudo tee strings/0x409/product
-  echo 250 | sudo tee configs/c.1/MaxPower
-
-  # Create ADB function
-  sudo mkdir -p functions/ffs.adb
-  sudo mkdir -p /dev/usb-ffs/adb
-  if ! mountpoint -q /dev/usb-ffs/adb; then
-    sudo mount -t functionfs adb /dev/usb-ffs/adb
-  else
-    echo "/dev/usb-ffs/adb is already mounted"
-  fi
+  echo 500 | sudo tee configs/c.1/MaxPower
 
   # Create MTP function
-  sudo mkdir -p functions/ffs.adb
-  sudo mkdir -p /dev/usb-ffs/adb
-  if ! moutpoint -q /dev/usb-ffs/mtp; then
-    sudo mount -t functionsfs mtp /dev/usb-ffs/mtp
-  else 
+  sudo mkdir -p functions/ffs.mtp
+  sudo mkdir -p /dev/usb-ffs/mtp
+  if ! mountpoint -q /dev/usb-ffs/mtp; then
+    sudo mount -t functionfs mtp /dev/usb-ffs/mtp
+  else
     echo "/dev/usb-ffs/mtp is already mounted"
   fi
 
-  # Link both functions to configuration
-  echo "NCM+ADB" | sudo tee configs/c.1/strings/0x409/configuration
+  # Link both functions into configuration
+  echo "NCM+MTP" | sudo tee configs/c.1/strings/0x409/configuration
   sudo rm -f configs/c.1/ncm.0
-  sudo rm -f configs/c.1/ffs.adb
   sudo rm -f configs/c.1/ffs.mtp
   sudo ln -s functions/ncm.0 configs/c.1/
-  sudo ln -s functions/ffs.adb configs/c.1/
   sudo ln -s functions/ffs.mtp configs/c.1/
 }
 

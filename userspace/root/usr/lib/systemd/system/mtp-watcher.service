@@ -1,0 +1,12 @@
+[Unit]
+Description=MTP USB gadget setup
+After=fs_setup.service
+Requires=fs_setup.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/set_mtp.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
