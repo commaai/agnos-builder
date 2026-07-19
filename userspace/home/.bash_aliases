@@ -6,5 +6,5 @@ alias gcam='git commit -a -m'
 alias gst='git status'
 alias gco='git checkout'
 alias gsu='git submodule update'
-alias dump="/data/pythonpath/selfdrive/debug/dump.py"
+
 alias op='/data/openpilot/tools/op.sh "$@"'
