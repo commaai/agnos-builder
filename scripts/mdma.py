@@ -159,7 +159,6 @@ if __name__ == "__main__":
     "reboot":       (lambda: Mdma().reboot(qdl=False), "reboot comma four into normal boot"),
     "reboot-qdl":   (lambda: Mdma().reboot(qdl=True), "reboot comma four into QDL mode for flashing"),
     "serial":       (lambda: Mdma().serial(), "open the MSM UART console with screen"),
-    "serial":       (lambda: Mdma().serial(), "open the MSM UART console with screen"),
     "profile-boot": (lambda: Mdma().profile_boot(), "reboot comma four and profile boot time"),
   }
 
