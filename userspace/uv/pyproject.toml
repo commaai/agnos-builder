@@ -11,6 +11,7 @@ dependencies = [
   "do-mpc",
 
   "pycapnp==2.1.0",  # 2.2 introduces a memory leak due to cyclic references
+  "comma-deps-eigen",
 
   # hardware.py
   "dbus-python",
