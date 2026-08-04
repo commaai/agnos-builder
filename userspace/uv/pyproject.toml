@@ -8,7 +8,6 @@ dependencies = [
   "openpilot",
   "openpilot[tools,testing]",
   "tinymesa==25.2.7.2",
-  "do-mpc",
 
   "pycapnp==2.1.0",  # 2.2 introduces a memory leak due to cyclic references
   "comma-deps-eigen",
