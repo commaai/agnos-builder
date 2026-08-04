@@ -14,6 +14,7 @@ dependencies = [
     { name = "evdev" },
     { name = "flaky" },
     { name = "ipython" },
+    { name = "libdatachannel-py" },
     { name = "libusb1" },
     { name = "matplotlib" },
     { name = "openpilot", extra = ["testing", "tools"] },
@@ -38,6 +39,7 @@ requires-dist = [
     { name = "evdev" },
     { name = "flaky" },
     { name = "ipython" },
+    { name = "libdatachannel-py", specifier = ">=2026.1.0.dev2" },
     { name = "libusb1", specifier = "==3.1.0" },
     { name = "matplotlib" },
     { name = "openpilot", directory = "openpilot" },
@@ -595,6 +597,19 @@ wheels = [
 ]
 
 [[package]]
+name = "libdatachannel-py"
+version = "2026.1.0.dev2"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/46/2f/68e8306327ddef4b2133d2efb163cb05b319759ce8bd50b8b32dcd03dd95/libdatachannel_py-2026.1.0.dev2-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:6607fa1439e1b5bfceecd387c433470c9d45e439c3c06fa064f5c4669ad7e582", size = 1213155, upload-time = "2026-05-19T03:37:12.796Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/e3/10aed36ffaf1744795322aae612db777991575b72a9f04e2c677c2c022bf/libdatachannel_py-2026.1.0.dev2-cp312-cp312-macosx_26_0_arm64.whl", hash = "sha256:a060b1250f57d1fccb36e3a6b36ac8f4fd34926a6b51c564e787e8b7206458aa", size = 1224706, upload-time = "2026-05-19T03:37:12.679Z" },
+    { url = "https://files.pythonhosted.org/packages/09/a9/103fc647a8f9c721ab140fe8d2f8dbd90817e917ca763c4eb0f843fe247e/libdatachannel_py-2026.1.0.dev2-cp312-cp312-manylinux_2_35_aarch64.whl", hash = "sha256:0b8aa3be2fa3654ea24f882756d6599e847de866a44f7a291c60994548a2debb", size = 1638879, upload-time = "2026-05-19T03:37:18.138Z" },
+    { url = "https://files.pythonhosted.org/packages/09/a8/0dc7d3fe80fc247ec165dbd455bc2a1a307ef65702a43e24473202c2bf42/libdatachannel_py-2026.1.0.dev2-cp312-cp312-manylinux_2_35_x86_64.whl", hash = "sha256:339a79fcbc8c6caf91c620f6e4a0f1b8ccb6a941a966d10a3135c980ae4651a6", size = 1718006, upload-time = "2026-05-19T03:37:11.891Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/86/30904a8753e9db60d8c3cf8efda09585fc68f2004d3d7aa2910c93a8eed5/libdatachannel_py-2026.1.0.dev2-cp312-cp312-manylinux_2_38_aarch64.whl", hash = "sha256:b9f476cb065b50856ab2e53bf774ccca9c6a66454b7ce903aaf6dfcdef2a4482", size = 1643757, upload-time = "2026-05-19T03:37:12.207Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/9d/1e10131396d28e84a8088a63c14978cc215f6677dc85acdd96b6068f0664/libdatachannel_py-2026.1.0.dev2-cp312-cp312-manylinux_2_38_x86_64.whl", hash = "sha256:1f31db7347549edcd69fcc1ecb8b31e7183894808ccf9387afc49a4d68debaae", size = 1751748, upload-time = "2026-05-19T03:37:06.98Z" },
+]
+
+[[package]]
 name = "libusb1"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -757,11 +772,11 @@ standalone = [{ name = "openpilot", extras = ["submodules"] }]
 
 [[package]]
 name = "packaging"
-version = "26.2"
+version = "26.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d7/f1/e7a6dd94a8d4a5626c03e4e99c87f241ba9e350cd9e6d75123f992427270/packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661", size = 228134, upload-time = "2026-04-24T20:15:23.917Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79", size = 313412, upload-time = "2026-08-04T18:15:28.737Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e", size = 100195, upload-time = "2026-04-24T20:15:22.081Z" },
+    { url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c", size = 129956, upload-time = "2026-08-04T18:15:27.159Z" },
 ]
 
 [[package]]
