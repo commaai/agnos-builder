@@ -6,16 +6,16 @@ requires-python = ">=3.12.3, <3.13"
 description = ""
 dependencies = [
   "openpilot",
-  "openpilot[tools,testing]",
+  "openpilot[tools,testing,submodules]",
+  "msgq",
+  "opendbc",
+  "pandacan",
+  "rednose",
+  "teleoprtc",
+  "tinygrad",
   "tinymesa==25.2.7.2",
 
   "pycapnp==2.1.0",  # 2.2 introduces a memory leak due to cyclic references
-  "comma-deps-eigen",
-  "cython",
-  "libdatachannel-py>=2026.1.0.dev2",
-  "pycryptodome",
-  "setuptools",
-  "spidev",
 
   # hardware.py
   "dbus-python",
@@ -42,3 +42,9 @@ dependencies = [
 
 [tool.uv.sources]
 openpilot = { path = "openpilot" }
+msgq = { git = "https://github.com/commaai/msgq.git", rev = "master" }
+opendbc = { git = "https://github.com/commaai/opendbc.git", rev = "master" }
+pandacan = { git = "https://github.com/commaai/panda.git", rev = "master" }
+rednose = { git = "https://github.com/commaai/rednose.git", rev = "master" }
+teleoprtc = { git = "https://github.com/commaai/teleoprtc.git", rev = "master" }
+tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev = "master" }

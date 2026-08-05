@@ -7,52 +7,52 @@ name = "agnos"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "comma-deps-eigen" },
     { name = "comma-deps-raylib" },
-    { name = "cython" },
     { name = "dbus-python" },
     { name = "evdev" },
     { name = "flaky" },
     { name = "ipython" },
-    { name = "libdatachannel-py" },
     { name = "libusb1" },
     { name = "matplotlib" },
-    { name = "openpilot", extra = ["testing", "tools"] },
+    { name = "msgq" },
+    { name = "opendbc" },
+    { name = "openpilot", extra = ["submodules", "testing", "tools"] },
+    { name = "pandacan" },
     { name = "paramiko" },
     { name = "py-spy" },
     { name = "pycapnp" },
-    { name = "pycryptodome" },
     { name = "pyusb" },
-    { name = "setuptools" },
+    { name = "rednose" },
     { name = "smbus2" },
-    { name = "spidev" },
     { name = "spidev2" },
+    { name = "teleoprtc" },
+    { name = "tinygrad" },
     { name = "tinymesa" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "comma-deps-eigen" },
     { name = "comma-deps-raylib" },
-    { name = "cython" },
     { name = "dbus-python" },
     { name = "evdev" },
     { name = "flaky" },
     { name = "ipython" },
-    { name = "libdatachannel-py", specifier = ">=2026.1.0.dev2" },
     { name = "libusb1", specifier = "==3.1.0" },
     { name = "matplotlib" },
+    { name = "msgq", git = "https://github.com/commaai/msgq.git?rev=master" },
+    { name = "opendbc", git = "https://github.com/commaai/opendbc.git?rev=master" },
     { name = "openpilot", directory = "openpilot" },
-    { name = "openpilot", extras = ["tools", "testing"], directory = "openpilot" },
+    { name = "openpilot", extras = ["tools", "testing", "submodules"], directory = "openpilot" },
+    { name = "pandacan", git = "https://github.com/commaai/panda.git?rev=master" },
     { name = "paramiko" },
     { name = "py-spy" },
     { name = "pycapnp", specifier = "==2.1.0" },
-    { name = "pycryptodome" },
     { name = "pyusb" },
-    { name = "setuptools" },
+    { name = "rednose", git = "https://github.com/commaai/rednose.git?rev=master" },
     { name = "smbus2" },
-    { name = "spidev" },
     { name = "spidev2" },
+    { name = "teleoprtc", git = "https://github.com/commaai/teleoprtc.git?rev=master" },
+    { name = "tinygrad", git = "https://github.com/tinygrad/tinygrad.git?rev=master" },
     { name = "tinymesa", specifier = "==25.2.7.2" },
 ]
 
@@ -490,6 +490,15 @@ wheels = [
 ]
 
 [[package]]
+name = "importlib-resources"
+version = "7.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/06/b56dfa750b44e86157093bc8fca0ab81dccbf5260510de4eaf1cb69b5b99/importlib_resources-7.1.0.tar.gz", hash = "sha256:0722d4c6212489c530f2a145a34c0a7a3b4721bc96a15fada5930e2a0b760708", size = 44985, upload-time = "2026-04-12T16:36:09.232Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/db/55a262f3606bebcae07cc14095338471ad7c0bbcaa37707e6f0ee49725b7/importlib_resources-7.1.0-py3-none-any.whl", hash = "sha256:1bd7b48b4088eddb2cd16382150bb515af0bd2c70128194392725f82ad2c96a1", size = 37232, upload-time = "2026-04-12T16:36:08.219Z" },
+]
+
+[[package]]
 name = "inputs"
 version = "0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -610,6 +619,24 @@ wheels = [
 ]
 
 [[package]]
+name = "libusb-package"
+version = "1.0.30.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "importlib-resources" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/42/a8/8b3d5dae7340880d556f9f866874b9674b2e3a22fee1e2b96f1ab0feae36/libusb_package-1.0.30.0-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:2b98784bac3bedda7e95bb5039dd0eded84b02f36110e4d5d607375366c61090", size = 69516, upload-time = "2026-06-30T07:41:02.451Z" },
+    { url = "https://files.pythonhosted.org/packages/52/6f/26de4e9f858ab50e87931f0be268f3c1bbfce33e8584add60da857632142/libusb_package-1.0.30.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:4ad25f8d254bbbdd234446d5580b24d62d59bb0e690d8090457dac347f044437", size = 65700, upload-time = "2026-06-30T07:41:03.557Z" },
+    { url = "https://files.pythonhosted.org/packages/11/12/9ba8fa91dc95b1cbfa4a68207d4048b08b900fd3686fa72b99846608de01/libusb_package-1.0.30.0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c71b5f8c65b286425c02c7d624eee1fd7f08bfb1dfa492ddc20e27f06fee3829", size = 76166, upload-time = "2026-06-30T07:41:04.462Z" },
+    { url = "https://files.pythonhosted.org/packages/6f/e1/a7c83535749332825f02d6693868f8ee9ae99c4104e60a483773bb652c0e/libusb_package-1.0.30.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f502ad5a0527b8c0431de817662325c88a1bba2cc334173665b04ad168d7b6d3", size = 76159, upload-time = "2026-06-30T07:41:05.543Z" },
+    { url = "https://files.pythonhosted.org/packages/de/56/a1fb1726fc96a8ee3bd0e04e5e505500f022dd310dd348ecebf5cdae7a60/libusb_package-1.0.30.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:7a2a1c82f6ef85d9920cbe2898aa6927d4c487744ef9f20b0d7d6d95705095bb", size = 77162, upload-time = "2026-06-30T07:41:06.581Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/03/264cefc51275ecb047194c4973bc40b3b278566a64bbe6e74f86bf1e0afc/libusb_package-1.0.30.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:2ee5ef8ac6f08402b4e8334f7404850316bdd26037c9a97f2a7456ee9a5d1550", size = 76676, upload-time = "2026-06-30T07:41:07.505Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/95/d166eeefe0d9dd5833d5724a97b023ec380c3a2d364040ec0485fd57703c/libusb_package-1.0.30.0-py3-none-win32.whl", hash = "sha256:79728146e1f01e525786900b2ccd8298a8eca53cd94b37fb0885e56aa6f9d60a", size = 78769, upload-time = "2026-06-30T07:41:08.432Z" },
+    { url = "https://files.pythonhosted.org/packages/60/4a/ff49bd77f33af05ca26fee29d601beb1e19ca791bb86efece82a3833885c/libusb_package-1.0.30.0-py3-none-win_amd64.whl", hash = "sha256:90808da724c8939a333d931d0c7226372ca5fefd98e2f2f3ef79fd918aa37522", size = 90711, upload-time = "2026-06-30T07:41:09.318Z" },
+]
+
+[[package]]
 name = "libusb1"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -659,6 +686,20 @@ wheels = [
 ]
 
 [[package]]
+name = "mpmath"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/47/dd32fa426cc72114383ac549964eecb20ecfd886d1e5ccf5340b55b02f57/mpmath-1.3.0.tar.gz", hash = "sha256:7a28eb2a9774d00c7bc92411c19a89209d5da7c4c9a9e227be8330a23a25b91f", size = 508106, upload-time = "2023-03-07T16:47:11.061Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/e3/7d92a15f894aa0c9c4b49b8ee9ac9850d6e63b03c9c32c0367a13ae62209/mpmath-1.3.0-py3-none-any.whl", hash = "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c", size = 536198, upload-time = "2023-03-07T16:47:09.197Z" },
+]
+
+[[package]]
+name = "msgq"
+version = "0.0.1"
+source = { git = "https://github.com/commaai/msgq.git?rev=master#425b61a60358895b894e9a6920b1d3e06903132e" }
+
+[[package]]
 name = "numpy"
 version = "2.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -675,6 +716,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/04/12/cff070947791c1ed425ff76413189adbdc2fbe215eba7ce7fa454a03c7f8/numpy-2.5.1-cp312-cp312-win32.whl", hash = "sha256:08d60c810432eb83360958dea0999ac4cfb94531ea8efcbf0b7f277c2068aeb2", size = 6066764, upload-time = "2026-07-04T17:06:32.571Z" },
     { url = "https://files.pythonhosted.org/packages/65/66/53f31807a48a750f9d748da273bc3fcedd12b27ff1f3e373bfec55ef2dc0/numpy-2.5.1-cp312-cp312-win_amd64.whl", hash = "sha256:f7d60026c0bdb1380e83bfa7a0419c4577ee4b9a08880afcb6dadeb74c649fa2", size = 12430966, upload-time = "2026-07-04T17:06:34.926Z" },
     { url = "https://files.pythonhosted.org/packages/2b/2a/d1a88066b1c14186f5d3c0d18c94f17b064511982bab0578d49ee9d43c29/numpy-2.5.1-cp312-cp312-win_arm64.whl", hash = "sha256:17a25e09640602e10bc8de0e6fa2b3fd68eedd84ba6d7842dc8f32f9ab87bd0b", size = 10350488, upload-time = "2026-07-04T17:06:37.785Z" },
+]
+
+[[package]]
+name = "opendbc"
+version = "0.3.1"
+source = { git = "https://github.com/commaai/opendbc.git?rev=master#1bacd87e5aee0abb7dc5b3fdee41382f8032f639" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pycapnp" },
+    { name = "pycryptodome" },
+    { name = "tqdm" },
 ]
 
 [[package]]
@@ -709,6 +761,14 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+submodules = [
+    { name = "msgq" },
+    { name = "opendbc" },
+    { name = "pandacan" },
+    { name = "rednose" },
+    { name = "teleoprtc" },
+    { name = "tinygrad" },
+]
 testing = [
     { name = "codespell" },
     { name = "coverage" },
@@ -743,23 +803,23 @@ requires-dist = [
     { name = "inputs" },
     { name = "jeepney" },
     { name = "matplotlib", marker = "extra == 'tools'" },
-    { name = "msgq", marker = "extra == 'submodules'", editable = "openpilot/msgq_repo" },
+    { name = "msgq", marker = "extra == 'submodules'" },
     { name = "numpy", specifier = ">=2.0" },
-    { name = "opendbc", marker = "extra == 'submodules'", editable = "openpilot/opendbc_repo" },
-    { name = "pandacan", marker = "extra == 'submodules'", editable = "openpilot/panda" },
+    { name = "opendbc", marker = "extra == 'submodules'" },
+    { name = "pandacan", marker = "extra == 'submodules'" },
     { name = "pycapnp", specifier = "==2.1.0" },
     { name = "pyjwt", extras = ["crypto"] },
     { name = "pyzmq" },
     { name = "qrcode" },
-    { name = "rednose", marker = "extra == 'submodules'", editable = "openpilot/rednose_repo" },
+    { name = "rednose", marker = "extra == 'submodules'" },
     { name = "requests" },
     { name = "ruff", marker = "extra == 'testing'" },
     { name = "scons" },
     { name = "sentry-sdk" },
     { name = "setproctitle" },
     { name = "sounddevice" },
-    { name = "teleoprtc", marker = "extra == 'submodules'", editable = "openpilot/teleoprtc_repo" },
-    { name = "tinygrad", marker = "extra == 'submodules'", editable = "openpilot/tinygrad_repo" },
+    { name = "teleoprtc", marker = "extra == 'submodules'" },
+    { name = "tinygrad", marker = "extra == 'submodules'" },
     { name = "tqdm" },
     { name = "ty", marker = "extra == 'testing'" },
     { name = "websocket-client" },
@@ -777,6 +837,17 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79", size = 313412, upload-time = "2026-08-04T18:15:28.737Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c", size = 129956, upload-time = "2026-08-04T18:15:27.159Z" },
+]
+
+[[package]]
+name = "pandacan"
+version = "0.0.10"
+source = { git = "https://github.com/commaai/panda.git?rev=master#dd8a5b3df77706337a11555377e7180c5adc8726" }
+dependencies = [
+    { name = "libusb-package" },
+    { name = "libusb1" },
+    { name = "opendbc" },
+    { name = "spidev", marker = "sys_platform == 'linux'" },
 ]
 
 [[package]]
@@ -1051,6 +1122,20 @@ wheels = [
 ]
 
 [[package]]
+name = "rednose"
+version = "0.0.1"
+source = { git = "https://github.com/commaai/rednose.git?rev=master#1520e8e9d19bdbe3016588ef506bb4a23cf02d02" }
+dependencies = [
+    { name = "cffi" },
+    { name = "comma-deps-eigen" },
+    { name = "cython" },
+    { name = "numpy" },
+    { name = "scons" },
+    { name = "setuptools" },
+    { name = "sympy" },
+]
+
+[[package]]
 name = "requests"
 version = "2.34.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1201,6 +1286,31 @@ sdist = { url = "https://files.pythonhosted.org/packages/28/e3/55dcc2cfbc3ca9c29
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/7b/ce1eafaf1a76852e2ec9b22edecf1daa58175c090266e9f6c64afcd81d91/stack_data-0.6.3-py3-none-any.whl", hash = "sha256:d5558e0c25a4cb0853cddad3d77da9891a08cb85dd9f9f91b9f8cd66e511e695", size = 24521, upload-time = "2023-09-30T13:58:03.53Z" },
 ]
+
+[[package]]
+name = "sympy"
+version = "1.14.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mpmath" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/83/d3/803453b36afefb7c2bb238361cd4ae6125a569b4db67cd9e79846ba2d68c/sympy-1.14.0.tar.gz", hash = "sha256:d3d3fe8df1e5a0b42f0e7bdf50541697dbe7d23746e894990c030e2b05e72517", size = 7793921, upload-time = "2025-04-27T18:05:01.611Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a2/09/77d55d46fd61b4a135c444fc97158ef34a095e5681d0a6c10b75bf356191/sympy-1.14.0-py3-none-any.whl", hash = "sha256:e091cc3e99d2141a0ba2847328f5479b05d94a6635cb96148ccb3f34671bd8f5", size = 6299353, upload-time = "2025-04-27T18:04:59.103Z" },
+]
+
+[[package]]
+name = "teleoprtc"
+version = "1.0.1"
+source = { git = "https://github.com/commaai/teleoprtc.git?rev=master#3f0b03a1d1c4887a0e76bc55888bc1a2eec29802" }
+dependencies = [
+    { name = "libdatachannel-py" },
+]
+
+[[package]]
+name = "tinygrad"
+version = "0.13.0"
+source = { git = "https://github.com/tinygrad/tinygrad.git?rev=master#7b6d2ddf23b02a3e4b625432e1900525016da8cc" }
 
 [[package]]
 name = "tinymesa"

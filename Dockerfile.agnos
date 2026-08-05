@@ -118,7 +118,13 @@ ARG XDG_DATA_HOME="/usr/local"
 COPY ./userspace/uv /tmp/agnos/uv
 RUN source $XDG_DATA_HOME/venv/bin/activate && \
     cd /tmp/agnos/uv && \
-    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode \
+      --no-install-package msgq \
+      --no-install-package opendbc \
+      --no-install-package pandacan \
+      --no-install-package rednose \
+      --no-install-package teleoprtc \
+      --no-install-package tinygrad
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
