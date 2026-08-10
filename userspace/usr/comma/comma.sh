@@ -8,11 +8,6 @@ CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
-# blip power to ~5W to see if the PSU is stable
-if grep -q mici /sys/firmware/devicetree/base/model; then
-  sudo timeout --kill-after=2 5 /home/comma/power_burn_max 0.3 2
-fi
-
 # use max freq to boot up quickly, then limit
 echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
 echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
