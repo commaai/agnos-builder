@@ -88,6 +88,7 @@ systemctl enable serial-getty@ttyS0.service
 # set kernel params
 echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf
 echo "vm.dirty_expire_centisecs = 200" >> /etc/sysctl.conf
+echo "kernel.sched_boost = 1" >> /etc/sysctl.conf
 
 # raise comma user's process priority limits
 echo "comma - rtprio 100" >> /etc/security/limits.conf
