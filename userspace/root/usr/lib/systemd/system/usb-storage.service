@@ -1,0 +1,29 @@
+[Unit]
+Description=Read-only USB footage storage
+Requires=comma-init.service
+After=comma-init.service adb-param-watcher.service
+
+[Service]
+Type=simple
+User=root
+RuntimeDirectory=usb-storage
+RuntimeDirectoryMode=0700
+ExecStartPre=/usr/comma/set_adb.sh
+ExecStartPre=-/usr/bin/fusermount3 -uz /run/usb-storage
+ExecStart=/usr/bin/python3 -u /usr/comma/usb_storage.py \
+  --source /data/media/0/realdata \
+  --snapshot /data/tmp/usb-storage-snapshot \
+  --mount /run/usb-storage/footage.img \
+  --lun /config/usb_gadget/g1/functions/mass_storage.0/lun.0/file \
+  --udc-state /sys/class/udc/a600000.dwc3/state \
+  --gadget-lock /run/lock/comma-usb-gadget.lock \
+  --gadget-helper /usr/comma/usb_gadget.sh
+ExecStop=/usr/comma/stop_usb_storage.sh $MAINPID
+KillSignal=SIGTERM
+KillMode=control-group
+TimeoutStopSec=45
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

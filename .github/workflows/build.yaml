@@ -21,6 +21,11 @@ jobs:
         lfs: true
         submodules: true
 
+    - name: Test userspace helpers
+      env:
+        PYTHONDONTWRITEBYTECODE: "1"
+      run: python3 -m unittest discover -s userspace/tests -p 'test_*.py' -v
+
     - name: Get commit message
       run: |
         {

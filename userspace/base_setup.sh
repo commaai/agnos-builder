@@ -30,6 +30,7 @@ apt-fast install --no-install-recommends -yq \
     cpuset \
     dnsmasq-base \
     evtest \
+    fuse3 \
     git \
     git-core \
     git-lfs \
@@ -55,12 +56,14 @@ apt-fast install --no-install-recommends -yq \
     libgtk2.0-dev \
     libi2c-dev \
     libncursesw5-dev \
+    libnbd-bin \
     libnss-myhostname \
     libqmi-utils \
     libssl-dev \
     locales \
     llvm \
     nano \
+    nbdkit \
     net-tools \
     nload \
     network-manager \
