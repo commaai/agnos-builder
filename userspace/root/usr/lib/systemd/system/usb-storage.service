@@ -1,6 +1,6 @@
 [Unit]
 Description=Read-only USB footage storage
-Requires=comma-init.service
+Requires=comma-init.service adb-param-watcher.service
 After=comma-init.service adb-param-watcher.service
 
 [Service]
@@ -8,7 +8,7 @@ Type=simple
 User=root
 RuntimeDirectory=usb-storage
 RuntimeDirectoryMode=0700
-ExecStartPre=/usr/comma/set_adb.sh
+ExecStartPre=/usr/comma/usb_gadget.sh prepare-storage-start
 ExecStartPre=-/usr/bin/fusermount3 -uz /run/usb-storage
 ExecStart=/usr/bin/python3 -u /usr/comma/usb_storage.py \
   --source /data/media/0/realdata \

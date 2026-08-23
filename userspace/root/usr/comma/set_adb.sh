@@ -12,6 +12,7 @@ else
   echo "Disabling ADB"
 fi
 
-# usb_gadget.sh is the sole owner of configfs setup. NCM and read-only storage
-# remain available regardless of the ADB param; only FunctionFS ADB is gated.
+# usb_gadget.sh is the sole owner of configfs setup. The ADB personality keeps
+# its legacy NCM and FunctionFS interfaces; ADB-off exposes storage only under
+# a distinct owner-approved USB identity.
 exec "$GADGET_HELPER" configure "$adb_enabled"

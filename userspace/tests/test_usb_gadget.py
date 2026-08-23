@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: ISC002 - adjacent literals keep embedded shell/Python fixtures readable
 
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ COMMA_DIR = USERSPACE / "root" / "usr" / "comma"
 GADGET_HELPER = COMMA_DIR / "usb_gadget.sh"
 SET_ADB = COMMA_DIR / "set_adb.sh"
 STOP_STORAGE = COMMA_DIR / "stop_usb_storage.sh"
+STORAGE_SERVICE = USERSPACE / "root" / "usr" / "lib" / "systemd" / "system" / "usb-storage.service"
 
 
 class UsbGadgetTest(unittest.TestCase):
@@ -27,6 +29,7 @@ class UsbGadgetTest(unittest.TestCase):
     self.config = self.gadget / "configs" / "c.1"
     self.mass_storage = self.gadget / "functions" / "mass_storage.0"
     self.lun = self.mass_storage / "lun.0"
+    self.adb_param = self.root / "AdbEnabled"
     self.link_log = self.root / "link-order.log"
     self.link_wrapper = self.root / "logged-ln"
     self.link_wrapper.write_text(
@@ -42,6 +45,9 @@ class UsbGadgetTest(unittest.TestCase):
       "USB_GADGET_FFS_ADB_ROOT": str(self.root / "ffs-adb"),
       "USB_GADGET_LOCK_FILE": str(self.root / "gadget.lock"),
       "USB_GADGET_SERIAL": "test-serial",
+      "USB_GADGET_STORAGE_ONLY_VID": "0xCAFE",
+      "USB_GADGET_STORAGE_ONLY_PID": "0xBEEF",
+      "USB_GADGET_ADB_PARAM": str(self.adb_param),
       "USB_GADGET_SKIP_MOUNTS": "1",
       # macOS has no flock, while AGNOS gets it from util-linux. The real lock
       # path is exercised by the Python manager tests; this tree is per-test.
@@ -69,9 +75,9 @@ class UsbGadgetTest(unittest.TestCase):
   def read(path: Path) -> str:
     return path.read_text().strip()
 
-  def assert_non_adb_links(self) -> None:
+  def assert_storage_only_links(self) -> None:
     self.assertTrue((self.config / "mass_storage.0").is_symlink())
-    self.assertTrue((self.config / "ncm.0").is_symlink())
+    self.assertFalse((self.config / "ncm.0").is_symlink())
     self.assertFalse((self.config / "ffs.adb").is_symlink())
 
   def assert_debug_links(self) -> None:
@@ -79,33 +85,64 @@ class UsbGadgetTest(unittest.TestCase):
     self.assertTrue((self.config / "ncm.0").is_symlink())
     self.assertTrue((self.config / "ffs.adb").is_symlink())
 
-  def test_disabled_adb_exposes_network_and_empty_read_only_storage(self) -> None:
+  def test_disabled_adb_exposes_only_empty_read_only_storage(self) -> None:
     self.run_helper("configure", "0")
 
     self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
-    self.assertEqual(self.read(self.gadget / "idVendor"), "0x04D8")
-    self.assertEqual(self.read(self.gadget / "idProduct"), "0x1234")
+    self.assertEqual(self.read(self.gadget / "idVendor"), "0xCAFE")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0xBEEF")
     self.assertEqual(self.read(self.gadget / "strings" / "0x409" / "serialnumber"), "test-serial")
     self.assertEqual(self.read(self.mass_storage / "stall"), "1")
     self.assertEqual(self.read(self.lun / "ro"), "1")
     self.assertEqual(self.read(self.lun / "removable"), "1")
     self.assertEqual(self.read(self.lun / "file"), "")
-    self.assertEqual(self.read(self.config / "strings" / "0x409" / "configuration"), "NCM+Storage")
-    self.assert_non_adb_links()
+    self.assertEqual(self.read(self.config / "strings" / "0x409" / "configuration"), "Storage")
+    self.assert_storage_only_links()
 
   def test_enabled_adb_adds_network_and_functionfs(self) -> None:
     self.run_helper("configure", "1")
 
+    self.assertEqual(self.read(self.gadget / "idVendor"), "0x04D8")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0x1234")
     self.assertEqual(self.read(self.config / "strings" / "0x409" / "configuration"), "NCM+ADB+Storage")
     self.assert_debug_links()
 
   def test_function_order_preserves_existing_host_interface_numbers(self) -> None:
     self.run_helper("configure", "0")
-    self.assertEqual(self.link_log.read_text().splitlines(), ["ncm.0", "mass_storage.0"])
+    self.assertEqual(self.link_log.read_text().splitlines(), ["mass_storage.0"])
 
     self.link_log.write_text("")
     self.run_helper("configure", "1")
     self.assertEqual(self.link_log.read_text().splitlines(), ["ncm.0", "ffs.adb", "mass_storage.0"])
+
+  def test_storage_only_mode_requires_a_distinct_owner_approved_identity(self) -> None:
+    del self.environment["USB_GADGET_STORAGE_ONLY_VID"]
+    del self.environment["USB_GADGET_STORAGE_ONLY_PID"]
+    result = self.run_helper("configure", "0", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("owner-approved", result.stderr)
+    self.assertFalse(self.gadget.exists())
+
+    self.environment["USB_GADGET_STORAGE_ONLY_VID"] = "0x04D8"
+    self.environment["USB_GADGET_STORAGE_ONLY_PID"] = "0x1234"
+    result = self.run_helper("configure", "0", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("distinct", result.stderr)
+    self.assertFalse(self.gadget.exists())
+
+  def test_disabling_adb_without_approved_storage_identity_fails_unbound(self) -> None:
+    self.run_helper("configure", "1")
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    del self.environment["USB_GADGET_STORAGE_ONLY_VID"]
+    del self.environment["USB_GADGET_STORAGE_ONLY_PID"]
+
+    result = self.run_helper("configure", "0", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("owner-approved", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
 
   def test_reconfigure_ejects_populated_safe_lun(self) -> None:
     self.run_helper("configure", "0")
@@ -150,7 +187,7 @@ class UsbGadgetTest(unittest.TestCase):
   def test_repeated_configure_is_idempotent(self) -> None:
     self.run_helper("configure", "0")
     self.run_helper("configure", "0")
-    self.assert_non_adb_links()
+    self.assert_storage_only_links()
 
     self.run_helper("configure", "1")
     self.run_helper("configure", "1")
@@ -163,12 +200,138 @@ class UsbGadgetTest(unittest.TestCase):
     self.run_helper("unbind")
     self.run_helper("unbind")
     self.assertEqual(self.read(self.gadget / "UDC"), "")
-    self.assert_non_adb_links()
+    self.assert_storage_only_links()
 
     self.run_helper("bind")
     self.run_helper("bind")
     self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
-    self.assert_non_adb_links()
+    self.assert_storage_only_links()
+
+  def test_clean_storage_stop_preserves_other_usb_functions(self) -> None:
+    self.run_helper("configure", "1")
+
+    self.run_helper("finalize-storage-stop")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    self.assert_debug_links()
+
+  def test_storage_stop_reconstructs_requested_personality_after_fallback_unbind(self) -> None:
+    self.adb_param.write_text("1")
+    self.run_helper("configure", "1")
+    self.run_helper("unbind")
+
+    self.run_helper("finalize-storage-stop")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.gadget / "idVendor"), "0x04D8")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0x1234")
+    self.assert_debug_links()
+
+  def test_storage_stop_cannot_rebind_without_approved_requested_identity(self) -> None:
+    self.run_helper("configure", "1")
+    self.run_helper("unbind")
+    del self.environment["USB_GADGET_STORAGE_ONLY_VID"]
+    del self.environment["USB_GADGET_STORAGE_ONLY_PID"]
+
+    result = self.run_helper("finalize-storage-stop", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("owner-approved", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+
+  def test_storage_stop_with_attached_media_leaves_gadget_unbound(self) -> None:
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+
+    result = self.run_helper("finalize-storage-stop")
+
+    self.assertIn("media remains attached", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assert_debug_links()
+
+  def test_storage_start_clears_only_managed_media_before_rebinding(self) -> None:
+    self.adb_param.write_text("1")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+
+    self.run_helper("prepare-storage-start")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    self.assert_debug_links()
+
+    (self.lun / "file").write_text("/tmp/foreign.img\n")
+    result = self.run_helper("prepare-storage-start", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("foreign", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/tmp/foreign.img")
+
+  def test_failed_personality_transition_never_restores_mixed_identity(self) -> None:
+    self.run_helper("configure", "1")
+    failing_link = self.root / "failing-link"
+    failing_link.write_text("#!/bin/sh\nexit 1\n")
+    failing_link.chmod(0o755)
+    self.environment["USB_GADGET_LN_BIN"] = str(failing_link)
+
+    result = self.run_helper("configure", "0", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.gadget / "idVendor"), "0xCAFE")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0xBEEF")
+    self.assertFalse((self.config / "ncm.0").is_symlink())
+    self.assertFalse((self.config / "ffs.adb").is_symlink())
+    self.assertFalse((self.config / "mass_storage.0").is_symlink())
+
+    # A later service stop must not raw-bind this partial personality.
+    del self.environment["USB_GADGET_STORAGE_ONLY_VID"]
+    del self.environment["USB_GADGET_STORAGE_ONLY_PID"]
+    result = self.run_helper("finalize-storage-stop", check=False)
+    self.assertNotEqual(result.returncode, 0)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertFalse((self.config / "mass_storage.0").is_symlink())
+
+  def test_failed_transition_after_managed_lun_clear_stays_unbound(self) -> None:
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    failing_link = self.root / "failing-link-after-clear"
+    failing_link.write_text("#!/bin/sh\nexit 1\n")
+    failing_link.chmod(0o755)
+    self.environment["USB_GADGET_LN_BIN"] = str(failing_link)
+
+    result = self.run_helper("configure", "0", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    self.assertEqual(self.read(self.gadget / "idVendor"), "0xCAFE")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0xBEEF")
+    self.assertFalse((self.config / "ncm.0").is_symlink())
+    self.assertFalse((self.config / "ffs.adb").is_symlink())
+    self.assertFalse((self.config / "mass_storage.0").is_symlink())
+
+  def test_storage_start_reconstructs_instead_of_binding_partial_transition(self) -> None:
+    self.run_helper("configure", "1")
+    failing_link = self.root / "failing-link-before-start"
+    failing_link.write_text("#!/bin/sh\nexit 1\n")
+    failing_link.chmod(0o755)
+    self.environment["USB_GADGET_LN_BIN"] = str(failing_link)
+    result = self.run_helper("configure", "0", check=False)
+    self.assertNotEqual(result.returncode, 0)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertFalse((self.config / "mass_storage.0").is_symlink())
+
+    self.environment["USB_GADGET_LN_BIN"] = str(self.link_wrapper)
+    self.run_helper("prepare-storage-start")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.gadget / "idVendor"), "0xCAFE")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0xBEEF")
+    self.assert_storage_only_links()
 
   def test_symbolic_link_lock_is_rejected_without_touching_target(self) -> None:
     lock = Path(self.environment["USB_GADGET_LOCK_FILE"])
@@ -196,7 +359,17 @@ class UsbGadgetTest(unittest.TestCase):
 
     adb_param.write_text("0")
     subprocess.run([str(SET_ADB)], env=self.environment, check=True, capture_output=True, text=True)
-    self.assert_non_adb_links()
+    self.assert_storage_only_links()
+
+  def test_storage_service_reuses_adb_watcher_configuration(self) -> None:
+    unit = STORAGE_SERVICE.read_text()
+
+    self.assertIn("Requires=comma-init.service adb-param-watcher.service", unit)
+    self.assertNotIn("ExecStartPre=/usr/comma/set_adb.sh", unit)
+    self.assertLess(
+      unit.index("ExecStartPre=/usr/comma/usb_gadget.sh prepare-storage-start"),
+      unit.index("ExecStartPre=-/usr/bin/fusermount3 -uz /run/usb-storage"),
+    )
 
   def test_stop_wrapper_signals_manager_before_final_unbind(self) -> None:
     event_log = self.root / "stop-order.log"
@@ -217,7 +390,7 @@ class UsbGadgetTest(unittest.TestCase):
     helper = self.root / "fake-unbind"
     helper.write_text(
       "#!/bin/sh\n"
-      "printf 'unbind\\n' >> \"$USB_STORAGE_STOP_TEST_LOG\"\n",
+      "printf '%s\\n' \"$1\" >> \"$USB_STORAGE_STOP_TEST_LOG\"\n",
     )
     helper.chmod(0o755)
     environment = os.environ.copy()
@@ -244,7 +417,7 @@ class UsbGadgetTest(unittest.TestCase):
       )
 
       self.assertEqual(process.wait(timeout=2), 0)
-      self.assertEqual(event_log.read_text().splitlines(), ["manager-ready", "manager-exit", "unbind"])
+      self.assertEqual(event_log.read_text().splitlines(), ["manager-ready", "manager-exit", "finalize-storage-stop"])
     finally:
       if process.poll() is None:
         process.send_signal(signal.SIGKILL)
@@ -265,7 +438,7 @@ class UsbGadgetTest(unittest.TestCase):
     helper = self.root / "fake-forced-unbind"
     helper.write_text(
       "#!/bin/sh\n"
-      "printf 'unbind\\n' >> \"$USB_STORAGE_STOP_TEST_LOG\"\n",
+      "printf '%s\\n' \"$1\" >> \"$USB_STORAGE_STOP_TEST_LOG\"\n",
     )
     helper.chmod(0o755)
     environment = os.environ.copy()
@@ -293,7 +466,7 @@ class UsbGadgetTest(unittest.TestCase):
 
       self.assertEqual(process.wait(timeout=2), -signal.SIGKILL)
       self.assertIn("forcing main-process exit", result.stderr)
-      self.assertEqual(event_log.read_text().splitlines(), ["manager-ready", "unbind"])
+      self.assertEqual(event_log.read_text().splitlines(), ["manager-ready", "finalize-storage-stop"])
     finally:
       if process.poll() is None:
         process.send_signal(signal.SIGKILL)

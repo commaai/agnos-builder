@@ -43,6 +43,7 @@ if process_is_alive; then
   done
 fi
 
-# This is deliberately last. If graceful cleanup failed, systemd will kill the
-# remaining FUSE/NBD cgroup only after the host-facing gadget is disconnected.
-"$GADGET_HELPER" unbind
+# This is deliberately last. A clean empty LUN keeps the other USB functions
+# bound (and restores a fallback unbind); attached/unsafe media leaves the
+# gadget disconnected before systemd kills the remaining FUSE/NBD cgroup.
+"$GADGET_HELPER" finalize-storage-stop

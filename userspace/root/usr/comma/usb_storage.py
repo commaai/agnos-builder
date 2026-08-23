@@ -63,6 +63,7 @@ FAT32_COMPATIBLE_DATA_CLUSTERS = FAT32_MIN_DATA_CLUSTERS + 16
 # inversion and yields 65,541 data clusters; arbitrary sizes can trip an
 # internal equality assertion in that plugin version.
 MIN_COMPATIBLE_DISK_SIZE = 1_075_445_760
+SUPPORTED_NBDKIT_FLOPPY_VERSION = "1.36.3"
 FAT32_END_OF_CHAIN = 0x0FFFFFF8
 FAT32_BAD_CLUSTER = 0x0FFFFFF7
 
@@ -112,6 +113,30 @@ class EntryRecord:
 class SnapshotResult:
   included: tuple[str, ...]
   excluded: tuple[tuple[str, str], ...]
+
+
+def _validate_nbdkit_installation(
+  runner: Callable[..., Any] = subprocess.run,
+) -> None:
+  command = ["/usr/bin/nbdkit", "--filter=cow", "floppy", "--dump-plugin"]
+  try:
+    result = runner(command, check=False, capture_output=True, text=True, timeout=5.0)
+  except (OSError, subprocess.SubprocessError) as exc:
+    raise StorageError(f"cannot inspect the installed nbdkit floppy exporter: {exc}") from exc
+  if result.returncode != 0:
+    raise StorageError(f"nbdkit floppy/COW probe failed with status {result.returncode}")
+
+  fields: dict[str, str] = {}
+  for line in result.stdout.splitlines():
+    key, separator, value = line.partition("=")
+    if separator:
+      fields[key] = value
+  if fields.get("name") != "floppy" or fields.get("cow_name") != "cow":
+    raise StorageError("installed nbdkit is missing the expected floppy plugin or COW filter")
+  if fields.get("version") != SUPPORTED_NBDKIT_FLOPPY_VERSION:
+    raise StorageError(
+      f"unsupported nbdkit floppy version {fields.get('version', 'unknown')!r}; expected {SUPPORTED_NBDKIT_FLOPPY_VERSION}",
+    )
 
 
 def _validate_portable_name(name: str) -> None:
@@ -444,10 +469,9 @@ def _scan_tree(root: Path) -> tuple[EntryRecord, ...]:
         continue
       key = _portable_name_key(entry.name)
       if key in portable_names:
-        location = relative_directory or Path(".")
-        raise UnsafeTreeError(
-          f"contains FAT/Windows-colliding names in {location}: "
-          f"{portable_names[key]!r} and {entry.name!r}",
+          location = relative_directory or Path(".")
+          raise UnsafeTreeError(
+            f"contains FAT/Windows-colliding names in {location}: {portable_names[key]!r} and {entry.name!r}",
         )
       portable_names[key] = entry.name
       children.append((path, record))
@@ -715,6 +739,7 @@ class StorageManager:
     ready_timeout: float = 20.0,
     stop_timeout: float = 5.0,
     poll_interval: float = 0.1,
+    idle_poll_interval: float = 1.0,
     process_factory: Callable[..., Any] = subprocess.Popen,
     command_runner: Callable[..., Any] = subprocess.run,
     clock: Callable[[], float] = time.monotonic,
@@ -723,6 +748,7 @@ class StorageManager:
     stability_age_ns: int = DEFAULT_STABILITY_AGE_NS,
     image_repairer: Callable[[Path], None] = _repair_fat32_image,
     filesystem_stats: Callable[[Path], Any] = os.statvfs,
+    installation_validator: Callable[[], None] = _validate_nbdkit_installation,
   ):
     self.snapshot_builder = SnapshotBuilder(
       source,
@@ -745,18 +771,21 @@ class StorageManager:
       raise StorageError("gadget lock path must be absolute")
     if not self.gadget_helper.is_absolute():
       raise StorageError("gadget helper path must be absolute")
-    if min(ready_timeout, stop_timeout, poll_interval) <= 0:
+    if min(ready_timeout, stop_timeout, poll_interval, idle_poll_interval) <= 0:
       raise StorageError("timeouts and poll interval must be positive")
 
     self.ready_timeout = ready_timeout
     self.stop_timeout = stop_timeout
     self.poll_interval = poll_interval
+    self.idle_poll_interval = idle_poll_interval
     self.process_factory = process_factory
     self.command_runner = command_runner
     self.clock = clock
     self.sleep = sleep
     self.image_repairer = image_repairer
     self.filesystem_stats = filesystem_stats
+    self.installation_validator = installation_validator
+    self.installation_validated = False
     # Directory/filename mode mounts FUSE over mount.parent, hiding everything
     # in it. Keep readiness state next to (not inside) that mount directory.
     self.pidfile = self.mount.parent.with_suffix(".pid")
@@ -912,6 +941,9 @@ class StorageManager:
       self.pidfile.unlink()
 
   def _start_export(self) -> None:
+    if not self.installation_validated:
+      self.installation_validator()
+      self.installation_validated = True
     self._prepare_mount()
     disk_size, size_argument = _nbdkit_layout(self.snapshot_builder.snapshot)
     command = [
@@ -961,7 +993,7 @@ class StorageManager:
       except UdcUnavailableError:
         # The UDC may appear after this boot service starts.
         pass
-      self.sleep(self.poll_interval)
+      self.sleep(self.idle_poll_interval)
     return False
 
   def _wait_for_source_while_attached(self, stop_event: threading.Event) -> bool:
@@ -974,7 +1006,7 @@ class StorageManager:
         return False
       if state in self.CONFIGURED_UDC_STATES and self.snapshot_builder.source_is_ready() and self._has_export_capacity():
         return True
-      self.sleep(self.poll_interval)
+      self.sleep(self.idle_poll_interval)
     return False
 
   def _has_export_capacity(self) -> bool:
@@ -996,7 +1028,7 @@ class StorageManager:
       except UdcUnavailableError:
         # A disappearing UDC is also a physical/configfs detachment.
         return True
-      self.sleep(self.poll_interval)
+      self.sleep(self.idle_poll_interval)
     return False
 
   def monitor(self, stop_event: threading.Event) -> SessionEnd:
@@ -1172,6 +1204,7 @@ def _build_parser() -> argparse.ArgumentParser:
   parser.add_argument("--gadget-helper", default="/usr/comma/usb_gadget.sh")
   parser.add_argument("--ready-timeout", type=float, default=20.0)
   parser.add_argument("--stop-timeout", type=float, default=5.0)
+  parser.add_argument("--idle-poll-interval", type=float, default=1.0)
   return parser
 
 
@@ -1195,6 +1228,7 @@ def main(argv: Sequence[str] | None = None) -> int:
       gadget_helper=arguments.gadget_helper,
       ready_timeout=arguments.ready_timeout,
       stop_timeout=arguments.stop_timeout,
+      idle_poll_interval=arguments.idle_poll_interval,
     )
     completed_sessions = manager.run(stop_event)
     LOG.info("stopped after %d completed storage sessions", completed_sessions)

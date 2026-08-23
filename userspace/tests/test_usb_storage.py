@@ -14,7 +14,7 @@ import threading
 import time
 import types
 import unittest  # noqa: TID251 - these tests intentionally use only the standard library
-from unittest import mock
+from unittest import mock  # noqa: TID251 - these tests intentionally use only the standard library
 
 
 COMMA_DIR = Path(__file__).parents[1] / "root" / "usr" / "comma"
@@ -553,12 +553,67 @@ class ManagerTestBase(unittest.TestCase):
       "lun": self.lun,
       "udc_state": self.udc_state,
       "gadget_lock": self.gadget_lock,
+      "installation_validator": lambda: None,
     }
     arguments.update(overrides)
     return usb_storage.StorageManager(**arguments)
 
 
 class StorageManagerTest(ManagerTestBase):
+  def test_nbdkit_probe_requires_exact_supported_floppy_and_cow(self) -> None:
+    command: list[str] = []
+
+    def runner(arguments: list[str], **_kwargs: object) -> object:
+      command.extend(arguments)
+      return types.SimpleNamespace(
+        returncode=0,
+        stdout="name=floppy\nversion=1.36.3\ncow_name=cow\n",
+      )
+
+    usb_storage._validate_nbdkit_installation(runner)
+    self.assertEqual(command, ["/usr/bin/nbdkit", "--filter=cow", "floppy", "--dump-plugin"])
+
+    for output in (
+      "name=floppy\nversion=1.38.0\ncow_name=cow\n",
+      "name=floppy\nversion=1.36.3\n",
+      "malformed output",
+    ):
+      with self.subTest(output=output):
+        with self.assertRaises(usb_storage.StorageError):
+          usb_storage._validate_nbdkit_installation(
+            lambda _arguments, output=output, **_kwargs: types.SimpleNamespace(returncode=0, stdout=output),
+          )
+
+    with self.assertRaises(usb_storage.StorageError):
+      usb_storage._validate_nbdkit_installation(
+        lambda _arguments, **_kwargs: types.SimpleNamespace(returncode=1, stdout=""),
+      )
+
+  def test_nbdkit_probe_is_cached_after_first_export(self) -> None:
+    probes: list[bool] = []
+
+    def process_factory(_command: list[str], **_kwargs: object) -> FakeProcess:
+      process = FakeProcess()
+      self.mount.parent.mkdir(parents=True, exist_ok=True)
+      with self.mount.open("wb") as virtual_disk:
+        virtual_disk.truncate(usb_storage.MIN_COMPATIBLE_DISK_SIZE)
+      self.mount.parent.with_suffix(".pid").write_text(str(process.pid))
+      return process
+
+    manager = self.make_manager(
+      process_factory=process_factory,
+      image_repairer=lambda _path: None,
+      installation_validator=lambda: probes.append(True),
+    )
+    manager.snapshot_builder.build()
+    manager._start_export()
+    manager.process = None
+    manager.export_started = False
+    manager._prepare_mount()
+    manager._start_export()
+
+    self.assertEqual(probes, [True])
+
   def test_nbdfuse_command_uses_cow_repair_and_exact_virtual_size(self) -> None:
     captured: list[list[str]] = []
     captured_environment: list[dict[str, str]] = []
@@ -986,13 +1041,20 @@ class StorageMonitorTest(ManagerTestBase):
 
   def test_wait_for_attach_is_idle_until_stopped(self) -> None:
     stop_event = threading.Event()
+    sleeps: list[float] = []
+
+    def stop_after_sleep(seconds: float) -> None:
+      sleeps.append(seconds)
+      stop_event.set()
+
     manager = self.scripted_manager(
       udc_states=["attached"],
       lun_values=[str(self.mount)],
-      sleep=lambda _seconds: stop_event.set(),
+      sleep=stop_after_sleep,
     )
 
     self.assertFalse(manager._wait_for_configured(stop_event))
+    self.assertEqual(sleeps, [1.0])
 
   def test_run_does_not_build_snapshot_before_attach(self) -> None:
     stop_event = threading.Event()

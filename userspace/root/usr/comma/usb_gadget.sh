@@ -12,6 +12,14 @@ FFS_ADB_ROOT="${USB_GADGET_FFS_ADB_ROOT:-/dev/usb-ffs/adb}"
 LOCK_FILE="${USB_GADGET_LOCK_FILE:-/run/lock/comma-usb-gadget.lock}"
 UDC_NAME="${USB_GADGET_UDC:-a600000.dwc3}"
 MANAGED_BACKING_FILE="${USB_GADGET_MANAGED_BACKING_FILE:-/run/usb-storage/footage.img}"
+ADB_PARAM="${USB_GADGET_ADB_PARAM:-/data/params/d/AdbEnabled}"
+# ADB-off is a distinct USB personality: mass storage at MI_00, without NCM or
+# a disabled-placeholder interface.  It requires a product ID assigned by the
+# VID owner so Windows cannot reuse the legacy 0x1234/MI_02 ADB driver binding.
+# These intentionally have no production defaults until comma approves the
+# identity; it may be allocated under comma's own VID or the legacy VID.
+STORAGE_ONLY_VID="${USB_GADGET_STORAGE_ONLY_VID:-}"
+STORAGE_ONLY_PID="${USB_GADGET_STORAGE_ONLY_PID:-}"
 
 MOUNTPOINT_BIN="${USB_GADGET_MOUNTPOINT_BIN:-mountpoint}"
 MOUNT_BIN="${USB_GADGET_MOUNT_BIN:-mount}"
@@ -72,6 +80,85 @@ bind_gadget() {
   write_attr "$UDC_NAME" "$GADGET_ROOT/UDC"
 }
 
+ensure_requested_personality() {
+  local current_udc=""
+  local adb_enabled=0
+
+  current_udc="$(< "$GADGET_ROOT/UDC")"
+  if [[ -n "$current_udc" ]]; then
+    return 0
+  fi
+  if [[ -r "$ADB_PARAM" ]] && [[ "$(< "$ADB_PARAM")" == "1" ]]; then
+    adb_enabled=1
+  fi
+  configure_gadget "$adb_enabled"
+}
+
+finalize_storage_stop() {
+  local lun_root="$FUNCTION_ROOT/mass_storage.0/lun.0"
+  local backing_file=""
+
+  # The manager is already dead when this runs, so its configfs operations
+  # cannot race this final decision. Preserve ADB/NCM after a clean stop, but
+  # disconnect the whole gadget before systemd kills any backing processes if
+  # media is still attached or the LUN policy cannot be verified.
+  if [[ ! -r "$lun_root/file" || ! -r "$lun_root/ro" || ! -r "$lun_root/removable" ]]; then
+    unbind_gadget
+    echo "USB storage LUN state is unavailable; leaving gadget unbound" >&2
+    return 1
+  fi
+  backing_file="$(< "$lun_root/file")"
+  if [[ -n "$backing_file" ]] || [[ "$(< "$lun_root/ro")" != "1" ]] || [[ "$(< "$lun_root/removable")" != "1" ]]; then
+    unbind_gadget
+    if [[ -n "$backing_file" ]]; then
+      echo "USB storage media remains attached; leaving gadget unbound" >&2
+    else
+      echo "USB storage LUN policy is unsafe; leaving gadget unbound" >&2
+    fi
+    return 0
+  fi
+
+  # A PREVENT-MEDIUM-REMOVAL fallback and a failed descriptor transition both
+  # leave an empty UDC. Reconstruct the full requested personality instead of
+  # blindly binding partial links/descriptors. This fails unbound when the
+  # storage-only identity has not been approved.
+  ensure_requested_personality
+}
+
+prepare_storage_start() {
+  local lun_root="$FUNCTION_ROOT/mass_storage.0/lun.0"
+  local backing_file=""
+
+  # This runs before any stale FUSE recovery. Configfs must stop referencing
+  # the old virtual disk first, or a lazy unmount could invalidate live host
+  # I/O. Only this service's exact backing path may be released.
+  if [[ ! -r "$lun_root/file" || ! -r "$lun_root/ro" || ! -r "$lun_root/removable" ]]; then
+    unbind_gadget
+    echo "USB storage LUN state is unavailable; leaving gadget unbound" >&2
+    return 1
+  fi
+  backing_file="$(< "$lun_root/file")"
+  if [[ "$(< "$lun_root/ro")" != "1" ]] || [[ "$(< "$lun_root/removable")" != "1" ]]; then
+    unbind_gadget
+    echo "USB storage LUN policy is unsafe; leaving gadget unbound" >&2
+    return 1
+  fi
+  if [[ -n "$backing_file" && "$backing_file" != "$MANAGED_BACKING_FILE" ]]; then
+    unbind_gadget
+    echo "refusing to clear a foreign USB mass-storage LUN" >&2
+    return 1
+  fi
+  if [[ -n "$backing_file" ]]; then
+    unbind_gadget
+    clear_lun_file "$lun_root/file" || return 1
+  fi
+
+  # A failed asynchronous personality transition and a legitimate fallback
+  # unbind are indistinguishable here. Reconstruct the complete requested
+  # personality instead of raw-binding potentially partial descriptors.
+  ensure_requested_personality
+}
+
 remove_owned_links() {
   local link
   for link in ncm.0 ffs.adb mass_storage.0; do
@@ -117,7 +204,7 @@ clear_lun_file() {
   local attempt
 
   for ((attempt = 1; attempt <= CLEAR_ATTEMPTS; attempt++)); do
-    if write_attr "" "$file" 2>/dev/null; then
+    if write_attr "" "$file" 2>/dev/null && [[ "$(< "$file")" == "" ]]; then
       return 0
     fi
     if ((attempt < CLEAR_ATTEMPTS)); then
@@ -132,6 +219,8 @@ configure_gadget() {
   local adb_enabled="$1"
   local backing_file
   local mass_storage_created=0
+  local vendor_id="0x04D8"
+  local product_id="0x1234"
 
   RESTORE_BINDING=0
   RESTORE_HAD_ADB=0
@@ -142,6 +231,22 @@ configure_gadget() {
   if [[ "$adb_enabled" != "0" && "$adb_enabled" != "1" ]]; then
     echo "usage: $0 configure <0|1>" >&2
     return 2
+  fi
+  if [[ "$adb_enabled" == "0" ]]; then
+    if [[ ! "$STORAGE_ONLY_VID" =~ ^0[xX][0-9a-fA-F]{4}$ ]] || \
+       [[ ! "$STORAGE_ONLY_PID" =~ ^0[xX][0-9a-fA-F]{4}$ ]] || \
+       [[ "$STORAGE_ONLY_VID" =~ ^0[xX]04[dD]8$ && "$STORAGE_ONLY_PID" =~ ^0[xX]1234$ ]]; then
+      # AdbEnabled=0 must fail closed even before a storage-only identity is
+      # allocated. Otherwise a previously bound debug personality and adbd
+      # would remain reachable after the user disabled them.
+      ensure_configfs
+      unbind_gadget
+      "$SYSTEMCTL_BIN" stop adbd
+      echo "ADB-off storage requires a distinct owner-approved USB VID/PID" >&2
+      return 1
+    fi
+    vendor_id="$STORAGE_ONLY_VID"
+    product_id="$STORAGE_ONLY_PID"
   fi
 
   ensure_configfs
@@ -178,8 +283,13 @@ configure_gadget() {
   # as while the UDC is unbound (stall returns EBUSY once linked).
   remove_owned_links
 
-  write_attr "0x04D8" "$GADGET_ROOT/idVendor"
-  write_attr "0x1234" "$GADGET_ROOT/idProduct"
+  # Descriptor and daemon changes below cannot be safely rolled back from only
+  # a link snapshot. Any later failure must therefore leave the gadget unbound
+  # instead of mixing the old functions with a new VID/PID personality.
+  RESTORE_BINDING=0
+
+  write_attr "$vendor_id" "$GADGET_ROOT/idVendor"
+  write_attr "$product_id" "$GADGET_ROOT/idProduct"
   write_attr "$(read_serial)" "$GADGET_ROOT/strings/0x409/serialnumber"
   write_attr "comma.ai" "$GADGET_ROOT/strings/0x409/manufacturer"
   write_attr "Linux USB Gadget" "$GADGET_ROOT/strings/0x409/product"
@@ -208,17 +318,15 @@ configure_gadget() {
     if ! clear_lun_file "$FUNCTION_ROOT/mass_storage.0/lun.0/file"; then
       exit 1
     fi
-    RESTORE_BINDING=1
   fi
   write_attr "1" "$FUNCTION_ROOT/mass_storage.0/lun.0/ro"
   write_attr "1" "$FUNCTION_ROOT/mass_storage.0/lun.0/removable"
   write_attr "1" "$FUNCTION_ROOT/mass_storage.0/stall"
 
-  # Keep the pre-existing NCM and ADB interface numbers stable for hosts that
-  # cache composite-device bindings. Mass storage is always appended last.
-  link_function ncm.0
-
   if [[ "$adb_enabled" == "1" ]]; then
+    # Keep the pre-existing NCM and ADB interface numbers stable for hosts that
+    # cache composite-device bindings. Mass storage is appended as MI_03.
+    link_function ncm.0
     mkdir -p "$FUNCTION_ROOT/ffs.adb" "$FFS_ADB_ROOT"
     if [[ "$SKIP_MOUNTS" != "1" ]] && ! "$MOUNTPOINT_BIN" -q "$FFS_ADB_ROOT"; then
       "$MOUNT_BIN" -t functionfs adb "$FFS_ADB_ROOT"
@@ -235,7 +343,7 @@ configure_gadget() {
     write_attr "NCM+ADB+Storage" "$CONFIG_ROOT/strings/0x409/configuration"
   else
     "$SYSTEMCTL_BIN" stop adbd
-    write_attr "NCM+Storage" "$CONFIG_ROOT/strings/0x409/configuration"
+    write_attr "Storage" "$CONFIG_ROOT/strings/0x409/configuration"
   fi
 
   bind_gadget
@@ -275,8 +383,14 @@ case "${1:-}" in
   unbind)
     unbind_gadget
     ;;
+  finalize-storage-stop)
+    finalize_storage_stop
+    ;;
+  prepare-storage-start)
+    prepare_storage_start
+    ;;
   *)
-    echo "usage: $0 {configure <0|1>|bind|unbind}" >&2
+    echo "usage: $0 {configure <0|1>|bind|unbind|finalize-storage-stop|prepare-storage-start}" >&2
     exit 2
     ;;
 esac
