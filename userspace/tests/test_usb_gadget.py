@@ -333,6 +333,63 @@ class UsbGadgetTest(unittest.TestCase):
     self.assertEqual(self.read(self.gadget / "idProduct"), "0xBEEF")
     self.assert_storage_only_links()
 
+  def test_requested_personality_recovery_serializes_partial_failed_state(self) -> None:
+    self.run_helper("configure", "1")
+    failing_link = self.root / "failing-concurrent-link"
+    failing_link.write_text("#!/bin/sh\nexit 1\n")
+    failing_link.chmod(0o755)
+    self.environment["USB_GADGET_LN_BIN"] = str(failing_link)
+
+    result = self.run_helper("configure", "0", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertFalse((self.config / "mass_storage.0").is_symlink())
+
+    # Use a portable flock shim so this concurrency check also runs on macOS.
+    # flock(2) is attached to the inherited open file description, so the
+    # parent shell keeps the lock after this helper exits and until it closes
+    # descriptor 9.
+    flock_wrapper = self.root / "flock"
+    flock_wrapper.write_text(
+      "#!/usr/bin/env python3\n"
+      "import fcntl\n"
+      "import sys\n"
+      "fcntl.flock(int(sys.argv[-1]), fcntl.LOCK_EX)\n",
+    )
+    flock_wrapper.chmod(0o755)
+    slow_link = self.root / "slow-logged-ln"
+    slow_link.write_text(
+      "#!/bin/sh\n"
+      "sleep 0.1\n"
+      "printf '%s\\n' \"${3##*/}\" >> \"$USB_GADGET_LINK_LOG\"\n"
+      "exec /bin/ln \"$@\"\n",
+    )
+    slow_link.chmod(0o755)
+    self.environment["USB_GADGET_FLOCK_BIN"] = str(flock_wrapper)
+    self.environment["USB_GADGET_LN_BIN"] = str(slow_link)
+    self.adb_param.write_text("1\n")
+    self.link_log.write_text("")
+
+    processes = [
+      subprocess.Popen(
+        [str(GADGET_HELPER), "ensure-requested-personality"],
+        env=self.environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+      )
+      for _ in range(2)
+    ]
+    results = [process.communicate(timeout=10) for process in processes]
+
+    self.assertEqual([process.returncode for process in processes], [0, 0], results)
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.gadget / "idVendor"), "0x04D8")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0x1234")
+    self.assertEqual(self.link_log.read_text().splitlines(), ["ncm.0", "ffs.adb", "mass_storage.0"])
+    self.assert_debug_links()
+
   def test_symbolic_link_lock_is_rejected_without_touching_target(self) -> None:
     lock = Path(self.environment["USB_GADGET_LOCK_FILE"])
     victim = self.root / "victim"
@@ -370,6 +427,14 @@ class UsbGadgetTest(unittest.TestCase):
       unit.index("ExecStartPre=/usr/comma/usb_gadget.sh prepare-storage-start"),
       unit.index("ExecStartPre=-/usr/bin/fusermount3 -uz /run/usb-storage"),
     )
+
+  def test_storage_service_backs_off_repeated_start_failures(self) -> None:
+    unit = STORAGE_SERVICE.read_text()
+
+    self.assertIn("Restart=on-failure\n", unit)
+    self.assertIn("RestartSec=5\n", unit)
+    self.assertIn("RestartSteps=5\n", unit)
+    self.assertIn("RestartMaxDelaySec=5min\n", unit)
 
   def test_stop_wrapper_signals_manager_before_final_unbind(self) -> None:
     event_log = self.root / "stop-order.log"

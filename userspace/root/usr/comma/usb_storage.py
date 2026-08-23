@@ -38,6 +38,10 @@ MANAGED_MOUNT_NAME = "footage.img"
 # nbdkit-floppy rejects files whose size cannot fit in its uint32_t field.
 MAX_FAT_FILE_SIZE = (1 << 32) - 1
 DEFAULT_STABILITY_AGE_NS = 2_000_000_000
+# A configfs unbind/rebind can briefly report "not attached" even though the
+# cable never moved. Require a stable disconnect before starting a new session
+# so a persistent exporter failure cannot flap the composite USB device.
+PHYSICAL_DETACH_DEBOUNCE_SECONDS = 2.0
 # Match loggerd's current deleter safety floor. A connected hard-link snapshot
 # can pin otherwise deleted footage, so release it as soon as either limit is
 # reached rather than letting logging exhaust userdata.
@@ -1020,14 +1024,38 @@ class StorageManager:
     except OSError:
       return False
 
-  def _wait_for_physical_detach(self, stop_event: threading.Event) -> bool:
+  def _wait_for_physical_detach(
+    self,
+    stop_event: threading.Event,
+    *,
+    require_reconfigured: bool = False,
+  ) -> bool:
+    detached_since: float | None = None
+    reconfigured = not require_reconfigured
     while not stop_event.is_set():
       try:
-        if self._read_udc_state() in self.DISCONNECTED_UDC_STATES:
-          return True
+        state = self._read_udc_state()
+        detached = state in self.DISCONNECTED_UDC_STATES
       except UdcUnavailableError:
         # A disappearing UDC is also a physical/configfs detachment.
-        return True
+        state = None
+        detached = True
+
+      now = self.clock()
+      if not reconfigured:
+        # When teardown had to unbind and reconstruct the gadget, even a long
+        # "not attached" interval may only be slow host re-enumeration. Arm
+        # physical-detach detection only after that rebind reaches a configured
+        # state; the next stable disconnect is then unambiguous.
+        reconfigured = state in self.CONFIGURED_UDC_STATES
+        detached_since = None
+      elif detached:
+        if detached_since is None:
+          detached_since = now
+        elif now - detached_since >= PHYSICAL_DETACH_DEBOUNCE_SECONDS:
+          return True
+      else:
+        detached_since = None
       self.sleep(self.idle_poll_interval)
     return False
 
@@ -1052,7 +1080,7 @@ class StorageManager:
     return SessionEnd.STOPPED
 
   def _run_gadget_helper(self, action: str) -> None:
-    if action not in ("bind", "unbind"):
+    if action not in ("unbind", "ensure-requested-personality"):
       raise StorageError(f"invalid gadget helper action: {action}")
     # usb_gadget.sh takes the shared flock itself. Never invoke it from within
     # _gadget_locked(), or both processes would deadlock.
@@ -1107,7 +1135,8 @@ class StorageManager:
     except FileNotFoundError:
       pass
 
-  def teardown(self, *, rebind: bool = True) -> None:
+  def teardown(self, *, rebind: bool = True) -> bool:
+    """Release session state and report whether the gadget was self-rebound."""
     # This order is a safety invariant: configfs must release the backing file
     # before FUSE disappears, and the hard-link namespace must outlive nbdkit.
     try:
@@ -1124,8 +1153,14 @@ class StorageManager:
     self.snapshot_builder.cleanup()
 
     if self.forced_unbound and rebind:
-      self._run_gadget_helper("bind")
+      # Another serialized gadget transition may have failed after changing
+      # descriptors or links while this manager was cleaning up. Reconstruct
+      # the complete requested personality rather than raw-binding whatever
+      # partial configfs state happens to remain.
+      self._run_gadget_helper("ensure-requested-personality")
       self.forced_unbound = False
+      return True
+    return False
 
   def run(self, stop_event: threading.Event) -> int:
     completed_sessions = 0
@@ -1138,7 +1173,7 @@ class StorageManager:
     self._prepare_mount()
     self.snapshot_builder.cleanup()
     if self.forced_unbound:
-      self._run_gadget_helper("bind")
+      self._run_gadget_helper("ensure-requested-personality")
       self.forced_unbound = False
 
     while self._wait_for_configured(stop_event):
@@ -1148,7 +1183,8 @@ class StorageManager:
       snapshot: SnapshotResult | None = None
       end = SessionEnd.DETACHED
       media_attached = False
-      failure: BaseException | None = None
+      failure: Exception | None = None
+      self_rebound = False
       try:
         snapshot = self.snapshot_builder.build()
         if stop_event.is_set():
@@ -1160,16 +1196,25 @@ class StorageManager:
           self._set_lun()
           media_attached = True
           end = self.monitor(stop_event)
-      except BaseException as exc:
+      except Exception as exc:
         failure = exc
-        raise
+        LOG.exception("USB storage session failed safely; waiting for physical detach before retry")
       finally:
         try:
-          self.teardown(rebind=not stop_event.is_set())
-        except BaseException:
+          self_rebound = self.teardown(rebind=not stop_event.is_set())
+        except BaseException as teardown_failure:
           if failure is None:
             raise
           LOG.exception("teardown also failed after storage session error")
+          # An incomplete teardown may leave configfs referencing the export.
+          # Exit so systemd's stop wrapper can force the gadget safe instead
+          # of continuing with uncertain backing-file ownership.
+          raise teardown_failure from failure
+
+      if failure is not None:
+        if not self._wait_for_physical_detach(stop_event, require_reconfigured=self_rebound):
+          break
+        continue
 
       if media_attached and snapshot is not None:
         completed_sessions += 1

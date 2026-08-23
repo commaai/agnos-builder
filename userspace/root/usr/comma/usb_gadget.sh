@@ -383,6 +383,9 @@ case "${1:-}" in
   unbind)
     unbind_gadget
     ;;
+  ensure-requested-personality)
+    ensure_requested_personality
+    ;;
   finalize-storage-stop)
     finalize_storage_stop
     ;;
@@ -390,7 +393,7 @@ case "${1:-}" in
     prepare_storage_start
     ;;
   *)
-    echo "usage: $0 {configure <0|1>|bind|unbind|finalize-storage-stop|prepare-storage-start}" >&2
+    echo "usage: $0 {configure <0|1>|bind|unbind|ensure-requested-personality|finalize-storage-stop|prepare-storage-start}" >&2
     exit 2
     ;;
 esac

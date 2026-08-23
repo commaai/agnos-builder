@@ -24,6 +24,8 @@ KillMode=control-group
 TimeoutStopSec=45
 Restart=on-failure
 RestartSec=5
+RestartSteps=5
+RestartMaxDelaySec=5min
 
 [Install]
 WantedBy=multi-user.target
