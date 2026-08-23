@@ -403,6 +403,19 @@ class Fat32CompatibilityTest(unittest.TestCase):
     self.assertGreater(disk_size, 3 * 1024**3)
     self.assertEqual(total_clusters - 65 - 2 * fat_clusters, used_clusters)
 
+  def test_layout_rejects_file_truncated_after_snapshot(self) -> None:
+    footage = self.root / "rlog.zst"
+    footage.write_bytes(b"complete")
+    self.assertEqual(
+      usb_storage._nbdkit_layout(self.root),
+      (usb_storage.MIN_COMPATIBLE_DISK_SIZE, usb_storage.MIN_COMPATIBLE_DISK_SIZE),
+    )
+
+    footage.write_bytes(b"")
+
+    with self.assertRaisesRegex(usb_storage.StorageError, "empty file unsupported"):
+      usb_storage._nbdkit_layout(self.root)
+
   def test_repairs_primary_backup_and_root_child_dotdot_idempotently(self) -> None:
     image = self.root / "footage.img"
     partition_offset, data_offset = make_nbdkit_fat32_image(image)

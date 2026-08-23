@@ -177,8 +177,12 @@ def _snapshot_fat_data_size(root: Path) -> int:
       child_metadata = child.lstat()
       if not stat.S_ISREG(child_metadata.st_mode) or stat.S_ISLNK(child_metadata.st_mode):
         raise StorageError(f"snapshot contains unsafe file: {child}")
-      if child_metadata.st_size:
-        total += _round_up(child_metadata.st_size, FAT_CLUSTER_SIZE)
+      if child_metadata.st_size == 0:
+        # Recheck at the last prelaunch scan: a hard-linked source inode can be
+        # truncated after snapshot construction, and nbdkit 1.36 would then
+        # emit an invalid free first cluster for it.
+        raise StorageError(f"snapshot contains an empty file unsupported by nbdkit floppy: {child}")
+      total += _round_up(child_metadata.st_size, FAT_CLUSTER_SIZE)
   return total
 
 
