@@ -21,10 +21,20 @@ jobs:
         lfs: true
         submodules: true
 
+    - name: Install USB storage integration dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends dosfstools libnbd-bin mtools nbdkit
+
     - name: Test userspace helpers
       env:
         PYTHONDONTWRITEBYTECODE: "1"
       run: python3 -m unittest discover -s userspace/tests -p 'test_*.py' -v
+
+    - name: Test installed nbdkit FAT export
+      env:
+        PYTHONDONTWRITEBYTECODE: "1"
+      run: python3 userspace/tests/integration_usb_storage_nbdkit.py
 
     - name: Get commit message
       run: |
