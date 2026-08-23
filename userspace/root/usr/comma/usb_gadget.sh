@@ -94,6 +94,212 @@ ensure_requested_personality() {
   configure_gadget "$adb_enabled"
 }
 
+function_link_is_exact() {
+  local name="$1"
+  [[ -L "$CONFIG_ROOT/$name" ]] && [[ "$CONFIG_ROOT/$name" -ef "$FUNCTION_ROOT/$name" ]]
+}
+
+usb_id_is() {
+  local actual="$1"
+  local expected="$2"
+  [[ "$actual" =~ ^0[xX][0-9a-fA-F]{4}$ ]] || return 1
+  [[ "$expected" =~ ^0[xX][0-9a-fA-F]{4}$ ]] || return 1
+  # Configfs canonicalizes hexadecimal attributes to lowercase on-device.
+  # Compare validated numeric values so fake configfs and the kernel's
+  # readback spelling are both accepted without weakening identity checks.
+  ((actual == expected))
+}
+
+validate_single_configuration() {
+  local entry
+  local found_primary=0
+
+  if [[ ! -d "$GADGET_ROOT/configs" ]] || [[ -L "$GADGET_ROOT/configs" ]]; then
+    echo "USB gadget configurations directory is unavailable or unsafe" >&2
+    return 1
+  fi
+  # Configfs may add regular attributes across kernel versions. They cannot
+  # expose functions, so tolerate them. Every real child directory is a USB
+  # configuration and every symlink is unexpected here; only c.1 is allowed.
+  for entry in "$GADGET_ROOT/configs"/* "$GADGET_ROOT/configs"/.[!.]* "$GADGET_ROOT/configs"/..?*; do
+    [[ -e "$entry" ]] || [[ -L "$entry" ]] || continue
+    if [[ -L "$entry" ]]; then
+      echo "refusing USB gadget with a linked configuration entry" >&2
+      return 1
+    elif [[ -d "$entry" ]]; then
+      if [[ "$entry" != "$CONFIG_ROOT" ]]; then
+        echo "refusing USB gadget with more than configuration c.1" >&2
+        return 1
+      fi
+      found_primary=1
+    elif [[ ! -f "$entry" ]]; then
+      echo "refusing USB gadget with an unsafe configuration entry" >&2
+      return 1
+    fi
+  done
+  if ((!found_primary)); then
+    echo "USB gadget configuration c.1 is unavailable" >&2
+    return 1
+  fi
+}
+
+validate_single_mass_storage_lun() {
+  local entry
+  local found_lun_zero=0
+  local mass_storage_root="$FUNCTION_ROOT/mass_storage.0"
+
+  if [[ ! -d "$mass_storage_root" ]] || [[ -L "$mass_storage_root" ]]; then
+    echo "USB mass-storage function is unavailable or unsafe" >&2
+    return 1
+  fi
+  # In this kernel every configfs child directory of a mass-storage function
+  # is a dynamically created LUN (the group parser accepts NAME.NUMBER, not
+  # only lun.NUMBER). Regular attributes such as stall and optional
+  # num_buffers are harmless and must remain compatible across kernel builds.
+  for entry in "$mass_storage_root"/* "$mass_storage_root"/.[!.]* "$mass_storage_root"/..?*; do
+    [[ -e "$entry" ]] || [[ -L "$entry" ]] || continue
+    if [[ -L "$entry" ]]; then
+      echo "refusing USB mass storage with a linked function entry" >&2
+      return 1
+    elif [[ -d "$entry" ]]; then
+      if [[ "$entry" != "$mass_storage_root/lun.0" ]]; then
+        echo "refusing USB mass storage with more than LUN 0" >&2
+        return 1
+      fi
+      found_lun_zero=1
+    elif [[ ! -f "$entry" ]]; then
+      echo "refusing USB mass storage with an unsafe function entry" >&2
+      return 1
+    fi
+  done
+  if ((!found_lun_zero)); then
+    echo "USB mass-storage LUN 0 is unavailable" >&2
+    return 1
+  fi
+}
+
+validate_no_unowned_config_links() {
+  local entry
+  for entry in "$CONFIG_ROOT"/* "$CONFIG_ROOT"/.[!.]* "$CONFIG_ROOT"/..?*; do
+    [[ -e "$entry" ]] || [[ -L "$entry" ]] || continue
+    if [[ -L "$entry" ]]; then
+      echo "refusing to configure USB with an unowned function link" >&2
+      return 1
+    fi
+  done
+}
+
+validate_managed_storage_topology() {
+  validate_single_configuration && validate_single_mass_storage_lun
+}
+
+validate_managed_storage_personality() {
+  local adb_enabled=0
+  local configured_function
+  local expected_configuration="Storage"
+  local expected_product="$STORAGE_ONLY_PID"
+  local expected_vendor="$STORAGE_ONLY_VID"
+
+  validate_managed_storage_topology || return 1
+
+  if [[ -r "$ADB_PARAM" ]] && [[ "$(< "$ADB_PARAM")" == "1" ]]; then
+    adb_enabled=1
+    expected_configuration="NCM+ADB+Storage"
+    expected_product="0x1234"
+    expected_vendor="0x04D8"
+  elif [[ ! "$STORAGE_ONLY_VID" =~ ^0[xX][0-9a-fA-F]{4}$ ]] || \
+       [[ ! "$STORAGE_ONLY_PID" =~ ^0[xX][0-9a-fA-F]{4}$ ]] || \
+       [[ "$STORAGE_ONLY_VID" =~ ^0[xX]04[dD]8$ && "$STORAGE_ONLY_PID" =~ ^0[xX]1234$ ]]; then
+    echo "ADB-off storage requires a distinct owner-approved USB VID/PID" >&2
+    return 1
+  fi
+
+  # Re-enumeration is deliberately narrower than configuration: it may only
+  # bounce a complete personality whose sole storage backing is the manager's
+  # generated image. It never repairs links, descriptors, or LUN policy and
+  # therefore cannot raw-bind a partially configured gadget.
+  if [[ ! -r "$GADGET_ROOT/idVendor" ]] || ! usb_id_is "$(< "$GADGET_ROOT/idVendor")" "$expected_vendor" || \
+     [[ ! -r "$GADGET_ROOT/idProduct" ]] || ! usb_id_is "$(< "$GADGET_ROOT/idProduct")" "$expected_product" || \
+     [[ ! -r "$CONFIG_ROOT/strings/0x409/configuration" ]] || \
+     [[ "$(< "$CONFIG_ROOT/strings/0x409/configuration")" != "$expected_configuration" ]]; then
+    echo "refusing to re-enumerate an unexpected USB personality" >&2
+    return 1
+  fi
+  if [[ ! -r "$FUNCTION_ROOT/mass_storage.0/lun.0/file" ]] || \
+     [[ ! -r "$FUNCTION_ROOT/mass_storage.0/lun.0/ro" ]] || \
+     [[ ! -r "$FUNCTION_ROOT/mass_storage.0/lun.0/removable" ]] || \
+     [[ ! -r "$FUNCTION_ROOT/mass_storage.0/stall" ]] || \
+     [[ "$(< "$FUNCTION_ROOT/mass_storage.0/lun.0/file")" != "$MANAGED_BACKING_FILE" ]] || \
+     [[ "$(< "$FUNCTION_ROOT/mass_storage.0/lun.0/ro")" != "1" ]] || \
+     [[ "$(< "$FUNCTION_ROOT/mass_storage.0/lun.0/removable")" != "1" ]] || \
+     [[ "$(< "$FUNCTION_ROOT/mass_storage.0/stall")" != "1" ]] || \
+     ! function_link_is_exact mass_storage.0; then
+    echo "refusing to re-enumerate an unsafe or unmanaged USB storage LUN" >&2
+    return 1
+  fi
+
+  if ((adb_enabled)); then
+    if ! function_link_is_exact ncm.0 || ! function_link_is_exact ffs.adb; then
+      echo "refusing to re-enumerate a partial ADB USB personality" >&2
+      return 1
+    fi
+  elif [[ -L "$CONFIG_ROOT/ncm.0" ]] || [[ -L "$CONFIG_ROOT/ffs.adb" ]]; then
+    echo "refusing to re-enumerate unexpected debug USB functions" >&2
+    return 1
+  fi
+
+  # Reject every unrecognized function, including functions another process
+  # may have added. Descriptor directories are not symbolic links.
+  for configured_function in "$CONFIG_ROOT"/*; do
+    [[ -L "$configured_function" ]] || continue
+    case "${configured_function##*/}" in
+      mass_storage.0) ;;
+      ncm.0|ffs.adb)
+        if ((!adb_enabled)); then
+          echo "refusing to re-enumerate unexpected debug USB functions" >&2
+          return 1
+        fi
+        ;;
+      *)
+        echo "refusing to re-enumerate an unexpected USB function" >&2
+        return 1
+        ;;
+    esac
+  done
+}
+
+reenumerate_managed_storage() {
+  local current_udc=""
+
+  if [[ -r "$GADGET_ROOT/UDC" ]]; then
+    current_udc="$(< "$GADGET_ROOT/UDC")"
+  fi
+  if [[ "$current_udc" != "$UDC_NAME" ]] || ! validate_managed_storage_personality; then
+    unbind_gadget
+    echo "USB storage re-enumeration validation failed; leaving gadget unbound" >&2
+    return 1
+  fi
+
+  # Keep descriptors, function links, and the populated read-only LUN intact.
+  # A full one-second disconnect makes hosts that stop polling an initially
+  # empty removable LUN discover the newly inserted medium on the next bind.
+  # From this point, every failure stays unbound.
+  unbind_gadget
+  "$SLEEP_BIN" 1
+  if ! validate_managed_storage_personality; then
+    unbind_gadget
+    echo "USB storage changed during re-enumeration; leaving gadget unbound" >&2
+    return 1
+  fi
+  current_udc="$(< "$GADGET_ROOT/UDC")"
+  if [[ -n "$current_udc" ]]; then
+    unbind_gadget
+    echo "USB gadget rebound unexpectedly during storage re-enumeration" >&2
+    return 1
+  fi
+  bind_gadget
+}
+
 finalize_storage_stop() {
   local lun_root="$FUNCTION_ROOT/mass_storage.0/lun.0"
   local backing_file=""
@@ -288,6 +494,14 @@ configure_gadget() {
   # instead of mixing the old functions with a new VID/PID personality.
   RESTORE_BINDING=0
 
+  # Never bind stale dynamic LUNs, alternate configurations, or unowned
+  # function links. They may reference private or writable media. Preserve all
+  # foreign state for diagnosis, but keep the UDC unbound and our links absent.
+  if ! validate_managed_storage_topology || ! validate_no_unowned_config_links; then
+    echo "refusing unsafe pre-existing USB gadget topology" >&2
+    return 1
+  fi
+
   write_attr "$vendor_id" "$GADGET_ROOT/idVendor"
   write_attr "$product_id" "$GADGET_ROOT/idProduct"
   write_attr "$(read_serial)" "$GADGET_ROOT/strings/0x409/serialnumber"
@@ -386,6 +600,9 @@ case "${1:-}" in
   ensure-requested-personality)
     ensure_requested_personality
     ;;
+  reenumerate-managed-storage)
+    reenumerate_managed_storage
+    ;;
   finalize-storage-stop)
     finalize_storage_stop
     ;;
@@ -393,7 +610,7 @@ case "${1:-}" in
     prepare_storage_start
     ;;
   *)
-    echo "usage: $0 {configure <0|1>|bind|unbind|ensure-requested-personality|finalize-storage-stop|prepare-storage-start}" >&2
+    echo "usage: $0 {configure <0|1>|bind|unbind|ensure-requested-personality|reenumerate-managed-storage|finalize-storage-stop|prepare-storage-start}" >&2
     exit 2
     ;;
 esac

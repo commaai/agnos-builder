@@ -569,6 +569,31 @@ class StorageManagerTest(ManagerTestBase):
 
     self.assertEqual(commands, [])
 
+  def test_manager_can_only_request_validated_storage_reenumeration(self) -> None:
+    commands: list[tuple[list[str], float]] = []
+
+    def runner(command: list[str], **kwargs: object) -> types.SimpleNamespace:
+      commands.append((command, kwargs["timeout"]))  # type: ignore[arg-type]
+      return types.SimpleNamespace(returncode=0)
+
+    manager = self.make_manager(command_runner=runner, stop_timeout=3.0)
+
+    manager._run_gadget_helper("reenumerate-managed-storage")
+
+    self.assertEqual(
+      commands,
+      [(["/usr/comma/usb_gadget.sh", "reenumerate-managed-storage"], 3.0)],
+    )
+
+  def test_gadget_helper_timeout_is_reported_as_storage_error(self) -> None:
+    def runner(command: list[str], **kwargs: object) -> object:
+      raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    manager = self.make_manager(command_runner=runner)
+
+    with self.assertRaisesRegex(usb_storage.StorageError, "re-enumerate|reenumerate|timed out"):
+      manager._run_gadget_helper("reenumerate-managed-storage")
+
   def test_nbdkit_probe_requires_exact_supported_floppy_and_cow(self) -> None:
     command: list[str] = []
 
@@ -933,13 +958,20 @@ class StorageManagerTest(ManagerTestBase):
 
   def test_nonzero_unmount_is_fail_closed(self) -> None:
     events: list[str] = []
+    current_time = [0.0]
 
     def failing_unmount(command: list[str], **_kwargs: object) -> types.SimpleNamespace:
       events.append("unmount")
       self.assertEqual(command, ["/usr/bin/fusermount3", "-u", str(self.mount.parent)])
       return types.SimpleNamespace(returncode=1)
 
-    manager = self.make_manager(command_runner=failing_unmount)
+    manager = self.make_manager(
+      command_runner=failing_unmount,
+      stop_timeout=0.25,
+      poll_interval=0.1,
+      clock=lambda: current_time[0],
+      sleep=lambda seconds: current_time.__setitem__(0, current_time[0] + seconds),
+    )
     manager.snapshot_builder.build()
     manager.process = FakeProcess(events=events)
     manager.export_started = True
@@ -948,9 +980,36 @@ class StorageManagerTest(ManagerTestBase):
     with self.assertRaisesRegex(usb_storage.StorageError, "fusermount3"):
       manager.teardown()
 
-    self.assertEqual(events, ["unmount"])
+    self.assertEqual(events, ["unmount", "unmount", "unmount"])
     self.assertIsNotNone(manager.process)
     self.assertTrue(self.snapshot.exists())
+
+  def test_unmount_retries_transient_busy_before_continuing_teardown(self) -> None:
+    events: list[str] = []
+    current_time = [0.0]
+
+    def transient_unmount(command: list[str], **_kwargs: object) -> types.SimpleNamespace:
+      self.assertEqual(command, ["/usr/bin/fusermount3", "-u", str(self.mount.parent)])
+      events.append("unmount")
+      return types.SimpleNamespace(returncode=1 if len(events) < 3 else 0)
+
+    manager = self.make_manager(
+      command_runner=transient_unmount,
+      stop_timeout=1.0,
+      poll_interval=0.1,
+      clock=lambda: current_time[0],
+      sleep=lambda seconds: current_time.__setitem__(0, current_time[0] + seconds),
+    )
+    manager.snapshot_builder.build()
+    manager.process = FakeProcess(events=events)
+    manager.export_started = True
+    self.lun.write_text(f"{self.mount}\n")
+
+    self.assertFalse(manager.teardown())
+
+    self.assertEqual(events, ["unmount", "unmount", "unmount", "stop-child"])
+    self.assertFalse(manager.export_started)
+    self.assertFalse(self.snapshot.exists())
 
   def test_prepare_mount_removes_only_exact_stale_runtime_files(self) -> None:
     manager = self.make_manager()
@@ -1024,6 +1083,72 @@ class StorageMonitorTest(ManagerTestBase):
     )
 
     self.assertEqual(manager.monitor(threading.Event()), usb_storage.SessionEnd.EJECTED)
+
+  def test_reenumeration_waits_for_configured_before_monitoring(self) -> None:
+    current_time = [0.0]
+    sleeps: list[float] = []
+    commands: list[str] = []
+
+    def sleep(seconds: float) -> None:
+      sleeps.append(seconds)
+      current_time[0] += seconds
+
+    manager = self.scripted_manager(
+      udc_states=["not attached", "addressed", "configured"],
+      lun_values=[str(self.mount)],
+      sleep=sleep,
+    )
+    manager.clock = lambda: current_time[0]
+    manager.command_runner = lambda command, **_kwargs: (
+      commands.append(command[-1]) or types.SimpleNamespace(returncode=0)
+    )
+
+    self.assertIsNone(manager._reenumerate_media(threading.Event()))
+    self.assertEqual(commands, ["reenumerate-managed-storage"])
+    self.assertEqual(sleeps, [0.1, 0.1])
+
+  def test_reenumeration_wait_is_bounded_when_host_never_configures(self) -> None:
+    current_time = [0.0]
+    sleeps: list[float] = []
+
+    def sleep(seconds: float) -> None:
+      sleeps.append(seconds)
+      current_time[0] += seconds
+
+    manager = self.scripted_manager(
+      udc_states=["attached"],
+      lun_values=[str(self.mount)],
+      sleep=sleep,
+    )
+    manager.clock = lambda: current_time[0]
+    manager.ready_timeout = 0.25
+    manager.command_runner = lambda _command, **_kwargs: types.SimpleNamespace(returncode=0)
+
+    with self.assertRaisesRegex(usb_storage.StorageError, "re-enumeration"):
+      manager._reenumerate_media(threading.Event())
+
+    self.assertEqual(sleeps[:2], [0.1, 0.1])
+    self.assertEqual(len(sleeps), 3)
+    self.assertAlmostEqual(sleeps[2], 0.05)
+    self.assertAlmostEqual(current_time[0], 0.25)
+
+  def test_reenumeration_observes_early_eject_and_stop(self) -> None:
+    commands: list[str] = []
+    manager = self.scripted_manager(
+      udc_states=["configured"],
+      lun_values=[""],
+    )
+    manager.command_runner = lambda command, **_kwargs: (
+      commands.append(command[-1]) or types.SimpleNamespace(returncode=0)
+    )
+
+    self.assertEqual(manager._reenumerate_media(threading.Event()), usb_storage.SessionEnd.EJECTED)
+    self.assertEqual(commands, ["reenumerate-managed-storage"])
+
+    stop_event = threading.Event()
+    stop_event.set()
+    self.assertEqual(manager._reenumerate_media(stop_event), usb_storage.SessionEnd.STOPPED)
+    self.assertEqual(commands, ["reenumerate-managed-storage"])
 
   def test_detects_detach_after_configuration(self) -> None:
     manager = self.scripted_manager(
@@ -1230,6 +1355,10 @@ class StorageMonitorTest(ManagerTestBase):
       def _set_lun(inner_self) -> None:
         events.append("set-lun")
 
+      def _reenumerate_media(inner_self, _event: threading.Event) -> usb_storage.SessionEnd | None:
+        events.append("reenumerate-media")
+        return None
+
       def monitor(inner_self, _event: threading.Event) -> usb_storage.SessionEnd:
         events.append("monitor-detached")
         return usb_storage.SessionEnd.DETACHED
@@ -1277,6 +1406,7 @@ class StorageMonitorTest(ManagerTestBase):
         "source-ready",
         "start-export",
         "set-lun",
+        "reenumerate-media",
         "monitor-detached",
         "teardown",
         "wait-configured",
@@ -1341,6 +1471,10 @@ class StorageMonitorTest(ManagerTestBase):
       def _set_lun(inner_self) -> None:
         events.append("set-lun")
 
+      def _reenumerate_media(inner_self, _event: threading.Event) -> usb_storage.SessionEnd | None:
+        events.append("reenumerate-media")
+        return None
+
       def monitor(inner_self, _event: threading.Event) -> usb_storage.SessionEnd:
         end = next(inner_self.session_ends)
         events.append(f"monitor-{end}")
@@ -1370,6 +1504,7 @@ class StorageMonitorTest(ManagerTestBase):
     self.assertEqual(manager.run(stop_event), 2)
     self.assertEqual(events.count("start-export"), 2)
     self.assertEqual(events.count("set-lun"), 2)
+    self.assertEqual(events.count("reenumerate-media"), 2)
     self.assertEqual(events.count("teardown"), 2)
     self.assertEqual(events.count("eject-latch-until-detach"), 2)
     first_teardown = events.index("teardown")

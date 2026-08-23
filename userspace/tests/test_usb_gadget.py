@@ -207,6 +207,224 @@ class UsbGadgetTest(unittest.TestCase):
     self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
     self.assert_storage_only_links()
 
+  def test_managed_storage_reenumeration_preserves_complete_debug_personality(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    # Real configfs normalizes hexadecimal USB IDs to lowercase on readback.
+    (self.gadget / "idVendor").write_text("0x04d8\n")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    sleep_log = self.root / "reenumerate-sleep.log"
+    sleep_wrapper = self.root / "logged-sleep"
+    sleep_wrapper.write_text(
+      "#!/bin/sh\n"
+      "printf '%s\\n' \"$1\" >> \"$USB_GADGET_SLEEP_LOG\"\n",
+    )
+    sleep_wrapper.chmod(0o755)
+    self.environment["USB_GADGET_SLEEP_BIN"] = str(sleep_wrapper)
+    self.environment["USB_GADGET_SLEEP_LOG"] = str(sleep_log)
+    descriptors_before = {
+      path: self.read(path)
+      for path in (
+        self.gadget / "idVendor",
+        self.gadget / "idProduct",
+        self.gadget / "strings" / "0x409" / "serialnumber",
+        self.config / "strings" / "0x409" / "configuration",
+        self.lun / "file",
+        self.lun / "ro",
+        self.lun / "removable",
+        self.mass_storage / "stall",
+      )
+    }
+    links_before = {path.name: os.readlink(path) for path in self.config.iterdir() if path.is_symlink()}
+    link_log_before = self.link_log.read_text()
+
+    self.run_helper("reenumerate-managed-storage")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual({path: self.read(path) for path in descriptors_before}, descriptors_before)
+    self.assertEqual({path.name: os.readlink(path) for path in self.config.iterdir() if path.is_symlink()}, links_before)
+    self.assertEqual(self.link_log.read_text(), link_log_before)
+    self.assertEqual(sleep_log.read_text().splitlines(), ["1"])
+    self.assert_debug_links()
+
+  def test_managed_storage_reenumeration_preserves_storage_only_personality(self) -> None:
+    self.adb_param.write_text("0\n")
+    self.run_helper("configure", "0")
+    (self.gadget / "idVendor").write_text("0xcafe\n")
+    (self.gadget / "idProduct").write_text("0xbeef\n")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+
+    self.run_helper("reenumerate-managed-storage")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.gadget / "idVendor"), "0xcafe")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0xbeef")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assert_storage_only_links()
+
+  def test_reenumeration_rejects_unsafe_lun_and_leaves_gadget_unbound(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    (self.lun / "ro").write_text("0\n")
+
+    result = self.run_helper("reenumerate-managed-storage", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("unsafe or unmanaged", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assertEqual(self.read(self.lun / "ro"), "0")
+
+  def test_reenumeration_never_binds_partial_or_unexpected_functions(self) -> None:
+    for mutation in ("missing-adb", "unexpected-function"):
+      with self.subTest(mutation=mutation):
+        self.adb_param.write_text("1\n")
+        self.run_helper("configure", "1")
+        (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+        if mutation == "missing-adb":
+          (self.config / "ffs.adb").unlink()
+        else:
+          unexpected = self.gadget / "functions" / "ecm.0"
+          unexpected.mkdir()
+          (self.config / "ecm.0").symlink_to(unexpected)
+
+        result = self.run_helper("reenumerate-managed-storage", check=False)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("re-enumerate", result.stderr)
+        self.assertEqual(self.read(self.gadget / "UDC"), "")
+        self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+
+        # Restore a clean fake configfs tree for the next subtest without
+        # teaching the product helper how to repair a partial personality.
+        if mutation == "missing-adb":
+          (self.config / "ffs.adb").symlink_to(self.gadget / "functions" / "ffs.adb")
+        else:
+          (self.config / "ecm.0").unlink()
+          unexpected.rmdir()
+        self.run_helper("configure", "1")
+
+  def test_reenumeration_sleep_failure_stays_unbound_with_media_intact(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    failing_sleep = self.root / "failing-sleep"
+    failing_sleep.write_text("#!/bin/sh\nexit 1\n")
+    failing_sleep.chmod(0o755)
+    self.environment["USB_GADGET_SLEEP_BIN"] = str(failing_sleep)
+
+    result = self.run_helper("reenumerate-managed-storage", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assert_debug_links()
+
+  def test_configure_rejects_extra_private_lun_without_modifying_it(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    extra_lun = self.mass_storage / "lun.1"
+    extra_lun.mkdir()
+    (extra_lun / "file").write_text("/data/private.img\n")
+    (extra_lun / "ro").write_text("0\n")
+    (extra_lun / "removable").write_text("0\n")
+
+    result = self.run_helper("configure", "1", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("more than LUN 0", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(extra_lun / "file"), "/data/private.img")
+    self.assertEqual(self.read(extra_lun / "ro"), "0")
+    self.assertEqual(self.read(extra_lun / "removable"), "0")
+    self.assertFalse((self.config / "mass_storage.0").is_symlink())
+    self.assertFalse((self.config / "ncm.0").is_symlink())
+    self.assertFalse((self.config / "ffs.adb").is_symlink())
+
+  def test_reenumeration_rejects_extra_private_lun_without_modifying_it(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    extra_lun = self.mass_storage / "lun.1"
+    extra_lun.mkdir()
+    (extra_lun / "file").write_text("/data/private.img\n")
+    (extra_lun / "ro").write_text("0\n")
+    (extra_lun / "removable").write_text("0\n")
+
+    result = self.run_helper("reenumerate-managed-storage", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("more than LUN 0", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assertEqual(self.read(extra_lun / "file"), "/data/private.img")
+    self.assertEqual(self.read(extra_lun / "ro"), "0")
+    self.assert_debug_links()
+
+  def test_configure_rejects_alternate_config_without_modifying_it(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    foreign_function = self.gadget / "functions" / "mass_storage.1"
+    foreign_lun = foreign_function / "lun.0"
+    foreign_lun.mkdir(parents=True)
+    (foreign_lun / "file").write_text("/data/private.img\n")
+    (foreign_lun / "ro").write_text("0\n")
+    alternate_config = self.gadget / "configs" / "c.2"
+    alternate_config.mkdir()
+    (alternate_config / "mass_storage.1").symlink_to(foreign_function)
+
+    result = self.run_helper("configure", "1", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("more than configuration c.1", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(foreign_lun / "file"), "/data/private.img")
+    self.assertEqual(self.read(foreign_lun / "ro"), "0")
+    self.assertTrue((alternate_config / "mass_storage.1").is_symlink())
+    self.assertFalse((self.config / "mass_storage.0").is_symlink())
+    self.assertFalse((self.config / "ncm.0").is_symlink())
+    self.assertFalse((self.config / "ffs.adb").is_symlink())
+
+  def test_reenumeration_rejects_alternate_config_without_modifying_it(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    foreign_function = self.gadget / "functions" / "mass_storage.1"
+    foreign_lun = foreign_function / "lun.0"
+    foreign_lun.mkdir(parents=True)
+    (foreign_lun / "file").write_text("/data/private.img\n")
+    alternate_config = self.gadget / "configs" / "c.2"
+    alternate_config.mkdir()
+    (alternate_config / "mass_storage.1").symlink_to(foreign_function)
+
+    result = self.run_helper("reenumerate-managed-storage", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("more than configuration c.1", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assertEqual(self.read(foreign_lun / "file"), "/data/private.img")
+    self.assertTrue((alternate_config / "mass_storage.1").is_symlink())
+    self.assert_debug_links()
+
+  def test_regular_kernel_mass_storage_attributes_are_preserved(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    num_buffers = self.mass_storage / "num_buffers"
+    num_buffers.write_text("4\n")
+
+    self.run_helper("configure", "1")
+    self.assertEqual(self.read(num_buffers), "4")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+
+    self.run_helper("reenumerate-managed-storage")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(num_buffers), "4")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assert_debug_links()
+
   def test_clean_storage_stop_preserves_other_usb_functions(self) -> None:
     self.run_helper("configure", "1")
 

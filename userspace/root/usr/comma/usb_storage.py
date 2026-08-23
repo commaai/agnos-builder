@@ -1079,16 +1079,52 @@ class StorageManager:
       self.sleep(self.poll_interval)
     return SessionEnd.STOPPED
 
+  def _reenumerate_media(self, stop_event: threading.Event) -> SessionEnd | None:
+    if stop_event.is_set():
+      return SessionEnd.STOPPED
+
+    # Linux hosts may stop polling a removable LUN after the gadget first
+    # enumerates without media. The helper performs one validated, atomic UDC
+    # bounce while preserving this populated read-only managed LUN. Never use
+    # the helper's raw bind action here: it cannot prove that descriptors and
+    # function links form the complete requested personality.
+    self._run_gadget_helper("reenumerate-managed-storage")
+
+    # Rebinding returns before the host necessarily reaches USB configured.
+    # Bound this wait so a disconnected or non-responsive host cannot leave a
+    # hard-link snapshot pinned indefinitely.
+    deadline = self.clock() + self.ready_timeout
+    while not stop_event.is_set():
+      self._ensure_child_running()
+      try:
+        if self._read_lun() != str(self.mount):
+          return SessionEnd.EJECTED
+      except LunUnavailableError:
+        return SessionEnd.DETACHED
+      try:
+        if self._read_udc_state() in self.CONFIGURED_UDC_STATES:
+          return None
+      except UdcUnavailableError:
+        pass
+      remaining = deadline - self.clock()
+      if remaining <= 0:
+        raise StorageError("timed out waiting for USB storage re-enumeration")
+      self.sleep(min(self.poll_interval, remaining))
+    return SessionEnd.STOPPED
+
   def _run_gadget_helper(self, action: str) -> None:
-    if action not in ("unbind", "ensure-requested-personality"):
+    if action not in ("unbind", "ensure-requested-personality", "reenumerate-managed-storage"):
       raise StorageError(f"invalid gadget helper action: {action}")
     # usb_gadget.sh takes the shared flock itself. Never invoke it from within
     # _gadget_locked(), or both processes would deadlock.
-    result = self.command_runner(
-      [str(self.gadget_helper), action],
-      check=False,
-      timeout=self.stop_timeout,
-    )
+    try:
+      result = self.command_runner(
+        [str(self.gadget_helper), action],
+        check=False,
+        timeout=self.stop_timeout,
+      )
+    except subprocess.TimeoutExpired as exc:
+      raise StorageError(f"gadget helper {action} timed out") from exc
     if getattr(result, "returncode", 0) != 0:
       raise StorageError(f"gadget helper {action} failed with status {result.returncode}")
 
@@ -1104,13 +1140,33 @@ class StorageManager:
   def _unmount(self) -> None:
     if not self.export_started:
       return
-    result = self.command_runner(
-      ["/usr/bin/fusermount3", "-u", str(self.mount.parent)],
-      check=False,
-      timeout=self.stop_timeout,
-    )
-    if getattr(result, "returncode", 0) != 0:
-      raise StorageError(f"fusermount3 failed with status {result.returncode}")
+    deadline = self.clock() + self.stop_timeout
+    last_status = 1
+    while True:
+      remaining = deadline - self.clock()
+      if remaining <= 0:
+        raise StorageError(f"fusermount3 failed with status {last_status}")
+      try:
+        result = self.command_runner(
+          ["/usr/bin/fusermount3", "-u", str(self.mount.parent)],
+          check=False,
+          timeout=remaining,
+        )
+      except subprocess.TimeoutExpired as exc:
+        raise StorageError("fusermount3 timed out") from exc
+      last_status = getattr(result, "returncode", 0)
+      if last_status == 0:
+        return
+      # Releasing a configfs LUN closes its backing file asynchronously on
+      # the device's 4.9 kernel.  A normal eject can therefore leave a short
+      # window where a non-lazy FUSE unmount reports EBUSY even though the LUN
+      # has already read back empty. Retry only within the existing bounded
+      # stop budget; exhaustion still fails closed before stopping nbdkit or
+      # removing its snapshot.
+      remaining = deadline - self.clock()
+      if remaining <= 0:
+        raise StorageError(f"fusermount3 failed with status {last_status}")
+      self.sleep(min(self.poll_interval, remaining))
 
   def _stop_child(self) -> None:
     if self.process is None:
@@ -1195,7 +1251,8 @@ class StorageManager:
           self._start_export()
           self._set_lun()
           media_attached = True
-          end = self.monitor(stop_event)
+          reenumeration_end = self._reenumerate_media(stop_event)
+          end = reenumeration_end if reenumeration_end is not None else self.monitor(stop_event)
       except Exception as exc:
         failure = exc
         LOG.exception("USB storage session failed safely; waiting for physical detach before retry")
