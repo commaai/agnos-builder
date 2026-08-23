@@ -14,6 +14,7 @@ import threading
 import time
 import types
 import unittest  # noqa: TID251 - these tests intentionally use only the standard library
+from unittest import mock
 
 
 COMMA_DIR = Path(__file__).parents[1] / "root" / "usr" / "comma"
@@ -104,15 +105,26 @@ class SnapshotBuilderTest(unittest.TestCase):
     self.assertIn("non-regular", reasons[fifo_segment.name])
     self.assertEqual(list(self.snapshot.iterdir()), [])
 
-  def test_empty_file_excludes_entire_segment(self) -> None:
+  def test_empty_file_is_omitted_without_hiding_usable_footage(self) -> None:
     segment = self.make_segment("00000001--abc123def0--0")
     (segment / "rlog.zst").write_bytes(b"complete log")
     (segment / "empty.hevc").touch()
 
     result = self.builder().build()
 
+    self.assertEqual(result.included, (segment.name,))
+    self.assertEqual(result.excluded, ())
+    self.assertEqual((self.snapshot / segment.name / "rlog.zst").read_bytes(), b"complete log")
+    self.assertFalse((self.snapshot / segment.name / "empty.hevc").exists())
+
+  def test_segment_with_only_empty_files_is_excluded(self) -> None:
+    segment = self.make_segment("00000001--abc123def0--0")
+    (segment / "empty.hevc").touch()
+
+    result = self.builder().build()
+
     self.assertEqual(result.included, ())
-    self.assertIn("empty file unsupported", result.excluded[0][1])
+    self.assertIn("no exportable non-empty files", result.excluded[0][1])
     self.assertFalse((self.snapshot / segment.name).exists())
 
   def test_unrelated_and_nested_directories_are_ignored(self) -> None:
@@ -156,6 +168,28 @@ class SnapshotBuilderTest(unittest.TestCase):
       with self.subTest(valid_name=name):
         usb_storage._validate_portable_name(name)
 
+  def test_portable_name_key_folds_case_and_unicode_normalization(self) -> None:
+    self.assertEqual(usb_storage._portable_name_key("RLOG.ZST"), usb_storage._portable_name_key("rlog.zst"))
+    self.assertEqual(usb_storage._portable_name_key("é.txt"), usb_storage._portable_name_key("e\u0301.txt"))
+
+  def test_colliding_sibling_names_exclude_entire_segment(self) -> None:
+    segment = self.make_segment("00000001--abc123def0--0")
+    first = segment / "first.zst"
+    second = segment / "second.zst"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    real_key = usb_storage._portable_name_key
+
+    def force_fixture_collision(name: str) -> str:
+      return "fixture-collision" if name in (first.name, second.name) else real_key(name)
+
+    with mock.patch.object(usb_storage, "_portable_name_key", side_effect=force_fixture_collision):
+      result = self.builder().build()
+
+    self.assertEqual(result.included, ())
+    self.assertIn("FAT/Windows-colliding", result.excluded[0][1])
+    self.assertFalse((self.snapshot / segment.name).exists())
+
   def test_unsafe_component_excludes_entire_segment(self) -> None:
     segment = self.make_segment("00000001--abc123def0--0")
     (segment / "CON.txt").write_bytes(b"reserved name")
@@ -185,6 +219,15 @@ class SnapshotBuilderTest(unittest.TestCase):
     self.assertEqual(result.included, (portable_name,))
     self.assertEqual((self.snapshot / portable_name / "rlog.zst").read_bytes(), b"legacy route")
     self.assertFalse((self.snapshot / segment.name).exists())
+
+  def test_historical_bare_timestamp_segment_is_exported(self) -> None:
+    segment = self.make_segment("2022-11-06--19-00-19--79")
+    (segment / "rlog.zst").write_bytes(b"historical route")
+
+    result = self.builder().build()
+
+    self.assertEqual(result.included, (segment.name,))
+    self.assertEqual((self.snapshot / segment.name / "rlog.zst").read_bytes(), b"historical route")
 
   def test_portable_segment_name_collision_excludes_both_sources(self) -> None:
     legacy = self.make_segment("a2a0ccea32023010|2026-08-23--12-34-56--0")

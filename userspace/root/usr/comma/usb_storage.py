@@ -46,7 +46,7 @@ MIN_FREE_PERCENT = 10.0
 LOG_ID_V2_PATTERN = r"[a-f0-9]{8}--[a-z0-9]{10}"
 TIMESTAMP_PATTERN = r"[0-9]{4}-[0-9]{2}-[0-9]{2}--[0-9]{2}-[0-9]{2}-[0-9]{2}"
 SEGMENT_NAME_RE = re.compile(
-  rf"^(?:{LOG_ID_V2_PATTERN}|[a-f0-9]{{16}}[|_](?:{TIMESTAMP_PATTERN}|{LOG_ID_V2_PATTERN}))--[0-9]+$",
+  rf"^(?:{LOG_ID_V2_PATTERN}|{TIMESTAMP_PATTERN}|[a-f0-9]{{16}}[|_](?:{TIMESTAMP_PATTERN}|{LOG_ID_V2_PATTERN}))--[0-9]+$",
 )
 WINDOWS_FORBIDDEN_CHARS = frozenset('<>:"/\\|?*')
 WINDOWS_RESERVED_BASENAMES = frozenset({"CON", "PRN", "AUX", "NUL"} | {f"COM{number}" for number in range(1, 10)} | {f"LPT{number}" for number in range(1, 10)})
@@ -131,12 +131,18 @@ def _validate_portable_name(name: str) -> None:
     raise UnsafeTreeError(f"filename uses a reserved DOS basename: {name!r}")
 
 
+def _portable_name_key(name: str) -> str:
+  """Return a conservative key for names that collide on FAT/Windows."""
+  _validate_portable_name(name)
+  return unicodedata.normalize("NFC", name).casefold()
+
+
 def _portable_segment_name(name: str) -> str:
   # Legacy route identifiers use '|' between dongle ID and timestamp.  The
   # openpilot route parser also accepts '_' there, and unlike '|', '_' is valid
   # on Windows.  Current counter/random route identifiers pass through intact.
   portable_name = name.replace("|", "_")
-  _validate_portable_name(portable_name)
+  _portable_name_key(portable_name)
   return portable_name
 
 
@@ -383,10 +389,6 @@ def _entry_record(path: Path, relative_path: Path) -> EntryRecord:
     raise UnsafeTreeError(f"contains non-regular entry: {relative_path}")
   if path.name.endswith(".lock"):
     raise UnsafeTreeError(f"contains active lock: {relative_path}")
-  # nbdkit 1.36's floppy plugin assigns zero-length files a free first cluster,
-  # producing a FAT chain that macOS fsck and other strict readers reject.
-  if stat.S_ISREG(mode) and metadata.st_size == 0:
-    raise UnsafeTreeError(f"contains empty file unsupported by nbdkit floppy: {relative_path}")
   if stat.S_ISREG(mode) and metadata.st_size >= MAX_FAT_FILE_SIZE:
     raise UnsafeTreeError(f"contains file too large for FAT32: {relative_path}")
   return EntryRecord(
@@ -425,6 +427,8 @@ def _scan_tree(root: Path) -> tuple[EntryRecord, ...]:
     except OSError as exc:
       raise UnsafeTreeError(f"cannot scan {relative_directory or Path('.')}: {exc}") from exc
 
+    portable_names: dict[str, str] = {}
+    children: list[tuple[Path, EntryRecord]] = []
     for entry in entries:
       relative_path = relative_directory / entry.name
       path = directory / entry.name
@@ -432,9 +436,26 @@ def _scan_tree(root: Path) -> tuple[EntryRecord, ...]:
         record = _entry_record(path, relative_path)
       except OSError as exc:
         raise UnsafeTreeError(f"cannot inspect {relative_path}: {exc}") from exc
+      if not record.is_directory and record.size == 0:
+        # nbdkit 1.36's floppy plugin gives empty files a free first cluster,
+        # producing an invalid FAT chain. There is no payload to recover, so
+        # omit only the empty artifact and retain useful siblings.
+        LOG.warning("omitting empty file unsupported by nbdkit floppy: %s", relative_path)
+        continue
+      key = _portable_name_key(entry.name)
+      if key in portable_names:
+        location = relative_directory or Path(".")
+        raise UnsafeTreeError(
+          f"contains FAT/Windows-colliding names in {location}: "
+          f"{portable_names[key]!r} and {entry.name!r}",
+        )
+      portable_names[key] = entry.name
+      children.append((path, record))
+
+    for path, record in children:
       records.append(record)
       if record.is_directory:
-        scan(path, relative_path)
+        scan(path, record.relative_path)
 
   scan(root, Path())
   return tuple(records)
@@ -628,7 +649,7 @@ class SnapshotBuilder:
         except UnsafeTreeError as exc:
           excluded.append((source_segment.name, str(exc)))
           continue
-        collision_key = unicodedata.normalize("NFC", destination_name).casefold()
+        collision_key = _portable_name_key(destination_name)
         candidates.setdefault(collision_key, []).append((destination_name, source_segment))
 
       for mapped_segments in candidates.values():
@@ -643,6 +664,8 @@ class SnapshotBuilder:
         try:
           root_before = source_segment.lstat()
           first_manifest = _scan_tree(source_segment)
+          if not any(not record.is_directory for record in first_manifest):
+            raise UnsafeTreeError("contains no exportable non-empty files")
           newest_mtime_ns = max((root_before.st_mtime_ns, *(record.mtime_ns for record in first_manifest)))
           if self.wall_clock_ns() - newest_mtime_ns < self.stability_age_ns:
             raise UnsafeTreeError("segment tree is too recent to be stable")
