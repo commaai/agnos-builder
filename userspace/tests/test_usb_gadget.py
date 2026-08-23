@@ -305,6 +305,24 @@ class UsbGadgetTest(unittest.TestCase):
           unexpected.rmdir()
         self.run_helper("configure", "1")
 
+  def test_reenumeration_rejects_hidden_foreign_function_without_modifying_it(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    foreign_function = self.gadget / "functions" / "ecm.0"
+    foreign_function.mkdir()
+    hidden_link = self.config / ".foreign-function"
+    hidden_link.symlink_to(foreign_function)
+
+    result = self.run_helper("reenumerate-managed-storage", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("unexpected USB function", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assertTrue(hidden_link.is_symlink())
+    self.assertEqual(os.readlink(hidden_link), str(foreign_function))
+
   def test_reenumeration_sleep_failure_stays_unbound_with_media_intact(self) -> None:
     self.adb_param.write_text("1\n")
     self.run_helper("configure", "1")
@@ -467,6 +485,138 @@ class UsbGadgetTest(unittest.TestCase):
     self.assertIn("media remains attached", result.stderr)
     self.assertEqual(self.read(self.gadget / "UDC"), "")
     self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assert_debug_links()
+
+  def test_post_stop_cleanup_is_noop_for_clean_managed_personality(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+
+    self.run_helper("prepare-storage-post-stop")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    self.assert_debug_links()
+
+  def test_post_stop_cleanup_clears_managed_media_and_stays_unbound(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+
+    self.run_helper("prepare-storage-post-stop")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    self.assert_debug_links()
+
+  def test_post_stop_cleanup_preserves_foreign_media_and_fails_unbound(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/data/private.img\n")
+
+    result = self.run_helper("prepare-storage-post-stop", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("foreign", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/data/private.img")
+    self.assert_debug_links()
+
+  def test_post_stop_cleanup_releases_media_before_rejecting_foreign_links(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    foreign_function = self.gadget / "functions" / "ecm.0"
+    foreign_function.mkdir()
+    hidden_link = self.config / ".foreign-function"
+    hidden_link.symlink_to(foreign_function)
+
+    self.run_helper("prepare-storage-post-stop")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    self.assertTrue(hidden_link.is_symlink())
+
+    result = self.run_helper("ensure-requested-personality", check=False)
+    self.assertNotEqual(result.returncode, 0)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertTrue(hidden_link.is_symlink())
+
+  def test_post_stop_cleanup_preserves_unsafe_managed_lun_policy(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    (self.lun / "ro").write_text("0\n")
+
+    result = self.run_helper("prepare-storage-post-stop", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("policy is unsafe", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "/run/usb-storage/footage.img")
+    self.assertEqual(self.read(self.lun / "ro"), "0")
+
+  def test_post_stop_cleanup_never_follows_lun_attribute_symlink(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    foreign_attribute = self.root / "foreign-lun-file"
+    foreign_attribute.write_text("/run/usb-storage/footage.img\n")
+    (self.lun / "file").unlink()
+    (self.lun / "file").symlink_to(foreign_attribute)
+
+    result = self.run_helper("prepare-storage-post-stop", check=False)
+
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("unavailable or unsafe", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertTrue((self.lun / "file").is_symlink())
+    self.assertEqual(foreign_attribute.read_text(), "/run/usb-storage/footage.img\n")
+
+  def test_post_stop_cleanup_is_not_blocked_by_adb_off_identity_approval(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    self.adb_param.write_text("0\n")
+    del self.environment["USB_GADGET_STORAGE_ONLY_VID"]
+    del self.environment["USB_GADGET_STORAGE_ONLY_PID"]
+
+    self.run_helper("prepare-storage-post-stop")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    result = self.run_helper("ensure-requested-personality", check=False)
+    self.assertNotEqual(result.returncode, 0)
+    self.assertIn("owner-approved", result.stderr)
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+
+  def test_post_stop_cleanup_releases_media_despite_partial_descriptors(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.lun / "file").write_text("/run/usb-storage/footage.img\n")
+    (self.gadget / "idProduct").write_text("0xffff\n")
+    (self.config / "ffs.adb").unlink()
+
+    self.run_helper("prepare-storage-post-stop")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    self.run_helper("ensure-requested-personality")
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0x1234")
+    self.assert_debug_links()
+
+  def test_post_stop_cleanup_unbinds_empty_partial_personality_before_repair(self) -> None:
+    self.adb_param.write_text("1\n")
+    self.run_helper("configure", "1")
+    (self.gadget / "idProduct").write_text("0xffff\n")
+    (self.config / "ffs.adb").unlink()
+
+    self.run_helper("prepare-storage-post-stop")
+
+    self.assertEqual(self.read(self.gadget / "UDC"), "")
+    self.assertEqual(self.read(self.lun / "file"), "")
+    self.run_helper("ensure-requested-personality")
+    self.assertEqual(self.read(self.gadget / "UDC"), "a600000.dwc3")
+    self.assertEqual(self.read(self.gadget / "idProduct"), "0x1234")
     self.assert_debug_links()
 
   def test_storage_start_clears_only_managed_media_before_rebinding(self) -> None:

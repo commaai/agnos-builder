@@ -42,11 +42,16 @@ DEFAULT_STABILITY_AGE_NS = 2_000_000_000
 # cable never moved. Require a stable disconnect before starting a new session
 # so a persistent exporter failure cannot flap the composite USB device.
 PHYSICAL_DETACH_DEBOUNCE_SECONDS = 2.0
-# Match loggerd's current deleter safety floor. A connected hard-link snapshot
-# can pin otherwise deleted footage, so release it as soon as either limit is
-# reached rather than letting logging exhaust userdata.
-MIN_FREE_BYTES = 5 * 1024**3
-MIN_FREE_PERCENT = 10.0
+# loggerd starts deleting at 5 GiB or 10%. Hard-link snapshots prevent those
+# deletions from reclaiming blocks until teardown, so the exporter must stop
+# *before* loggerd reaches its floor. The extra 1 GiB/1% covers the bounded USB
+# detach path and normal logger write load while snapshot/export setup finishes.
+LOGGERD_MIN_FREE_BYTES = 5 * 1024**3
+LOGGERD_MIN_FREE_PERCENT = 10.0
+EXPORT_FREE_GUARD_BYTES = 1 * 1024**3
+EXPORT_FREE_GUARD_PERCENT = 1.0
+MIN_FREE_BYTES = LOGGERD_MIN_FREE_BYTES + EXPORT_FREE_GUARD_BYTES
+MIN_FREE_PERCENT = LOGGERD_MIN_FREE_PERCENT + EXPORT_FREE_GUARD_PERCENT
 LOG_ID_V2_PATTERN = r"[a-f0-9]{8}--[a-z0-9]{10}"
 TIMESTAMP_PATTERN = r"[0-9]{4}-[0-9]{2}-[0-9]{2}--[0-9]{2}-[0-9]{2}-[0-9]{2}"
 SEGMENT_NAME_RE = re.compile(
@@ -101,6 +106,33 @@ class SessionEnd(enum.StrEnum):
   DETACHED = "detached"
   LOW_SPACE = "low-space"
   STOPPED = "stopped"
+
+
+def _decode_mountinfo_field(value: str) -> str:
+  for encoded, decoded in ((r"\040", " "), (r"\011", "\t"), (r"\012", "\n"), (r"\134", "\\")):
+    value = value.replace(encoded, decoded)
+  return value
+
+
+def _mountpoint_is_listed(
+  mountpoint: Path,
+  *,
+  mountinfo: Path = Path("/proc/self/mountinfo"),
+) -> bool:
+  """Inspect the kernel mount table without touching a possibly dead FUSE path."""
+  try:
+    lines = mountinfo.read_text().splitlines()
+  except OSError as exc:
+    raise StorageError(f"cannot inspect kernel mount table: {exc}") from exc
+
+  for line in lines:
+    left, separator, right = line.partition(" - ")
+    left_fields = left.split()
+    if not separator or len(left_fields) < 6 or len(right.split()) < 2:
+      raise StorageError("kernel mount table contains a malformed entry")
+    if _decode_mountinfo_field(left_fields[4]) == str(mountpoint):
+      return True
+  return False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -597,6 +629,10 @@ class SnapshotBuilder:
   def cleanup(self) -> None:
     self._remove_snapshot_tree()
 
+  def validate_cleanup_target(self) -> None:
+    """Validate the managed snapshot tree without removing any entries."""
+    self._validate_existing_snapshot()
+
   def _candidate_segments(self) -> Iterator[Path]:
     try:
       top_entries = sorted(os.scandir(self.source), key=lambda entry: entry.name)
@@ -753,6 +789,7 @@ class StorageManager:
     image_repairer: Callable[[Path], None] = _repair_fat32_image,
     filesystem_stats: Callable[[Path], Any] = os.statvfs,
     installation_validator: Callable[[], None] = _validate_nbdkit_installation,
+    mount_checker: Callable[[Path], bool] = _mountpoint_is_listed,
   ):
     self.snapshot_builder = SnapshotBuilder(
       source,
@@ -789,12 +826,14 @@ class StorageManager:
     self.image_repairer = image_repairer
     self.filesystem_stats = filesystem_stats
     self.installation_validator = installation_validator
+    self.mount_checker = mount_checker
     self.installation_validated = False
     # Directory/filename mode mounts FUSE over mount.parent, hiding everything
     # in it. Keep readiness state next to (not inside) that mount directory.
     self.pidfile = self.mount.parent.with_suffix(".pid")
     self.process: Any | None = None
     self.export_started = False
+    self.fuse_mount_observed = False
     self.forced_unbound = False
 
   @contextmanager
@@ -917,6 +956,12 @@ class StorageManager:
     if return_code is not None:
       raise StorageError(f"nbdfuse exited unexpectedly with status {return_code}")
 
+  def _mount_is_active(self) -> bool:
+    try:
+      return self.mount_checker(self.mount.parent)
+    except OSError as exc:
+      raise StorageError(f"cannot inspect nbdfuse mount state: {exc}") from exc
+
   def _prepare_mount(self) -> None:
     if not self.mount.parent.exists():
       self.mount.parent.mkdir(parents=True, mode=0o700)
@@ -950,8 +995,14 @@ class StorageManager:
       self.installation_validated = True
     self._prepare_mount()
     disk_size, size_argument = _nbdkit_layout(self.snapshot_builder.snapshot)
+    # Give the managed FUSE mount an explicit kernel identity so forced-stop
+    # cleanup can distinguish it from every foreign filesystem fail-closed.
     command = [
       "/usr/bin/nbdfuse",
+      "-o",
+      "fsname=nbdfuse",
+      "-o",
+      "subtype=nbdfuse",
       "-P",
       str(self.pidfile),
       str(self.mount),
@@ -972,14 +1023,17 @@ class StorageManager:
     environment["TMPDIR"] = str(self.snapshot_builder.snapshot.parent)
     self.process = self.process_factory(command, close_fds=True, env=environment)
     self.export_started = True
+    self.fuse_mount_observed = False
 
     deadline = self.clock() + self.ready_timeout
     while self.clock() < deadline:
       self._ensure_child_running()
       try:
+        mounted = self._mount_is_active()
+        self.fuse_mount_observed = self.fuse_mount_observed or mounted
         pid_text = self.pidfile.read_text().strip()
         mount_metadata = self.mount.lstat()
-        ready = int(pid_text) == self.process.pid and stat.S_ISREG(mount_metadata.st_mode) and not stat.S_ISLNK(mount_metadata.st_mode)
+        ready = mounted and int(pid_text) == self.process.pid and stat.S_ISREG(mount_metadata.st_mode) and not stat.S_ISLNK(mount_metadata.st_mode)
         ready = ready and mount_metadata.st_size == disk_size
       except (FileNotFoundError, OSError, ValueError):
         ready = False
@@ -1082,13 +1136,22 @@ class StorageManager:
   def _reenumerate_media(self, stop_event: threading.Event) -> SessionEnd | None:
     if stop_event.is_set():
       return SessionEnd.STOPPED
+    if not self._has_export_capacity():
+      return SessionEnd.LOW_SPACE
 
     # Linux hosts may stop polling a removable LUN after the gadget first
     # enumerates without media. The helper performs one validated, atomic UDC
     # bounce while preserving this populated read-only managed LUN. Never use
     # the helper's raw bind action here: it cannot prove that descriptors and
     # function links form the complete requested personality.
-    self._run_gadget_helper("reenumerate-managed-storage")
+    try:
+      self._run_gadget_helper("reenumerate-managed-storage")
+    except Exception:
+      # The helper's failure contract is to leave the UDC unbound. Remember
+      # that state so teardown reconstructs the full requested personality and
+      # the retry latch waits to observe that reconstruction configure first.
+      self.forced_unbound = True
+      raise
 
     # Rebinding returns before the host necessarily reaches USB configured.
     # Bound this wait so a disconnected or non-responsive host cannot leave a
@@ -1096,6 +1159,8 @@ class StorageManager:
     deadline = self.clock() + self.ready_timeout
     while not stop_event.is_set():
       self._ensure_child_running()
+      if not self._has_export_capacity():
+        return SessionEnd.LOW_SPACE
       try:
         if self._read_lun() != str(self.mount):
           return SessionEnd.EJECTED
@@ -1128,17 +1193,23 @@ class StorageManager:
     if getattr(result, "returncode", 0) != 0:
       raise StorageError(f"gadget helper {action} failed with status {result.returncode}")
 
-  def _release_lun_with_fallback(self) -> None:
+  def _release_lun_with_fallback(self, *, force_unbind: bool = False) -> None:
+    if force_unbind:
+      # Low space is more urgent than a polite SCSI eject: while this snapshot
+      # pins blocks, loggerd's deleter cannot reclaim them. Disconnect first so
+      # PREVENT MEDIUM REMOVAL cannot consume the guard margin.
+      self.forced_unbound = True
+      self._run_gadget_helper("unbind")
     try:
       self._clear_lun()
     except LunBusyError:
       LOG.warning("host prevented media removal; forcing a bounded UDC unbind")
-      self._run_gadget_helper("unbind")
       self.forced_unbound = True
+      self._run_gadget_helper("unbind")
       self._clear_lun()
 
   def _unmount(self) -> None:
-    if not self.export_started:
+    if not self.fuse_mount_observed and not self._mount_is_active():
       return
     deadline = self.clock() + self.stop_timeout
     last_status = 1
@@ -1156,6 +1227,7 @@ class StorageManager:
         raise StorageError("fusermount3 timed out") from exc
       last_status = getattr(result, "returncode", 0)
       if last_status == 0:
+        self.fuse_mount_observed = False
         return
       # Releasing a configfs LUN closes its backing file asynchronously on
       # the device's 4.9 kernel.  A normal eject can therefore leave a short
@@ -1191,21 +1263,30 @@ class StorageManager:
     except FileNotFoundError:
       pass
 
-  def teardown(self, *, rebind: bool = True) -> bool:
+  def teardown(self, *, rebind: bool = True, force_unbind: bool = False) -> bool:
     """Release session state and report whether the gadget was self-rebound."""
     # This order is a safety invariant: configfs must release the backing file
     # before FUSE disappears, and the hard-link namespace must outlive nbdkit.
     try:
-      self._release_lun_with_fallback()
+      self._release_lun_with_fallback(force_unbind=force_unbind)
     except BaseException as exc:
       # If configfs still owns our path, tearing down FUSE would leave the USB
       # function backed by a disappearing file. Keep the read-only export and
       # snapshot alive; UDC orchestration can unbind and retry this service.
       raise StorageError("refusing to tear down an attached LUN") from exc
-    # Each operation is intentionally gated on the previous one succeeding.
-    # A failed unmount or child stop leaves all later backing state intact.
-    self._unmount()
-    self._stop_child()
+    # Each operation is intentionally gated on the previous one succeeding. If
+    # readiness observed a FUSE mount, unmount before stopping its daemon. If no
+    # mount ever appeared, stop the child first, then recheck: this closes the
+    # race where nbdfuse mounts between the readiness timeout and teardown.
+    if self.fuse_mount_observed or self._mount_is_active():
+      self.fuse_mount_observed = True
+      self._unmount()
+      self._stop_child()
+    else:
+      self._stop_child()
+      if self._mount_is_active():
+        self.fuse_mount_observed = True
+        self._unmount()
     self.snapshot_builder.cleanup()
 
     if self.forced_unbound and rebind:
@@ -1245,6 +1326,11 @@ class StorageManager:
         snapshot = self.snapshot_builder.build()
         if stop_event.is_set():
           end = SessionEnd.STOPPED
+        elif not self._has_export_capacity():
+          # Building the hard-link snapshot can immediately push available
+          # space below our guarded floor. Do not start or attach an exporter
+          # until capacity has been checked against the pinned namespace.
+          end = SessionEnd.LOW_SPACE
         elif self._read_udc_state() not in self.CONFIGURED_UDC_STATES:
           end = SessionEnd.DETACHED
         else:
@@ -1258,7 +1344,10 @@ class StorageManager:
         LOG.exception("USB storage session failed safely; waiting for physical detach before retry")
       finally:
         try:
-          self_rebound = self.teardown(rebind=not stop_event.is_set())
+          self_rebound = self.teardown(
+            rebind=not stop_event.is_set(),
+            force_unbind=media_attached and end == SessionEnd.LOW_SPACE,
+          )
         except BaseException as teardown_failure:
           if failure is None:
             raise
@@ -1286,7 +1375,10 @@ class StorageManager:
 
       if stop_event.is_set() or end == SessionEnd.STOPPED:
         break
-      if end in (SessionEnd.EJECTED, SessionEnd.LOW_SPACE) and not self._wait_for_physical_detach(stop_event):
+      if end in (SessionEnd.EJECTED, SessionEnd.LOW_SPACE) and not self._wait_for_physical_detach(
+        stop_event,
+        require_reconfigured=self_rebound,
+      ):
         break
 
     return completed_sessions

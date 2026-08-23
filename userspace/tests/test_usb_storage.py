@@ -554,12 +554,26 @@ class ManagerTestBase(unittest.TestCase):
       "udc_state": self.udc_state,
       "gadget_lock": self.gadget_lock,
       "installation_validator": lambda: None,
+      # Unit-test mount files stand in for the nbdfuse FUSE mount. Tests that
+      # exercise a missing or racing mount override this checker explicitly.
+      "mount_checker": lambda _path: self.mount.exists(),
     }
     arguments.update(overrides)
     return usb_storage.StorageManager(**arguments)
 
 
 class StorageManagerTest(ManagerTestBase):
+  def test_mount_checker_uses_mountinfo_without_touching_dead_fuse_path(self) -> None:
+    mountinfo = self.root / "mountinfo"
+    mountinfo.write_text(
+      "36 35 0:32 / /run/usb-storage rw - fuse.nbdfuse nbdfuse rw\n",
+    )
+
+    with mock.patch.object(Path, "lstat", side_effect=OSError(errno.ENOTCONN, "dead FUSE")):
+      self.assertTrue(
+        usb_storage._mountpoint_is_listed(Path("/run/usb-storage"), mountinfo=mountinfo),
+      )
+
   def test_manager_cannot_raw_bind_gadget(self) -> None:
     commands: list[list[str]] = []
     manager = self.make_manager(command_runner=lambda command, **_kwargs: commands.append(command))
@@ -671,6 +685,10 @@ class StorageManagerTest(ManagerTestBase):
       captured[0],
       [
         "/usr/bin/nbdfuse",
+        "-o",
+        "fsname=nbdfuse",
+        "-o",
+        "subtype=nbdfuse",
         "-P",
         str(self.mount.parent.with_suffix(".pid")),
         str(self.mount),
@@ -719,6 +737,117 @@ class StorageManagerTest(ManagerTestBase):
         manager.export_started = False
         self.mount.unlink()
         manager.pidfile.unlink()
+
+  def test_readiness_timeout_without_fuse_mount_stops_child_and_cleans_snapshot(self) -> None:
+    current_time = [0.0]
+    events: list[str] = []
+
+    def process_factory(_command: list[str], **_kwargs: object) -> FakeProcess:
+      process = FakeProcess(events=events)
+      self.mount.parent.with_suffix(".pid").write_text(str(process.pid))
+      return process
+
+    manager = self.make_manager(
+      process_factory=process_factory,
+      mount_checker=lambda _path: False,
+      ready_timeout=0.2,
+      poll_interval=0.1,
+      clock=lambda: current_time[0],
+      sleep=lambda seconds: current_time.__setitem__(0, current_time[0] + seconds),
+      command_runner=lambda command, **_kwargs: events.append(f"unexpected-command-{command[0]}"),
+    )
+    manager.snapshot_builder.build()
+
+    with self.assertRaisesRegex(usb_storage.StorageError, "readiness"):
+      manager._start_export()
+
+    self.assertFalse(manager.teardown(rebind=False))
+    self.assertEqual(events, ["stop-child"])
+    self.assertIsNone(manager.process)
+    self.assertFalse(self.snapshot.exists())
+
+  def test_readiness_timeout_closes_mount_race_before_snapshot_cleanup(self) -> None:
+    current_time = [0.0]
+    mounted = [False]
+    events: list[str] = []
+
+    class LateMountProcess(FakeProcess):
+      def wait(inner_self, timeout: float | None = None) -> int:
+        mounted[0] = True
+        return super().wait(timeout)
+
+    def process_factory(_command: list[str], **_kwargs: object) -> LateMountProcess:
+      process = LateMountProcess(events=events)
+      self.mount.parent.with_suffix(".pid").write_text(str(process.pid))
+      return process
+
+    def command_runner(command: list[str], **_kwargs: object) -> types.SimpleNamespace:
+      self.assertEqual(command, ["/usr/bin/fusermount3", "-u", str(self.mount.parent)])
+      events.append("unmount")
+      mounted[0] = False
+      return types.SimpleNamespace(returncode=0)
+
+    manager = self.make_manager(
+      process_factory=process_factory,
+      mount_checker=lambda _path: mounted[0],
+      command_runner=command_runner,
+      ready_timeout=0.2,
+      poll_interval=0.1,
+      clock=lambda: current_time[0],
+      sleep=lambda seconds: current_time.__setitem__(0, current_time[0] + seconds),
+    )
+    manager.snapshot_builder.build()
+    original_cleanup = manager.snapshot_builder.cleanup
+
+    def cleanup() -> None:
+      events.append("remove-snapshot")
+      original_cleanup()
+
+    manager.snapshot_builder.cleanup = cleanup  # type: ignore[method-assign]
+
+    with self.assertRaisesRegex(usb_storage.StorageError, "readiness"):
+      manager._start_export()
+
+    self.assertFalse(manager.teardown(rebind=False))
+    self.assertEqual(events, ["stop-child", "unmount", "remove-snapshot"])
+    self.assertFalse(mounted[0])
+    self.assertFalse(self.snapshot.exists())
+
+  def test_readiness_timeout_after_fuse_mount_remains_fail_closed(self) -> None:
+    current_time = [0.0]
+    events: list[str] = []
+
+    def process_factory(_command: list[str], **_kwargs: object) -> FakeProcess:
+      process = FakeProcess(events=events)
+      self.mount.parent.mkdir(parents=True, exist_ok=True)
+      self.mount.write_bytes(b"wrong size")
+      self.mount.parent.with_suffix(".pid").write_text(str(process.pid))
+      return process
+
+    def failing_unmount(_command: list[str], **_kwargs: object) -> types.SimpleNamespace:
+      events.append("unmount")
+      return types.SimpleNamespace(returncode=1)
+
+    manager = self.make_manager(
+      process_factory=process_factory,
+      mount_checker=lambda _path: True,
+      command_runner=failing_unmount,
+      ready_timeout=0.2,
+      stop_timeout=0.2,
+      poll_interval=0.1,
+      clock=lambda: current_time[0],
+      sleep=lambda seconds: current_time.__setitem__(0, current_time[0] + seconds),
+    )
+    manager.snapshot_builder.build()
+
+    with self.assertRaisesRegex(usb_storage.StorageError, "readiness"):
+      manager._start_export()
+    with self.assertRaisesRegex(usb_storage.StorageError, "fusermount3"):
+      manager.teardown(rebind=False)
+
+    self.assertEqual(events, ["unmount", "unmount"])
+    self.assertIsNotNone(manager.process)
+    self.assertTrue(self.snapshot.exists())
 
   def test_lun_writes_require_existing_file_and_preserve_foreign_owner(self) -> None:
     manager = self.make_manager()
@@ -805,6 +934,7 @@ class StorageManagerTest(ManagerTestBase):
     self.mount.touch()
     manager.process = FakeProcess(events=events)
     manager.export_started = True
+    manager.fuse_mount_observed = True
     manager._set_lun()
 
     self.assertFalse(manager.teardown())
@@ -939,6 +1069,7 @@ class StorageManagerTest(ManagerTestBase):
     manager.snapshot_builder.cleanup = cleanup  # type: ignore[method-assign]
     manager.process = FakeProcess()
     manager.export_started = True
+    manager.fuse_mount_observed = True
 
     self.assertTrue(manager.teardown())
 
@@ -949,6 +1080,50 @@ class StorageManagerTest(ManagerTestBase):
         "unbind",
         "clear-lun",
         "unmount",
+        "stop-child",
+        "remove-snapshot",
+        "ensure-requested-personality",
+      ],
+    )
+    self.assertFalse(manager.forced_unbound)
+
+  def test_low_space_teardown_unbinds_before_clearing_lun(self) -> None:
+    events: list[str] = []
+
+    class LowSpaceManager(usb_storage.StorageManager):
+      def _run_gadget_helper(inner_self, action: str) -> None:
+        events.append(action)
+
+      def _clear_lun(inner_self) -> None:
+        events.append("clear-lun")
+
+      def _stop_child(inner_self) -> None:
+        events.append("stop-child")
+
+    manager = LowSpaceManager(
+      source=self.source,
+      snapshot=self.snapshot,
+      mount=self.mount,
+      lun=self.lun,
+      udc_state=self.udc_state,
+      gadget_lock=self.gadget_lock,
+      mount_checker=lambda _path: False,
+    )
+    manager.snapshot_builder.build()
+    original_cleanup = manager.snapshot_builder.cleanup
+
+    def cleanup() -> None:
+      events.append("remove-snapshot")
+      original_cleanup()
+
+    manager.snapshot_builder.cleanup = cleanup  # type: ignore[method-assign]
+
+    self.assertTrue(manager.teardown(force_unbind=True))
+    self.assertEqual(
+      events,
+      [
+        "unbind",
+        "clear-lun",
         "stop-child",
         "remove-snapshot",
         "ensure-requested-personality",
@@ -975,6 +1150,7 @@ class StorageManagerTest(ManagerTestBase):
     manager.snapshot_builder.build()
     manager.process = FakeProcess(events=events)
     manager.export_started = True
+    manager.fuse_mount_observed = True
     self.lun.write_text(f"{self.mount}\n")
 
     with self.assertRaisesRegex(usb_storage.StorageError, "fusermount3"):
@@ -1003,6 +1179,7 @@ class StorageManagerTest(ManagerTestBase):
     manager.snapshot_builder.build()
     manager.process = FakeProcess(events=events)
     manager.export_started = True
+    manager.fuse_mount_observed = True
     self.lun.write_text(f"{self.mount}\n")
 
     self.assertFalse(manager.teardown())
@@ -1107,6 +1284,31 @@ class StorageMonitorTest(ManagerTestBase):
     self.assertEqual(commands, ["reenumerate-managed-storage"])
     self.assertEqual(sleeps, [0.1, 0.1])
 
+  def test_reenumeration_stops_when_capacity_crosses_guarded_floor(self) -> None:
+    healthy = types.SimpleNamespace(
+      f_bavail=20 * 1024**3 // 4096,
+      f_frsize=4096,
+      f_blocks=100 * 1024**3 // 4096,
+    )
+    low = types.SimpleNamespace(
+      f_bavail=usb_storage.MIN_FREE_BYTES // 4096,
+      f_frsize=4096,
+      f_blocks=100 * 1024**3 // 4096,
+    )
+    statistics = iter((healthy, low))
+    commands: list[str] = []
+    manager = self.scripted_manager(
+      udc_states=["addressed"],
+      lun_values=[str(self.mount)],
+    )
+    manager.filesystem_stats = lambda _path: next(statistics)
+    manager.command_runner = lambda command, **_kwargs: (
+      commands.append(command[-1]) or types.SimpleNamespace(returncode=0)
+    )
+
+    self.assertEqual(manager._reenumerate_media(threading.Event()), usb_storage.SessionEnd.LOW_SPACE)
+    self.assertEqual(commands, ["reenumerate-managed-storage"])
+
   def test_reenumeration_wait_is_bounded_when_host_never_configures(self) -> None:
     current_time = [0.0]
     sleeps: list[float] = []
@@ -1171,6 +1373,45 @@ class StorageMonitorTest(ManagerTestBase):
     manager.filesystem_stats = lambda _path: stats
 
     self.assertEqual(manager.monitor(threading.Event()), usb_storage.SessionEnd.LOW_SPACE)
+
+  def test_export_capacity_has_margin_above_loggerd_floor(self) -> None:
+    self.assertGreater(usb_storage.MIN_FREE_BYTES, usb_storage.LOGGERD_MIN_FREE_BYTES)
+    self.assertGreater(usb_storage.MIN_FREE_PERCENT, usb_storage.LOGGERD_MIN_FREE_PERCENT)
+    self.assertEqual(
+      usb_storage.MIN_FREE_BYTES,
+      usb_storage.LOGGERD_MIN_FREE_BYTES + usb_storage.EXPORT_FREE_GUARD_BYTES,
+    )
+    self.assertEqual(
+      usb_storage.MIN_FREE_PERCENT,
+      usb_storage.LOGGERD_MIN_FREE_PERCENT + usb_storage.EXPORT_FREE_GUARD_PERCENT,
+    )
+
+    manager = self.scripted_manager(
+      udc_states=["configured"],
+      lun_values=[str(self.mount)],
+    )
+    exact_bytes = types.SimpleNamespace(
+      f_bavail=usb_storage.MIN_FREE_BYTES,
+      f_frsize=1,
+      f_blocks=2 * usb_storage.MIN_FREE_BYTES,
+    )
+    exact_percent = types.SimpleNamespace(
+      f_bavail=11_000_000,
+      f_frsize=1024,
+      f_blocks=100_000_000,
+    )
+    above_both = types.SimpleNamespace(
+      f_bavail=20_000_000,
+      f_frsize=1024,
+      f_blocks=100_000_000,
+    )
+
+    manager.filesystem_stats = lambda _path: exact_bytes
+    self.assertFalse(manager._has_export_capacity())
+    manager.filesystem_stats = lambda _path: exact_percent
+    self.assertFalse(manager._has_export_capacity())
+    manager.filesystem_stats = lambda _path: above_both
+    self.assertTrue(manager._has_export_capacity())
 
   def test_space_stat_failure_is_fail_closed(self) -> None:
     manager = self.scripted_manager(
@@ -1282,6 +1523,123 @@ class StorageMonitorTest(ManagerTestBase):
     self.assertFalse(self.mount.exists())
     self.assertFalse(manager.pidfile.exists())
 
+  def test_post_snapshot_capacity_recheck_prevents_export(self) -> None:
+    events: list[str] = []
+    stop_event = threading.Event()
+
+    class LowCapacityLifecycleManager(usb_storage.StorageManager):
+      def _wait_for_configured(inner_self, _event: threading.Event) -> bool:
+        return True
+
+      def _wait_for_source_while_attached(inner_self, _event: threading.Event) -> bool:
+        return True
+
+      def _has_export_capacity(inner_self) -> bool:
+        events.append(f"capacity-after-snapshot-{inner_self.snapshot_builder.snapshot.exists()}")
+        return False
+
+      def _read_udc_state(inner_self) -> str:
+        raise AssertionError("UDC must not be read after the low-space result")
+
+      def _start_export(inner_self) -> None:
+        raise AssertionError("export must not start below the guarded floor")
+
+      def _wait_for_physical_detach(
+        inner_self,
+        event: threading.Event,
+        *,
+        require_reconfigured: bool = False,
+      ) -> bool:
+        events.append(f"low-space-latch-reconfigured-{require_reconfigured}")
+        event.set()
+        return False
+
+    manager = LowCapacityLifecycleManager(
+      source=self.source,
+      snapshot=self.snapshot,
+      mount=self.mount,
+      lun=self.lun,
+      udc_state=self.udc_state,
+      gadget_lock=self.gadget_lock,
+      snapshot_wall_clock_ns=lambda: time.time_ns() + (3 * usb_storage.DEFAULT_STABILITY_AGE_NS),
+      mount_checker=lambda _path: False,
+    )
+    segment = self.source / "00000001--abc123def0--0"
+    segment.mkdir()
+    (segment / "qlog.zst").write_bytes(b"data")
+
+    self.assertEqual(manager.run(stop_event), 0)
+    self.assertEqual(events, ["capacity-after-snapshot-True", "low-space-latch-reconfigured-False"])
+    self.assertFalse(self.snapshot.exists())
+
+  def test_reenumeration_failure_rebuilds_personality_before_retry_latch(self) -> None:
+    events: list[str] = []
+    stop_event = threading.Event()
+
+    class ReenumerationFailureManager(usb_storage.StorageManager):
+      def _wait_for_configured(inner_self, _event: threading.Event) -> bool:
+        return True
+
+      def _wait_for_source_while_attached(inner_self, _event: threading.Event) -> bool:
+        return True
+
+      def _read_udc_state(inner_self) -> str:
+        return "configured"
+
+      def _has_export_capacity(inner_self) -> bool:
+        return True
+
+      def _start_export(inner_self) -> None:
+        events.append("start-export")
+
+      def _set_lun(inner_self) -> None:
+        events.append("set-lun")
+
+      def _run_gadget_helper(inner_self, action: str) -> None:
+        events.append(action)
+        if action == "reenumerate-managed-storage":
+          raise usb_storage.StorageError("validated re-enumeration failed")
+
+      def _wait_for_physical_detach(
+        inner_self,
+        event: threading.Event,
+        *,
+        require_reconfigured: bool = False,
+      ) -> bool:
+        events.append(f"failure-latch-reconfigured-{require_reconfigured}")
+        event.set()
+        return False
+
+    manager = ReenumerationFailureManager(
+      source=self.source,
+      snapshot=self.snapshot,
+      mount=self.mount,
+      lun=self.lun,
+      udc_state=self.udc_state,
+      gadget_lock=self.gadget_lock,
+      snapshot_wall_clock_ns=lambda: time.time_ns() + (3 * usb_storage.DEFAULT_STABILITY_AGE_NS),
+      mount_checker=lambda _path: False,
+    )
+    segment = self.source / "00000001--abc123def0--0"
+    segment.mkdir()
+    (segment / "qlog.zst").write_bytes(b"data")
+
+    with self.assertLogs("usb-storage", level="ERROR"):
+      self.assertEqual(manager.run(stop_event), 0)
+
+    self.assertEqual(
+      events,
+      [
+        "start-export",
+        "set-lun",
+        "reenumerate-managed-storage",
+        "ensure-requested-personality",
+        "failure-latch-reconfigured-True",
+      ],
+    )
+    self.assertFalse(manager.forced_unbound)
+    self.assertFalse(self.snapshot.exists())
+
   def test_startup_fallback_reconstructs_requested_personality(self) -> None:
     events: list[str] = []
 
@@ -1346,6 +1704,9 @@ class StorageMonitorTest(ManagerTestBase):
       def _read_udc_state(inner_self) -> str:
         return "configured"
 
+      def _has_export_capacity(inner_self) -> bool:
+        return True
+
       def _start_export(inner_self) -> None:
         inner_self.start_count += 1
         events.append("start-export")
@@ -1363,7 +1724,7 @@ class StorageMonitorTest(ManagerTestBase):
         events.append("monitor-detached")
         return usb_storage.SessionEnd.DETACHED
 
-      def teardown(inner_self, *, rebind: bool = True) -> bool:
+      def teardown(inner_self, *, rebind: bool = True, force_unbind: bool = False) -> bool:
         events.append("teardown")
         inner_self.snapshot_builder.cleanup()
         return inner_self.start_count == 1
@@ -1421,10 +1782,13 @@ class StorageMonitorTest(ManagerTestBase):
       def _wait_for_source_while_attached(inner_self, _event: threading.Event) -> bool:
         return True
 
+      def _has_export_capacity(inner_self) -> bool:
+        return True
+
       def _start_export(inner_self) -> None:
         raise OSError("export failed")
 
-      def teardown(inner_self, *, rebind: bool = True) -> None:
+      def teardown(inner_self, *, rebind: bool = True, force_unbind: bool = False) -> None:
         raise usb_storage.StorageError("cannot release backing state")
 
     manager = UnsafeTeardownManager(
@@ -1465,6 +1829,9 @@ class StorageMonitorTest(ManagerTestBase):
       def _read_udc_state(inner_self) -> str:
         return "configured"
 
+      def _has_export_capacity(inner_self) -> bool:
+        return True
+
       def _start_export(inner_self) -> None:
         events.append("start-export")
 
@@ -1480,12 +1847,18 @@ class StorageMonitorTest(ManagerTestBase):
         events.append(f"monitor-{end}")
         return end
 
-      def teardown(inner_self, *, rebind: bool = True) -> None:
+      def teardown(inner_self, *, rebind: bool = True, force_unbind: bool = False) -> bool:
         events.append("teardown")
         inner_self.snapshot_builder.cleanup()
+        return force_unbind
 
-      def _wait_for_physical_detach(inner_self, _event: threading.Event) -> bool:
-        events.append("eject-latch-until-detach")
+      def _wait_for_physical_detach(
+        inner_self,
+        _event: threading.Event,
+        *,
+        require_reconfigured: bool = False,
+      ) -> bool:
+        events.append(f"eject-latch-until-detach-reconfigured-{require_reconfigured}")
         return True
 
     manager = LifecycleManager(
@@ -1506,9 +1879,10 @@ class StorageMonitorTest(ManagerTestBase):
     self.assertEqual(events.count("set-lun"), 2)
     self.assertEqual(events.count("reenumerate-media"), 2)
     self.assertEqual(events.count("teardown"), 2)
-    self.assertEqual(events.count("eject-latch-until-detach"), 2)
+    self.assertEqual(events.count("eject-latch-until-detach-reconfigured-False"), 1)
+    self.assertEqual(events.count("eject-latch-until-detach-reconfigured-True"), 1)
     first_teardown = events.index("teardown")
-    latch = events.index("eject-latch-until-detach")
+    latch = events.index("eject-latch-until-detach-reconfigured-False")
     second_start = events.index("start-export", first_teardown + 1)
     self.assertLess(first_teardown, latch)
     self.assertLess(latch, second_start)

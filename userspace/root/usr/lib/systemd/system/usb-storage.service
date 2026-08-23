@@ -19,6 +19,7 @@ ExecStart=/usr/bin/python3 -u /usr/comma/usb_storage.py \
   --gadget-lock /run/lock/comma-usb-gadget.lock \
   --gadget-helper /usr/comma/usb_gadget.sh
 ExecStop=/usr/comma/stop_usb_storage.sh $MAINPID
+ExecStopPost=/usr/comma/cleanup_usb_storage.sh
 KillSignal=SIGTERM
 KillMode=control-group
 TimeoutStopSec=45

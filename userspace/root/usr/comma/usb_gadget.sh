@@ -197,8 +197,17 @@ validate_managed_storage_personality() {
   local adb_enabled=0
   local configured_function
   local expected_configuration="Storage"
+  local expected_backing_file="$MANAGED_BACKING_FILE"
   local expected_product="$STORAGE_ONLY_PID"
   local expected_vendor="$STORAGE_ONLY_VID"
+
+  if (($#)); then
+    expected_backing_file="$1"
+  fi
+  if [[ -n "$expected_backing_file" && "$expected_backing_file" != "$MANAGED_BACKING_FILE" ]]; then
+    echo "refusing invalid managed USB storage backing-file expectation" >&2
+    return 1
+  fi
 
   validate_managed_storage_topology || return 1
 
@@ -229,7 +238,7 @@ validate_managed_storage_personality() {
      [[ ! -r "$FUNCTION_ROOT/mass_storage.0/lun.0/ro" ]] || \
      [[ ! -r "$FUNCTION_ROOT/mass_storage.0/lun.0/removable" ]] || \
      [[ ! -r "$FUNCTION_ROOT/mass_storage.0/stall" ]] || \
-     [[ "$(< "$FUNCTION_ROOT/mass_storage.0/lun.0/file")" != "$MANAGED_BACKING_FILE" ]] || \
+     [[ "$(< "$FUNCTION_ROOT/mass_storage.0/lun.0/file")" != "$expected_backing_file" ]] || \
      [[ "$(< "$FUNCTION_ROOT/mass_storage.0/lun.0/ro")" != "1" ]] || \
      [[ "$(< "$FUNCTION_ROOT/mass_storage.0/lun.0/removable")" != "1" ]] || \
      [[ "$(< "$FUNCTION_ROOT/mass_storage.0/stall")" != "1" ]] || \
@@ -250,7 +259,8 @@ validate_managed_storage_personality() {
 
   # Reject every unrecognized function, including functions another process
   # may have added. Descriptor directories are not symbolic links.
-  for configured_function in "$CONFIG_ROOT"/*; do
+  for configured_function in "$CONFIG_ROOT"/* "$CONFIG_ROOT"/.[!.]* "$CONFIG_ROOT"/..?*; do
+    [[ -e "$configured_function" ]] || [[ -L "$configured_function" ]] || continue
     [[ -L "$configured_function" ]] || continue
     case "${configured_function##*/}" in
       mass_storage.0) ;;
@@ -298,6 +308,49 @@ reenumerate_managed_storage() {
     return 1
   fi
   bind_gadget
+}
+
+prepare_storage_post_stop() {
+  local lun_root="$FUNCTION_ROOT/mass_storage.0/lun.0"
+  local backing_file=""
+
+  # ExecStopPost runs after the service cgroup is dead. Validate the complete
+  # LUN ownership boundary and accept only an empty LUN or this service's exact
+  # backing path. Descriptor and function-link state is deliberately irrelevant
+  # after unbinding: it must not prevent releasing a safe managed snapshot.
+  # Foreign/unsafe media is preserved for diagnosis and left disconnected.
+  if ! validate_managed_storage_topology || \
+     [[ ! -f "$lun_root/file" ]] || [[ -L "$lun_root/file" ]] || \
+     [[ ! -f "$lun_root/ro" ]] || [[ -L "$lun_root/ro" ]] || \
+     [[ ! -f "$lun_root/removable" ]] || [[ -L "$lun_root/removable" ]] || \
+     [[ ! -f "$FUNCTION_ROOT/mass_storage.0/stall" ]] || [[ -L "$FUNCTION_ROOT/mass_storage.0/stall" ]]; then
+    unbind_gadget
+    echo "USB storage post-stop LUN state is unavailable or unsafe; leaving gadget unbound" >&2
+    return 1
+  fi
+  backing_file="$(< "$lun_root/file")"
+  if [[ "$(< "$lun_root/ro")" != "1" ]] || [[ "$(< "$lun_root/removable")" != "1" ]] || \
+     [[ "$(< "$FUNCTION_ROOT/mass_storage.0/stall")" != "1" ]]; then
+    unbind_gadget
+    echo "USB storage post-stop LUN policy is unsafe; leaving gadget unbound" >&2
+    return 1
+  fi
+  if [[ -n "$backing_file" && "$backing_file" != "$MANAGED_BACKING_FILE" ]]; then
+    unbind_gadget
+    echo "refusing to clear a foreign USB mass-storage LUN after stop" >&2
+    return 1
+  fi
+
+  if [[ -n "$backing_file" ]]; then
+    unbind_gadget
+    clear_lun_file "$lun_root/file"
+  elif ! validate_managed_storage_personality ""; then
+    # Preserve a zero-bounce clean stop only when the currently bound empty
+    # personality is complete. Descriptor/link/PID drift must not block stale
+    # snapshot cleanup, but it must be disconnected before cleanup and rebuilt
+    # through the safe configuration path afterward.
+    unbind_gadget
+  fi
 }
 
 finalize_storage_stop() {
@@ -603,6 +656,9 @@ case "${1:-}" in
   reenumerate-managed-storage)
     reenumerate_managed_storage
     ;;
+  prepare-storage-post-stop)
+    prepare_storage_post_stop
+    ;;
   finalize-storage-stop)
     finalize_storage_stop
     ;;
@@ -610,7 +666,7 @@ case "${1:-}" in
     prepare_storage_start
     ;;
   *)
-    echo "usage: $0 {configure <0|1>|bind|unbind|ensure-requested-personality|reenumerate-managed-storage|finalize-storage-stop|prepare-storage-start}" >&2
+    echo "usage: $0 {configure <0|1>|bind|unbind|ensure-requested-personality|reenumerate-managed-storage|prepare-storage-post-stop|finalize-storage-stop|prepare-storage-start}" >&2
     exit 2
     ;;
 esac
