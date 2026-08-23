@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import os
 from pathlib import Path
@@ -21,7 +22,7 @@ usb_storage = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = usb_storage
 SPEC.loader.exec_module(usb_storage)
 
-REQUIRED_TOOLS = ("nbdkit", "nbdcopy", "nbdinfo", "fsck.fat", "mdir", "mcopy", "dd")
+REQUIRED_TOOLS = ("nbdkit", "nbdcopy", "fsck.fat", "mdir", "mcopy", "dd")
 
 
 def require_tools() -> None:
@@ -30,7 +31,13 @@ def require_tools() -> None:
     raise RuntimeError(f"missing integration-test tools: {', '.join(missing)}")
 
 
-def build_snapshot(root: Path, *, segment_name: str, payload_size: int) -> tuple[Path, str, bytes | None]:
+def build_snapshot(
+  root: Path,
+  *,
+  segment_name: str,
+  payload_size: int,
+  extra_files: dict[str, bytes] | None = None,
+) -> tuple[Path, str, bytes | None]:
   source = root / "realdata"
   source.mkdir(parents=True)
   segment = source / segment_name
@@ -43,6 +50,8 @@ def build_snapshot(root: Path, *, segment_name: str, payload_size: int) -> tuple
   else:
     with payload.open("wb") as stream:
       stream.truncate(payload_size)
+  for name, contents in (extra_files or {}).items():
+    (segment / name).write_bytes(contents)
 
   snapshot = root / usb_storage.MANAGED_SNAPSHOT_NAME
   result = usb_storage.SnapshotBuilder(
@@ -53,6 +62,78 @@ def build_snapshot(root: Path, *, segment_name: str, payload_size: int) -> tuple
   if len(result.included) != 1 or result.excluded:
     raise RuntimeError(f"unexpected snapshot result: {result}")
   return snapshot, result.included[0], expected
+
+
+def materialize_and_check(
+  root: Path,
+  snapshot: Path,
+  *,
+  extracted_path: str,
+  expected_contents: bytes,
+  require_multicluster_root: bool = False,
+) -> None:
+  with tempfile.TemporaryDirectory(prefix="materialized-", dir=root) as temporary_directory:
+    materialized_root = Path(temporary_directory)
+    disk = materialized_root / "disk.img"
+    expected_size, size_argument = usb_storage._nbdkit_layout(snapshot)
+    environment = os.environ.copy()
+    environment.update({"TMPDIR": str(materialized_root), "OUTPUT_IMAGE": str(disk)})
+    command = [
+      "/usr/bin/nbdkit",
+      "--filter=cow",
+      "floppy",
+      f"dir={snapshot}",
+      "label=COMMA",
+    ]
+    if size_argument is not None:
+      command.append(f"size={size_argument}")
+    command.extend([
+      "--run",
+      'exec /usr/bin/nbdcopy --sparse=4096 "$uri" "$OUTPUT_IMAGE"',
+    ])
+    subprocess.run(
+      command,
+      check=True,
+      env=environment,
+    )
+    if disk.stat().st_size != expected_size:
+      raise RuntimeError("nbdkit image size differs from the production layout")
+
+    usb_storage._repair_fat32_image(disk)
+    partition = materialized_root / "partition.img"
+    subprocess.run(
+      ["dd", f"if={disk}", f"of={partition}", "bs=1M", "skip=1", "conv=sparse", "status=none"],
+      check=True,
+    )
+    subprocess.run(["fsck.fat", "-n", "-v", str(partition)], check=True)
+
+    offset_image = f"{disk}@@1048576"
+    listing = subprocess.run(["mdir", "-i", offset_image, "::"], check=True, capture_output=True, text=True)
+    exported_segment = extracted_path.split("/", maxsplit=1)[0]
+    if exported_segment not in listing.stdout:
+      raise RuntimeError("mtools did not preserve the requested exported segment")
+    extracted = materialized_root / "extracted.bin"
+    subprocess.run(
+      ["mcopy", "-i", offset_image, f"::/{extracted_path}", str(extracted)],
+      check=True,
+    )
+    expected_digest = hashlib.sha256(expected_contents).digest()
+    if hashlib.sha256(extracted.read_bytes()).digest() != expected_digest:
+      raise RuntimeError("mtools extraction did not preserve the fixture hash")
+
+    if require_multicluster_root:
+      with disk.open("rb") as image:
+        image.seek(446 + 8)
+        partition_lba = int.from_bytes(image.read(4), "little")
+        image.seek(partition_lba * usb_storage.SECTOR_SIZE + 14)
+        reserved_sectors = int.from_bytes(image.read(2), "little")
+        image.seek(partition_lba * usb_storage.SECTOR_SIZE + 44)
+        root_cluster = int.from_bytes(image.read(4), "little")
+        fat_offset = (partition_lba + reserved_sectors) * usb_storage.SECTOR_SIZE
+        image.seek(fat_offset + root_cluster * 4)
+        next_root_cluster = int.from_bytes(image.read(4), "little") & 0x0FFFFFFF
+      if not 2 <= next_root_cluster < usb_storage.FAT32_END_OF_CHAIN:
+        raise RuntimeError("installed nbdkit image did not create a multi-cluster FAT root directory")
 
 
 def run_small_image_check(root: Path) -> None:
@@ -66,77 +147,83 @@ def run_small_image_check(root: Path) -> None:
   if expected is None:
     raise RuntimeError("small fixture was not materialized")
 
-  disk = small_root / "disk.img"
-  environment = os.environ.copy()
-  environment.update({"TMPDIR": str(small_root), "OUTPUT_IMAGE": str(disk)})
-  subprocess.run(
-    [
-      "/usr/bin/nbdkit",
-      "--filter=cow",
-      "floppy",
-      f"dir={snapshot}",
-      "label=COMMA",
-      f"size={usb_storage.MIN_COMPATIBLE_DISK_SIZE}",
-      "--run",
-      'exec /usr/bin/nbdcopy --sparse=1048576 "$uri" "$OUTPUT_IMAGE"',
-    ],
-    check=True,
-    env=environment,
+  materialize_and_check(
+    small_root,
+    snapshot,
+    extracted_path=f"{exported_segment}/fcamera.hevc",
+    expected_contents=expected,
   )
-  expected_size, _size_argument = usb_storage._nbdkit_layout(snapshot)
-  if disk.stat().st_size != expected_size:
-    raise RuntimeError("nbdkit image size differs from the production layout")
-
-  usb_storage._repair_fat32_image(disk)
-  partition = small_root / "partition.img"
-  subprocess.run(
-    ["dd", f"if={disk}", f"of={partition}", "bs=1M", "skip=1", "conv=sparse", "status=none"],
-    check=True,
-  )
-  subprocess.run(["fsck.fat", "-n", "-v", str(partition)], check=True)
-
-  offset_image = f"{disk}@@1048576"
-  listing = subprocess.run(["mdir", "-i", offset_image, "::"], check=True, capture_output=True, text=True)
-  if exported_segment not in listing.stdout:
-    raise RuntimeError("mtools did not preserve the exported segment name")
-  extracted = small_root / "extracted.hevc"
-  subprocess.run(
-    ["mcopy", "-i", offset_image, f"::/{exported_segment}/fcamera.hevc", str(extracted)],
-    check=True,
-  )
-  if extracted.read_bytes() != expected:
-    raise RuntimeError("mtools extraction did not preserve fixture bytes")
 
 
 def run_natural_size_check(root: Path) -> None:
   large_root = root / "natural"
   large_root.mkdir()
-  # Root directory + segment directory consume two clusters. The sparse file
-  # fills the rest of the conservative FAT32 boundary exactly.
-  payload_size = (usb_storage.FAT32_COMPATIBLE_DATA_CLUSTERS - 2) * usb_storage.FAT_CLUSTER_SIZE
-  snapshot, _exported_segment, _expected = build_snapshot(
+  proof_name = "proof.bin"
+  proof_contents = b"natural-size nbdkit repair and extraction proof\x00\xff"
+  # Root directory, segment directory, and proof file consume three clusters.
+  # The sparse camera file fills the rest of the conservative boundary exactly.
+  payload_size = (usb_storage.FAT32_COMPATIBLE_DATA_CLUSTERS - 3) * usb_storage.FAT_CLUSTER_SIZE
+  snapshot, exported_segment, _expected = build_snapshot(
     large_root,
     segment_name="00000001--abc123def0--0",
     payload_size=payload_size,
+    extra_files={proof_name: proof_contents},
   )
   expected_size, size_argument = usb_storage._nbdkit_layout(snapshot)
   if size_argument is not None or expected_size != usb_storage.MIN_COMPATIBLE_DISK_SIZE:
     raise RuntimeError("natural-size fixture did not hit the exact unpadded boundary")
+  sparse_payload = large_root / "realdata" / exported_segment / "fcamera.hevc"
+  sparse_metadata = sparse_payload.stat()
+  if sparse_metadata.st_size != payload_size or sparse_metadata.st_blocks != 0:
+    raise RuntimeError("natural-size fixture payload was not created as a hole-only sparse file")
 
-  environment = os.environ.copy()
-  environment.update({"TMPDIR": str(large_root), "EXPECTED_SIZE": str(expected_size)})
-  subprocess.run(
-    [
-      "/usr/bin/nbdkit",
-      "--filter=cow",
-      "floppy",
-      f"dir={snapshot}",
-      "label=COMMA",
-      "--run",
-      'test "$(/usr/bin/nbdinfo --size "$uri")" = "$EXPECTED_SIZE"',
-    ],
-    check=True,
-    env=environment,
+  materialize_and_check(
+    large_root,
+    snapshot,
+    extracted_path=f"{exported_segment}/{proof_name}",
+    expected_contents=proof_contents,
+  )
+
+
+def run_multicluster_root_check(root: Path) -> None:
+  multicluster_root = root / "multicluster-root"
+  source = multicluster_root / "realdata"
+  source.mkdir(parents=True)
+  segment_count = 172
+  marker_name = "marker.bin"
+  late_marker = b"late FAT root-chain entry\x00\xff"
+  late_segment = ""
+  root_entries = 1  # volume label
+
+  for index in range(segment_count):
+    segment_name = f"{index:08x}--abc123def0--0"
+    segment = source / segment_name
+    segment.mkdir()
+    contents = late_marker if index == segment_count - 1 else f"segment {index}\n".encode()
+    (segment / marker_name).write_bytes(contents)
+    root_entries += 1 + usb_storage._lfn_entry_count(segment_name)
+    late_segment = segment_name
+
+  if root_entries * 32 <= usb_storage.FAT_CLUSTER_SIZE:
+    raise RuntimeError("multi-cluster fixture did not exceed one FAT root-directory cluster")
+
+  snapshot = multicluster_root / usb_storage.MANAGED_SNAPSHOT_NAME
+  result = usb_storage.SnapshotBuilder(
+    source,
+    snapshot,
+    wall_clock_ns=lambda: time.time_ns() + 10 * usb_storage.DEFAULT_STABILITY_AGE_NS,
+  ).build()
+  if len(result.included) != segment_count or result.excluded:
+    raise RuntimeError(f"unexpected multi-cluster snapshot result: {result}")
+  if result.included[-1] != late_segment:
+    raise RuntimeError("multi-cluster fixture did not preserve the expected late segment name")
+
+  materialize_and_check(
+    multicluster_root,
+    snapshot,
+    extracted_path=f"{late_segment}/{marker_name}",
+    expected_contents=late_marker,
+    require_multicluster_root=True,
   )
 
 
@@ -147,6 +234,7 @@ def main() -> None:
     root = Path(temporary_directory)
     run_small_image_check(root)
     run_natural_size_check(root)
+    run_multicluster_root_check(root)
   print("installed nbdkit/FAT integration checks passed")
 
 
