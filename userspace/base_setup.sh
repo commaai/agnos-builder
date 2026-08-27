@@ -54,6 +54,7 @@ apt-fast install --no-install-recommends -yq \
     libgles-dev \
     libgtk2.0-dev \
     libi2c-dev \
+    libnbd-bin \
     libncursesw5-dev \
     libnss-myhostname \
     libqmi-utils \
@@ -61,6 +62,7 @@ apt-fast install --no-install-recommends -yq \
     locales \
     llvm \
     nano \
+    nbdkit \
     net-tools \
     nload \
     network-manager \
