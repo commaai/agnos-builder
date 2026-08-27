@@ -1,0 +1,12 @@
+[Unit]
+Description=Read-only USB footage storage
+
+[Service]
+RuntimeDirectory=usb-storage
+RuntimeDirectoryMode=0700
+ExecStart=/usr/comma/usb_storage.sh
+ExecStopPost=/usr/comma/usb_storage.sh cleanup
+KillMode=mixed
+TimeoutStopSec=15
+Restart=always
+RestartSec=2
