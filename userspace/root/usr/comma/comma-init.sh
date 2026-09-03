@@ -218,7 +218,6 @@ function init_sound (
     /usr/comma/sound/tinymix set "MultiMedia1 Mixer SEC_MI2S_TX" 1
   else
     /usr/comma/sound/tinymix set "MultiMedia1 Mixer TERT_MI2S_TX" 1
-    /usr/comma/sound/tinymix set "TERT_MI2S_TX Channels" Two
   fi
 )
 
