@@ -1,0 +1,22 @@
+#!/bin/bash
+GREEN=$'\033[0;32m'
+RED=$'\033[0;31m'
+NC=$'\033[0m'
+
+online=$(cat /sys/devices/system/cpu/online)
+offline=$(cat /sys/devices/system/cpu/offline)
+isolated=$(cat /sys/devices/system/cpu/isolated)
+
+# power saving is enabled when the big cluster (cpu4) is offline
+if [ "$(cat /sys/devices/system/cpu/cpu4/online 2>/dev/null)" = "0" ]; then
+  ps="enabled"; color=$RED
+else
+  ps="disabled"; color=$GREEN
+fi
+
+printf "\n  CPU cores: online %s" "$online"
+[ -n "$offline" ] && printf " | offline %s" "$offline" || true
+[ -n "$isolated" ] && printf " | isolated %s" "$isolated" || true
+printf "\n${color}  Power saving: %s${NC} (fast cores 4-7 offline when powersaving enabled)\n" "$ps"
+[ "$ps" = "enabled" ] && printf "  Disable power saving with:\n    └── /data/openpilot/.venv/bin/python /data/openpilot/scripts/disable-powersave.py\n"
+true
