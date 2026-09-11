@@ -294,8 +294,8 @@ wheels = [
 
 [[package]]
 name = "comma-deps-git-xet"
-version = "0.2.2.dev1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-xet&rev=4959ed5278de85251a97477b0ca5530e8919ca56#4959ed5278de85251a97477b0ca5530e8919ca56" }
+version = "0.2.2"
+source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-xet&rev=1fa5b439b9c4d17591ad5f15ebe2cbcbca1908b8#1fa5b439b9c4d17591ad5f15ebe2cbcbca1908b8" }
 
 [[package]]
 name = "coverage"
@@ -822,7 +822,7 @@ requires-dist = [
     { name = "catch2", git = "https://github.com/commaai/dependencies.git?subdirectory=catch2&rev=release-catch2" },
     { name = "cffi" },
     { name = "codespell", marker = "extra == 'testing'" },
-    { name = "comma-deps-git-xet", git = "https://github.com/commaai/dependencies.git?subdirectory=git-xet&rev=4959ed5278de85251a97477b0ca5530e8919ca56" },
+    { name = "comma-deps-git-xet", git = "https://github.com/commaai/dependencies.git?subdirectory=git-xet&rev=1fa5b439b9c4d17591ad5f15ebe2cbcbca1908b8" },
     { name = "coverage", marker = "extra == 'testing'" },
     { name = "crcmod-plus" },
     { name = "cython" },
