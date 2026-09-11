@@ -39,12 +39,11 @@ dependencies = [
   "zeromq @ git+https://github.com/commaai/dependencies.git@release-zeromq#subdirectory=zeromq",
   "libusb @ git+https://github.com/commaai/dependencies.git@release-libusb#subdirectory=libusb",
   "git-lfs @ git+https://github.com/commaai/dependencies.git@release-git-lfs#subdirectory=git-lfs",
-  "comma-deps-git-xet @ git+https://github.com/commaai/dependencies.git@2afb726ac815c9d662a5a4ae4532f5a3580f1351#subdirectory=git-xet",
+  "comma-deps-git-xet @ git+https://github.com/commaai/dependencies.git@4959ed5278de85251a97477b0ca5530e8919ca56#subdirectory=git-xet",
   "gcc-arm-none-eabi @ git+https://github.com/commaai/dependencies.git@release-gcc-arm-none-eabi#subdirectory=gcc-arm-none-eabi",
   "xvfb @ git+https://github.com/commaai/dependencies.git@release-xvfb#subdirectory=xvfb",
 
   # Git LFS downloads
-  "hf-xet==1.4.2",
 
   # body / webrtcd
   "av",
