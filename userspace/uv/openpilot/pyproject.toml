@@ -38,9 +38,11 @@ dependencies = [
   "ncurses @ git+https://github.com/commaai/dependencies.git@release-ncurses#subdirectory=ncurses",
   "zeromq @ git+https://github.com/commaai/dependencies.git@release-zeromq#subdirectory=zeromq",
   "libusb @ git+https://github.com/commaai/dependencies.git@release-libusb#subdirectory=libusb",
-  "git-lfs @ git+https://github.com/commaai/dependencies.git@release-git-lfs#subdirectory=git-lfs",
+  "comma-deps-git-lfs==3.6.1.post107",
   "gcc-arm-none-eabi @ git+https://github.com/commaai/dependencies.git@release-gcc-arm-none-eabi#subdirectory=gcc-arm-none-eabi",
   "xvfb @ git+https://github.com/commaai/dependencies.git@release-xvfb#subdirectory=xvfb",
+
+  # Git LFS downloads
 
   # body / webrtcd
   "av",

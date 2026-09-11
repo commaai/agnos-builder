@@ -293,6 +293,16 @@ wheels = [
 ]
 
 [[package]]
+name = "comma-deps-git-lfs"
+version = "3.6.1.post107"
+source = { registry = "https://github.com/haraschax/xet-core/releases/expanded_assets/git-xet-v0.2.2-dev.1" }
+wheels = [
+    { url = "https://github.com/haraschax/xet-core/releases/download/git-xet-v0.2.2-dev.1/comma_deps_git_lfs-3.6.1.post107-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:f53c728435ad3ac51c92147cbe7923268f5585844c44c29050ed0186387d75b0" },
+    { url = "https://github.com/haraschax/xet-core/releases/download/git-xet-v0.2.2-dev.1/comma_deps_git_lfs-3.6.1.post107-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:16541bf8d6b6386b414cb48f4306ad7d99f5652b27f7026b381e290d523d30c0" },
+    { url = "https://github.com/haraschax/xet-core/releases/download/git-xet-v0.2.2-dev.1/comma_deps_git_lfs-3.6.1.post107-py3-none-macosx_11_0_arm64.whl", hash = "sha256:2e08ddcea68690f9d629ef98e862351b7dc6ce29466831b57273638ff2080d2a" },
+]
+
+[[package]]
 name = "coverage"
 version = "7.13.5"
 source = { registry = "https://pypi.org/simple" }
@@ -489,11 +499,6 @@ wheels = [
 name = "gcc-arm-none-eabi"
 version = "13.2.1"
 source = { git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=release-gcc-arm-none-eabi#95a94097e4214ba85718bf63ebffd2b4e3427e10" }
-
-[[package]]
-name = "git-lfs"
-version = "3.6.1"
-source = { git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=release-git-lfs#a170e4e7bfed8809673bf1ef6656ba710e084c8c" }
 
 [[package]]
 name = "google-crc32c"
@@ -749,12 +754,12 @@ dependencies = [
     { name = "capnproto" },
     { name = "catch2" },
     { name = "cffi" },
+    { name = "comma-deps-git-lfs" },
     { name = "crcmod-plus" },
     { name = "cython" },
     { name = "eigen" },
     { name = "ffmpeg" },
     { name = "gcc-arm-none-eabi" },
-    { name = "git-lfs" },
     { name = "inputs" },
     { name = "jeepney" },
     { name = "json-rpc" },
@@ -816,13 +821,13 @@ requires-dist = [
     { name = "catch2", git = "https://github.com/commaai/dependencies.git?subdirectory=catch2&rev=release-catch2" },
     { name = "cffi" },
     { name = "codespell", marker = "extra == 'testing'" },
+    { name = "comma-deps-git-lfs", specifier = "==3.6.1.post107" },
     { name = "coverage", marker = "extra == 'testing'" },
     { name = "crcmod-plus" },
     { name = "cython" },
     { name = "eigen", git = "https://github.com/commaai/dependencies.git?subdirectory=eigen&rev=release-eigen" },
     { name = "ffmpeg", git = "https://github.com/commaai/dependencies.git?subdirectory=ffmpeg&rev=release-ffmpeg" },
     { name = "gcc-arm-none-eabi", git = "https://github.com/commaai/dependencies.git?subdirectory=gcc-arm-none-eabi&rev=release-gcc-arm-none-eabi" },
-    { name = "git-lfs", git = "https://github.com/commaai/dependencies.git?subdirectory=git-lfs&rev=release-git-lfs" },
     { name = "hypothesis", marker = "extra == 'testing'", specifier = "==6.47.*" },
     { name = "imgui", marker = "extra == 'tools'", git = "https://github.com/commaai/dependencies.git?subdirectory=imgui&rev=release-imgui" },
     { name = "inputs" },
