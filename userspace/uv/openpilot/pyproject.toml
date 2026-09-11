@@ -42,6 +42,10 @@ dependencies = [
   "gcc-arm-none-eabi @ git+https://github.com/commaai/dependencies.git@release-gcc-arm-none-eabi#subdirectory=gcc-arm-none-eabi",
   "xvfb @ git+https://github.com/commaai/dependencies.git@release-xvfb#subdirectory=xvfb",
 
+  # Git LFS downloads
+  "huggingface-hub==1.7.1",
+  "hf-xet==1.4.2",
+
   # body / webrtcd
   "av",
   "aiohttp",
