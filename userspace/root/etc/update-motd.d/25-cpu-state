@@ -18,5 +18,5 @@ printf "\n  CPU cores: online %s" "$online"
 [ -n "$offline" ] && printf " | offline %s" "$offline" || true
 [ -n "$isolated" ] && printf " | isolated %s" "$isolated" || true
 printf "\n${color}  Power saving: %s${NC} (fast cores 4-7 offline when powersaving enabled)\n" "$ps"
-[ "$ps" = "enabled" ] && printf "  Disable power saving with:\n    └── /data/openpilot/.venv/bin/python /data/openpilot/scripts/disable-powersave.py\n"
+[ "$ps" = "enabled" ] && printf "  Disable power saving with:\n    └── /data/openpilot/scripts/disable-powersave.py\n"
 true
