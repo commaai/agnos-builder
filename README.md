@@ -32,9 +32,9 @@ git submodule update --init agnos-kernel-sdm845
 
     ```
     cd /path/to/openpilot
-    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/setup openpilot.system.ui.mici_setup
-    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/reset openpilot.system.ui.reset
-    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/updater openpilot.system.ui.updater
+    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/setup openpilot.system.ui.mici_setup
+    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/reset openpilot.system.ui.reset
+    python release/pack.py -o /path/to/agnos-builder/userspace/usr/comma/updater openpilot.system.ui.updater
     ```
 
 3. Build the kernel and system images:
@@ -110,4 +110,4 @@ Some concrete things on the roadmap:
 - [ ] mainline Linux kernel https://github.com/commaai/openpilot/issues/32386
 - [ ] fully open source
   - [ ] anything from `firmware/`: XBL, ABL, etc.
-  - [x] <s>Weston https://github.com/commaai/agnos-builder/issues/16</s> deleted!
+  - [ ] Weston https://github.com/commaai/agnos-builder/issues/16

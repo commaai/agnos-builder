@@ -12,6 +12,10 @@ fi
 
 cd userspace/uv
 curl -sSo openpilot/pyproject.toml https://raw.githubusercontent.com/commaai/openpilot/master/pyproject.toml
+# Replace openpilot's checkout-relative submodule sources with the Git sources
+# configured by AGNOS below. The lockfile pins each resolved commit.
+sed -i '/^\[tool\.uv\.sources\]/,$d' openpilot/pyproject.toml
+sed -i '${/^$/d;}' openpilot/pyproject.toml
 
 pc="$(python3 -c "import sysconfig;print(sysconfig.get_config_vars('installed_base')[0])")" && \
 pcpath=$pc"/lib/pkgconfig" && \

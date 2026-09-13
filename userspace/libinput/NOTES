@@ -1,0 +1,3 @@
+The Thundercomm version of Weston has a bug where it doesn't allow opening the input devices.
+This patch bypasses that.
+Source used to build: libinput commit f0997536a7a3e384bfe64b67c5c1f874656042c6

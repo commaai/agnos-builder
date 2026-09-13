@@ -1,0 +1,11 @@
+[Unit]
+After=multi-user.target
+Description=Set screen calibration
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/comma/screen_calibration.py
+
+[Install]
+WantedBy=multi-user.target
