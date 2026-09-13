@@ -1,0 +1,31 @@
+[Unit]
+Description=Weston
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+Restart=no
+KillSignal=SIGKILL
+Environment="XDG_RUNTIME_DIR=/var/tmp/weston"
+
+UtmpIdentifier=tty1
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+
+ExecStartPre=/bin/bash -c "/usr/local/venv/bin/python -c 'import fcntl; KDSETMODE = 0x4B3A; KD_TEXT = 0x00; fd = open(\"/dev/tty1\", \"w\"); fcntl.ioctl(fd, KDSETMODE, KD_TEXT); fd.close()'"
+ExecStartPre=/bin/bash -c "/usr/local/venv/bin/python -c 'from PIL import Image; img=Image.open(\"/usr/comma/bg.jpg\"); (img.rotate(180) if open(\"/sys/devices/platform/vendor/vendor:gpio-som-id/som_id\").read().strip() == \"1\" else img).save(\"/tmp/bg.jpg\")'"
+ExecStartPre=/bin/bash -c "mkdir -p $XDG_RUNTIME_DIR"
+ExecStartPre=/bin/bash -c "chown -R comma: $XDG_RUNTIME_DIR"
+ExecStartPre=/bin/bash -c "chmod -R 700 $XDG_RUNTIME_DIR"
+
+ExecStartPre=/bin/bash -c "mkdir -p /data/misc/display || true"
+ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"
+ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true"
+
+ExecStartPre=/bin/chvt 1
+ExecStart=/usr/bin/weston --idle-time=0 --tty=1 --config=/usr/comma/weston.ini
+
+[Install]
+WantedBy=multi-user.target

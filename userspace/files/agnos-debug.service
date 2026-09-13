@@ -1,0 +1,10 @@
+[Unit]
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=comma
+ExecStart=/usr/comma/debug.py
+
+[Install]
+WantedBy=multi-user.target

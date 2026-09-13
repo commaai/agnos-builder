@@ -1,0 +1,35 @@
+diff --git a/tests/modetest/modetest.c b/tests/modetest/modetest.c
+index 975dcbcd..8d71f08b 100644
+--- a/tests/modetest/modetest.c
++++ b/tests/modetest/modetest.c
+@@ -1393,7 +1393,7 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
+ 
+ 	bo = bo_create(dev->fd, pipes[0].fourcc, dev->mode.width,
+ 		       dev->mode.height, handles, pitches, offsets,
+-		       UTIL_PATTERN_SMPTE);
++		       UTIL_PATTERN_PLAIN);
+ 	if (bo == NULL)
+ 		return;
+ 
+@@ -2080,7 +2080,7 @@ int main(int argc, char **argv)
+ 			if (drop_master)
+ 				drmDropMaster(dev.fd);
+ 
+-			getchar();
++			// getchar();
+ 
+ 			if (test_cursor)
+ 				clear_cursors(&dev);
+diff --git a/tests/util/pattern.c b/tests/util/pattern.c
+index 9fa0a417..b8d162f2 100644
+--- a/tests/util/pattern.c
++++ b/tests/util/pattern.c
+@@ -823,7 +823,7 @@ static void fill_plain(void *planes[3],
+ 		       unsigned int height,
+ 		       unsigned int stride)
+ {
+-	memset(planes[0], 0x77, stride * height);
++	memset(planes[0], 0x00, stride * height);
+ }
+ 
+ /*

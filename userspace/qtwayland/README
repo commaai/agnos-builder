@@ -1,0 +1,80 @@
+# Ubuntu 24.04 + "old" weston
+
+The following need to work together in Ubuntu 24.04 (noble):
+- "old" weston
+- libwayland
+- qtwayland
+- qt
+
+The "old" weston is built with:
+- libwayland-dev_1.9.0-1
+- libwayland-server_1.9.0-1
+- libwayland-client_1.9.0-1
+- libwayland-cursor_1.9.0-1
+
+These are roughly from Xenial (16.04 - https://launchpad.net/ubuntu/xenial/arm64/libwayland-dev/1.9.0-1).
+
+In Ubuntu 20.04 (focal) even if libwayland is 1.18.0-1, the protocol between
+the server (1.9.0-1) and client (1.18.0-1) was still compatible. Unfortunately,
+this is not the case anymore in Ubuntu 24.04 (noble), where libwayland 1.22.0
+is not compatible anymore with 1.9.0.
+
+Because of this:
+- libwayland-*_1.9.0-1 packages can't be installed anymore from noble, but a
+custom deb has been built (libwayland-1.9.0-1.deb) - this includes all
+libwayland packages in one package
+- libwayland has a dependency (libffi6)
+- libwayland-1.9.0-1.deb can be rebuilt with `build-libwayland-deb.sh`
+
+Also, Qt 5.15 from Ubuntu 24.04 (noble) doesn't compile with these old
+dependencies, 5.12 being the last major being able to be compiled, so:
+- a custom qt-5.12.8.deb has been built, since qt from focal has a lot of
+dependencies not existing in Ubuntu 24.04 (noble)
+- qt has two non-qt related dependencies (libicu66, libssl1.1)
+- qt-5.12.8.deb can be rebuilt with `build-qt-deb.sh`
+
+The dependencies for the two custom debs can be downloaded from Launchpad:
+```
+curl -LO https://launchpad.net/ubuntu/+archive/primary/+files/libffi6_3.2.1-8_arm64.deb
+curl -LO https://launchpad.net/ubuntu/+archive/primary/+files/libicu66_66.1-2ubuntu2.1_arm64.deb
+curl -LO https://launchpad.net/ubuntu/+archive/primary/+files/libssl1.1_1.1.1f-1ubuntu2.22_arm64.deb
+```
+\* libffi6_armhf is also needed, but already exits in libs32
+
+# When updating weston & removing custom debs
+After removing qt-5.12.8.deb add these back:
+```
+libqt5opengl5-dev \
+libqt5sql5-sqlite \
+libqt5svg5-dev \
+libqt5multimedia5-plugins \
+qml-module-qtquick2 \
+qtbase5-dev \
+qtchooser \
+qt5-qmake \
+qtbase5-dev-tools \
+qtbase5-private-dev \
+qtdeclarative5-dev \
+qtdeclarative5-private-dev \
+qtlocation5-dev \
+qtmultimedia5-dev \
+qtpositioning5-dev \
+qtwayland5 \
+```
+
+In case of uncertainty, qt5-default was a metapackage for:
+```
+qtbase5-dev
+qtchooser
+qt5-qmake
+qtbase5-dev-tools
+```
+More info: https://packages.ubuntu.com/focal/qt5-default
+
+After removing libwayland-1.9.0-1.deb add these back:
+```
+libwayland-client0:armhf \
+libwayland-cursor0:armhf \
+libwayland-server0:armhf \
+libwayland-dev \
+```
