@@ -8,18 +8,29 @@ CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
+# blip power to ~10W to see if the PSU is stable
+sudo timeout --kill-after=2 5 /home/comma/power_burn_max
+
+# use max freq to boot up quickly, then limit
+echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+
 echo "waiting for magic"
 for i in {1..200}; do
-  if [ -S /tmp/drmfd.sock ]; then
+  if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
     break
   fi
   sleep 0.1
 done
-if [ -S /tmp/drmfd.sock ]; then
+
+if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
   echo "magic ready after ${SECONDS}s"
 else
   echo "timed out waiting for magic, ${SECONDS}s"
 fi
+
+sudo chown comma: /data
+sudo chown comma: /data/media
 
 handle_setup_keys () {
   # install default SSH key while still in setup
@@ -57,6 +68,10 @@ if [ ! -f /tmp/booted ]; then
   fi
 fi
 
+# setup /data/tmp
+rm -rf /data/tmp
+mkdir -p /data/tmp
+
 # symlink vscode to userdata
 mkdir -p /data/tmp/vscode-server
 ln -s /data/tmp/vscode-server ~/.vscode-server
@@ -71,7 +86,7 @@ while true; do
     exec "$CONTINUE"
   fi
 
-  sudo abctl --set_success &
+  sudo abctl --set_success
 
   # cleanup installers from previous runs
   rm -f $INSTALLER

@@ -1,0 +1,16 @@
+# Copyright (c) 2017 Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+#
+
+[Unit]
+Description=ipa firmware load script
+SourcePath=/etc/init.d/ipa_fws.sh
+
+[Service]
+Type=forking
+Restart=no
+ExecStart=/etc/init.d/ipa_fws.sh
+
+[Install]
+WantedBy=multi-user.target
