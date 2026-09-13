@@ -2,6 +2,7 @@
 Description= Remote Storage Service
 SourcePath=/sbin/rmt_storage
 Before=init_sys_mss.service
+ConditionPathExists=!/sys/class/remoteproc
 
 [Service]
 Restart=always

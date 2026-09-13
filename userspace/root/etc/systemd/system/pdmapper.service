@@ -8,6 +8,7 @@ Description=SS-Services Service
 SourcePath=/etc/initscripts/start_pdmappersvc
 After=init_sys_mss.service
 Requires=init_sys_mss.service
+ConditionPathExists=!/sys/class/remoteproc
 
 [Service]
 Restart=no
