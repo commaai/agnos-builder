@@ -7,10 +7,10 @@
 Description=Path watching for qseecomd.service
 DefaultDependencies=no
 Conflicts=shutdown.target
-Before=paths.target shutdown.target
+Before=paths.target shutdown.target systemd-udev-trigger.service
 
 [Path]
-PathExists=/dev/qseecom
+PathModified=/dev/qseecom
 
 [Install]
 WantedBy=multi-user.target

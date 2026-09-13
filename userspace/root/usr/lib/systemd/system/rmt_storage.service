@@ -1,6 +1,7 @@
 [Unit]
 Description= Remote Storage Service
 SourcePath=/sbin/rmt_storage
+After=usb.service
 Before=init_sys_mss.service
 
 [Service]

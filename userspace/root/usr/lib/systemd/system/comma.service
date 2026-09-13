@@ -1,18 +1,13 @@
 [Unit]
-DefaultDependencies=no
-Requires=comma-init.service
-Wants=magic.service
-After=comma-init.service
-Before=basic.target shutdown.target
-Conflicts=shutdown.target
+After=local-fs.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=true
 User=comma
-ExecStart=/usr/bin/tmux new-session -d -s comma /usr/comma/comma.sh
+ExecStart=/bin/bash -c "/usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh"
 # TODO: send SIGTERM first, then kill after a timeout
-ExecStop=/usr/bin/tmux kill-session -t comma
+ExecStop=/bin/bash -c "/usr/bin/tmux kill-session -t comma"
 TimeoutStopSec=1
 LimitRTPRIO=100
 LimitNICE=-10
