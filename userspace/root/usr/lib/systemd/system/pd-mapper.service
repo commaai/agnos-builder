@@ -1,0 +1,15 @@
+[Unit]
+Description=Qualcomm protection-domain mapper
+Documentation=https://github.com/linux-msm/pd-mapper
+ConditionPathExists=/sys/class/remoteproc
+After=comma-init.service
+Requires=comma-init.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/pd-mapper
+Restart=on-failure
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

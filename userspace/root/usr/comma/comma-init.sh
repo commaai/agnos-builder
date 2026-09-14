@@ -207,7 +207,129 @@ function init_gpio (
     -maxdepth 1 -exec chown root:gpio {} + -exec chmod 770 {} +
 )
 
+function init_firmware (
+  # build the mainline firmware farm in /run and bind-mount it over the
+  # read-only /usr/lib/firmware so the mainline kernel can load it
+  [[ -d /sys/class/remoteproc ]] || exit 0
+  set -e
+
+  local FW=/usr/lib/firmware
+  local ORIG=/run/firmware-orig
+  local FARM=/run/mainline-firmware
+  local IMG=/firmware/image
+  local VENDORED=/usr/comma/firmware
+
+  if ! await 60 test -s "$IMG/mba.mbn"; then
+    log_console "timed out waiting for $IMG/mba.mbn"
+    exit 1
+  fi
+
+  mountpoint -q "$FW" && umount "$FW"
+
+  mkdir -p "$ORIG"
+  if ! mountpoint -q "$ORIG"; then
+    mount --bind "$FW" "$ORIG"
+    mount --make-private "$ORIG"
+  fi
+
+  rm -rf "$FARM"
+  mkdir -p "$FARM"
+
+  local entry
+  for entry in "$ORIG"/*; do
+    [[ -e "$entry" ]] || continue
+    ln -s "$entry" "$FARM/${entry##*/}"
+  done
+
+  local rel orig_entry
+  for rel in qcom qcom/sdm845 ath10k ath10k/WCN3990 ath10k/WCN3990/hw1.0; do
+    if [[ -L "$FARM/$rel" ]]; then
+      rm "$FARM/$rel"
+      mkdir "$FARM/$rel"
+      for orig_entry in "$ORIG/$rel"/*; do
+        [[ -e "$orig_entry" ]] || continue
+        ln -s "$orig_entry" "$FARM/$rel/${orig_entry##*/}"
+      done
+    else
+      mkdir -p "$FARM/$rel"
+    fi
+  done
+
+  mkdir -p "$FARM/updates"
+
+  local seg jsn
+  ln -sf "$IMG/mba.mbn" "$FARM/qcom/sdm845/mba.mbn"
+  ln -sf "$IMG/modem.mdt" "$FARM/qcom/sdm845/modem_nm.mbn"
+  for seg in "$IMG"/modem.b*; do
+    [[ -e "$seg" ]] || continue
+    ln -sf "$seg" "$FARM/qcom/sdm845/modem_nm.${seg##*/modem.}"
+  done
+
+  ln -sf "$IMG/adsp.mdt" "$FARM/qcom/sdm845/adsp.mbn"
+  for seg in "$IMG"/adsp.b*; do
+    [[ -e "$seg" ]] || continue
+    ln -sf "$seg" "$FARM/qcom/sdm845/adsp.${seg##*/adsp.}"
+  done
+
+  for jsn in "$IMG"/*.jsn; do
+    [[ -e "$jsn" ]] || continue
+    ln -sf "$jsn" "$FARM/qcom/sdm845/${jsn##*/}"
+  done
+
+  ln -sf "$IMG/wlanmdsp.mbn" "$FARM/qcom/sdm845/wlanmdsp.mbn"
+
+  ln -sf "$VENDORED/ath10k/WCN3990/hw1.0/firmware-5.bin" "$FARM/ath10k/WCN3990/hw1.0/firmware-5.bin"
+
+  # same SOM-tuned board data cnss_daemon serves on the downstream kernel
+  local bdwlan
+  case "$(tr -d '\0' < /proc/device-tree/compatible)" in
+    *tizi*) bdwlan=bdwlan.b00 ;;
+    *)      bdwlan=bdwlan.b01 ;;
+  esac
+  ln -sf "/usr/comma/wlan/$bdwlan" "$FARM/ath10k/WCN3990/hw1.0/board.bin"
+
+  mount --bind "$FARM" "$FW"
+
+  # same fixed mapping comma-init.sh uses for /dev/block/bootdevice/by-name
+  mkdir -p /dev/disk/by-partlabel
+  ln -sf /dev/sdf2 /dev/disk/by-partlabel/modemst1
+  ln -sf /dev/sdf3 /dev/disk/by-partlabel/modemst2
+  ln -sf /dev/sdf4 /dev/disk/by-partlabel/fsg
+  ln -sf /dev/sdf5 /dev/disk/by-partlabel/fsc
+)
+
 function init_sound (
+  if [[ -d /sys/class/remoteproc ]]; then
+    if ! await 60 test -e /usr/lib/firmware/qcom/sdm845/adsp.mbn; then
+      log_console "timed out waiting for adsp firmware"
+      exit 1
+    fi
+
+    for rproc in /sys/class/remoteproc/remoteproc*; do
+      [[ "$(< "$rproc/name")" == adsp ]] || continue
+      [[ "$(< "$rproc/state")" == running ]] || echo start > "$rproc/state"
+      break
+    done
+
+    if ! await 30 /usr/comma/sound/tinymix set "SEC_MI2S_RX Audio Mixer MultiMedia1" 1; then
+      log_console "timed out waiting for sound card"
+      exit 1
+    fi
+    echo "sound card online"
+
+    for path in /dev/snd/controlC* /dev/snd/pcmC*; do
+      [[ -c "$path" ]] || continue
+      chgrp audio "$path"
+      chmod 0660 "$path"
+    done
+
+    if [[ "$(< /sys/firmware/devicetree/base/model)" == *mici* ]]; then
+      /usr/comma/sound/tinymix set "MultiMedia2 Mixer SEC_MI2S_TX" 1
+    fi
+    echo "tinymix controls ready"
+    exit 0
+  fi
+
   await grep -qs "^ONLINE$" /proc/asound/card0/state
   echo "sound card online"
 
@@ -244,6 +366,7 @@ function init_debug (
 run_init init_permissions &
 run_init init_filesystems &
 run_init init_qcom &
+run_init init_firmware &
 run_init init_power_burn &
 run_init init_gpio &
 run_init init_sound &
