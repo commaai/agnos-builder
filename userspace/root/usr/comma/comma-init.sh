@@ -198,7 +198,11 @@ function init_gpio (
     1264  # POWER ALERT
   )
 
+  tlmm_base=$(cat /sys/bus/platform/devices/3400000.pinctrl/gpio/*/base 2>/dev/null | head -1)
+  tlmm_base=${tlmm_base:-0}
+
   for p in "${pins[@]}"; do
+    (( p < 150 )) && p=$((p + tlmm_base))
     echo "$p" > /sys/class/gpio/export
   done
 
