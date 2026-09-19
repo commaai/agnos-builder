@@ -116,9 +116,11 @@ RUN rm -f /etc/fstab
 COPY ./output/linux-headers/include/ /usr/include/
 
 # builds
-COPY ./userspace/power_burn_max.c ./userspace/irsc_util.c /tmp/agnos/
+COPY ./userspace/power_burn_max.c ./userspace/irsc_util.c ./userspace/ui-readahead.c /tmp/agnos/
 RUN gcc -O2 -o /usr/comma/power_burn_max /tmp/agnos/power_burn_max.c -lpthread
 RUN gcc -O2 -Wall -Wextra -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c
+
+RUN gcc -O2 -Wall -Wextra -o /usr/comma/ui-readahead /tmp/agnos/ui-readahead.c
 
 # Setup systemd services
 COPY ./userspace/services.sh /tmp/agnos

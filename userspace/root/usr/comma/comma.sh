@@ -68,6 +68,17 @@ while true; do
   handle_setup_keys
 
   if [ -f $CONTINUE ]; then
+    if [[ -f /data/openpilot/.agnos-early-ui && -f /data/openpilot/prebuilt ]]; then
+      end=$((SECONDS+5))
+      ready=false
+      while ((SECONDS < end)); do
+        for frame in /tmp/boot-first-frame-*; do
+          [[ -f "$frame" ]] && ready=true
+        done
+        $ready && break
+        sleep 0.02
+      done
+    fi
     exec "$CONTINUE"
   fi
 

@@ -7,6 +7,7 @@ Before=local-fs.target sysinit.target network.target comma.service magic.service
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/comma/comma-init.sh
+ExecStopPost=/usr/comma/boot-cpu-cap.sh
 
 [Install]
 WantedBy=sysinit.target

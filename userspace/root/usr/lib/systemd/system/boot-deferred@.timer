@@ -1,0 +1,8 @@
+[Unit]
+Description=Defer %i until after UI startup
+[Timer]
+OnBootSec=30
+AccuracySec=1
+Unit=%i.service
+[Install]
+WantedBy=timers.target

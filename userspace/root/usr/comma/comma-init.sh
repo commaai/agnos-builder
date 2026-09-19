@@ -52,6 +52,9 @@ function await {
 }
 
 function init_permissions (
+  for path in /dev/spidev0.0 /dev/input/event2 /dev/kgsl-3d0 /dev/ion /dev/dri/card0; do
+    await 3 test -c "$path" || return 1
+  done
   chmod 0666 /dev/spidev0.0
   chmod 0666 /dev/input/event2
 
@@ -62,6 +65,7 @@ function init_permissions (
     /sys/class/leds/led:torch_2/brightness \
     /sys/class/leds/led:switch_2/brightness
   do
+    [[ -e "$path" ]] || continue
     chgrp video "$path"
     chmod g+w "$path"
   done
@@ -82,6 +86,8 @@ function init_permissions (
 )
 
 function init_filesystems (
+  set -e
+  /usr/comma/ui-readahead /usr/comma/ui-readahead.list root &
   function mount_fs {
     local what="$1"
     local where="$2"
@@ -98,19 +104,31 @@ function init_filesystems (
       return 0
     fi
     log_console "failed mounting $where"
+    return 1
   }
 
-  # mount base filesystems
+  # Await each mount so a failed mount cannot be hidden by another job.
+  mount_pids=()
   mount_fs /dev/sde9 /dsp ext4 ro &
+  mount_pids+=("$!")
   mount_fs /dev/sde4 /firmware vfat ro &
+  mount_pids+=("$!")
   mount_fs /dev/sda2 /persist squashfs ro,nosuid,nodev,noexec &
+  mount_pids+=("$!")
   mount_fs /dev/sda10 /systemrw ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev &
+  mount_pids+=("$!")
   mount_fs /dev/sda12 /data ext4 discard,noatime,nodiratime,nosuid,nodev &
+  mount_pids+=("$!")
   mount_fs /dev/sda11 /cache ext4 relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid &
+  mount_pids+=("$!")
   mount_fs tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755 &
+  mount_pids+=("$!")
   mount_fs tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777 &
+  mount_pids+=("$!")
   mount_fs tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 &
-  wait
+  mount_pids+=("$!")
+  for pid in "${mount_pids[@]}"; do wait "$pid"; done
+  /usr/comma/ui-readahead /usr/comma/ui-readahead.list data &
 
   # rmt_storage and qseecomd are the only users of /dev/block/bootdevice/by-name.
   mkdir -p /dev/block/bootdevice/by-name
@@ -150,10 +168,6 @@ function init_filesystems (
 )
 
 function init_qcom (
-  # raise scaling_max so policy=performance can reach the BOOST top step
-  echo 2649600 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
-  echo 2649600 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
-
   # don't restart whole SoC on subsystem crash
   printf "%s\n" related | tee /sys/bus/msm_subsys/devices/subsys*/restart_level > /dev/null
 
@@ -178,9 +192,7 @@ function init_power_burn (
   # blip power to ~10W to see if the PSU is stable
   chrt -i 0 timeout --kill-after=1 1 /usr/comma/power_burn_max 0.5 8
 
-  # limit after burn
-  echo 1689600 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
-  echo 1689600 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+  # boot-ui-ready.service restores the cap after first frame or its bounded wait.
 )
 
 function init_gpio (
@@ -238,18 +250,31 @@ function init_debug (
   sudo -u comma /usr/comma/debug.py
 )
 
-# each init function should:
-# - start immediately in the background
-# - manage its own dependencies
-run_init init_permissions &
-run_init init_filesystems &
-run_init init_qcom &
-run_init init_power_burn &
-run_init init_gpio &
-run_init init_sound &
-run_init init_screen_calibration &
-run_init init_hostname &
-run_init init_debug &
-wait
-
-log_console "********** init done **********"
+# The platform stage runs after the UI gate. Keep the existing setup functions,
+# partition map and power-supply test; only move unrelated work off the UI path.
+case "${1:-essential}" in
+  essential)
+    for policy in /sys/devices/system/cpu/cpufreq/policy{0,4}; do
+      echo 2649600 > "$policy/scaling_max_freq"
+      echo performance > "$policy/scaling_governor"
+    done
+    pids=()
+    for name in init_permissions init_filesystems init_power_burn init_gpio init_hostname; do
+      run_init "$name" &
+      pids+=("$!")
+    done
+    for pid in "${pids[@]}"; do wait "$pid" || exit 1; done
+    ;;
+  platform)
+    run_init init_qcom || exit 1
+    run_init init_sound &
+    sound_pid=$!
+    run_init init_screen_calibration &
+    calibration_pid=$!
+    wait "$sound_pid" || exit 1
+    wait "$calibration_pid" || exit 1
+    ;;
+  debug) run_init init_debug ;;
+  *) exit 2 ;;
+esac
+log_console "********** ${1:-essential} init done **********"

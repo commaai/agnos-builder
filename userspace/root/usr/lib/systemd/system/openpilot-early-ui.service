@@ -1,0 +1,25 @@
+[Unit]
+Description=Start the opted-in prebuilt openpilot UI early
+DefaultDependencies=no
+Requires=comma-init.service magic.service dbus.service
+After=comma-init.service magic.service dbus.service
+Before=basic.target shutdown.target
+Conflicts=shutdown.target
+ConditionPathExists=/data/openpilot/.agnos-early-ui
+ConditionPathExists=/data/openpilot/prebuilt
+ConditionPathExists=!/data/__system_reset__
+
+[Service]
+User=comma
+RuntimeDirectory=openpilot-ui
+RuntimeDirectoryMode=0755
+ExecStart=/usr/comma/openpilot-early-ui.sh
+CPUAffinity=5
+LimitRTPRIO=100
+LimitNICE=-10
+Restart=on-failure
+RestartSec=0.2
+TimeoutStopSec=2
+
+[Install]
+WantedBy=basic.target

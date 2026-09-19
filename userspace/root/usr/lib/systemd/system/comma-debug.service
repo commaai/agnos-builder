@@ -1,0 +1,7 @@
+[Unit]
+Description=Collect AGNOS debug information after boot
+After=comma-init.service
+Requires=comma-init.service
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/comma-init.sh debug

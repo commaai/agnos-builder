@@ -64,3 +64,13 @@ systemctl disable remote-fs-pre.target
 systemctl disable networking.service
 
 systemctl disable console-setup.service
+
+# Boot-time UI priority and deferred nonessential maintenance.
+systemctl enable openpilot-early-ui.service boot-ui-ready.service comma-platform.service boot-success.service
+systemctl enable boot-deferred@comma-debug.timer
+for service in apport pollinate e2scrub_reap cron tftp_server; do
+  if systemctl cat "$service.service" >/dev/null 2>&1; then
+    systemctl disable "$service.service"
+    systemctl enable "boot-deferred@$service.timer"
+  fi
+done

@@ -1,0 +1,14 @@
+[Unit]
+Description=Initialize Qualcomm peripherals, audio and screen calibration
+Requires=comma-init.service
+After=comma-init.service boot-ui-ready.service magic.service
+Before=NetworkManager.service lte.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/comma/comma-init.sh platform
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target
