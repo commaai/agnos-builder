@@ -1,7 +1,13 @@
 [Unit]
-Description=Collect AGNOS debug information after boot
-After=comma-init.service
+Description=Collect AGNOS debug information after initialization
 Requires=comma-init.service
+After=comma-init.service
+ConditionPathIsMountPoint=/cache
+
 [Service]
 Type=oneshot
-ExecStart=/usr/comma/comma-init.sh debug
+User=comma
+ExecStart=/usr/comma/debug.py
+
+[Install]
+WantedBy=multi-user.target
