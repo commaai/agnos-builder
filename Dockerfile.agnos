@@ -33,6 +33,13 @@ COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
 RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
     /tmp/agnos/compile-modemmanager.sh
 
+# wpasupplicant
+FROM agnos-compiler AS agnos-compiler-wpasupplicant
+COPY ./userspace/compile-wpasupplicant.sh /tmp/agnos/
+COPY ./userspace/wpasupplicant/patches/ /tmp/agnos/wpasupplicant/patches/
+RUN --mount=type=cache,target=/root/.ccache,id=wpasupplicant,sharing=shared \
+    /tmp/agnos/compile-wpasupplicant.sh
+
 # ################## #
 # ###### Base ###### #
 # ################## #
@@ -72,6 +79,7 @@ RUN mkdir -p /dsp /firmware /persist /data /cache /rwtmp
 
 COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
 COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
+COPY --from=agnos-compiler-wpasupplicant /tmp/wpasupplicant.deb /tmp/
 
 RUN cd /tmp && \
     apt-get update && \
@@ -92,7 +100,9 @@ RUN cd /tmp && \
     polkitd \
     mobile-broadband-provider-info && \
     apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
+    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb && \
+    apt-get install -yq ./wpasupplicant.deb && \
+    apt-mark hold wpasupplicant
 
 ARG XDG_DATA_HOME="/usr/local"
 

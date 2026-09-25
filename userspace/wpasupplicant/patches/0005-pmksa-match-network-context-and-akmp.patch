@@ -1,0 +1,23 @@
+Description: Require network_ctx and AKMP match for accepting PMKSA entry
+ Accept a PMKSA entry selected by a PMKID in EAPOL-Key message 1/4 only
+ for the current network configuration and AKMP. In 2.10, pmksa_cache_get()
+ has no own-address argument; retain its five-argument API.
+Origin: https://w1.fi/cgit/hostap/commit/?id=de5e73a03c34d83568afb3183b2b28c8d7641a30
+ cherry-picked to hostap_2_12 as b0b23f99d136adaba3524fd5b413fceb6bb2735b:
+ https://w1.fi/cgit/hostap/commit/?id=b0b23f99d136adaba3524fd5b413fceb6bb2735b
+Applied-Upstream: hostap_2_12
+Bug: https://w1.fi/security/2026-2/
+Author: Jouni Malinen <jouni.malinen@oss.qualcomm.com>
+
+diff --git a/src/rsn_supp/wpa.c b/src/rsn_supp/wpa.c
+--- a/src/rsn_supp/wpa.c
++++ b/src/rsn_supp/wpa.c
+@@ -280,7 +280,7 @@
+ 		 * event before receiving this 1/4 message, so try to find a
+ 		 * matching PMKSA cache entry here. */
+ 		sm->cur_pmksa = pmksa_cache_get(sm->pmksa, src_addr, pmkid,
+-						NULL, 0);
++						sm->network_ctx, sm->key_mgmt);
+ 		if (sm->cur_pmksa) {
+ 			wpa_dbg(sm->ctx->msg_ctx, MSG_DEBUG,
+ 				"RSN: found matching PMKID from PMKSA cache");

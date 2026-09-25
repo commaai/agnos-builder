@@ -1,0 +1,23 @@
+Description: Do not derive SAE PT if the network profile does not include SAE
+ wpa_s_setup_sae_pt() derived SAE PT even when the configured key
+ management options did not include SAE if the global sae_pwe
+ configuration parameter had been changed to enable H2E. This adds
+ unnecessary extra delay, so derive PT only if SAE is actually enabled in
+ the network profile.
+ .
+ Refreshed context for 2.10's numeric sae_pwe values.
+Origin: https://w1.fi/cgit/hostap/commit/?id=438a27b369b9a96e27f510f2ce31931cc580be30
+Applied-Upstream: hostap_2_11
+Author: Hu Wang <quic_huw@quicinc.com>
+
+diff --git a/wpa_supplicant/wpa_supplicant.c b/wpa_supplicant/wpa_supplicant.c
+--- a/wpa_supplicant/wpa_supplicant.c
++++ b/wpa_supplicant/wpa_supplicant.c
+@@ -2135,6 +2135,7 @@
+ 		password = ssid->passphrase;
+ 
+ 	if (!password ||
++	    !wpa_key_mgmt_sae(ssid->key_mgmt) ||
+ 	    (conf->sae_pwe == 0 && !ssid->sae_password_id &&
+ 	     !sae_pk_valid_password(password)) ||
+ 	    conf->sae_pwe == 3) {

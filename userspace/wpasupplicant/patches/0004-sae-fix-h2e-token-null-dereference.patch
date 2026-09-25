@@ -1,0 +1,44 @@
+Description: SAE: Fix crash due to NULL pointer dereference in H2E parsing
+ .
+ In H2E (Hash-to-Element) mode, sae_parse_commit() parses the optional
+ Anti-Clogging Token Container by calling sae_parse_token_container().
+ .
+ However, callers of sae_parse_commit() that do not require retrieving
+ the anti-clogging token (such as PASN initiator/responder and SME auth)
+ pass NULL for the token and token_len output arguments.
+ .
+ If the peer sends a Commit frame containing a valid Anti-Clogging
+ Token Container element, sae_parse_token_container() unconditionally
+ sets *token and *token_len, resulting in a NULL pointer dereference
+ (SIGSEGV) and crashing wpa_supplicant.
+ .
+ Fix this by adding NULL checks before writing to token and token_len.
+ Update the debug log to print the token directly using 'pos'.
+ .
+ 2.10 still has the "Possible elements at the end of the frame" hexdump
+ that upstream dropped in 18e8a525b; retain it when refreshing the context.
+Origin: https://w1.fi/cgit/hostap/commit/?id=f12d55ff652ab2e367425c1392510d10d8b9f638
+ cherry-picked to hostap_2_12 as 025af1c2ee90c884bd166321c5063fbf9730e881:
+ https://w1.fi/cgit/hostap/commit/?id=025af1c2ee90c884bd166321c5063fbf9730e881
+Applied-Upstream: hostap_2_12
+Author: Jimi Chen <jimictw@google.com>
+
+diff --git a/src/common/sae.c b/src/common/sae.c
+--- a/src/common/sae.c
++++ b/src/common/sae.c
+@@ -1846,10 +1846,12 @@
+ 		    pos, end - pos);
+ 	if (!sae_is_token_container_elem(pos, end))
+ 		return;
+-	*token = pos + 3;
+-	*token_len = pos[1] - 1;
++	if (token)
++		*token = pos + 3;
++	if (token_len)
++		*token_len = pos[1] - 1;
+ 	wpa_hexdump(MSG_DEBUG, "SAE: Anti-Clogging Token (in container)",
+-		    *token, *token_len);
++		    pos + 3, pos[1] - 1);
+ }
+ 
+ 

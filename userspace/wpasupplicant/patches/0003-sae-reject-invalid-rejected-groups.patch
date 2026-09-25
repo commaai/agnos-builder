@@ -1,0 +1,26 @@
+Description: SAE: Reject invalid Rejected Groups element in the parser
+ .
+ There is no need to depend on all uses (i.e., both hostapd and
+ wpa_supplicant) to verify that the length of the Rejected Groups field
+ in the Rejected Groups element is valid (i.e., a multiple of two octets)
+ since the common parser can reject the message when detecting this.
+Origin: https://w1.fi/cgit/hostap/commit/?id=9716bf1160beb677e965d9e6475d6c9e162e8374
+Applied-Upstream: hostap_2_11
+Author: Jouni Malinen <j@w1.fi>
+
+diff --git a/src/common/sae.c b/src/common/sae.c
+--- a/src/common/sae.c
++++ b/src/common/sae.c
+@@ -2076,6 +2076,12 @@
+ 		return WLAN_STATUS_UNSPECIFIED_FAILURE;
+ 	epos++; /* skip ext ID */
+ 	len--;
++	if (len & 1) {
++		wpa_printf(MSG_DEBUG,
++			   "SAE: Invalid length of the Rejected Groups element payload: %u",
++			   len);
++		return WLAN_STATUS_UNSPECIFIED_FAILURE;
++	}
+ 
+ 	wpabuf_free(sae->tmp->peer_rejected_groups);
+ 	sae->tmp->peer_rejected_groups = wpabuf_alloc(len);
