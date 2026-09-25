@@ -1,0 +1,76 @@
+Description: Enable both SAE password-element methods by default
+ Default global sae_pwe to 2 so SAE uses H2E when the AP advertises it
+ and retains hunting-and-pecking otherwise. Keep D-Bus KeyMgmt reporting
+ unchanged to avoid NetworkManager enabling SAE/FT-SAE for qcacld SoftAP
+ and WPA-PSK transition profiles. This is a local AGNOS default.
+ .
+ Use the same global default for allocation and configuration writing,
+ so an explicit sae_pwe=0 survives SAVE_CONFIG. Configuration files and
+ D-Bus/control interface setters can still override the global default.
+Forwarded: not-needed
+Author: shunnag
+
+diff --git a/wpa_supplicant/config.c b/wpa_supplicant/config.c
+--- a/wpa_supplicant/config.c
++++ b/wpa_supplicant/config.c
+@@ -4387,6 +4387,7 @@
+ 	config->mesh_fwding = DEFAULT_MESH_FWDING;
+ 	config->dot11RSNASAERetransPeriod =
+ 		DEFAULT_DOT11_RSNA_SAE_RETRANS_PERIOD;
++	config->sae_pwe = DEFAULT_GLOBAL_SAE_PWE;
+ 	config->fast_reauth = DEFAULT_FAST_REAUTH;
+ 	config->p2p_go_intent = DEFAULT_P2P_GO_INTENT;
+ 	config->p2p_intra_bss = DEFAULT_P2P_INTRA_BSS;
+diff --git a/wpa_supplicant/config.h b/wpa_supplicant/config.h
+--- a/wpa_supplicant/config.h
++++ b/wpa_supplicant/config.h
+@@ -24,6 +24,7 @@
+  * but use 1000 ms in practice to avoid issues on low power CPUs.
+  */
+ #define DEFAULT_DOT11_RSNA_SAE_RETRANS_PERIOD 1000
++#define DEFAULT_GLOBAL_SAE_PWE 2
+ #define DEFAULT_FAST_REAUTH 1
+ #define DEFAULT_P2P_GO_INTENT 7
+ #define DEFAULT_P2P_INTRA_BSS 1
+@@ -1233,6 +1234,7 @@
+ 	 * 0 = hunting-and-pecking loop only
+ 	 * 1 = hash-to-element only
+ 	 * 2 = both hunting-and-pecking loop and hash-to-element enabled
++	 * Default: 2 in this build.
+ 	 */
+ 	int sae_pwe;
+ 
+diff --git a/wpa_supplicant/config_file.c b/wpa_supplicant/config_file.c
+--- a/wpa_supplicant/config_file.c
++++ b/wpa_supplicant/config_file.c
+@@ -1359,7 +1359,7 @@
+ 		fprintf(f, "\n");
+ 	}
+ 
+-	if (config->sae_pwe)
++	if (config->sae_pwe != DEFAULT_GLOBAL_SAE_PWE)
+ 		fprintf(f, "sae_pwe=%d\n", config->sae_pwe);
+ 
+ 	if (config->sae_pmkid_in_assoc)
+diff --git a/wpa_supplicant/wpa_supplicant.conf b/wpa_supplicant/wpa_supplicant.conf
+--- a/wpa_supplicant/wpa_supplicant.conf
++++ b/wpa_supplicant/wpa_supplicant.conf
+@@ -433,14 +433,13 @@
+ #sae_groups=19 20 21
+ 
+ # SAE mechanism for PWE derivation
+-# 0 = hunting-and-pecking loop only (default without password identifier)
+-# 1 = hash-to-element only (default with password identifier)
++# 0 = hunting-and-pecking loop only
++# 1 = hash-to-element only
+ # 2 = both hunting-and-pecking loop and hash-to-element enabled
+-# Note: The default value is likely to change from 0 to 2 once the new
+-# hash-to-element mechanism has received more interoperability testing.
++# The default is 2 in this build.
+ # When using SAE password identifier, the hash-to-element mechanism is used
+ # regardless of the sae_pwe parameter value.
+-#sae_pwe=0
++#sae_pwe=2
+ 
+ # Default value for DTIM period (if not overridden in network block)
+ #dtim_period=2
