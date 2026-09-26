@@ -42,8 +42,8 @@ handle_setup_keys () {
 }
 
 # factory reset handling
-if [ ! -f /tmp/booted ]; then
-  touch /tmp/booted
+if [ ! -f /run/comma-booted ]; then
+  sudo touch /run/comma-booted
   if [ -f "$RESET_TRIGGER" ]; then
     echo "launching system reset, reset trigger present"
     rm -f $RESET_TRIGGER
