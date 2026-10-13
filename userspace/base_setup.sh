@@ -193,6 +193,7 @@ apt-fast install --no-install-recommends -yq \
     libx264-dev \
     openssh-server \
     dnsmasq-base \
+    dhcpcd-base \
     isc-dhcp-client \
     iputils-ping \
     rsyslog \
