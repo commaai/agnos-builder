@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import time
 import subprocess
 
@@ -45,7 +46,7 @@ def test_wifi():
   assert len(networks) > 5
 
 def test_color_calibration():
-  out = subprocess.check_output("journalctl -u weston", shell=True, encoding='utf8')
+  out = run("journalctl -b -u magic")
   assert out.count("Successfully setup color correction") == 3
 
 def test_python_shims():
@@ -56,7 +57,8 @@ def test_dmesg():
   pass
 
 def test_systemd_services():
-  pass
+  assert run("systemctl is-active magic").strip() == "active"
+  assert os.path.exists("/tmp/drmfd.sock")
 
 def test_boot_time():
   out = subprocess.check_output("systemd-analyze", shell=True, encoding='utf8')
@@ -64,7 +66,7 @@ def test_boot_time():
   a = out.splitlines()[0]
   print(out, a)
 
-  # check weston service
+  # check magic service
 
   # check comma service
 

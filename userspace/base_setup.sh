@@ -145,7 +145,6 @@ apt-fast install --no-install-recommends -yq \
     libffi8:armhf \
     libfontconfig1:armhf \
     libfreetype6:armhf \
-    libgbm1:armhf \
     libgcc-11-dev-armhf-cross \
     libglib2.0-0t64:armhf \
     libgomp1-armhf-cross \
@@ -201,4 +200,3 @@ apt-fast install --no-install-recommends -yq \
     wpasupplicant \
     hostapd \
     libgtk2.0-dev \
-    libxml2:armhf \
