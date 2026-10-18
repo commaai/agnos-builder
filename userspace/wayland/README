@@ -1,0 +1,8 @@
+# Qualcomm Wayland dependencies
+
+The native Qualcomm GBM and EGL drivers still link against the old Wayland
+libraries, even though raylib uses DRM directly and Weston is no longer shipped.
+Keep libwayland 1.9.0-1 and its libffi6 dependency until those drivers are replaced.
+
+Rebuild libwayland-1.9.0-1.deb with build-libwayland-deb.sh.
+The libffi6 package comes from Ubuntu Xenial; its armhf counterpart is in libs32.
