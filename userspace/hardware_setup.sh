@@ -15,7 +15,7 @@ apt-get -o Dpkg::Options::="--force-overwrite" install -yq \
   ./agnos-wlan_0.0.3.deb
 
 # agnos-display bundles the retired 32-bit Weston stack alongside the native
-# Qualcomm drivers. Keep the native drivers for raylib and OpenCL.
+# Qualcomm drivers. Keep the native graphics drivers for raylib.
 rm -rf /usr/bin/weston* /usr/bin/wcap-decode /usr/bin/gbmtest \
   /usr/libexec/weston-* /usr/share/weston /usr/share/wayland-sessions/weston.desktop \
   /usr/lib/arm-linux-gnueabihf/weston

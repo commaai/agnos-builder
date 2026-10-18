@@ -156,7 +156,7 @@ COPY ./userspace/files/amdgpu/ /usr/lib/firmware/amdgpu/
 
 COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
 RUN gcc -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
-    -lOpenCL -lpthread -ldl && rm /tmp/agnos/power_burn_max.c \
+    -lpthread && rm /tmp/agnos/power_burn_max.c \
     && chown $USERNAME: /home/$USERNAME/power_burn_max
 
 # Setup systemd services
