@@ -51,7 +51,6 @@ build_kernel() {
   ARCH=$(uname -m)
   if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
     export CROSS_COMPILE=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-
-    export CC=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc
     export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
   fi
 
@@ -60,24 +59,31 @@ build_kernel() {
 
   # Set ccache dir
   export CCACHE_DIR=$DIR/.ccache
+  export CCACHE_COMPILERCHECK=content
+  export CCACHE_MAXSIZE=${CCACHE_MAXSIZE:-5G}
 
   # Force ccache usage for kernel build (both target and host compilers)
   export PATH="/usr/lib/ccache:$PATH"
-  export HOSTCC="ccache gcc"
-  export HOSTCXX="ccache g++"
+  # The kernel Makefile overrides environment compiler variables; cross
+  # compilers also bypass the PATH wrappers. Pass these on the command line.
+  MAKE_ARGS=(O=out "REAL_CC=ccache ${CROSS_COMPILE}gcc" "HOSTCC=ccache gcc" "HOSTCXX=ccache g++")
 
   # Avoid LINUX_COMPILE_HOST to change on every run thus invalidating cache
   # https://patchwork.kernel.org/project/linux-kbuild/patch/1302015561-21047-8-git-send-email-mmarek@suse.cz/
   export KBUILD_BUILD_HOST="docker"
+  export KBUILD_BUILD_USER="agnos"
+  export KBUILD_BUILD_TIMESTAMP="$(git show -s --format=%cD HEAD)"
+
+  ccache -z
 
   # Disable all warnings
   export KCFLAGS="-w"
 
   # Load defconfig and build kernel
   echo "-- First make --"
-  make $DEFCONFIG O=out
+  make "${MAKE_ARGS[@]}" $DEFCONFIG
   echo "-- Second make: $(nproc --all) cores --"
-  make -j$(nproc --all) O=out  # Image-dtb
+  make "${MAKE_ARGS[@]}" -j$(nproc --all)  # Image-dtb
 
   # Turn on if you want perf
   # LDFLAGS=-static make -j$(nproc --all) -C tools/perf
@@ -113,8 +119,9 @@ build_kernel() {
 
   echo "-- Install kernel UAPI headers --"
   rm -rf $OUTPUT_DIR/linux-headers
-  make headers_install O=out INSTALL_HDR_PATH=$OUTPUT_DIR/linux-headers
+  ccache -s
+  make "${MAKE_ARGS[@]}" headers_install INSTALL_HDR_PATH=$OUTPUT_DIR/linux-headers
 }
 
 # Run build_kernel in container
-docker exec -u $(id -nu) $CONTAINER_ID bash -c "set -e; export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
+docker exec -u $(id -nu) -e CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-5G}" $CONTAINER_ID bash -c "set -e; export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
