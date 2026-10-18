@@ -41,7 +41,17 @@ jobs:
       id: kernel-submodule
       run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
 
+    - name: Restore kernel outputs
+      id: kernel-outputs
+      uses: actions/cache@v4
+      with:
+        path: |
+          output/boot.img
+          output/linux-headers
+        key: kernel-outputs-${{ runner.os }}-${{ runner.arch }}-${{ steps.kernel-submodule.outputs.ref }}-${{ hashFiles('build_kernel.sh', 'Dockerfile.builder', 'tools/extract_tools.sh', 'tools/aarch64-linux-gnu-gcc.tar.gz', 'tools/mkbootimg', 'vble-qti.key') }}
+
     - name: Restore ccache
+      if: steps.kernel-outputs.outputs.cache-hit != 'true'
       id: kernel-cache
       uses: actions/cache/restore@v4
       with:
@@ -52,12 +62,14 @@ jobs:
           ccache-kernel-
 
     - name: Build kernel
+      if: steps.kernel-outputs.outputs.cache-hit != 'true'
       env:
         CCACHE_DIR: ${{ github.workspace }}/.ccache
         CCACHE_MAXSIZE: 5G
       run: ./build_kernel.sh
 
     - name: Save ccache
+      if: steps.kernel-outputs.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
         path: .ccache
