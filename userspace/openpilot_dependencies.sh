@@ -10,7 +10,6 @@ apt-fast install --no-install-recommends -yq \
     build-essential \
     casync \
     clang \
-    clinfo \
     cmake \
     curl \
     darkstat \
@@ -51,9 +50,6 @@ apt-fast install --no-install-recommends -yq \
     libxkbcommon-x11-0 \
     locales \
     nethogs \
-    ocl-icd-libopencl1 \
-    ocl-icd-opencl-dev \
-    opencl-headers \
     pkg-config \
     portaudio19-dev \
     texinfo \

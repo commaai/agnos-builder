@@ -34,6 +34,9 @@ rm -f /usr/lib/arm-linux-gnueabihf/libEGL* \
   /usr/lib/arm-linux-gnueabihf/libllvm-qcom.so \
   /usr/lib/arm-linux-gnueabihf/libq3dtools_*.so
 
+# The OpenCL runtime is unused; libllvm-qcom remains for tinygrad compilation.
+rm -f /usr/lib/aarch64-linux-gnu/libOpenCL.so /usr/lib64/libOpenCL.so
+
 # Install 16.04 version of libjson-c2
 cd /tmp
 wget http://ports.ubuntu.com/pool/main/j/json-c/libjson-c2_0.11-4ubuntu2.6_arm64.deb -O /tmp/libjson-c2_0.11-4ubuntu2.6_arm64.deb
