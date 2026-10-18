@@ -43,7 +43,7 @@ jobs:
 
     - name: Restore kernel outputs
       id: kernel-outputs
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: |
           output/boot.img
@@ -67,6 +67,15 @@ jobs:
         CCACHE_DIR: ${{ github.workspace }}/.ccache
         CCACHE_MAXSIZE: 5G
       run: ./build_kernel.sh
+
+    - name: Save kernel outputs
+      if: steps.kernel-outputs.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          output/boot.img
+          output/linux-headers
+        key: ${{ steps.kernel-outputs.outputs.cache-primary-key }}
 
     - name: Save ccache
       if: steps.kernel-outputs.outputs.cache-hit != 'true'
