@@ -3,8 +3,6 @@
 # Enable DSP support services
 systemctl enable adsp
 systemctl enable cdsp
-systemctl enable adsprpcd
-systemctl enable cdsprpcd
 
 # Enable our services
 systemctl enable fs_setup.service
