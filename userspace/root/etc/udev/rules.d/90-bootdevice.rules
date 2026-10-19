@@ -1,3 +1,2 @@
-# Qualcomm tools (rmt_storage, abctl, etc.) look up UFS partitions by name here.
-# libabctl parses the link target, so it must be absolute (/dev/sdX), which SYMLINK+= can't do.
-SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{PARTNAME}=="?*", KERNELS=="1d84000.ufshc", ACTION!="remove", RUN+="/bin/sh -c 'mkdir -p /dev/block/bootdevice/by-name && ln -sfn /dev/%k /dev/block/bootdevice/by-name/$env{PARTNAME}'"
+# rmt_storage opens modemst1/modemst2/fsc/fsg through these UFS partition aliases.
+SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{PARTNAME}=="?*", KERNELS=="1d84000.ufshc", SYMLINK+="block/bootdevice/by-name/$env{PARTNAME}"
