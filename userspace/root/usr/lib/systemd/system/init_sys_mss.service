@@ -2,7 +2,7 @@
 Description=Boot the modem subsystem, which runs the Wi-Fi firmware
 
 [Service]
-ExecStart=/usr/sbin/init_mss
+ExecStart=/usr/bin/python3 /usr/comma/init_mss.py
 Restart=on-failure
 
 [Install]
