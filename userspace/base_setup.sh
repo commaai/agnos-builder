@@ -33,7 +33,6 @@ apt-fast install --no-install-recommends -yq \
     fonts-ubuntu-console \
     gdb \
     git \
-    git-lfs \
     gnupg \
     htop \
     i2c-tools \
