@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Source: commaai/openpilot@6b592ae2ccf68d1b3b89a8c544b12ecb074f3a8f
 # openpilot/common/hardware/comma/modem.py; Webbing ICCID prefix inlined.
+# AGNOS also checks PPP readiness and retries delayed DNS setup.
 # Copyright (c) 2018, Comma.ai, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -166,9 +167,11 @@ class PPPSession:
   def fails(self) -> int:
     return self._fails
 
-  def maybe_install_routes(self, ip: str, peer: str) -> bool:
-    """Install routes if peer changed; kill the session on failure so the state machine reconnects."""
-    if not peer or peer == self._peer:
+  def maybe_install_routes(self, ip: str, peer: str) -> bool | None:
+    """Return True for new routes, False for existing routes, or None when not ready."""
+    if not peer:
+      return None
+    if peer == self._peer:
       return False
     try:
       IPv4Address(ip)
@@ -176,7 +179,7 @@ class PPPSession:
     except AddressValueError:
       logging.warning(f"refusing route install with non-IPv4 ip={ip!r} peer={peer!r}")
       self.kill()
-      return False
+      return None
     self.cleanup_routes()
     cmds = [
       ["sudo", "ip", "route", "add", "default", "via", peer, "dev", "ppp0", "metric", "1000"],
@@ -189,7 +192,7 @@ class PPPSession:
         logging.warning(f"route install failed ({' '.join(cmd[1:])}): {r.stderr.strip()}")
         self.cleanup_routes()
         self.kill()
-        return False
+        return None
     logging.info(f"route set up for {ip} via {peer}")
     self._peer = peer
     return True
@@ -533,8 +536,11 @@ class Modem:
             peer = parts[parts.index("peer") + 1].split("/")[0]
           break
       if ip:
-        if self._ppp.maybe_install_routes(ip, peer):
-          self._ppp.maybe_install_dns(self._read_cellular_dns())
+        routes = self._ppp.maybe_install_routes(ip, peer)
+        if routes is None:
+          return {"connected": False, "ip_address": ""}
+        if (routes or not self.S["connected"]) and not self._ppp.maybe_install_dns(self._read_cellular_dns()):
+          return {"connected": False, "ip_address": ""}
         return {"ip_address": ip, "connected": True}
       if self.S["connected"]:
         return {"connected": False, "ip_address": ""}

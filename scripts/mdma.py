@@ -69,11 +69,16 @@ class Mdma:
 
   def aux(self, action):
     request = USB_REQ_SET_FEATURE if action == "on" else USB_REQ_CLEAR_FEATURE
-    for vid, pid in [(Pins.USB7002_VID, Pins.USB7002_PID),  (Pins.USB4002_VID, Pins.USB4002_PID)]:
+    hubs = [usb.core.find(idVendor=vid, idProduct=pid) for vid, pid in
+            [(Pins.USB7002_VID, Pins.USB7002_PID), (Pins.USB4002_VID, Pins.USB4002_PID)]]
+    hubs = [hub for hub in hubs if hub is not None]
+    if not hubs:
+      raise SystemExit("could not find MDMA auxiliary hub")
+    for hub in hubs:
       try:
-        self.hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
+        hub.ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
       except usb.core.USBError: # try one more time
-        self.hub(vid, pid).ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
+        hub.ctrl_transfer(USB_RT_PORT, request, USB_PORT_POWER, 1, None, timeout=1000)
 
   def power_off(self):
     self.aux("off")
