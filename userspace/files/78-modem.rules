@@ -13,9 +13,3 @@ SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_USB_INT
 SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_USB_INTERFACE_NUM}=="02",SYMLINK+="modem_at0",GROUP="dialout",MODE="0660"
 SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_USB_INTERFACE_NUM}=="03",SYMLINK+="modem_at1",GROUP="dialout",MODE="0660"
 ACTION=="add",SUBSYSTEM=="usb",ATTR{idVendor}=="2c7c",ATTR{idProduct}=="6007",RUN+="/bin/sh -c 'echo -n $kernel:1.4 > /sys/bus/usb/drivers/cdc_ether/unbind'"
-
-# C16 (legacy; openpilot's modem.py does not support these ports)
-KERNEL=="ttyACM1",ENV{ID_MM_DEVICE_IGNORE}="1"
-KERNEL=="ttyACM0",ENV{ID_MM_PORT_TYPE_AT_PRIMARY}="1"
-KERNEL=="ttyACM2",ENV{ID_MM_PORT_TYPE_AT_SECONDARY}="1"
-SUBSYSTEM=="net", ACTION=="add", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="9330", NAME="usb%n"

@@ -11,7 +11,7 @@ LTE_BOOT=52
 LTE_PWRKEY=116
 
 function is_modem_up {
-  if lsusb -d "0x05c6:" >/dev/null 2>&1 || lsusb -d "0x2c7c:" >/dev/null 2>&1; then
+  if lsusb -d "0x2c7c:" >/dev/null 2>&1; then
     return 0
   else
     return 1
