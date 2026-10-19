@@ -24,12 +24,6 @@ if casadi.is_file() and not casadi.is_symlink():
   casadi.unlink()
   casadi.symlink_to(target.name)
 
-# Keep the wheel's native Git LFS executable available outside the venv too.
-git_lfs = site / "git_lfs/bin/git-lfs"
-assert git_lfs.is_file()
-Path("/usr/bin/git-lfs").unlink()
-Path("/usr/bin/git-lfs").symlink_to(git_lfs)
-
 # These inspection/benchmark tools are not used by GCC or clang to compile.
 for pattern in ("/usr/bin/*lto-dump*", "/usr/bin/llvm-exegesis*", "/usr/lib/llvm-*/bin/llvm-exegesis"):
   for path in Path("/").glob(pattern.lstrip("/")):
