@@ -1,0 +1,251 @@
+#!/usr/bin/python3
+import argparse
+from contextlib import ExitStack
+import fcntl
+import os
+from pathlib import Path
+import struct
+import sys
+import uuid
+import zlib
+
+
+PRIORITY = 3 << 48
+ACTIVE = 1 << 50
+RETRIES = 7 << 51
+SUCCESS = 1 << 54
+UNBOOTABLE = 1 << 55
+DISKS = ('/dev/sdb', '/dev/sdc', '/dev/sde')
+
+# Qualcomm ABL selects firmware by GPT type GUID as well as slot attributes.
+# GUIDs are the on-disk boot protocol, shared with the SDM845 partition layout.
+DORMANT = '77036cd4-03d5-42bb-8ed1-37e5a88baa34'
+BASIC = 'ebd0a0a2-b9e5-4433-87c0-68b6b72699c7'
+TYPES = {
+  'sbl1': ('dea0ba2c-cbdd-4805-b4f9-f428251c3e98', BASIC),
+  'rpm': ('098df793-d712-413d-9d4e-89d711772228', BASIC),
+  'tz': ('a053aa7f-40b8-4b1c-ba08-2f68ac71a4f4', DORMANT),
+  'aboot': ('400ffdcd-22e0-47e7-9a23-f16ed9382388', BASIC),
+  'boot': ('20117f86-e985-4357-b9ee-374bc1d8487d', DORMANT),
+  'modem': (BASIC, DORMANT),
+  'dsp': ('7efe5010-2a1a-4a1a-b8bc-990257813512', DORMANT),
+  'devcfg': ('f65d4b16-343d-4e25-aafc-be99b6556a6d', DORMANT),
+  'cmnlib': ('73471795-ab54-43f9-a847-4f72ea5cbef5', DORMANT),
+  'cmnlib64': ('8ea64893-1267-4a1b-947c-7c362acaad2c', DORMANT),
+  'keymaster': ('a11d2a7c-d82a-4c2f-8a01-1805240e6626', DORMANT),
+  'abl': ('bd6928a1-4ce0-a038-4f3a-1495e3eddffb', '4114b077-005d-4e12-ac8c-b493bda684fb'),
+  'aop': ('d69e90a5-4cab-0071-f6df-ab977f141a7f', DORMANT),
+  'bluetooth': ('6cb747f1-c2ef-4092-add0-ca39f79c7af4', DORMANT),
+  'hyp': ('e1a6a689-0c8d-4cc6-b4e8-55a4320fbd8a', DORMANT),
+  'qupfw': ('21d1219f-2ed1-4ab4-930a-41a16ae75f7f', DORMANT),
+  'storsec': ('02db45fe-ad1b-4cb6-aecc-0042c637defa', DORMANT),
+  'xbl': ('dea0ba2c-cbdd-4805-b4f9-f428251c3e98',) * 2,
+  'xbl_config': ('5a325ae4-4276-b66d-0add-3494df27706a',) * 2,
+  'mdtp': ('3878408a-e263-4b67-b878-6340b35b11e3', DORMANT),
+  'mdtpsecapp': ('ea02d680-8712-4552-a3be-e6087829c1e6', DORMANT),
+  'ImageFv': ('17911177-c9e6-4372-933c-804b678e666f', DORMANT),
+  'lksecapp': None, 'vbmeta': None, 'vendor': None,
+}
+
+
+class GPT:
+  def __init__(self, stack, path, writable=False, sector_size=None):
+    self.f = stack.enter_context(open(path, 'r+b' if writable else 'rb', buffering=0))
+    fcntl.flock(self.f, fcntl.LOCK_EX if writable else fcntl.LOCK_SH)
+    if sector_size is None:
+      sector_size = struct.unpack('I', fcntl.ioctl(self.f, 0x1268, bytes(4)))[0]  # BLKSSZGET
+      size = struct.unpack('Q', fcntl.ioctl(self.f, 0x80081272, bytes(8)))[0]  # BLKGETSIZE64
+    else:
+      size = os.fstat(self.f.fileno()).st_size
+    self.sector = sector_size
+    if sector_size not in (512, 4096) or size % sector_size:
+      raise ValueError(f'{path}: invalid disk geometry')
+    self.last = size // sector_size - 1
+    self.headers = {}
+    arrays = {}
+    for lba in (1, self.last):
+      try:
+        header, entries = self.read_table(lba)
+        self.headers[lba] = header
+        if entries is not None:
+          arrays[lba] = entries
+      except ValueError:
+        pass
+    if not arrays:
+      raise ValueError(f'{path}: neither GPT copy is valid')
+    self.valid_copies = set(arrays)
+    source = 1 if 1 in arrays else self.last
+    self.entries = bytearray(arrays[source])
+    template = self.headers[source]
+    self.entry_size = struct.unpack_from('<I', template, 84)[0]
+    # Preserve the entry-array location in every valid header. In particular,
+    # SDM845 uses 4 KiB sectors: its backup array is NOT at last_lba - 32.
+    for lba in (1, self.last):
+      if lba not in self.headers:
+        header = bytearray(template)
+        blocks = (len(self.entries) + self.sector - 1) // self.sector
+        struct.pack_into('<QQ', header, 24, lba, self.last if lba == 1 else 1)
+        struct.pack_into('<Q', header, 72, 2 if lba == 1 else self.last - blocks)
+        self.validate_geometry(header, lba)
+        self.headers[lba] = header
+      header = self.headers[lba]
+      if header[40:72] != template[40:72] or header[80:88] != template[80:88]:
+        raise ValueError(f'{path}: GPT copies have inconsistent geometry')
+    self.partitions = {}
+    for offset in range(0, len(self.entries), self.entry_size):
+      entry = self.entries[offset:offset + self.entry_size]
+      if entry[:16] == bytes(16):
+        continue
+      name = entry[56:128].decode('utf-16le').split('\0', 1)[0]
+      if name in self.partitions:
+        raise ValueError(f'{path}: duplicate partition {name}')
+      self.partitions[name] = offset
+
+  def validate_geometry(self, header, lba):
+    current, alternate, first, last = struct.unpack_from('<QQQQ', header, 24)
+    start, count, size = struct.unpack_from('<QII', header, 72)
+    length = count * size
+    end = start + (length + self.sector - 1) // self.sector
+    valid_array = 2 <= start < end <= first if lba == 1 else last < start < end <= self.last
+    if (current != lba or alternate != (self.last if lba == 1 else 1) or
+        not 2 < first <= last < self.last or not valid_array or
+        size < 128 or size % 128 or not 0 < length <= 16 * 1024 * 1024):
+      raise ValueError('invalid GPT geometry')
+
+  def read_table(self, lba):
+    header = bytearray(os.pread(self.f.fileno(), self.sector, lba * self.sector))
+    if len(header) != self.sector or header[:8] != b'EFI PART':
+      raise ValueError('invalid GPT signature')
+    revision, size, crc = struct.unpack_from('<III', header, 8)
+    if revision != 0x10000 or not 92 <= size <= self.sector:
+      raise ValueError('invalid GPT header size/revision')
+    struct.pack_into('<I', header, 16, 0)
+    if zlib.crc32(header[:size]) != crc:
+      raise ValueError('invalid GPT header CRC')
+    self.validate_geometry(header, lba)
+    start, count, entry_size, crc = struct.unpack_from('<QIII', header, 72)
+    entries = os.pread(self.f.fileno(), count * entry_size, start * self.sector)
+    return header, entries if len(entries) == count * entry_size and zlib.crc32(entries) == crc else None
+
+  def update(self, name, clear=0, set_bits=0, guid=None):
+    offset = self.partitions[name]
+    flags = struct.unpack_from('<Q', self.entries, offset + 48)[0]
+    struct.pack_into('<Q', self.entries, offset + 48, (flags & ~clear) | set_bits)
+    if guid is not None:
+      self.entries[offset:offset + 16] = uuid.UUID(guid).bytes_le
+
+  def write_copy(self, lba):
+    header = bytearray(self.headers[lba])
+    struct.pack_into('<I', header, 88, zlib.crc32(self.entries))
+    struct.pack_into('<I', header, 16, 0)
+    struct.pack_into('<I', header, 16, zlib.crc32(header[:struct.unpack_from('<I', header, 12)[0]]))
+    start = struct.unpack_from('<Q', header, 72)[0]
+    # Flush the array before its header; keep the other complete copy intact.
+    for data, offset in ((self.entries, start * self.sector), (header, lba * self.sector)):
+      if os.pwrite(self.f.fileno(), data, offset) != len(data):
+        raise OSError('short GPT write')
+      os.fsync(self.f.fileno())
+    _, entries = self.read_table(lba)
+    if entries != self.entries:
+      raise OSError('GPT write verification failed')
+
+  def write(self):
+    # Repair an invalid primary before touching the only valid backup.
+    order = (1, self.last) if 1 not in self.valid_copies else (self.last, 1)
+    for lba in order:
+      self.write_copy(lba)
+      self.valid_copies.add(lba)
+
+
+def boot_slot():
+  for arg in Path('/proc/cmdline').read_text().split():
+    if arg in ('androidboot.slot_suffix=_a', 'androidboot.slot_suffix=_b'):
+      return arg[-1]
+  raise ValueError('no boot slot in kernel command line')
+
+
+def boot_lun(stack):
+  # UFS_IOCTL_QUERY: u32 opcode, u8 idn, padding, u16 size, u32 value.
+  # https://github.com/commaai/agnos-kernel-sdm845/blob/8b0e4d289b246a5cc1b0484b25a3f9f8d4772544/include/uapi/scsi/ufs/ioctl.h
+  # Use the stable UFS LUN node: udev temporarily removes by-partlabel links
+  # while reprobeing the GPT after a slot change.
+  sg, = Path('/sys/class/block/sdb/device/scsi_generic').iterdir()
+  f = stack.enter_context(open(f'/dev/{sg.name}', 'r+b', buffering=0))
+  return f
+
+
+def query_lun(f, value=None):
+  data = bytearray(struct.pack('<IBxHI', 3 if value is None else 4, 0, 4, value or 0))
+  fcntl.ioctl(f, 0x5388, data, True)
+  return struct.unpack_from('<I', data, 8)[0]
+
+
+def change_slot(command, slot):
+  with ExitStack() as stack:
+    paths = DISKS if command == 'set_active' else ('/dev/sde',)
+    disks = [GPT(stack, path, writable=True) for path in paths]
+    partitions = {}
+    for disk in disks:
+      for name in disk.partitions:
+        if name in partitions:
+          raise ValueError(f'duplicate partition {name} across disks')
+        partitions[name] = disk
+    for required in ('boot_a', 'boot_b') + (('xbl_a', 'xbl_b') if command == 'set_active' else ()):
+      if required not in partitions:
+        raise ValueError(f'missing partition {required}')
+    if command == 'set_active':
+      ufs = boot_lun(stack)
+      if query_lun(ufs) not in (1, 2):
+        raise ValueError('invalid UFS boot LUN')
+      other = 'b' if slot == 'a' else 'a'
+      for base, guids in TYPES.items():
+        active, inactive = f'{base}_{slot}', f'{base}_{other}'
+        if active not in partitions and inactive not in partitions:
+          continue
+        if active not in partitions or inactive not in partitions:
+          raise ValueError(f'incomplete partition pair: {base}')
+        partitions[active].update(active, SUCCESS | UNBOOTABLE, ACTIVE | PRIORITY | RETRIES, guids[0] if guids else None)
+        # Preserve the previous slot's retries/success/active flags, as ABL expects.
+        partitions[inactive].update(inactive, PRIORITY, 1 << 48, guids[1] if guids else None)
+    elif command == 'set_success':
+      partitions[f'boot_{slot}'].update(f'boot_{slot}', UNBOOTABLE, SUCCESS)
+    else:
+      partitions[f'boot_{slot}'].update(f'boot_{slot}', PRIORITY | ACTIVE | RETRIES | SUCCESS, UNBOOTABLE)
+    for disk in disks:
+      disk.write()
+    if command == 'set_active':
+      value = 1 if slot == 'a' else 2
+      query_lun(ufs, value)
+      if query_lun(ufs) != value:
+        raise OSError('UFS boot LUN verification failed')
+      # Existing AGNOS updaters use this text to recognize a completed swap.
+      print(f'setting /dev/disk/by-partlabel/xbl_{slot} lun as boot lun')
+
+
+def main():
+  parser = argparse.ArgumentParser(description='Control AGNOS A/B boot slots.')
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument('--boot_slot', action='store_true')
+  group.add_argument('--set_active', type=int, choices=(0, 1))
+  group.add_argument('--set_success', action='store_true')
+  group.add_argument('--set_unbootable', type=int, choices=(0, 1))
+  group.add_argument('--version', action='version', version='Version: v1.0')
+  parser.add_argument('--dbg', type=int, choices=(0, 1), default=0)
+  args = parser.parse_args()
+  try:
+    if args.boot_slot:
+      print('_' + boot_slot())
+    elif args.set_success:
+      change_slot('set_success', boot_slot())
+    elif args.set_active is not None:
+      change_slot('set_active', 'ab'[args.set_active])
+    else:
+      change_slot('set_unbootable', 'ab'[args.set_unbootable])
+  except (OSError, ValueError, KeyError) as e:
+    print(f'abctl: {e}', file=sys.stderr)
+    return 1
+  return 0
+
+
+if __name__ == '__main__':
+  sys.exit(main())
