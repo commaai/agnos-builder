@@ -122,7 +122,6 @@ ln -s usr/lib64 /lib64
 cd /tmp/agnos/debs
 apt-get --no-install-recommends -o Dpkg::Options::="--force-overwrite" install -yq \
   ./agnos-base_0.0.4.deb \
-  ./agnos-display_0.0.4.deb \
   ./agnos-wlan_0.0.4.deb
 
 # pdmappersvc requires the Ubuntu 16.04 version of libjson-c2.

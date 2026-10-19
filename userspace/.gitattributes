@@ -5,3 +5,7 @@ root/usr/comma/reset filter=lfs diff=lfs merge=lfs -text
 root/usr/comma/setup filter=lfs diff=lfs merge=lfs -text
 root/usr/comma/installer filter=lfs diff=lfs merge=lfs -text
 root/usr/comma/updater filter=lfs diff=lfs merge=lfs -text
+graphics/libgbm.so filter=lfs diff=lfs merge=lfs -text
+root/usr/lib/aarch64-linux-gnu/libEGL_adreno.so filter=lfs diff=lfs merge=lfs -text
+root/usr/lib/aarch64-linux-gnu/libGLESv2_adreno.so filter=lfs diff=lfs merge=lfs -text
+root/usr/lib/aarch64-linux-gnu/libpcre.so.1.2.6 filter=lfs diff=lfs merge=lfs -text
