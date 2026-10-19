@@ -164,11 +164,11 @@ def boot_slot():
   raise ValueError('no boot slot in kernel command line')
 
 
-def boot_lun(stack):
+def open_ufs_sg(stack):
   # UFS_IOCTL_QUERY: u32 opcode, u8 idn, padding, u16 size, u32 value.
   # https://github.com/commaai/agnos-kernel-sdm845/blob/8b0e4d289b246a5cc1b0484b25a3f9f8d4772544/include/uapi/scsi/ufs/ioctl.h
   # Use the stable UFS LUN node: udev temporarily removes by-partlabel links
-  # while reprobeing the GPT after a slot change.
+  # while reprobing the GPT after a slot change.
   sg, = Path('/sys/class/block/sdb/device/scsi_generic').iterdir()
   f = stack.enter_context(open(f'/dev/{sg.name}', 'r+b', buffering=0))
   return f
@@ -194,7 +194,7 @@ def change_slot(command, slot):
       if required not in partitions:
         raise ValueError(f'missing partition {required}')
     if command == 'set_active':
-      ufs = boot_lun(stack)
+      ufs = open_ufs_sg(stack)
       if query_lun(ufs) not in (1, 2):
         raise ValueError('invalid UFS boot LUN')
       other = 'b' if slot == 'a' else 'a'
@@ -205,7 +205,8 @@ def change_slot(command, slot):
         if active not in partitions or inactive not in partitions:
           raise ValueError(f'incomplete partition pair: {base}')
         partitions[active].update(active, SUCCESS | UNBOOTABLE, ACTIVE | PRIORITY | RETRIES, guids[0] if guids else None)
-        # Preserve the previous slot's retries/success/active flags, as ABL expects.
+        # Match the shipped abctl, verified on hardware: only lower the old priority.
+        # ABL clears the old XBL ACTIVE bits in its primary GPT on the next boot.
         partitions[inactive].update(inactive, PRIORITY, 1 << 48, guids[1] if guids else None)
     elif command == 'set_success':
       partitions[f'boot_{slot}'].update(f'boot_{slot}', UNBOOTABLE, SUCCESS)
@@ -229,6 +230,7 @@ def main():
   group.add_argument('--set_active', type=int, choices=(0, 1))
   group.add_argument('--set_success', action='store_true')
   group.add_argument('--set_unbootable', type=int, choices=(0, 1))
+  # Keep the legacy version output for callers checking the abctl interface.
   group.add_argument('--version', action='version', version='Version: v1.0')
   parser.add_argument('--dbg', type=int, choices=(0, 1), default=0)
   args = parser.parse_args()
@@ -243,7 +245,9 @@ def main():
       change_slot('set_unbootable', 'ab'[args.set_unbootable])
   except (OSError, ValueError, KeyError) as e:
     print(f'abctl: {e}', file=sys.stderr)
-    return 1
+    # Legacy updaters retry set_active using its output through check_output().
+    # The shipped binary also exits 0 on failures; omit the success marker.
+    return 0 if args.set_active is not None else 1
   return 0
 
 
