@@ -6,5 +6,4 @@ cd $DIR
 
 scripts/mdma.py --missing-ok reboot-qdl
 tools/qdl flash boot $DIR/output/boot.img
-tools/qdl reset
-scripts/mdma.py --missing-ok reboot
+# Leave the device in QDL so flash_system.sh can run next without an MDMA.
