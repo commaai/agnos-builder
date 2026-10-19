@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import json
 import os
-import shutil
 import string
 import subprocess
 import time
@@ -29,7 +28,9 @@ def test_modem_setup():
   for port in ('/dev/modem_at0', '/dev/modem_at1'):
     assert os.access(port, os.R_OK | os.W_OK), f"comma needs access to {port}"
   for command in ('pppd', 'chat', 'ip', 'resolvectl', 'killall'):
-    assert shutil.which(command), f"modem.py requires {command}"
+    # pppd is root:dip 4754; modem.py invokes it through sudo.
+    result = subprocess.run(['sudo', '-n', 'sh', '-c', 'command -v "$1" >/dev/null', 'sh', command])
+    assert result.returncode == 0, f"modem.py requires {command}"
   rules = subprocess.check_output(['sudo', '-n', 'iptables-save', '-t', 'filter'], text=True)
   assert '-A INPUT -i ppp0 -j DROP' in rules
 
