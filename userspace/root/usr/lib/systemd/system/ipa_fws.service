@@ -1,0 +1,9 @@
+[Unit]
+Description=Load the IPA firmware
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "echo 1 > /dev/ipa"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Serve /system/rfs to the modem and DSPs
+
+[Service]
+ExecStartPre=/usr/comma/wait_for_file.sh /data/persist/rfs
+ExecStart=/usr/sbin/tftp_server
+
+[Install]
+WantedBy=multi-user.target

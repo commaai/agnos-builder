@@ -1,0 +1,8 @@
+[Unit]
+Description=Wi-Fi platform driver helper
+
+[Service]
+ExecStart=/usr/sbin/cnss_daemon -n
+
+[Install]
+WantedBy=multi-user.target
