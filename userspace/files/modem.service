@@ -1,0 +1,14 @@
+[Unit]
+Description=Cellular modem
+Wants=lte.service
+After=lte.service network.target
+
+[Service]
+User=comma
+ExecStart=/usr/bin/python3 -u /usr/comma/modem.py
+ExecStopPost=/usr/bin/rm -f /dev/shm/modem
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

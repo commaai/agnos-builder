@@ -18,12 +18,14 @@ def modem_state(timeout=120):
         return state
     except (FileNotFoundError, json.JSONDecodeError):
       pass
-    assert time.monotonic() < deadline, "openpilot's modem process did not publish modem/SIM identity"
+    assert time.monotonic() < deadline, "modem.service did not publish modem/SIM identity"
     time.sleep(1)
 
 
 def test_modem_setup():
   assert not Path('/lib/systemd/system/ModemManager.service').exists()
+  assert subprocess.check_output(['systemctl', 'is-enabled', 'modem.service'], text=True).strip() == 'enabled'
+  assert subprocess.check_output(['systemctl', 'is-active', 'modem.service'], text=True).strip() == 'active'
   for port in ('/dev/modem_at0', '/dev/modem_at1'):
     assert os.access(port, os.R_OK | os.W_OK), f"comma needs access to {port}"
   for command in ('pppd', 'chat', 'ip', 'resolvectl', 'killall'):

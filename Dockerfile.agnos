@@ -82,7 +82,7 @@ COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-# Requires openpilot 9b585d58 or newer; its manager runs modem.py (AT + IPv4 PPP).
+# modem.service runs the packaged modem.py (AT + IPv4 PPP).
 # NetworkManager still requires libmm-glib0 for Wi-Fi/Ethernet operation.
 RUN apt-get update && \
     apt-get install -yq --no-install-recommends \
