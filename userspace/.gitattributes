@@ -1,5 +1,4 @@
 root/usr/comma/wlan.ko filter=lfs diff=lfs merge=lfs -text
-root/usr/comma/wifi filter=lfs diff=lfs merge=lfs -text
 graphics/libeglSubDriverWayland.so.patched filter=lfs diff=lfs merge=lfs -text
 root/usr/comma/reset filter=lfs diff=lfs merge=lfs -text
 root/usr/comma/setup filter=lfs diff=lfs merge=lfs -text

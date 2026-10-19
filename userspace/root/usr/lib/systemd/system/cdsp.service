@@ -1,0 +1,9 @@
+[Unit]
+Description=Start cdsp
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "echo 1 > /sys/kernel/boot_cdsp/boot"
+
+[Install]
+WantedBy=multi-user.target
