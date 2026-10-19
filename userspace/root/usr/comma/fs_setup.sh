@@ -24,11 +24,6 @@ touch /data/etc/localtime
 mkdir -p /data/etc/netplan
 mkdir -p /data/etc/NetworkManager/system-connections
 
-# NetworkManager state, so a saved DHCP lease lets it skip discovery on boot
-install -d -m 700 /data/etc/NetworkManager/lib
-mkdir -p /var/lib
-ln -sfn /data/etc/NetworkManager/lib /var/lib/NetworkManager
-
 # /cache
 chown -R comma:comma /cache/
 
