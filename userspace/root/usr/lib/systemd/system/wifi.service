@@ -1,8 +1,13 @@
 [Unit]
 Description=Wi-Fi stack: modem subsystem and its daemons
 
+DefaultDependencies=no
+Requires=comma-init.service
+Before=sysinit.target shutdown.target
+Conflicts=shutdown.target
+
 [Service]
 ExecStart=/usr/comma/wifi.sh
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=sysinit.target

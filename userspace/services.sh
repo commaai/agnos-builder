@@ -1,19 +1,13 @@
 #!/bin/bash -e
 
-# Enable DSP services
-systemctl enable cdsp
-
 # Enable our services
-systemctl enable fs_setup.service
-systemctl enable serial-hostname.service
+systemctl enable comma-init.service
+systemctl enable modem-ports.service
+systemctl enable serial-getty@ttyMSM0.service
 systemctl enable comma.service
-systemctl enable agnos-debug.service
-systemctl enable gpio.service
 systemctl enable lte.service
 systemctl enable modem.service
-systemctl enable sound.service
 systemctl enable magic.service
-systemctl enable init-qcom.service
 systemctl enable wifi.service
 systemctl enable varwatch.service
 systemctl enable power_monitor.service
@@ -26,7 +20,6 @@ systemctl enable adb-param-watcher.service
 systemctl enable logrotate-hourly.timer
 systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
-systemctl enable screen_calibration.service
 
 # Disable SSH by default
 systemctl disable ssh
@@ -46,5 +39,11 @@ systemctl disable motd-news.timer
 systemctl disable systemd-pstore.service
 systemctl mask systemd-backlight@.service
 systemctl mask alsa-restore.service
-ln -s /dev/null /etc/udev/rules.d/90-alsa-restore.rules
 systemctl disable dpkg-db-backup.timer
+
+# Hardware setup is handled directly by comma-init instead of udev.
+systemctl mask systemd-udevd.service
+systemctl mask systemd-udevd-control.socket
+systemctl mask systemd-udevd-kernel.socket
+systemctl mask systemd-udev-trigger.service
+systemctl mask systemd-udev-settle.service

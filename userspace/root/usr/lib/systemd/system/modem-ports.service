@@ -1,0 +1,13 @@
+[Unit]
+Description=Cellular port aliases without udev
+Requires=comma-init.service
+After=comma-init.service
+Before=modem.service
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/comma/modem-ports.py
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
