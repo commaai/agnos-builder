@@ -18,7 +18,9 @@ exec() {
 # Cleanup container on exit
 trap "docker container rm -f $MOUNT_CONTAINER_ID > /dev/null" EXIT
 
-# Mount filesystem
+# Unsparsify and mount filesystem
+exec simg2img "$DIR/output/system.img" "$ROOTFS_IMAGE"
+exec mkdir -p "$ROOTFS_DIR"
 exec mount "$ROOTFS_IMAGE" "$ROOTFS_DIR"
 
 # Stats
