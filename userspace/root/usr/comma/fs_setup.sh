@@ -35,7 +35,6 @@ chown comma: /data/ssh
 rm -rf /data/tmp/
 mkdir -p /data/tmp/
 
-# /data/persist
-if [[ ! -d /data/persist ]]; then
-  sudo cp -r /system/persist /data
-fi
+# /data/persist - served to the modem and DSPs through /system/rfs
+mkdir -p /data/persist/hlos_rfs/shared /data/persist/rfs/shared \
+  /data/persist/rfs/msm/adsp /data/persist/rfs/msm/mpss

@@ -1,0 +1,8 @@
+[Unit]
+Description=Qualcomm subsystems and daemons
+
+[Service]
+ExecStart=/usr/comma/qcom.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,17 +1,5 @@
 #!/bin/bash -e
 
-# Enable DSP and IPC router services
-systemctl enable irsc_util
-systemctl enable cdsp
-
-# Enable modem subsystem services, needed for Wi-Fi
-systemctl enable rmt_storage
-systemctl enable init_sys_mss
-systemctl enable tftp_server
-systemctl enable pdmapper
-systemctl enable cnss-daemon
-systemctl enable ipa_fws
-
 # Enable our services
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
@@ -22,7 +10,7 @@ systemctl enable lte.service
 systemctl enable modem.service
 systemctl enable sound.service
 systemctl enable magic.service
-systemctl enable init-qcom.service
+systemctl enable qcom.service
 systemctl enable varwatch.service
 systemctl enable power_monitor.service
 systemctl enable power_drop_monitor.service
