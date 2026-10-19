@@ -1,0 +1,8 @@
+[Unit]
+Description=Wi-Fi stack: modem subsystem and its daemons
+
+[Service]
+ExecStart=/usr/comma/wifi.sh
+
+[Install]
+WantedBy=multi-user.target
