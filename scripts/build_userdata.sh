@@ -20,9 +20,6 @@ function create_image() {
   MNTDIR=$WORKDIR/mnt
   USERDATA_IMAGE=$WORKDIR/raw.img
 
-  sudo umount $MNTDIR 2> /dev/null || true
-  rm -rf $WORKDIR
-  mkdir $WORKDIR
   cd $WORKDIR
 
   fallocate -l $IMAGE_SIZE $USERDATA_IMAGE

@@ -6,20 +6,7 @@
 # ################## #
 FROM ubuntu:24.04 AS agnos-compiler
 
-# Common packages
-RUN apt-get update && apt-get install -yq --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    ccache \
-    clang \
-    curl \
-    checkinstall \
-    git \
-    pkg-config \
-    wget
-
-# Enable ccache
-ENV PATH="/usr/lib/ccache:$PATH"
+RUN apt-get update && apt-get install -yq --no-install-recommends build-essential
 
 # Qualcomm graphics without Wayland or OpenCL runtime dependencies
 FROM agnos-compiler AS agnos-compiler-graphics
@@ -53,9 +40,6 @@ ADD ${UBUNTU_BASE_IMAGE} /
 
 # Build folder
 RUN mkdir -p /tmp/agnos
-
-# Stop on error
-RUN set -xe
 
 ARG USERNAME=comma
 
