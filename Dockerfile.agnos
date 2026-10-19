@@ -26,9 +26,10 @@ FROM agnos-compiler AS agnos-compiler-graphics
 RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
 COPY ./userspace/graphics/ /tmp/agnos/graphics-src/
 COPY ./userspace/debs/agnos-display_0.0.4.deb /tmp/agnos/
-COPY ./userspace/files/libeglSubDriverWayland.so.patched /tmp/agnos/graphics/libeglSubDriverWayland.so
 RUN dpkg-deb -x /tmp/agnos/agnos-display_0.0.4.deb /tmp/agnos/display && \
+    mkdir -p /tmp/agnos/graphics && \
     cp /tmp/agnos/display/usr/lib/aarch64-linux-gnu/libgbm.so /tmp/agnos/graphics/ && \
+    cp /tmp/agnos/graphics-src/libeglSubDriverWayland.so.patched /tmp/agnos/graphics/libeglSubDriverWayland.so && \
     cd /tmp/agnos/graphics && \
     gcc -shared -fPIC -Os -s -Wall -Wextra -Werror -Wl,-z,defs -Wl,-z,relro,-z,now \
       -Wl,-soname,libagnos-wayland-stubs.so -o libagnos-wayland-stubs.so /tmp/agnos/graphics-src/stubs.c && \
@@ -75,8 +76,6 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 # ################### #
 FROM agnos-base
 
-COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
-
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 RUN mv /data/persist /system/ && rm -rf /data/*
 
@@ -114,35 +113,18 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
 
-COPY ./userspace/home/ /home/$USERNAME/
-COPY ./userspace/home/.config/ /root/.config
+# Root filesystem overlay, all files at their final paths.
+# tar keeps the ownership and permissions of existing directories, COPY resets them.
+RUN rm -r /etc/update-motd.d/*
+RUN --mount=type=bind,source=userspace/root,target=/tmp/agnos/root \
+    set -o pipefail && \
+    tar -C /tmp/agnos/root --owner=0 --group=0 -cf - . | tar -C / --no-overwrite-dir -xf -
+COPY ./userspace/root/home/$USERNAME/.config/ /root/.config
 RUN chown -R $USERNAME: /home/$USERNAME/.config
-
-# populate /lib
-COPY ./userspace/files/*.path /lib/systemd/system/
-COPY ./userspace/files/*.mount /lib/systemd/system/
-COPY ./userspace/files/*.service /lib/systemd/system/
-COPY ./userspace/files/*.timer /lib/systemd/system/
-COPY ./userspace/files/serial-getty@ttyMSM0_override.conf /lib/systemd/system/serial-getty@ttyMSM0.service.d/serial-getty@ttyMSM0_override.conf
-COPY ./userspace/files/ssh_override.conf /lib/systemd/system/ssh.service.d/override.conf
-COPY ./userspace/firmware/* /lib/firmware/
-
-# populate /etc
-COPY ./userspace/files/fstab /etc
-COPY ./userspace/files/profile /etc/profile
-COPY ./userspace/files/comma-polkit.rules /etc/polkit-1/rules.d/
-COPY ./userspace/files/*.rules /etc/udev/rules.d/
-COPY ./userspace/files/ssh*_config /etc/ssh/
-COPY ./userspace/files/logrotate.conf /etc/
-COPY ./userspace/files/rsyslog /etc/logrotate.d/
 RUN chmod 644 /etc/logrotate.conf
 RUN touch -r /lib/systemd/systemd /etc/fstab
 
-# populate /usr
-COPY ./userspace/usr/comma/ /usr/$USERNAME/
-COPY ./userspace/usr/share/fonts/* /usr/share/fonts/
 COPY ./output/linux-headers/include/ /usr/include/
-COPY ./userspace/files/amdgpu/ /usr/lib/firmware/amdgpu/
 
 COPY ./userspace/irsc_util.c /tmp/agnos/
 RUN gcc -O2 -Wall -Wextra -Werror -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c && rm /tmp/agnos/irsc_util.c
@@ -156,36 +138,12 @@ RUN gcc -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
 COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh
 
-# MOTD
-RUN rm -r /etc/update-motd.d/*
-COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
-
-# Let NetworkManager manage eth0
-COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
-COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
-
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
-
-# Don't let logind delete /dev/shm
-COPY ./userspace/files/logind.conf /etc/systemd/logind.conf
-
-# Retry NTP sync every 10s instead of 30s for faster time sync after network connects
-COPY ./userspace/files/timesyncd.conf /etc/systemd/timesyncd.conf
-
-# Copy Avahi daemon override
-COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.service.d/override.conf
-
-# Prevent polkitd memory leak from getting out of hand by restarting it every ~day
-COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d/override.conf
 
 # Block incoming cellular traffic, including modem.py's PPP interface.
 # The SDM845 kernel supports xtables, not Ubuntu's default nftables backend.
 RUN update-alternatives --set iptables /usr/sbin/iptables-legacy
-COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
-
-# Copy extra FW, rest comes from debs
-COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware
 
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
@@ -210,9 +168,6 @@ RUN mkdir -p /rwtmp
 RUN mkdir -p /tmptmp
 COPY ./userspace/readonly_setup.sh /tmptmp/readonly_setup.sh
 RUN /tmptmp/readonly_setup.sh && rm -rf /tmptmp
-
-# copy at the end, after all apt usage
-COPY ./userspace/files/apt.conf /etc/apt/apt.conf
 
 # copy version file
 COPY VERSION /VERSION
