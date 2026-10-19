@@ -64,7 +64,7 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 # ################### #
 # ###### AGNOS ###### #
 # ################### #
-FROM agnos-base
+FROM agnos-base AS agnos
 
 COPY --from=agnos-compiler-adbd /tmp/agnos/adbd /usr/comma/adbd
 COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr/share/doc/adbd/NOTICE
@@ -174,3 +174,41 @@ RUN rm -rf /usr/share/icons/* && \
     rm -rf /home/$USERNAME/.cache && \
     rm -rf /root/.cache && \
     apt-get clean
+
+# ################## #
+# ##### Image ###### #
+# ################## #
+# Build the system image in BuildKit, so only the sparse image leaves the builder.
+FROM --platform=$BUILDPLATFORM ubuntu:20.04 AS agnos-image-tools
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    android-sdk-libsparse-utils \
+    e2fsprogs \
+    libcap2-bin \
+    zstd \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM agnos-image-tools AS agnos-image-build
+# the partition is 10G, but openpilot's updater didn't always handle the full size
+# openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
+ARG ROOTFS_IMAGE_SIZE=4500M
+ARG GIT_HASH
+ARG BUILD_DATETIME
+# Compress the image for remote builders, where the download is the bottleneck
+ARG ZSTD
+# These files are bind mounted in containers, so they can only be set here.
+RUN --mount=type=bind,from=agnos,target=/rootfs,rw \
+    cd /rootfs && \
+    ln -sf /proc/sys/kernel/hostname etc/hostname && \
+    printf "127.0.0.1    localhost.localdomain localhost\n127.0.0.1    comma\n" > etc/hosts && \
+    ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf && \
+    setcap cap_net_raw+ep bin/ping && \
+    printf "%s\n%s\n" "$GIT_HASH" "$BUILD_DATETIME" > BUILD && \
+    mkdir /out && \
+    mkfs.ext4 -q -d /rootfs /tmp/system.img $ROOTFS_IMAGE_SIZE && \
+    img2simg /tmp/system.img /out/system.img && \
+    rm /tmp/system.img && \
+    if [ -n "$ZSTD" ]; then zstd -q -T0 -9 --rm /out/system.img; fi
+
+FROM scratch AS agnos-image
+COPY --from=agnos-image-build /out/ /
