@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import os
 import time
 import subprocess
@@ -22,23 +21,10 @@ def test_reset():
   proc.terminate()
 
 def test_modem():
-  out = run("mmcli -m 0 --output-json")
-  mm = json.loads(out)
-  from pprint import pprint
-  pprint(mm)
-
-  # modem is up
-  g = mm['modem']['generic']
-  assert g['manufacturer'] == 'QUALCOMM INCORPORATED'
-  assert g['model'] == 'QUECTEL Mobile Broadband Module'
-  assert g['revision'] == 'EG25GGBR07A08M2G'
-
-  # sim is present
-  assert g['sim'] == '/org/freedesktop/ModemManager1/SIM/0'
-
-  # blue prime is active
-  out = run("nmcli con show --active")
-  assert "blue-prime" in out
+  from test_modem import test_modem_setup, test_modem as check_modem, test_cellular_connection
+  test_modem_setup()
+  check_modem()
+  test_cellular_connection()
 
 def test_wifi():
   out = run("nmcli dev wifi")

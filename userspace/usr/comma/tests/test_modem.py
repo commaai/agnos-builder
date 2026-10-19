@@ -1,81 +1,65 @@
 #!/usr/bin/env python3
-import os
 import json
+import os
+import shutil
+import string
 import subprocess
 import time
+from ipaddress import IPv4Address
+from pathlib import Path
 
-def mmcli(cmd):
-  try:
-    out = subprocess.check_output(["mmcli", "-J", *cmd])
-    return json.loads(out)
-  except Exception as e:
-    raise Exception(f"modem command failed: {cmd}") from e
+
+def modem_state(timeout=120):
+  deadline = time.monotonic() + timeout
+  while True:
+    try:
+      state = json.loads(Path('/dev/shm/modem').read_text())
+      if state.get('imei') and state.get('iccid'):
+        return state
+    except (FileNotFoundError, json.JSONDecodeError):
+      pass
+    assert time.monotonic() < deadline, "openpilot's modem process did not publish modem/SIM identity"
+    time.sleep(1)
+
+
+def test_modem_setup():
+  assert not Path('/lib/systemd/system/ModemManager.service').exists()
+  for port in ('/dev/modem_at0', '/dev/modem_at1'):
+    assert os.access(port, os.R_OK | os.W_OK), f"comma needs access to {port}"
+  for command in ('pppd', 'chat', 'ip', 'resolvectl', 'killall'):
+    assert shutil.which(command), f"modem.py requires {command}"
+  rules = subprocess.check_output(['sudo', '-n', 'iptables-save', '-t', 'filter'], text=True)
+  assert '-A INPUT -i ppp0 -j DROP' in rules
+
 
 def test_modem():
-  # wait for the modem to come back up after flashing
-  n = 0
-  cnt = 0
-  while n == 0:
-    n = len(mmcli(["-L"])['modem-list'])
-    if n > 1:
-      raise Exception(f"Wrong number of modems ({n})")
+  state = modem_state()
+  assert state['imei'].isdigit() and 14 <= len(state['imei']) <= 17
+  assert all(c in string.hexdigits for c in state['iccid']) and 18 <= len(state['iccid']) <= 22
+  assert state['modem_version'].startswith(('EG25', 'EG91'))
+  assert state['state'] in ('SEARCHING', 'CONNECTING', 'CONNECTED')
 
-    cnt += 1
-    if cnt > 100:
-      raise Exception("Modem never came up")
+  from openpilot.common.hardware import HARDWARE
+  assert HARDWARE.get_imei() == state['imei']
+  assert HARDWARE.get_sim_info()['sim_id'] == state['iccid']
+  assert HARDWARE.get_sim_info()['sim_state'] == ['READY']
 
-    time.sleep(1)
 
-  cnt = 0
-  while True:
-    modem = mmcli(["-m", "any"])
-    if modem['modem']['generic']['sim'] != '--':
-      break
+def test_cellular_connection():
+  # Requires a SIM with service and cellular coverage, even when Wi-Fi is connected.
+  state = modem_state()
+  assert state['connected'], f"Cellular not connected: {state['state']} ({state['registration']})"
+  ip = str(IPv4Address(state['ip_address']))
+  routes = subprocess.check_output(['ip', '-4', 'route', 'show', 'table', '1000'], text=True)
+  assert 'default' in routes and 'dev ppp0' in routes
+  rules = subprocess.check_output(['ip', '-4', 'rule', 'show'], text=True)
+  assert any(f'from {ip}' in rule and 'lookup 1000' in rule for rule in rules.splitlines())
+  dns = subprocess.check_output(['resolvectl', 'dns', 'ppp0'], text=True)
+  assert len(dns.split(':', 1)[-1].split()) > 0
+  subprocess.check_call(['ping', '-I', 'ppp0', '-c', '3', '-W', '10', '1.1.1.1'])
 
-    cnt += 1
-    if cnt > 100:
-      raise Exception("SIM missing")
 
-    time.sleep(1)
-
-  # force to LTE
-  #os.system("mmcli -m any --set-allowed-modes='4g'")
-
-  # set initial eps bearer apn
-  #sim_id = mmcli(['-i', '0'])['sim']['properties']['iccid']
-  #if sim_id.startswith('8901410'):
-  #  os.system('mmcli -m any --3gpp-set-initial-eps-bearer-settings="apn=Broadband"')
-
-  print("waiting for cell connection")
-  time.sleep(7)
-
-  expected = [
-    # key, expected value, error msg
-    (['generic', 'manufacturer'], "QUALCOMM INCORPORATED", "Modem: wrong manufacturer"),
-    (['generic', 'model'], "QUECTEL Mobile Broadband Module", "Modem: wrong model"),
-    (['generic', 'revision'], "EG25GGBR07A08M2G", "Modem: wrong revision"),
-    (['generic', 'carrier-configuration'], ["VoLTE-ATT", "Commercial-TMO_VoLTE"], "Modem: wrong carrier configuration"),
-    (['generic', 'carrier-configuration-revision'], ["0501033C", "05010505"], "Modem: wrong carrier configuration revision"),
-
-    (['generic', 'supported-capabilities'], [['gsm-umts, lte'], ], "Modem: wrong capabilities"),
-    (['3gpp', 'operator-name'], ["--", "AT&T", "T-Mobile"], "Modem: wrong operator"),
-  ]
-  for key, val, err_msg in expected:
-    v = modem['modem']
-    for k in key:
-      v = v.get(k)
-    if isinstance(val, list):
-      assert v in val, f"{err_msg} ({v})"
-    else:
-      assert v == val, f"{err_msg} ({v})"
-
-  os.system("date >> /data/tmp/modem_log")
-  os.system("sudo su -c 'tail /data/tmp/modem_log > /dev/console'")
-  os.system("sudo su -c 'wc -l /data/tmp/modem_log > /dev/console'")
-  os.sync()
-
-  time.sleep(2)
-  os.system("sudo reboot")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
+  test_modem_setup()
   test_modem()
+  test_cellular_connection()

@@ -21,18 +21,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 # Enable ccache
 ENV PATH="/usr/lib/ccache:$PATH"
 
-# libqmi
-FROM agnos-compiler AS agnos-compiler-libqmi
-COPY ./userspace/compile-libqmi.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=libqmi,sharing=shared \
-    /tmp/agnos/compile-libqmi.sh
-
-# ModemManager
-FROM agnos-compiler-libqmi AS agnos-compiler-modemmanager
-COPY ./userspace/compile-modemmanager.sh /tmp/agnos/
-RUN --mount=type=cache,target=/root/.ccache,id=modemmanager,sharing=shared \
-    /tmp/agnos/compile-modemmanager.sh
-
 # Qualcomm graphics without Wayland or OpenCL runtime dependencies
 FROM agnos-compiler AS agnos-compiler-graphics
 RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
@@ -94,27 +82,22 @@ COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 RUN mv /data/persist /system/ && rm -rf /data/*
 
-COPY --from=agnos-compiler-libqmi /tmp/libqmi.deb /tmp/
-COPY --from=agnos-compiler-modemmanager /tmp/modemmanager.deb /tmp/
-
-RUN cd /tmp && \
-    apt-get update && \
+# Requires openpilot 9b585d58 or newer; its manager runs modem.py (AT + IPv4 PPP).
+# NetworkManager still requires libmm-glib0 for Wi-Fi/Ethernet operation.
+RUN apt-get update && \
     apt-get install -yq --no-install-recommends \
     python3 \
     python3-dev \
-    gir1.2-qmi-1.0 \
     libglib2.0-dev \
-    libqmi-glib5 \
     libc6 \
     libglib2.0-0t64 \
     libgudev-1.0-0 \
     libmm-glib0 \
     libpolkit-gobject-1-0 \
     libsystemd0 \
-    polkitd \
-    mobile-broadband-provider-info && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./libqmi.deb && \
-    apt-get -o Dpkg::Options::="--force-overwrite" install -yq ./modemmanager.deb
+    polkitd && \
+    apt-get purge -y modemmanager && \
+    test ! -e /lib/systemd/system/ModemManager.service
 
 ARG XDG_DATA_HOME="/usr/local"
 
@@ -184,10 +167,6 @@ COPY --chown=root:root ./userspace/motd/* /etc/update-motd.d/
 COPY ./userspace/files/10-globally-managed-devices.conf /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
 COPY ./userspace/files/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
 
-# Add cellular connections
-COPY ./userspace/files/*.nmconnection /usr/lib/NetworkManager/system-connections/
-RUN chmod 600 /usr/lib/NetworkManager/system-connections/*.nmconnection
-
 # Prefer ipv4 over ipv6
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
@@ -203,15 +182,10 @@ COPY ./userspace/files/avahi-override.conf /etc/systemd/system/avahi-daemon.serv
 # Prevent polkitd memory leak from getting out of hand by restarting it every ~day
 COPY ./userspace/files/polkit-override.conf /etc/systemd/system/polkit.service.d/override.conf
 
-# Add iptable rules to block incoming traffic on wwan0
+# Block incoming cellular traffic, including modem.py's PPP interface.
+# The SDM845 kernel supports xtables, not Ubuntu's default nftables backend.
+RUN update-alternatives --set iptables /usr/sbin/iptables-legacy
 COPY ./userspace/etc/iptables/rules.v4 /etc/iptables/rules.v4
-
-# Run ModemManager in debug mode to allow AT commands
-COPY ./userspace/files/ModemManager.service /lib/systemd/system/
-RUN systemctl enable ModemManager
-
-# Add more T-Mobile networks to mobile-broadband-provider-info (do we still need the package?)
-COPY ./userspace/files/serviceproviders.xml /usr/share/mobile-broadband-provider-info/serviceproviders.xml
 
 # Copy extra FW, rest comes from debs
 COPY ./userspace/files/CAMERA_ICP.elf /usr/lib/firmware

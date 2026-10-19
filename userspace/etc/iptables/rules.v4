@@ -35,5 +35,6 @@ COMMIT
 :OUTPUT ACCEPT [108:15364]
 -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
 -A INPUT -i wwan0 -j DROP
+-A INPUT -i ppp0 -j DROP
 COMMIT
 # Completed on Thu May 26 16:34:33 2022

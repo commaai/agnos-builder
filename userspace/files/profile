@@ -43,5 +43,5 @@ export PATH="/usr/comma/shims:${PATH}"
 
 # nice AT command helper
 atc() {
-  mmcli -m any --command="${@}"
+  python3 -c 'import sys; from openpilot.common.hardware.comma.modem import Modem; print("\n".join(Modem()._at(sys.argv[1])))' "$*"
 }
