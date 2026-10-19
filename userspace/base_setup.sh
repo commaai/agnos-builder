@@ -20,75 +20,42 @@ apt-fast install --no-install-recommends -yq \
     apport-retrace \
     bc \
     build-essential \
-    bzip2 \
-    cpuset \
-    dfu-util \
-    dhcpcd-base \
-    dirmngr \
     dnsmasq-base \
-    evtest \
-    fdisk \
-    fontconfig \
-    fonts-ubuntu-console \
     gdb \
     git \
-    gnupg \
-    htop \
-    i2c-tools \
-    ifmetric \
     iptables-persistent \
     iputils-ping \
-    isc-dhcp-client \
     jq \
     kmod \
     less \
     libc6-dev \
     libegl-dev \
     libegl1 \
-    libffi-dev \
     libgles-dev \
     libgles1 \
     libgles2 \
-    libi2c-dev \
-    libncursesw5-dev \
     libnss-myhostname \
-    libsqlite3-dev \
-    libssl-dev \
-    libtool \
-    libx264-dev \
     llvm-20 \
     locales \
     logrotate \
     lsof \
-    nano \
-    net-tools \
     network-manager \
-    nload \
     openssh-client \
     openssh-server \
     openssl \
-    patch \
     ppp \
     psmisc \
     rsync \
     rsyslog \
-    screen \
-    smartmontools \
-    speedtest-cli \
-    sshfs \
     strace \
     systemd \
     systemd-resolved \
     systemd-timesyncd \
     tmux \
-    traceroute \
     udev \
-    udhcpc \
     usbutils \
     vim \
-    wireless-tools \
-    wpasupplicant \
-    zlib1g-dev
+    wpasupplicant
 
 # Create the privileged user and hardware access groups.
 useradd -G sudo -m -s /bin/bash "$USERNAME"
