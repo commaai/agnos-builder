@@ -20,7 +20,6 @@ apt-fast install --no-install-recommends -yq \
     apport-retrace \
     bc \
     build-essential \
-    byobu \
     bzip2 \
     cpuset \
     dfu-util \
@@ -42,11 +41,11 @@ apt-fast install --no-install-recommends -yq \
     isc-dhcp-client \
     jq \
     kmod \
+    less \
     libc6-dev \
     libegl-dev \
     libegl1 \
     libffi-dev \
-    libgdbm-dev \
     libgles-dev \
     libgles1 \
     libgles2 \
@@ -59,6 +58,8 @@ apt-fast install --no-install-recommends -yq \
     libx264-dev \
     llvm-20 \
     locales \
+    logrotate \
+    lsof \
     nano \
     net-tools \
     network-manager \
@@ -67,24 +68,23 @@ apt-fast install --no-install-recommends -yq \
     openssh-server \
     openssl \
     patch \
-    pollinate \
     ppp \
+    psmisc \
+    rsync \
     rsyslog \
     screen \
     smartmontools \
-    software-properties-common \
     speedtest-cli \
     sshfs \
+    strace \
     systemd \
     systemd-resolved \
     systemd-timesyncd \
-    tk-dev \
     tmux \
     traceroute \
-    ubuntu-minimal \
-    ubuntu-standard \
     udev \
     udhcpc \
+    usbutils \
     vim \
     wireless-tools \
     wpasupplicant \

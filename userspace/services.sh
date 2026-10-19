@@ -55,13 +55,8 @@ systemctl mask systemd-backlight@.service
 systemctl mask alsa-restore.service
 ln -s /dev/null /etc/udev/rules.d/90-alsa-restore.rules
 systemctl disable dpkg-db-backup.timer
-systemctl disable ua-reboot-cmds.service
-systemctl disable ubuntu-advantage.service
-systemctl disable man-db.timer
 
 # TODO: this doesn't actually disable unless run twice...
 # Service fails with Status: "No devices to monitor"
 systemctl disable smartd.service
 systemctl disable smartd.service
-
-systemctl disable console-setup.service
