@@ -59,10 +59,6 @@ ln -s /dev/null /etc/udev/rules.d/90-alsa-restore.rules
 systemctl disable dpkg-db-backup.timer
 systemctl disable ua-reboot-cmds.service
 systemctl disable ubuntu-advantage.service
-systemctl disable update-notifier-download.timer
-systemctl disable update-notifier-download.service
-systemctl disable update-notifier-motd.timer
-systemctl disable update-notifier-motd.service
 systemctl disable man-db.timer
 
 # TODO: this doesn't actually disable unless run twice...
