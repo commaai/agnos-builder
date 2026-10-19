@@ -8,6 +8,15 @@ FROM ubuntu:24.04 AS agnos-compiler
 
 RUN apt-get update && apt-get install -yq --no-install-recommends build-essential
 
+# ADB daemon using the Android libraries already installed for Ubuntu's adb client.
+FROM agnos-compiler AS agnos-compiler-adbd
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    ca-certificates curl clang android-libbase-dev android-libcutils-dev android-liblog-dev \
+    android-libboringssl-dev libbrotli-dev libcap-dev liblz4-dev libprotobuf-dev protobuf-compiler \
+    libsystemd-dev libzstd-dev
+COPY ./userspace/build_adbd.sh ./userspace/adbd-linux.patch /tmp/agnos/
+RUN /tmp/agnos/build_adbd.sh
+
 # Qualcomm graphics without Wayland or OpenCL runtime dependencies
 FROM agnos-compiler AS agnos-compiler-graphics
 RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
@@ -57,6 +66,8 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 # ################### #
 FROM agnos-base
 
+COPY --from=agnos-compiler-adbd /tmp/agnos/adbd /usr/comma/adbd
+COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr/share/doc/adbd/NOTICE
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 
 # modem.service runs the packaged modem.py (AT + IPv4 PPP).
@@ -92,6 +103,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
+RUN /usr/comma/adbd --version
 
 # Root filesystem overlay, all files at their final paths.
 # tar keeps the ownership and permissions of existing directories, COPY resets them.

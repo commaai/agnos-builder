@@ -1,0 +1,77 @@
+--- a/packages/modules/adb/daemon/services.cpp
++++ b/packages/modules/adb/daemon/services.cpp
+@@ -273,6 +273,22 @@
+
+ unique_fd daemon_service_to_fd(std::string_view name, atransport* transport) {
+     ADB_LOG(Service) << "transport " << transport->serial_name() << " opening service " << name;
++
++#if !defined(__ANDROID__)
++    // AGNOS is Linux: use Linux tools instead of Android's property service.
++    if (name.starts_with("root:")) {
++        return create_service_thread("root", [](unique_fd fd) {
++            WriteFdExactly(fd.get(), "adbd is already running as root\n");
++        });
++    } else if (android::base::ConsumePrefix(&name, "reboot:")) {
++        std::string cmd = "/sbin/reboot";
++        if (!name.empty()) cmd += " -- " + escape_arg(std::string(name));
++        return StartSubprocess(cmd, nullptr, SubprocessType::kRaw, SubprocessProtocol::kNone);
++    } else if (name.starts_with("remount:")) {
++        return StartSubprocess("/bin/mount -o remount,rw /", nullptr, SubprocessType::kRaw,
++                               SubprocessProtocol::kNone);
++    }
++#endif
+
+ #if defined(__ANDROID__) && !defined(__ANDROID_RECOVERY__)
+     if (name.starts_with("abb:") || name.starts_with("abb_exec:")) {
+--- a/packages/modules/adb/transport.cpp
++++ b/packages/modules/adb/transport.cpp
+@@ -1300,7 +1300,9 @@
+             kFeatureAbb,
+             kFeatureFixedPushSymlinkTimestamp,
+             kFeatureAbbExec,
++#if ADB_HOST || defined(__ANDROID__)
+             kFeatureRemountShell,
++#endif
+             kFeatureTrackApp,
+             kFeatureSendRecv2,
+             kFeatureSendRecv2Brotli,
+--- a/packages/modules/adb/daemon/main.cpp
++++ b/packages/modules/adb/daemon/main.cpp
+@@ -310,7 +310,7 @@
+     D("adbd_main(): post init_jdwp()");
+
+ #if defined(__linux__)
+-    sd_notify(1, "READY=1");
++    if (!is_usb) sd_notify(1, "READY=1");
+ #endif
+
+     D("Event loop starting");
+--- a/packages/modules/adb/daemon/usb_ffs.cpp
++++ b/packages/modules/adb/daemon/usb_ffs.cpp
+@@ -23,6 +23,11 @@
+ #include <linux/usb/ch9.h>
+ #include <linux/usb/functionfs.h>
+
++#if defined(__linux__) && !defined(__ANDROID__)
++#include <systemd/sd-daemon.h>
++#endif
++
++#include <android-base/file.h>
+ #include <android-base/logging.h>
+ #include <android-base/properties.h>
+ #include <android-base/unique_fd.h>
+@@ -317,5 +322,14 @@
+     *out_control = std::move(control);
+     *out_bulk_in = std::move(bulk_in);
+     *out_bulk_out = std::move(bulk_out);
++#if defined(__linux__) && !defined(__ANDROID__)
++    // This kernel unbinds the configfs gadget when ep0 closes. Rebind whenever
++    // descriptors are recreated, including after a USB disconnect.
++    if (!android::base::WriteStringToFile("a600000.dwc3", "/config/usb_gadget/g1/UDC")) {
++        PLOG(ERROR) << "failed to bind AGNOS USB gadget";
++        return false;
++    }
++    sd_notify(1, "READY=1");
++#endif
+     return true;
+ }
