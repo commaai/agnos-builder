@@ -37,6 +37,7 @@ apt-fast install --no-install-recommends -yq \
     libnss-myhostname \
     llvm-20 \
     locales \
+    logrotate \
     lsof \
     network-manager \
     openssh-client \
@@ -45,6 +46,7 @@ apt-fast install --no-install-recommends -yq \
     ppp \
     psmisc \
     rsync \
+    rsyslog \
     strace \
     systemd \
     systemd-resolved \

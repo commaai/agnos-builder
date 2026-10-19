@@ -23,6 +23,7 @@ systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable adb-param-watcher.path
 systemctl enable adb-param-watcher.service
+systemctl enable logrotate-hourly.timer
 systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
 systemctl enable screen_calibration.service
