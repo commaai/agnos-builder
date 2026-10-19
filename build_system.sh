@@ -12,13 +12,7 @@ cd $DIR
 BUILD_DIR="$DIR/build"
 OUTPUT_DIR="$DIR/output"
 
-ROOTFS_DIR="$BUILD_DIR/agnos-rootfs"
-ROOTFS_IMAGE="$BUILD_DIR/system.img"
 OUT_IMAGE="$OUTPUT_DIR/system.img"
-
-# the partition is 10G, but openpilot's updater didn't always handle the full size
-# openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
-ROOTFS_IMAGE_SIZE=4500M
 
 # Create temp dir if non-existent
 mkdir -p $BUILD_DIR $OUTPUT_DIR
@@ -38,8 +32,8 @@ if [ "$(shasum -a 256 "$UBUNTU_FILE" | awk '{print $1}')" != "$UBUNTU_FILE_CHECK
   exit 1
 fi
 
-# Setup qemu multiarch
-if [ "$(uname -m)" = "x86_64" ]; then
+# Setup qemu multiarch, not needed for remote arm64 builds
+if [ "$(uname -m)" = "x86_64" ] && [ -z "$NS" ]; then
   echo "Registering emulator"
   docker run --rm --privileged tonistiigi/binfmt --install all
 fi
@@ -48,92 +42,27 @@ fi
 export DOCKER_BUILDKIT=1
 docker buildx build -f Dockerfile.agnos --check $DIR
 
-# Check agnos-meta-builder Dockerfile
-docker buildx build --load -f Dockerfile.builder --check $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
-
-# Setup mount container for macOS and CI support (namespace.so)
-echo "Building agnos-meta-builder docker image"
-docker buildx build --load -f Dockerfile.builder -t agnos-meta-builder $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
-echo "Starting agnos-meta-builder container"
-MOUNT_CONTAINER_ID=$(docker run -d --privileged -v $DIR:$DIR agnos-meta-builder)
-
-# Cleanup containers on possible exit
-trap "echo \"Cleaning up containers:\"; \
-docker container rm -f $MOUNT_CONTAINER_ID" EXIT
-
-# Define functions for docker execution
-exec_as_user() {
-  docker exec -u $(id -nu) $MOUNT_CONTAINER_ID "$@"
-}
-
-exec_as_root() {
-  docker exec $MOUNT_CONTAINER_ID "$@"
-}
-
-# Create filesystem ext4 image
-echo "Creating empty filesystem"
-exec_as_user fallocate -l $ROOTFS_IMAGE_SIZE $ROOTFS_IMAGE
-exec_as_user mkfs.ext4 $ROOTFS_IMAGE &> /dev/null
-
-# Mount filesystem
-echo "Mounting empty filesystem"
-exec_as_root mkdir -p $ROOTFS_DIR
-exec_as_root mount $ROOTFS_IMAGE $ROOTFS_DIR
-
-# Also unmount filesystem (overwrite previous trap)
-trap "exec_as_root umount -l $ROOTFS_DIR &> /dev/null || true; \
-echo \"Cleaning up containers:\"; \
-docker container rm -f $MOUNT_CONTAINER_ID" EXIT
-
-echo "Building and extracting agnos-builder docker image"
-BUILD="docker buildx build"
+# Build the system image in docker, only the sparse image is exported
+echo "Building system image"
+BUILD="docker buildx build --output type=local,dest=$BUILD_DIR/image"
 if [ ! -z "$NS" ]; then
-  BUILD="nsc build"
+  if ! command -v zstd &> /dev/null; then
+    echo "zstd missing, please install it"
+    exit 1
+  fi
+  BUILD="nsc build --region ${NS_REGION:-us} --output-local $BUILD_DIR/image --build-arg ZSTD=1"
 fi
-$BUILD -f Dockerfile.agnos \
-  --output "type=tar,dest=-" \
-  --provenance=false \
-  --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
-  --platform=linux/arm64 \
-  "$DIR" | docker exec -i $MOUNT_CONTAINER_ID tar -xf - -C $ROOTFS_DIR
-
-# Avoid detecting as container
-echo "Removing .dockerenv file"
-exec_as_root rm -f $ROOTFS_DIR/.dockerenv
-
-echo "Setting network stuff"
-set_network_stuff() {
-  cd $ROOTFS_DIR
-  # Add hostname and hosts. This cannot be done in the docker container...
-  HOST=comma
-  ln -sf /proc/sys/kernel/hostname etc/hostname
-  echo "127.0.0.1    localhost.localdomain localhost" > etc/hosts
-  echo "127.0.0.1    $HOST" >> etc/hosts
-
-  # Fix resolv config
-  ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf
-
-  # Set capability for ping
-  setcap cap_net_raw+ep bin/ping
-
-  # Write build info
-  DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
-  printf "%s\n%s\n" "$GIT_HASH" "$DATETIME" > BUILD
-}
 GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
-exec_as_root bash -c "set -e; export ROOTFS_DIR=$ROOTFS_DIR GIT_HASH=$GIT_HASH; $(declare -f set_network_stuff); set_network_stuff"
-
-# Unmount image
-echo "Unmount filesystem"
-exec_as_root umount -l $ROOTFS_DIR
-
-# Sparsify system image
-exec_as_user img2simg $ROOTFS_IMAGE $OUT_IMAGE
+rm -rf $BUILD_DIR/image
+$BUILD -f Dockerfile.agnos $DIR --platform=linux/arm64 \
+  --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \
+  --build-arg GIT_HASH=$GIT_HASH \
+  --build-arg BUILD_DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
+if [ -f $BUILD_DIR/image/system.img.zst ]; then
+  zstd -q -d -f $BUILD_DIR/image/system.img.zst -o $OUT_IMAGE
+else
+  mv $BUILD_DIR/image/system.img $OUT_IMAGE
+fi
+rm -rf $BUILD_DIR/image
 
 echo "Done!"
