@@ -25,10 +25,8 @@ ENV PATH="/usr/lib/ccache:$PATH"
 FROM agnos-compiler AS agnos-compiler-graphics
 RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
 COPY ./userspace/graphics/ /tmp/agnos/graphics-src/
-COPY ./userspace/debs/agnos-display_0.0.4.deb /tmp/agnos/
-RUN dpkg-deb -x /tmp/agnos/agnos-display_0.0.4.deb /tmp/agnos/display && \
-    mkdir -p /tmp/agnos/graphics && \
-    cp /tmp/agnos/display/usr/lib/aarch64-linux-gnu/libgbm.so /tmp/agnos/graphics/ && \
+RUN mkdir -p /tmp/agnos/graphics && \
+    cp /tmp/agnos/graphics-src/libgbm.so /tmp/agnos/graphics/ && \
     cp /tmp/agnos/graphics-src/libeglSubDriverWayland.so.patched /tmp/agnos/graphics/libeglSubDriverWayland.so && \
     cd /tmp/agnos/graphics && \
     gcc -shared -fPIC -Os -s -Wall -Wextra -Werror -Wl,-z,defs -Wl,-z,relro,-z,now \
@@ -63,7 +61,6 @@ ARG USERNAME=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/debs /tmp/agnos/debs
 COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 
@@ -77,7 +74,6 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 FROM agnos-base
 
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
-RUN mv /data/persist /system/ && rm -rf /data/*
 
 # modem.service runs the packaged modem.py (AT + IPv4 PPP).
 # NetworkManager still requires libmm-glib0 for Wi-Fi/Ethernet operation.

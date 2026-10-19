@@ -118,12 +118,10 @@ ln -s usr/lib64 /lib64
 # Install Ubuntu's graphics development files before replacing their libraries.
 /tmp/agnos/openpilot_dependencies.sh
 
-# Qualcomm driver packages.
-cd /tmp/agnos/debs
-apt-get --no-install-recommends -o Dpkg::Options::="--force-overwrite" install -yq \
-  ./agnos-base_0.0.4.deb \
-  ./agnos-display_0.0.4.deb \
-  ./agnos-wlan_0.0.4.deb
+# Qualcomm mount points and the /data/persist template copied by fs_setup.
+install -d /dsp /firmware /bt_firmware
+install -d /system/persist/hlos_rfs/shared /system/persist/rfs/shared \
+  /system/persist/rfs/{mdm,msm}/{adsp,mpss}
 
 # pdmappersvc requires the Ubuntu 16.04 version of libjson-c2.
 cd /tmp

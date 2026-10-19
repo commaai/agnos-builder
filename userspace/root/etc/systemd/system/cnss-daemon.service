@@ -1,0 +1,17 @@
+# Copyright (c) 2018 Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+#
+
+[Unit]
+Description=CNSS Daemon Service
+SourcePath=/etc/initscripts/start_cnss_daemon
+
+[Service]
+Restart=no
+RemainAfterExit=yes
+ExecStart=/etc/initscripts/start_cnss_daemon start
+ExecStop=/etc/initscripts/start_cnss_daemon stop
+
+[Install]
+WantedBy=multi-user.target
