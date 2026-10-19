@@ -96,7 +96,6 @@ RUN apt-get update && \
     libpolkit-gobject-1-0 \
     libsystemd0 \
     polkitd && \
-    apt-get purge -y modemmanager && \
     test ! -e /lib/systemd/system/ModemManager.service
 
 ARG XDG_DATA_HOME="/usr/local"
