@@ -39,7 +39,6 @@ systemctl disable vnstat.service
 systemctl disable ssh
 
 # Disable all useless systemctl services
-systemctl disable hostapd.service
 systemctl disable apt-daily-upgrade.service
 systemctl disable apt-daily.service
 systemctl disable apt-daily-upgrade.timer
@@ -52,10 +51,8 @@ systemctl disable e2scrub_all.timer
 systemctl disable fstrim.timer
 systemctl disable motd-news.service
 systemctl disable motd-news.timer
-systemctl disable multipathd.service
-systemctl disable multipathd.socket
 systemctl disable chgrp-diag.service
-systemctl disable lvm2-monitor.service
+systemctl disable systemd-pstore.service
 systemctl mask systemd-backlight@.service
 systemctl mask alsa-restore.service
 ln -s /dev/null /etc/udev/rules.d/90-alsa-restore.rules
@@ -67,17 +64,6 @@ systemctl disable update-notifier-download.service
 systemctl disable update-notifier-motd.timer
 systemctl disable update-notifier-motd.service
 systemctl disable man-db.timer
-
-# Disable NFS stuff by default
-systemctl disable rpcbind
-systemctl disable dnsmasq.service
-systemctl disable nfs-client.target
-systemctl disable remote-fs-pre.target
-
-# Service is from ifupdown but ifupdown is managed by NetworkManager
-# networking service fails with "ifup: failed to bring up lo"
-# no influence on any interface, all interfaces work fine
-systemctl disable networking.service
 
 # TODO: this doesn't actually disable unless run twice...
 # Service fails with Status: "No devices to monitor"
