@@ -23,17 +23,12 @@ systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable adb-param-watcher.path
 systemctl enable adb-param-watcher.service
-systemctl enable logrotate-hourly.timer
 systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
 systemctl enable screen_calibration.service
 
 # Disable some of our services
 systemctl disable agnos-tests.service
-
-# Disable third party services
-systemctl disable darkstat.service
-systemctl disable vnstat.service
 
 # Disable SSH by default
 systemctl disable ssh
@@ -55,8 +50,3 @@ systemctl mask systemd-backlight@.service
 systemctl mask alsa-restore.service
 ln -s /dev/null /etc/udev/rules.d/90-alsa-restore.rules
 systemctl disable dpkg-db-backup.timer
-
-# TODO: this doesn't actually disable unless run twice...
-# Service fails with Status: "No devices to monitor"
-systemctl disable smartd.service
-systemctl disable smartd.service

@@ -5,15 +5,7 @@
 apt-fast update && apt-fast install -y --no-install-recommends \
   bash-completion \
   btop \
-  hyperfine \
-  iperf \
-  iperf3 \
   ripgrep \
-  ncdu \
-  socat \
-  stress-ng \
-  tree \
-  wavemon \
   avahi-daemon \
   adb \
   avahi-utils
