@@ -17,13 +17,6 @@ for package in ("sympy", "numpy", "matplotlib", "mpmath", "setuptools"):
     if directory.name in ("tests", "test") and directory.is_dir():
       shutil.rmtree(directory)
 
-casadi = site / "casadi/libcasadi.so"
-if casadi.is_file() and not casadi.is_symlink():
-  target = casadi.with_name("libcasadi.so.3.7")
-  assert casadi.read_bytes() == target.read_bytes()
-  casadi.unlink()
-  casadi.symlink_to(target.name)
-
 # These inspection/benchmark tools are not used by GCC or clang to compile.
 for pattern in ("/usr/bin/*lto-dump*", "/usr/bin/llvm-exegesis*", "/usr/lib/llvm-*/bin/llvm-exegesis"):
   for path in Path("/").glob(pattern.lstrip("/")):
