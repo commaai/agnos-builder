@@ -39,9 +39,14 @@ boot wlan /sys/kernel/boot_wlan/boot_wlan
   daemon /usr/sbin/rmt_storage
   daemon /usr/sbin/tftp_server
 
-  # boots the modem; it stays up while init_mss holds /dev/subsys_modem open
-  echo "modem: booting"
-  daemon /usr/sbin/init_mss
+  # Opening /dev/subsys_modem boots the modem, and the kernel shuts it down
+  # when the last reference is released, so hold it open for good.
+  # https://github.com/commaai/agnos-kernel-sdm845/blob/8b0e4d289b246a5cc1b0484b25a3f9f8d4772544/drivers/soc/qcom/subsystem_restart.c#L1215-L1251
+  (
+    echo "modem: booting"
+    exec 3< /dev/subsys_modem && echo "modem: booted" || echo "modem: boot failed"
+    exec sleep infinity
+  ) &
   daemon /usr/bin/pdmappersvc
   daemon /usr/sbin/cnss_daemon -n
   wait
