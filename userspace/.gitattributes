@@ -2,7 +2,6 @@ root/usr/comma/wlan.ko filter=lfs diff=lfs merge=lfs -text
 graphics/libeglSubDriverWayland.so.patched filter=lfs diff=lfs merge=lfs -text
 root/usr/comma/reset filter=lfs diff=lfs merge=lfs -text
 root/usr/comma/setup filter=lfs diff=lfs merge=lfs -text
-root/usr/comma/installer filter=lfs diff=lfs merge=lfs -text
 root/usr/comma/updater filter=lfs diff=lfs merge=lfs -text
 graphics/libgbm.so filter=lfs diff=lfs merge=lfs -text
 root/usr/lib/aarch64-linux-gnu/libEGL_adreno.so filter=lfs diff=lfs merge=lfs -text

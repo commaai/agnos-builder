@@ -22,8 +22,9 @@ function create_image() {
 
   cd $WORKDIR
 
-  fallocate -l $IMAGE_SIZE $USERDATA_IMAGE
-  mkfs.ext4 $USERDATA_IMAGE
+  # Keep the userdata image's logical size without allocating empty space on disk.
+  truncate -s $IMAGE_SIZE $USERDATA_IMAGE
+  mkfs.ext4 -F $USERDATA_IMAGE
 
   mkdir $MNTDIR
   sudo mount $USERDATA_IMAGE $MNTDIR
