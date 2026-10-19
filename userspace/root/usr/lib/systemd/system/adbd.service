@@ -2,5 +2,7 @@
 Description=adbd Service
 
 [Service]
+Type=notify
+TimeoutStartSec=10
 User=root
 ExecStart=/usr/comma/adbd

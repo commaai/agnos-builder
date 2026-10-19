@@ -42,13 +42,8 @@ setup() {
   sudo ln -s functions/ffs.adb configs/c.1/
 }
 
-start() {
-  cd /config/usb_gadget/g1
-  echo "a600000.dwc3" | sudo tee UDC
-}
-
 stop() {
-  if [ -d "/config/usb_gadget/g1" ]; then
+  if [ -d "/config/usb_gadget/g1" ] && [ -n "$(cat /config/usb_gadget/g1/UDC)" ]; then
     cd /config/usb_gadget/g1
     echo "" | sudo tee UDC
   fi
@@ -60,8 +55,6 @@ if [ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]; then
 
   setup
   systemctl start adbd
-  sleep 1  # adbd does some setup before we can enable the gadget
-  start
 else
   echo "Disabling ADB"
 
