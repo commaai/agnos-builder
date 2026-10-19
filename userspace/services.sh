@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
-# Enable DSP support services
-systemctl enable adsp
+# Enable DSP and IPC router services
+systemctl enable irsc_util
 systemctl enable cdsp
 
 # Enable our services
@@ -51,7 +51,6 @@ systemctl disable e2scrub_all.timer
 systemctl disable fstrim.timer
 systemctl disable motd-news.service
 systemctl disable motd-news.timer
-systemctl disable chgrp-diag.service
 systemctl disable systemd-pstore.service
 systemctl mask systemd-backlight@.service
 systemctl mask alsa-restore.service
@@ -67,4 +66,3 @@ systemctl disable smartd.service
 systemctl disable smartd.service
 
 systemctl disable console-setup.service
-systemctl disable sfsconfig.service

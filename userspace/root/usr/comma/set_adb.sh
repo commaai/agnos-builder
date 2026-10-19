@@ -43,8 +43,6 @@ setup() {
 }
 
 start() {
-  setprop service.adb.tcp.port -1
-
   cd /config/usb_gadget/g1
   echo "a600000.dwc3" | sudo tee UDC
 }

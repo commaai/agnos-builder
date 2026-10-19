@@ -1,0 +1,2 @@
+# Qualcomm daemons (rmt_storage, etc.) look up UFS partitions by name here
+SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{PARTNAME}=="?*", KERNELS=="1d84000.ufshc", SYMLINK+="block/bootdevice/by-name/$env{PARTNAME}"
