@@ -61,7 +61,6 @@ ARG USERNAME=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
-COPY ./userspace/debs /tmp/agnos/debs
 COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 
@@ -75,7 +74,9 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 FROM agnos-base
 
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
-RUN mv /data/persist /system/ && rm -rf /data/*
+# Template for /data/persist, copied by fs_setup on first boot
+RUN mkdir -p /system/persist/hlos_rfs/shared /system/persist/rfs/shared \
+      /system/persist/rfs/msm/adsp /system/persist/rfs/msm/mpss
 
 # modem.service runs the packaged modem.py (AT + IPv4 PPP).
 # NetworkManager still requires libmm-glib0 for Wi-Fi/Ethernet operation.

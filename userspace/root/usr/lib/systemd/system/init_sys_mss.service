@@ -1,0 +1,9 @@
+[Unit]
+Description=Boot the modem subsystem, which runs the Wi-Fi firmware
+
+[Service]
+ExecStart=/usr/sbin/init_mss
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

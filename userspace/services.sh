@@ -4,6 +4,14 @@
 systemctl enable irsc_util
 systemctl enable cdsp
 
+# Enable modem subsystem services, needed for Wi-Fi
+systemctl enable rmt_storage
+systemctl enable init_sys_mss
+systemctl enable tftp_server
+systemctl enable pdmapper
+systemctl enable cnss-daemon
+systemctl enable ipa_fws
+
 # Enable our services
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
@@ -44,7 +52,6 @@ systemctl disable apt-daily.service
 systemctl disable apt-daily-upgrade.timer
 systemctl disable apt-daily.timer
 systemctl disable serial-getty@ttyS0.service
-systemctl disable wlan_daemon.service
 systemctl disable remote-fs.target
 systemctl disable remote-fs-pre.target
 systemctl disable e2scrub_all.timer

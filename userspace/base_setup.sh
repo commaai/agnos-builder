@@ -118,14 +118,4 @@ ln -s usr/lib64 /lib64
 # Install Ubuntu's graphics development files before replacing their libraries.
 /tmp/agnos/openpilot_dependencies.sh
 
-# Qualcomm driver packages.
-cd /tmp/agnos/debs
-apt-get --no-install-recommends -o Dpkg::Options::="--force-overwrite" install -yq \
-  ./agnos-wlan_0.0.4.deb
-
-# pdmappersvc requires the Ubuntu 16.04 version of libjson-c2.
-cd /tmp
-wget http://ports.ubuntu.com/pool/main/j/json-c/libjson-c2_0.11-4ubuntu2.6_arm64.deb -O /tmp/libjson-c2_0.11-4ubuntu2.6_arm64.deb
-apt-get install --no-install-recommends -yq /tmp/libjson-c2_0.11-4ubuntu2.6_arm64.deb
-
 rm -rf /var/lib/apt/lists/*
