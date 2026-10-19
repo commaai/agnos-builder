@@ -74,6 +74,7 @@ ARG USERNAME=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
+COPY ./userspace/debs /tmp/agnos/debs
 COPY ./userspace/base_setup.sh /tmp/agnos
 RUN /tmp/agnos/base_setup.sh
 
@@ -90,11 +91,6 @@ FROM agnos-base
 
 COPY ./userspace/libs/* /usr/lib/aarch64-linux-gnu/
 
-# Hardware setup
-RUN mkdir -p /tmp/agnos/debs
-COPY ./userspace/debs /tmp/agnos/debs
-COPY ./userspace/hardware_setup.sh /tmp/agnos
-RUN /tmp/agnos/hardware_setup.sh
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 RUN mv /data/persist /system/ && rm -rf /data/*
 
