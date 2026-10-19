@@ -8,11 +8,9 @@ apt-fast update && apt-fast install -y --no-install-recommends \
   hyperfine \
   iperf \
   iperf3 \
-  dnsmasq \
   irqtop \
   ripgrep \
   ncdu \
-  nfs-common \
   socat \
   stress-ng \
   tree \

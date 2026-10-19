@@ -63,12 +63,10 @@ ARG USERNAME=comma
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/debs /tmp/agnos/debs
-COPY ./userspace/base_setup.sh /tmp/agnos
+COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 
-# Install openpilot dependencies
-COPY ./userspace/openpilot_dependencies.sh /tmp/agnos/
-RUN /tmp/agnos/openpilot_dependencies.sh
+# Install openpilot Python dependencies
 COPY ./userspace/openpilot_python_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/openpilot_python_dependencies.sh
 
