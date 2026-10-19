@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import json
 import os
 import hashlib
@@ -169,10 +170,13 @@ def process_file(entry):
   return ret
 
 
-if __name__ == "__main__":
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--ota-only", action="store_true", help="Package OTA partitions without factory userdata images")
+  args = parser.parse_args()
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-  files = [(process_file(x), x.ota) for x in GPTS + PARTITIONS]
+  files = [(process_file(x), x.ota) for x in GPTS + PARTITIONS if not args.ota_only or x.ota]
 
   configs = [
     # URL, file name, only OTA partitions
@@ -182,6 +186,8 @@ if __name__ == "__main__":
     (AGNOS_STAGING_UPDATE_URL, "all-partitions-staging.json", False),
   ]
   for remote_url, output_fn, only_ota in configs:
+    if args.ota_only and not only_ota:
+      continue
     processed_files = []
     for f, ota in deepcopy(files):
       if only_ota and not ota:
@@ -195,3 +201,7 @@ if __name__ == "__main__":
       json.dump(processed_files, out, indent=2)
 
   print("Done")
+
+
+if __name__ == "__main__":
+  main()
