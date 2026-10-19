@@ -66,7 +66,6 @@ RUN /tmp/agnos/openpilot_python_dependencies.sh
 # ################### #
 FROM agnos-base
 
-COPY ./userspace/abctl.py /usr/sbin/abctl
 COPY --from=agnos-compiler-adbd /tmp/agnos/adbd /usr/comma/adbd
 COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr/share/doc/adbd/NOTICE
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
