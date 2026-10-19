@@ -1,9 +1,0 @@
-[Unit]
-Description=Sound
-
-[Service]
-Type=oneshot
-ExecStart=/usr/comma/sound/sound_init.sh
-
-[Install]
-WantedBy=multi-user.target

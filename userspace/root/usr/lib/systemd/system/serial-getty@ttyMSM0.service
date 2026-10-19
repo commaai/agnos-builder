@@ -1,0 +1,28 @@
+[Unit]
+Description=Serial Getty on ttyMSM0
+Documentation=man:agetty(8)
+After=systemd-user-sessions.service plymouth-quit-wait.service getty-pre.target
+After=rc-local.service
+Before=getty.target
+IgnoreOnIsolate=yes
+Conflicts=rescue.service
+Before=rescue.service
+
+[Service]
+ExecStartPre=/bin/stty -F /dev/ttyMSM0 hupcl
+ExecStart=-/sbin/agetty -o '-p -- \\u' --keep-baud 115200,57600,38400,9600 - $TERM
+Type=idle
+Restart=always
+UtmpIdentifier=ttyMSM0
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/ttyMSM0
+TTYReset=yes
+TTYVHangup=yes
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
+ImportCredential=agetty.*
+ImportCredential=login.*
+
+[Install]
+WantedBy=getty.target

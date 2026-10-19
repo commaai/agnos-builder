@@ -1,6 +1,7 @@
 [Unit]
 Description=LTE
-After=gpio.service network.target
+Requires=comma-init.service
+After=comma-init.service network.target
 
 [Service]
 Restart=no
