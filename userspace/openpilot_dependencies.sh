@@ -9,7 +9,7 @@ apt-fast install --no-install-recommends -yq \
     automake \
     build-essential \
     casync \
-    clang \
+    clang-20 \
     cmake \
     curl \
     darkstat \
@@ -25,7 +25,7 @@ apt-fast install --no-install-recommends -yq \
     libglib2.0-0t64 \
     libi2c-dev \
     liblzma-dev \
-    libomp-dev \
+    libomp-20-dev \
     libportaudio2 \
     libsqlite3-dev \
     libsystemd-dev \

@@ -57,7 +57,7 @@ apt-fast install --no-install-recommends -yq \
     libssl-dev \
     libtool \
     libx264-dev \
-    llvm \
+    llvm-20 \
     locales \
     nano \
     net-tools \
@@ -117,5 +117,10 @@ ln -s usr/lib64 /lib64
 
 # Install Ubuntu's graphics development files before replacing their libraries.
 /tmp/agnos/openpilot_dependencies.sh
+
+# Versioned LLVM packages don't provide the unversioned commands.
+for tool in /usr/lib/llvm-20/bin/*; do
+  ln -sf "$tool" "/usr/local/bin/$(basename "$tool")"
+done
 
 rm -rf /var/lib/apt/lists/*
