@@ -8,7 +8,6 @@ apt-fast update && apt-fast install -y --no-install-recommends \
   hyperfine \
   iperf \
   iperf3 \
-  irqtop \
   ripgrep \
   ncdu \
   socat \
