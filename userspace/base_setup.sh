@@ -116,6 +116,9 @@ ln -sf /bin/bash /bin/sh
 mkdir /usr/lib64
 ln -s usr/lib64 /lib64
 
+# Install Ubuntu's graphics development files before replacing their libraries.
+/tmp/agnos/openpilot_dependencies.sh
+
 # Qualcomm driver packages.
 cd /tmp/agnos/debs
 apt-get --no-install-recommends -o Dpkg::Options::="--force-overwrite" install -yq \
