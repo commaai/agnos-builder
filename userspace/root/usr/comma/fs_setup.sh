@@ -8,7 +8,6 @@ systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 
 # /var/log/ tmpfs
 mkdir -p /var/log/
-chown root:syslog /var/log
 mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log
 
 # setup /home
