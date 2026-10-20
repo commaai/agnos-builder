@@ -1,0 +1,46 @@
+#!/usr/bin/python3
+"""Merge NetworkManager and PPP DNS updates into an atomic /run/resolv.conf."""
+import fcntl
+import ipaddress
+from pathlib import Path
+import re
+import sys
+
+
+def update(command, interface, content, root=Path('/run')):
+  if command not in ('-a', '-d') or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', interface):
+    raise ValueError('usage: resolvconf {-a|-d} interface')
+  state = root / 'resolvconf'
+  state.mkdir(exist_ok=True)
+  # Validate before touching the last good configuration.
+  entries = []
+  for line in content.splitlines():
+    words = line.split()
+    if words and words[0] == 'nameserver' and len(words) == 2:
+      entries.append('nameserver ' + str(ipaddress.ip_address(words[1])))
+    elif words and words[0] == 'search' and all(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', w) for w in words[1:]):
+      entries.append(' '.join(words))
+  with (state / '.lock').open('w') as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    target = state / interface
+    if command == '-a':
+      target.write_text('\n'.join(entries) + '\n')
+    else:
+      target.unlink(missing_ok=True)
+    # Wi-Fi/Ethernet DNS first, cellular fallback last, matching route metrics.
+    files = sorted((p for p in state.iterdir() if not p.name.startswith('.')),
+                   key=lambda p: (p.name.startswith('ppp'), p.name))
+    lines = list(dict.fromkeys(line for p in files for line in p.read_text().splitlines()))
+    tmp = root / 'resolv.conf.tmp'
+    tmp.write_text('\n'.join(lines) + '\n')
+    tmp.chmod(0o644)
+    tmp.replace(root / 'resolv.conf')
+
+
+if __name__ == '__main__':
+  try:
+    if len(sys.argv) != 3:
+      raise ValueError('usage: resolvconf {-a|-d} interface')
+    update(sys.argv[1], sys.argv[2], sys.stdin.read() if sys.argv[1] == '-a' else '')
+  except ValueError as e:
+    sys.exit(str(e))

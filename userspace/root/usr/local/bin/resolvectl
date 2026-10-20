@@ -1,0 +1,26 @@
+#!/usr/bin/python3
+"""Compatibility for deployed openpilot modem.py; resolvconf owns DNS."""
+import ipaddress
+import subprocess
+import sys
+
+
+def main(args):
+  if len(args) < 2 or args[1] != 'ppp0':
+    raise ValueError('only ppp0 DNS is supported')
+  command = args[0]
+  if command == 'dns' and len(args) > 2:
+    servers = [str(ipaddress.ip_address(server)) for server in args[2:]]
+    return subprocess.run(['resolvconf', '-a', 'ppp0'], input=''.join(f'nameserver {s}\n' for s in servers), text=True).returncode
+  if command == 'revert' and len(args) == 2:
+    return subprocess.run(['resolvconf', '-d', 'ppp0']).returncode
+  if args == ['default-route', 'ppp0', 'yes']:
+    return 0
+  raise ValueError('unsupported resolvectl command')
+
+
+if __name__ == '__main__':
+  try:
+    sys.exit(main(sys.argv[1:]))
+  except ValueError as e:
+    sys.exit(str(e))

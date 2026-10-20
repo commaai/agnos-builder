@@ -1,7 +1,0 @@
-// Allow sudo users to control NetworkManager
-polkit.addRule(function (action, subject) {
-  if (action.id.startsWith("org.freedesktop.NetworkManager.") &&
-      subject.isInGroup("sudo")) {
-    return polkit.Result.YES;
-  }
-});

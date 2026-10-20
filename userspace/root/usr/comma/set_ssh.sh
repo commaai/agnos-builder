@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 SSH_PARAM="/data/params/d/SshEnabled"
 if [ -f "$SSH_PARAM" ] && [ "$(< $SSH_PARAM)" == "1" ]; then

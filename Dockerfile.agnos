@@ -17,6 +17,11 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 COPY ./userspace/build_adbd.sh ./userspace/adbd-linux.patch /tmp/agnos/
 RUN /tmp/agnos/build_adbd.sh
 
+# Wi-Fi/Ethernet API compatibility without netplan, polkit or systemd.
+FROM agnos-compiler AS agnos-compiler-networkmanager
+COPY ./userspace/build_networkmanager.sh /tmp/agnos/
+RUN /tmp/agnos/build_networkmanager.sh
+
 # Qualcomm graphics without Wayland or OpenCL runtime dependencies
 FROM agnos-compiler AS agnos-compiler-graphics
 RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
@@ -53,7 +58,6 @@ RUN mkdir -p /tmp/agnos
 ARG USERNAME=comma
 
 # Base system setup
-RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 
@@ -70,21 +74,7 @@ COPY --from=agnos-compiler-adbd /tmp/agnos/adbd /usr/comma/adbd
 COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr/share/doc/adbd/NOTICE
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 
-# modem.service runs the packaged modem.py (AT + IPv4 PPP).
-# NetworkManager still requires libmm-glib0 for Wi-Fi/Ethernet operation.
-RUN apt-get update && \
-    apt-get install -yq --no-install-recommends \
-    python3 \
-    python3-dev \
-    libglib2.0-dev \
-    libc6 \
-    libglib2.0-0t64 \
-    libgudev-1.0-0 \
-    libmm-glib0 \
-    libpolkit-gobject-1-0 \
-    libsystemd0 \
-    polkitd && \
-    test ! -e /lib/systemd/system/ModemManager.service
+COPY --from=agnos-compiler-networkmanager /tmp/agnos/networkmanager/ /
 
 ARG XDG_DATA_HOME="/usr/local"
 
@@ -103,7 +93,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
-RUN /usr/comma/adbd --version
+RUN /usr/comma/adbd --version && NetworkManager --version && nmcli --version
 
 # Root filesystem overlay, all files at their final paths.
 # tar keeps the ownership and permissions of existing directories, COPY resets them.
@@ -114,7 +104,6 @@ RUN --mount=type=bind,source=userspace/root,target=/tmp/agnos/root \
     tar -C /tmp/agnos/root --owner=0 --group=0 --mode=go-w -cf - . | tar -C / --no-overwrite-dir -xf -
 COPY ./userspace/root/home/$USERNAME/.config/ /root/.config
 RUN chown -R $USERNAME: /home/$USERNAME
-RUN touch -r /lib/systemd/systemd /etc/fstab
 
 COPY ./output/linux-headers/include/ /usr/include/
 
@@ -126,7 +115,7 @@ RUN gcc -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
     -lpthread && rm /tmp/agnos/power_burn_max.c \
     && chown $USERNAME: /home/$USERNAME/power_burn_max
 
-# Setup systemd services
+# Setup runit services
 COPY ./userspace/services.sh /tmp/agnos
 RUN /tmp/agnos/services.sh
 
@@ -138,7 +127,7 @@ RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 RUN update-alternatives --set iptables /usr/sbin/iptables-legacy
 
 # Setup hostname resolution for our custom hostname
-RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
+RUN sed -i 's/^hosts:.*/hosts: files myhostname mdns4_minimal [NOTFOUND=return] dns/' /etc/nsswitch.conf
 
 # keep this last
 RUN ldconfig
@@ -200,7 +189,7 @@ RUN --mount=type=bind,from=agnos,target=/rootfs,rw \
     cd /rootfs && \
     ln -sf /proc/sys/kernel/hostname etc/hostname && \
     printf "127.0.0.1    localhost.localdomain localhost\n127.0.0.1    comma\n" > etc/hosts && \
-    ln -sf /run/systemd/resolve/stub-resolv.conf etc/resolv.conf && \
+    ln -sf /run/resolv.conf etc/resolv.conf && \
     setcap cap_net_raw+ep bin/ping && \
     printf "%s\n%s\n" "$GIT_HASH" "$BUILD_DATETIME" > BUILD && \
     mkdir /out && \

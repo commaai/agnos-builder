@@ -1,0 +1,4 @@
+#!/bin/sh
+[ "$(id -u)" = 0 ] || exec sudo -n "$0" "$@"
+chmod 100 /run/runit/reboot /run/runit/stopit
+kill -CONT 1

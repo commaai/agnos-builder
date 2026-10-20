@@ -21,6 +21,12 @@ jobs:
         lfs: true
         submodules: true
 
+    - name: Test runit services and DNS
+      run: |
+        python3 -m unittest discover -s tests -v
+        docker build -f tests/Dockerfile.runit -t agnos-runit-test .
+        docker run --rm agnos-runit-test
+
     - name: Get commit message
       run: |
         {

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 setup() {
   # Check if /config is already mounted
