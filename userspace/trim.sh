@@ -10,8 +10,12 @@ find "$site"/{tinymesa,capnp,zstandard,kiwisolver,fontTools} -type f -name '*.so
 find "$site"/{sympy,numpy,matplotlib,mpmath,setuptools} -type d \( -name tests -o -name test \) \
   -prune -exec rm -rf {} +
 
-# This benchmark tool is not used by clang to compile.
-rm -f /usr/bin/llvm-exegesis* /usr/lib/llvm-*/bin/llvm-exegesis
+# Unused LLVM: the libclang C API (tinygrad only uses it to regenerate bindings),
+# the Polly plugin, and the largest test/debug tools.
+llvm=/usr/lib/llvm-20
+rm -f /usr/lib/aarch64-linux-gnu/libclang-20.so* $llvm/lib/libclang-20.so* $llvm/lib/LLVMPolly.so \
+  $llvm/bin/{obj2yaml,yaml2obj,llvm-tblgen,llvm-jitlink-executor,lli-child-target,llvm-pdbutil,llvm-exegesis}
+find /usr/bin /usr/local/bin -xtype l -delete
 
 # AGNOS uses Adreno EGL/GLES/GBM. Keep LLVM20 for tinymesa's CPU compiler.
 lib=/usr/lib/aarch64-linux-gnu
