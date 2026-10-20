@@ -73,11 +73,17 @@ class GPT:
         pass
     if not arrays:
       raise ValueError(f'{path}: neither GPT copy is valid')
+    source = 1 if 1 in arrays else self.last
+    template = self.headers[source]
+    # Flashing only writes the primary, so a stale backup can disagree with it; rebuild it.
+    other = self.last if source == 1 else 1
+    if other in self.headers and (self.headers[other][40:72] != template[40:72] or
+                                  self.headers[other][80:88] != template[80:88]):
+      del self.headers[other]
+      arrays.pop(other, None)
     self.valid_copies = set(arrays)
     self.arrays = arrays
-    source = 1 if 1 in arrays else self.last
     self.entries = bytearray(arrays[source])
-    template = self.headers[source]
     self.entry_size = struct.unpack_from('<I', template, 84)[0]
     # Preserve the entry-array location in every valid header.
     # When rebuilding a header, reserve at least 16 KiB for the entry-array, matching ABL.
