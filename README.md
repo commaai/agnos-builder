@@ -28,13 +28,13 @@ git submodule update --init agnos-kernel-sdm845
 
 1. (Optional) Because AGNOS currently packages dependencies that [openpilot](https://github.com/commaai/openpilot) uses, run `./sync_openpilot_dependencies.sh` to update them.
 
-2. (Optional) The setup, reset, and updater UIs are Python [zipapps](https://docs.python.org/3/library/zipapp.html) built from openpilot using `release/pack.py`. To rebuild them, run from the [openpilot](https://github.com/commaai/openpilot) repo:
+2. (Optional) The setup, reset, and updater UIs are Python [zipapps](https://docs.python.org/3/library/zipapp.html) built from openpilot using `tools/release/pack.py`. To rebuild them, run from the [openpilot](https://github.com/commaai/openpilot) repo:
 
     ```
     cd /path/to/openpilot
-    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/setup openpilot.system.ui.mici_setup
-    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/reset openpilot.system.ui.reset
-    python release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/updater openpilot.system.ui.updater
+    python tools/release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/setup openpilot.system.ui.setup
+    python tools/release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/reset openpilot.system.ui.reset
+    python tools/release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/updater openpilot.system.ui.updater
     ```
 
 3. Build the kernel and system images:
