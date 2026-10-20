@@ -1,6 +1,8 @@
 [Unit]
 Description=QCOM init
 After=sysinit.target
+# set the restart levels before any subsystem boots
+Before=wifi.service sound.service cdsp.service
 
 [Service]
 Type=oneshot
