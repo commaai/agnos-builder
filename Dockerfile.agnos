@@ -154,7 +154,7 @@ RUN cd /usr/lib/aarch64-linux-gnu && \
     rm -f libgbm.so.1 && \
     mv /tmp/libgbm_adreno.so libgbm.so.1
 
-COPY ./userspace/trim.sh ./userspace/libxml2_stub.c ./userspace/libxml2_stub.map /tmp/agnos/
+COPY ./userspace/trim.sh /tmp/agnos/
 RUN /tmp/agnos/trim.sh
 
 # Setup RO rootfs
