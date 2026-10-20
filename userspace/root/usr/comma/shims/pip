@@ -10,7 +10,7 @@ sudo mount -o rw,remount /
 sudo resize2fs $(findmnt -n -o SOURCE /) &>/dev/null || sudo resize2fs $(findmnt -n -o SOURCE /)
 
 # run command
-sudo TMPDIR=$TMPDIR PIP_NO_CACHE_DIR=1 $PIP_PATH "$@"
+sudo CC="${CC:-clang}" CXX="${CXX:-clang++}" TMPDIR=$TMPDIR PIP_NO_CACHE_DIR=1 $PIP_PATH "$@"
 
 # cleanup
 sudo mount -o ro,remount /

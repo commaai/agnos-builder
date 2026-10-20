@@ -43,6 +43,8 @@ RUN mkdir -p /tmp/agnos/graphics && \
 # ################## #
 FROM scratch AS agnos-base
 
+ENV CC=clang CXX=clang++
+
 # Add Ubuntu Base image files
 ARG UBUNTU_BASE_IMAGE
 ADD ${UBUNTU_BASE_IMAGE} /
@@ -119,10 +121,10 @@ RUN touch -r /lib/systemd/systemd /etc/fstab
 COPY ./output/linux-headers/include/ /usr/include/
 
 COPY ./userspace/irsc_util.c /tmp/agnos/
-RUN gcc -O2 -Wall -Wextra -Werror -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c && rm /tmp/agnos/irsc_util.c
+RUN clang -O2 -Wall -Wextra -Werror -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c && rm /tmp/agnos/irsc_util.c
 
 COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
-RUN gcc -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
+RUN clang -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
     -lpthread && rm /tmp/agnos/power_burn_max.c \
     && chown $USERNAME: /home/$USERNAME/power_burn_max
 
@@ -190,7 +192,8 @@ RUN apt-get update && \
 FROM agnos-image-tools AS agnos-image-build
 # the partition is 10G, but openpilot's updater didn't always handle the full size
 # openpilot fix, shipped in 0.9.8 (8/18/24): https://github.com/commaai/openpilot/pull/33320
-ARG ROOTFS_IMAGE_SIZE=4500M
+# Package-install helpers expand the read-only rootfs before writing.
+ARG ROOTFS_IMAGE_SIZE=2048M
 ARG GIT_HASH
 ARG BUILD_DATETIME
 # Compress the image for remote builders, where the download is the bottleneck
