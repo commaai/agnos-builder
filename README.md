@@ -37,8 +37,6 @@ git submodule update --init agnos-kernel-sdm845
     python tools/release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/updater openpilot.system.ui.updater
     ```
 
-    The zipapps must be self-contained, since there's no `/data/pythonpath` after a factory reset. `pack.py` checks this as of commaai/openpilot#39137.
-
 3. Build the kernel and system images:
 
     ```
