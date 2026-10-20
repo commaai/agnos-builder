@@ -74,6 +74,7 @@ class GPT:
     if not arrays:
       raise ValueError(f'{path}: neither GPT copy is valid')
     self.valid_copies = set(arrays)
+    self.arrays = arrays
     source = 1 if 1 in arrays else self.last
     self.entries = bytearray(arrays[source])
     template = self.headers[source]
@@ -150,6 +151,9 @@ class GPT:
       raise OSError('GPT write verification failed')
 
   def write(self):
+    # Skip rewriting identical tables, e.g. set_success on every boot.
+    if self.valid_copies == {1, self.last} and all(a == self.entries for a in self.arrays.values()):
+      return
     # Repair an invalid primary before touching the only valid backup.
     order = (1, self.last) if 1 not in self.valid_copies else (self.last, 1)
     for lba in order:
