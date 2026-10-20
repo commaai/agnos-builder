@@ -92,6 +92,18 @@ class TestWifi(unittest.TestCase):
     self.assertEqual(self.path.read_text(), before)
     self.assertEqual(self.wifi.data['hotspot']['password'], 'swagswagcomma')
 
+  def test_radio_reset_reloads_client_profiles(self):
+    self.wifi.pending = wifi.validate_network('B', 'password')
+    self.ctrl.commands.clear()
+    with patch.object(self.wifi, 'stop_hotspot'):
+      self.wifi.command('radio', enabled=False)
+      self.assertIsNone(self.wifi.pending)
+      self.assertIn('REMOVE_NETWORK all', self.ctrl.commands)
+      self.assertNotIn('ENABLE_NETWORK all', self.ctrl.commands)
+      self.wifi.command('radio', enabled=True)
+    self.assertIn('ENABLE_NETWORK all', self.ctrl.commands)
+    self.assertEqual(set(self.wifi.ids), {'A'})
+
   def test_scan_security_and_strength(self):
     self.ctrl.scan += '00:11:22:33:44:55\t2412\t-55\t[WPA2-PSK-CCMP][ESS]\tcaf\\xc3\\xa9\n'
     self.ctrl.scan += '00:11:22:33:44:66\t2412\t-75\t[WPA2-PSK-CCMP][ESS]\tcaf\\xc3\\xa9\n'
