@@ -17,6 +17,7 @@ apt-fast upgrade -yq
 apt-fast install --no-install-recommends -yq \
     adduser \
     alsa-utils \
+    apport \
     apport-retrace \
     bc \
     build-essential \
