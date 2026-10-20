@@ -12,8 +12,6 @@
 KEEP_ALIVE=0
 subsys_name=""
 
-echo -n "/firmware/image" > /sys/module/firmware_class/parameters/path
-
 # Wait for adsp.mdt to show up
 count=0
 while [ ! -s /firmware/image/adsp.mdt ]; do
