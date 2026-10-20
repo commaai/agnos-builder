@@ -21,6 +21,8 @@ dependencies = [
   "dbus-python",
   # amplifier.py
   "smbus2",
+  # lpa.py, imported by the AGNOS updater in older openpilot releases
+  "pyserial",
 
   # provisioning
   "pyusb",
