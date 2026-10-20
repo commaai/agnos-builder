@@ -1,0 +1,9 @@
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A INPUT -p ipv6-icmp -j ACCEPT
+-A INPUT -i wwan0 -j DROP
+-A INPUT -i ppp0 -j DROP
+COMMIT

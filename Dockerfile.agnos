@@ -137,7 +137,8 @@ RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
 # Block incoming cellular traffic, including modem.py's PPP interface.
 # The SDM845 kernel supports xtables, not Ubuntu's default nftables backend.
-RUN update-alternatives --set iptables /usr/sbin/iptables-legacy
+RUN update-alternatives --set iptables /usr/sbin/iptables-legacy && \
+    update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
 
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
