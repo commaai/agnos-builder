@@ -5,7 +5,6 @@ echo "Installing openpilot dependencies"
 # Install necessary libs
 apt-fast update
 apt-fast install --no-install-recommends -yq \
-    build-essential \
     clang-20 \
     curl \
     libdbus-1-dev \
@@ -13,5 +12,6 @@ apt-fast install --no-install-recommends -yq \
     libgbm-dev \
     libglib2.0-0t64 \
     libportaudio2 \
+    make \
     pkg-config \
     wget

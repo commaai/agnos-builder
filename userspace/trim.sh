@@ -10,8 +10,8 @@ find "$site"/{tinymesa,capnp,zstandard,kiwisolver,fontTools} -type f -name '*.so
 find "$site"/{sympy,numpy,matplotlib,mpmath,setuptools} -type d \( -name tests -o -name test \) \
   -prune -exec rm -rf {} +
 
-# These inspection/benchmark tools are not used by GCC or clang to compile.
-rm -f /usr/bin/*lto-dump* /usr/bin/llvm-exegesis* /usr/lib/llvm-*/bin/llvm-exegesis
+# This benchmark tool is not used by clang to compile.
+rm -f /usr/bin/llvm-exegesis* /usr/lib/llvm-*/bin/llvm-exegesis
 
 # AGNOS uses Adreno EGL/GLES/GBM. Keep LLVM20 for tinymesa's CPU compiler.
 lib=/usr/lib/aarch64-linux-gnu

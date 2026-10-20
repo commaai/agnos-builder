@@ -31,6 +31,8 @@ export XDG_RUNTIME_DIR="/var/tmp/xdg"
 
 # python setup
 export PYTHONPATH="/data/pythonpath"
+export CC="${CC:-clang}"
+export CXX="${CXX:-clang++}"
 
 export PATH="/usr/local/.cargo/bin:$PATH"
 export UV_PYTHON_INSTALL_DIR="/usr/local/uv/python"

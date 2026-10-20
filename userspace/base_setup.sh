@@ -20,7 +20,6 @@ apt-fast install --no-install-recommends -yq \
     apport \
     apport-retrace \
     bc \
-    build-essential \
     dnsmasq-base \
     gdb \
     git \
@@ -39,6 +38,7 @@ apt-fast install --no-install-recommends -yq \
     llvm-20 \
     locales \
     lsof \
+    make \
     network-manager \
     openssh-client \
     openssh-server \
@@ -88,5 +88,9 @@ ln -s usr/lib64 /lib64
 for tool in /usr/lib/llvm-20/bin/*; do
   ln -sf "$tool" "/usr/local/bin/$(basename "$tool")"
 done
+
+# Default C/C++ compilers.
+update-alternatives --install /usr/bin/cc cc /usr/bin/clang-20 100
+update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-20 100
 
 rm -rf /var/lib/apt/lists/*
