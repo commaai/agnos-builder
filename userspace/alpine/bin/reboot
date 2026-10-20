@@ -1,0 +1,11 @@
+#!/bin/sh
+# runit reboot/poweroff: stage 3 runs when /run/runit/stopit is executable;
+# /etc/runit/{stopit,reboot} point into /run since /etc is read-only.
+[ "$(id -u)" = 0 ] || exec sudo -n "$0" "$@"
+touch /run/runit/stopit /run/runit/reboot
+chmod 100 /run/runit/stopit
+case "$(basename "$0")" in
+  reboot) chmod 100 /run/runit/reboot ;;
+  *) chmod 000 /run/runit/reboot ;;
+esac
+kill -CONT 1
