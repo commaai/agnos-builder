@@ -6,5 +6,5 @@ if [ -f "$SSH_PARAM" ] && [ "$(< $SSH_PARAM)" == "1" ]; then
   systemctl start ssh
 else
   echo "Disabling SSH"
-  systemctl stop ssh
+  systemctl stop ssh.socket ssh
 fi

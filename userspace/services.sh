@@ -27,8 +27,8 @@ systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
 systemctl enable screen_calibration.service
 
-# Disable SSH by default
-systemctl disable ssh
+# Disable SSH by default, ssh-param-watcher starts it
+systemctl disable ssh ssh.socket
 
 # Disable all useless systemctl services
 systemctl disable apt-daily-upgrade.service
