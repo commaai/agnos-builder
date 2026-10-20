@@ -1,7 +1,8 @@
 [Unit]
 Description=Sets the hostname to the device's serial number
 After=basic.target
-Before=network.target
+# NetworkManager sends the hostname in DHCP requests
+Before=network.target NetworkManager.service
 
 [Service]
 User=root

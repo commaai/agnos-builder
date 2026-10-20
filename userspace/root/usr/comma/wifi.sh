@@ -44,7 +44,11 @@ boot wlan /sys/kernel/boot_wlan/boot_wlan
   # https://github.com/commaai/agnos-kernel-sdm845/blob/8b0e4d289b246a5cc1b0484b25a3f9f8d4772544/drivers/soc/qcom/subsystem_restart.c#L1215-L1251
   (
     echo "modem: booting"
-    exec 3< /dev/subsys_modem && echo "modem: booted" || echo "modem: boot failed"
+    until exec 3< /dev/subsys_modem; do
+      echo "modem: boot failed, retrying"
+      sleep 1
+    done
+    echo "modem: booted"
     exec sleep infinity
   ) &
   daemon /usr/bin/pdmappersvc

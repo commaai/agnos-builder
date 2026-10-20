@@ -1,5 +1,6 @@
 [Unit]
 Description=Magic
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -13,6 +14,9 @@ ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true"
 
 ExecStart=/bin/bash -c "source /etc/profile && /usr/local/venv/bin/python -u /usr/comma/magic.py"
+# raylib exits if the touchscreen or backlight isn't accessible yet, e.g. before udev sets their permissions
+Restart=on-failure
+RestartSec=1
 
 [Install]
 WantedBy=multi-user.target
