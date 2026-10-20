@@ -37,6 +37,8 @@ git submodule update --init agnos-kernel-sdm845
     python tools/release/pack.py -o /path/to/agnos-builder/userspace/root/usr/comma/updater openpilot.system.ui.updater
     ```
 
+    The zipapps must be self-contained: after a factory reset there's no `/data/pythonpath`. `tools/release/pack.py` only packs `openpilot/`, so also copy `opendbc_repo/opendbc` in as `opendbc`, which `openpilot.cereal` imports.
+
 3. Build the kernel and system images:
 
     ```
