@@ -78,12 +78,13 @@ class GPT:
     self.entries = bytearray(arrays[source])
     template = self.headers[source]
     self.entry_size = struct.unpack_from('<I', template, 84)[0]
-    # Preserve the entry-array location in every valid header. In particular,
-    # SDM845 uses 4 KiB sectors: its backup array is NOT at last_lba - 32.
+    # Preserve the entry-array location in every valid header.
+    # When rebuilding a header, reserve at least 16 KiB for the entry-array, matching ABL.
+    # https://git.codelinaro.org/clo/qcomlt/abl/-/blob/LE.UM.2.3.7/QcomModulePkg/Include/Library/PartitionTableUpdate.h#L104
     for lba in (1, self.last):
       if lba not in self.headers:
         header = bytearray(template)
-        blocks = (len(self.entries) + self.sector - 1) // self.sector
+        blocks = (max(len(self.entries), 16 * 1024) + self.sector - 1) // self.sector
         struct.pack_into('<QQ', header, 24, lba, self.last if lba == 1 else 1)
         struct.pack_into('<Q', header, 72, 2 if lba == 1 else self.last - blocks)
         self.validate_geometry(header, lba)
