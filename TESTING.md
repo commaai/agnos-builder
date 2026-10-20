@@ -14,8 +14,8 @@
   - [ ] corrupt userdata: `dd if=/dev/zero of=/dev/disk/by-partlabel/userdata count=10 bs=1M`
 - [ ] Clean setup: factory reset -> install openpilot -> openpilot works
 - [ ] Color calibration works from `/persist/comma/`
-  - [ ] tizi: `journalctl -u magic | grep 'Successfully setup color correction'`
-  - [ ] mici: `journalctl -u screen_calibration | grep -i 'Successfully setup screen calibration'`
+  - [ ] tizi: `busybox logread | grep 'Successfully setup color correction'`
+  - [ ] mici: `busybox logread | grep -i 'Successfully setup screen calibration'`
 - [ ] AGNOS update works on warm boot
   - [ ] previous -> new
   - [ ] new -> previous
@@ -61,7 +61,7 @@ termination, default remote-access state, and openpilot's JSON log feed.
 On both comma 3X and four, compare repeated cold boots with the current image:
 
 * Confirm `/proc/1/comm` is `runit`, `sudo sv status /etc/service/*` shows the
-  expected services, and no systemd manager, resolved, timesyncd or journald runs.
+  expected services, and no systemd manager, udev, NetworkManager, D-Bus, resolved, timesyncd or journald runs.
 * Measure power-on to setup UI and openpilot readiness, including boots without
   a SIM, without Wi-Fi, and with unavailable NTP servers.
 * Exercise Wi-Fi scanning, saved-network reconnect, hotspot and USB Ethernet.
@@ -70,18 +70,38 @@ On both comma 3X and four, compare repeated cold boots with the current image:
 * Toggle SSH and ADB on/off, delete their parameters, restart the watchers, and
   reconnect USB. Verify remote access stays disabled after a fresh factory reset.
 * Reflash panda and reset/re-enumerate the modem repeatedly. Verify device aliases
-  and permissions after each hotplug. udev and the existing rules are retained.
+  and permissions after each hotplug, including bootdevice partition aliases.
 * Check audio, display, touch, brightness, DSP startup, thermal/power monitoring,
   persistent SSH keys, and recovery when userdata cannot mount.
-* Confirm `journalctl -f -o json` reaches openpilot's `operatingSystemLog`, and
+* Confirm `/usr/comma/logread.py -f -o json` reaches openpilot's `operatingSystemLog`, and
   bootlog includes the current log buffer. Logs are bounded and volatile; the
   adapter has syslog timestamps (seconds), without journal process metadata.
 * Test `sudo reboot`, `sudo poweroff`, abrupt power loss, and the updater's A/B
   rollback. Reboot flags must remain readable through shutdown on the RO rootfs.
 
-This image preserves the NetworkManager D-Bus API and existing saved networks.
-Replacing it with wifi.py, replacing udev with mdev, and removing the temporary
-openpilot command adapters are separate follow-ups. NetworkManager is compiled
-from Ubuntu's maintained source without netplan, polkit or systemd integration;
-D-Bus access to its API is limited to root and comma. Ubuntu's udev and systemd
-client libraries remain, but the systemd service manager is not installed.
+The matching openpilot branch is required: `systemd-less-agnos`. For hardware
+validation, launch with `AGNOS_VERSION=$(cat /VERSION)` to keep the development
+image; the normal release manifest still points to the released Ubuntu image.
+Do not merge the openpilot change into a release until its AGNOS manifest is
+updated to the tested image. The bundled setup/reset/updater zipapps include the
+new Wi-Fi client; regenerate their networking code with
+`scripts/update_setup_networking.py /path/to/companion/openpilot`.
+
+wifi.py migrates supported open/WPA-PSK NetworkManager keyfiles once into
+`/data/etc/wifi.json` (root-only, atomic writes), leaving the originals intact
+for rollback. Test open, WPA/WPA2, hidden and Unicode SSIDs, wrong passwords,
+rapid A -> B connection switches, forgetting the current/other network, metered
+settings, supplicant/daemon restarts and DHCP lease renewal/loss. WPA3-only and
+enterprise networks are displayed as unsupported, matching the existing PSK
+connection API. Test hotspot password changes and optional internet forwarding;
+new inbound forwarded traffic to hotspot clients must be rejected.
+
+mdev handles hotplug using sysfs USB interface IDs, not ttyUSB numbering.
+`/usr/comma/hotplug.py --coldplug` also restores sysfs-only permissions. Validate
+panda normal/bootstub/DFU, modem AT port aliases after resets, GPU/audio/input,
+GPIO exports, panel brightness and UFS aliases on both hardware variants.
+
+mDNS uses Ubuntu's python3-zeroconf to advertise `<serial-hostname>.local` and
+`_ssh._tcp`, without avahi/D-Bus. Check discovery over Wi-Fi, hotspot and Ethernet.
+The systemd, udev, NetworkManager, polkit and D-Bus daemons are absent; shared
+client libraries needed by Ubuntu packages can remain.

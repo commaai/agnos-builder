@@ -4,8 +4,8 @@ set -e
 SSH_PARAM="/data/params/d/SshEnabled"
 if [ -f "$SSH_PARAM" ] && [ "$(< $SSH_PARAM)" == "1" ]; then
   echo "Enabling SSH"
-  systemctl start ssh
+  sv up /etc/service/sshd
 else
   echo "Disabling SSH"
-  systemctl stop ssh.socket ssh
+  sv down /etc/service/sshd
 fi

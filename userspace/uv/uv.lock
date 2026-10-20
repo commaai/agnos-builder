@@ -8,7 +8,6 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "comma-deps-raylib" },
-    { name = "dbus-python" },
     { name = "evdev" },
     { name = "flaky" },
     { name = "ipython" },
@@ -34,7 +33,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "comma-deps-raylib" },
-    { name = "dbus-python" },
     { name = "evdev" },
     { name = "flaky" },
     { name = "ipython" },
@@ -436,12 +434,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dbus-python"
-version = "1.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ff/24/63118050c7dd7be04b1ccd60eab53fef00abe844442e1b6dec92dae505d6/dbus-python-1.4.0.tar.gz", hash = "sha256:991666e498f60dbf3e49b8b7678f5559b8a65034fdf61aae62cdecdb7d89c770", size = 232490, upload-time = "2025-03-13T19:57:54.212Z" }
-
-[[package]]
 name = "evdev"
 version = "1.9.3"
 source = { registry = "https://pypi.org/simple" }
@@ -569,15 +561,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/46/b7/a3635f6a2d7cf5b5dd98064fc1d5fbbafcb25477bcea204a3a92145d158b/jedi-0.20.0.tar.gz", hash = "sha256:c3f4ccbd276696f4b19c54618d4fb18f9fc24b0aef02acf704b23f487daa1011", size = 3119416, upload-time = "2026-05-01T23:38:47.814Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9a/93/242e2eab5fe682ffcb8b0084bde703a41d51e17ee0f3a31ff0d9d813620a/jedi-0.20.0-py2.py3-none-any.whl", hash = "sha256:7bdd9c2634f56713299976f4cbd59cb3fa92165cc5e05ea811fb253480728b67", size = 4884812, upload-time = "2026-05-01T23:38:43.919Z" },
-]
-
-[[package]]
-name = "jeepney"
-version = "0.9.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7b/6f/357efd7602486741aa73ffc0617fb310a29b588ed0fd69c2399acbb85b0c/jeepney-0.9.0.tar.gz", hash = "sha256:cf0e9e845622b81e4a28df94c40345400256ec608d0e55bb8a3feaa9163f5732", size = 106758, upload-time = "2025-02-27T18:51:01.684Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/a3/e137168c9c44d18eff0376253da9f1e9234d0239e0ee230d2fee6cea8e55/jeepney-0.9.0-py3-none-any.whl", hash = "sha256:97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683", size = 49010, upload-time = "2025-02-27T18:51:00.104Z" },
 ]
 
 [[package]]
@@ -746,7 +729,6 @@ dependencies = [
     { name = "comma-deps-zeromq" },
     { name = "comma-deps-zstd" },
     { name = "inputs" },
-    { name = "jeepney" },
     { name = "numpy" },
     { name = "pycapnp" },
     { name = "pyjwt", extra = ["crypto"] },
@@ -803,7 +785,6 @@ requires-dist = [
     { name = "comma-deps-zstd" },
     { name = "coverage", marker = "extra == 'testing'" },
     { name = "inputs" },
-    { name = "jeepney" },
     { name = "matplotlib", marker = "extra == 'tools'" },
     { name = "msgq", marker = "extra == 'submodules'" },
     { name = "numpy", specifier = ">=2.0" },

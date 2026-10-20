@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Expose the volatile syslog buffer to existing openpilot log collectors.
+"""Read the volatile syslog buffer as text or JSON.
 
 Only the text boot dump and JSON follow interfaces used by openpilot are
 supported. Syslog does not preserve journal fields such as originating PID.
@@ -18,7 +18,7 @@ def main():
   parser.add_argument('-f', '--follow', action='store_true')
   parser.add_argument('-b', action='store_true')
   parser.add_argument('-n', type=int)
-  parser.add_argument('-o', choices=['json', 'short-monotonic', 'short'], default='short')
+  parser.add_argument('-o', choices=['json', 'short'], default='short')
   parser.add_argument('--no-pager', action='store_true')
   args = parser.parse_args()
   command = ['busybox', 'logread'] + (['-f'] if args.follow else [])

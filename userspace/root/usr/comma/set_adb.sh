@@ -55,10 +55,10 @@ if [ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]; then
   echo "Enabling ADB"
 
   setup
-  systemctl start adbd
+  sv up /etc/service/adbd
 else
   echo "Disabling ADB"
 
-  systemctl stop adbd
+  sv down /etc/service/adbd
   stop
 fi

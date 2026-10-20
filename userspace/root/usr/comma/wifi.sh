@@ -17,7 +17,7 @@ boot() {
 # Restart a daemon if it exits, logging under its own name
 daemon() {
   while true; do
-    systemd-cat -t "$(basename "$1")" "$@"
+    "$@" 2>&1 | logger -t "$(basename "$1")"
     sleep 1
   done &
 }

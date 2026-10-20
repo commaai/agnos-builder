@@ -32,18 +32,13 @@ apt-fast install --no-install-recommends -yq \
     kmod \
     less \
     libc6-dev \
-    libcurl3t64-gnutls \
     libegl-dev \
     libegl1 \
     libgles-dev \
     libgles1 \
     libgles2 \
     libglib2.0-dev \
-    libjansson4 \
-    libndp0 \
-    libnss-mdns \
     libnss-myhostname \
-    libpsl5t64 \
     llvm-20 \
     locales \
     lsof \
@@ -53,12 +48,11 @@ apt-fast install --no-install-recommends -yq \
     ppp \
     psmisc \
     python3-dev \
+    python3-zeroconf \
     rsync \
     runit \
     strace \
-    systemd-standalone-sysusers \
     tmux \
-    udev \
     usbutils \
     vim \
     wpasupplicant
@@ -68,6 +62,7 @@ useradd -G sudo -m -s /bin/bash "$USERNAME"
 echo "$USERNAME:$PASSWD" | chpasswd
 groupadd gpio
 groupadd gpu
+getent group netdev >/dev/null || groupadd netdev
 usermod -aG root,video,gpio,adm,gpu,audio,disk,dialout,netdev "$USERNAME"
 echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 

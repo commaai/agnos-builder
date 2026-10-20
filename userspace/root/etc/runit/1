@@ -25,11 +25,10 @@ mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug 2>
 
 mountpoint -q /sys/fs/pstore || mount -t pstore pstore /sys/fs/pstore 2>/dev/null
 
-echo "AGNOS: starting udev"
-/usr/lib/systemd/systemd-udevd --daemon
-udevadm trigger --action=add --type=subsystems
-udevadm trigger --action=add --type=devices
-udevadm settle --timeout=10
+# Kernel helper covers events until the supervised netlink daemon takes over.
+echo /sbin/mdev > /proc/sys/kernel/hotplug
+busybox mdev -s
+/usr/comma/hotplug.py --coldplug
 
 # Only initialize cache when it has no recognizable filesystem. Never format data.
 cache=/dev/disk/by-partlabel/cache
@@ -44,11 +43,6 @@ for dir in /var /tmp /rwtmp; do
   mountpoint -q "$dir" || exit 100
 done
 cp -a /usr/default/var/. /var/
-# D-Bus needs a machine ID on the read-only rootfs.
-cat /proc/sys/kernel/random/uuid | tr -d '-' > /run/machine-id
-mkdir -p /var/lib/dbus
-ln -sf /run/machine-id /var/lib/dbus/machine-id
-
 echo "AGNOS: fs_setup"
 /usr/comma/fs_setup.sh
 install -d -o _chrony -g _chrony /data/chrony /run/chrony
@@ -62,6 +56,3 @@ ip link set lo up
 /usr/comma/init.qcom.sh || echo "AGNOS: some subsystem restart levels unavailable"
 # Install the cellular firewall before any network service starts.
 iptables-restore < /etc/iptables/rules.v4 || exit 100
-
-# udevd runs under runit from here on
-udevadm control --exit

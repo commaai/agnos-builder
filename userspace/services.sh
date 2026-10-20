@@ -51,7 +51,7 @@ oneshot sound /usr/comma/sound/sound_init.sh
 oneshot screen_calibration /usr/comma/screen_calibration.py
 oneshot agnos-debug "$as_comma /usr/comma/debug.py"
 
-simple wifi /usr/comma/wifi.sh
+simple wifi-hardware /usr/comma/wifi.sh
 simple varwatch /usr/local/venv/bin/python -u /usr/comma/varwatch.py
 simple power_monitor /usr/local/venv/bin/python -u /usr/comma/power_monitor.py
 simple brightnessd /usr/local/venv/bin/python -u /usr/comma/brightnessd.py
@@ -64,15 +64,6 @@ exec 2>&1
 # ExecCondition: only on tici/tizi; otherwise stay down
 grep -q -E "tici|tizi" /sys/firmware/devicetree/base/model || { sv down power_drop_monitor; exec sleep infinity; }
 exec /usr/local/venv/bin/python -u /usr/comma/power_drop_monitor.py
-EOF
-
-mk avahi-ssh-publish
-cat > $SV/avahi-ssh-publish/run <<EOF
-#!/bin/sh
-exec 2>&1
-sv check avahi-daemon >/dev/null || exit 1
-sleep 5  # RestartSec=5
-exec $as_comma /usr/comma/avahi-publish-service.sh
 EOF
 
 mk lte
@@ -132,40 +123,20 @@ $as_comma /usr/bin/tmux kill-session -t comma 2>/dev/null
 exit 0
 EOF
 
-# System daemons
-mk udevd
-cat > $SV/udevd/run <<'EOF'
+# mdev rescans after binding netlink, recovering events during the handover.
+mk mdev
+cat > $SV/mdev/run <<'EOF'
 #!/bin/sh
 exec 2>&1
-SYSTEMD_LOG_TARGET=console /usr/lib/systemd/systemd-udevd &
-pid=$!
-# Recover events that occurred between the stage-1 daemon and supervision.
-udevadm control --ping --timeout=10
-udevadm trigger --action=add
-wait "$pid"
+echo '' > /proc/sys/kernel/hotplug
+/usr/comma/hotplug.py --coldplug
+exec busybox mdev -df
 EOF
-mk dbus
-cat > $SV/dbus/run <<'EOF'
-#!/bin/sh
-exec 2>&1
-mkdir -p /run/dbus /var/lib/dbus
-dbus-uuidgen --ensure
-exec dbus-daemon --system --nofork --nopidfile
-EOF
-mk NetworkManager
-cat > $SV/NetworkManager/run <<'EOF'
-#!/bin/sh
-exec 2>&1
-sv check dbus >/dev/null || exit 1
-exec NetworkManager -n
-EOF
-mk avahi-daemon
-cat > $SV/avahi-daemon/run <<'EOF'
-#!/bin/sh
-exec 2>&1
-sv check dbus >/dev/null || exit 1
-exec avahi-daemon -s
-EOF
+simple wpa_supplicant /sbin/wpa_supplicant -i wlan0 -D nl80211 -c /etc/wpa_supplicant/comma.conf
+simple wifi /usr/bin/python3 -u /usr/comma/wifi.py
+simple ethernet /usr/bin/python3 -u /usr/comma/ethernet.py
+simple mdns /usr/bin/python3 -u /usr/comma/mdns.py
+
 # journald replacement: in-memory ring buffer, read with logread
 mkdir -p $SV/syslogd
 ln -sfn /run/runit/supervise.syslogd $SV/syslogd/supervise
@@ -241,11 +212,11 @@ chmod 755 $SV/*/finish 2>/dev/null || true
 # --- runlevel ---
 rm -f $RUNSVDIR/*
 ENABLED=(
-  syslogd klogd udevd dbus NetworkManager ntpd avahi-daemon
+  syslogd klogd mdev wpa_supplicant wifi ethernet mdns ntpd
   agetty-ttyMSM0
-  gpio cdsp wifi sound screen_calibration agnos-debug
+  gpio cdsp wifi-hardware sound screen_calibration agnos-debug
   magic comma brightnessd power_monitor varwatch
-  lte modem power_drop_monitor ssh-param-watcher adb-param-watcher avahi-ssh-publish
+  lte modem power_drop_monitor ssh-param-watcher adb-param-watcher
 )
 # Parameter watchers opt in to remote access.
 DOWN=(adbd sshd)
@@ -258,10 +229,12 @@ for s in "${DOWN[@]}"; do touch "$SV/$s/down"; done
 # The kernel starts runit directly; keep its mutable flags in tmpfs.
 ln -sfn /sbin/runit /sbin/init
 for flag in stopit reboot; do ln -sfn /run/runit/$flag /etc/runit/$flag; done
-ln -sfn /dev/null /etc/udev/rules.d/90-alsa-restore.rules
+ln -sfn /bin/busybox /sbin/mdev
 chmod 755 /etc/runit/[123] /usr/local/bin/*
-# Ubuntu libraries and udev remain; no systemd service manager is installed.
+# No systemd service manager, udev or D-Bus daemons.
 test ! -x /lib/systemd/systemd
+test ! -x /lib/systemd/systemd-udevd
+test ! -x /usr/bin/dbus-daemon
 test ! -e /lib/systemd/system/ModemManager.service
 for command in reboot poweroff; do ln -sfn /usr/local/bin/$command /sbin/$command; done
 ln -sfn /usr/local/bin/poweroff /sbin/halt

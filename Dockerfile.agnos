@@ -17,11 +17,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 COPY ./userspace/build_adbd.sh ./userspace/adbd-linux.patch /tmp/agnos/
 RUN /tmp/agnos/build_adbd.sh
 
-# Wi-Fi/Ethernet API compatibility without netplan, polkit or systemd.
-FROM agnos-compiler AS agnos-compiler-networkmanager
-COPY ./userspace/build_networkmanager.sh /tmp/agnos/
-RUN /tmp/agnos/build_networkmanager.sh
-
 # Qualcomm graphics without Wayland or OpenCL runtime dependencies
 FROM agnos-compiler AS agnos-compiler-graphics
 RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
@@ -74,7 +69,6 @@ COPY --from=agnos-compiler-adbd /tmp/agnos/adbd /usr/comma/adbd
 COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr/share/doc/adbd/NOTICE
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 
-COPY --from=agnos-compiler-networkmanager /tmp/agnos/networkmanager/ /
 
 ARG XDG_DATA_HOME="/usr/local"
 
@@ -93,7 +87,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
-RUN /usr/comma/adbd --version && NetworkManager --version && nmcli --version
+RUN /usr/comma/adbd --version
 
 # Root filesystem overlay, all files at their final paths.
 # tar keeps the ownership and permissions of existing directories, COPY resets them.
@@ -127,7 +121,7 @@ RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 RUN update-alternatives --set iptables /usr/sbin/iptables-legacy
 
 # Setup hostname resolution for our custom hostname
-RUN sed -i 's/^hosts:.*/hosts: files myhostname mdns4_minimal [NOTFOUND=return] dns/' /etc/nsswitch.conf
+RUN sed -i 's/^hosts:.*/hosts: files myhostname dns/' /etc/nsswitch.conf
 
 # keep this last
 RUN ldconfig

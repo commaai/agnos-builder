@@ -19,11 +19,11 @@ done
 
 busybox syslogd -n -C4096 &
 syslog=$!
-trap 'sv -w 5 force-shutdown /etc/service/gpio /etc/service/wifi >/dev/null 2>&1 || true; kill "$syslog" 2>/dev/null || true' EXIT
+trap 'sv -w 5 force-shutdown /etc/service/gpio /etc/service/wifi-hardware >/dev/null 2>&1 || true; kill "$syslog" 2>/dev/null || true' EXIT
 for i in {1..100}; do [ ! -S /dev/log ] || break; sleep .05; done
 logger -t runit-test -p daemon.warning 'logging smoke test'
 for i in {1..100}; do busybox logread | grep -q 'logging smoke test' && break; sleep .05; done
-python3 /usr/local/bin/journalctl -o json -b | python3 -c '
+python3 /usr/comma/logread.py -o json -b | python3 -c '
 import json, sys
 entries = [json.loads(line) for line in sys.stdin]
 entry = next(e for e in entries if e.get("SYSLOG_IDENTIFIER") == "runit-test")
@@ -33,7 +33,7 @@ assert int(entry["__REALTIME_TIMESTAMP"]) > 0, entry
 '
 
 # Stopping the compatibility reader must also reap its logread child.
-journalctl -f -o json > /tmp/follow.json &
+/usr/comma/logread.py -f -o json > /tmp/follow.json &
 follower=$!
 children=""
 for i in {1..100}; do
@@ -72,16 +72,16 @@ echo $! > /run/test-child
 wait
 EOF
 chmod +x /usr/comma/wifi.sh
-runsv /etc/service/wifi &
+runsv /etc/service/wifi-hardware &
 wifi=$!
 for i in {1..100}; do [ ! -e /run/test-child ] || break; sleep .05; done
 child=$(cat /run/test-child)
 kill -0 "$child"
-systemctl --quiet is-active wifi.service
-systemctl stop wifi
-! systemctl --quiet is-active wifi
+sv check /etc/service/wifi-hardware
+sv stop /etc/service/wifi-hardware
+! sv status /etc/service/wifi-hardware | grep -q "^run:"
 # A dead child can briefly remain a zombie until PID 1 reaps it.
 [ ! -e "/proc/$child/stat" ] || [ "$(awk '{print $3}' /proc/$child/stat)" = Z ]
-sv exit /etc/service/wifi
+sv exit /etc/service/wifi-hardware
 wait "$wifi"
 echo 'runit supervision and logging smoke tests passed'
