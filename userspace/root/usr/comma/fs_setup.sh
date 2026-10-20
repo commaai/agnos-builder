@@ -3,8 +3,11 @@
 # Ensure the symlinks in the read only rootfs are
 # backed by real files and directories on userdata.
 
-# tmpfiles
-systemd-tmpfiles --create /usr/comma/tmpfiles.conf
+# Volatile directories needed by services.
+install -d -m 1777 /var/tmp
+install -d -m 700 -o comma -g comma /var/tmp/xdg
+mkdir -p /var/crash /var/lib/dpkg /var/spool/cron/atjobs
+touch /var/lib/dpkg/lock-frontend /var/lib/dpkg/status
 
 # /var/log/ tmpfs
 mkdir -p /var/log/

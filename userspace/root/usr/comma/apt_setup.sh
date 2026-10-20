@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
-# Skip unless this is a booted systemd system.
-if [ ! -d /run/systemd/system ]; then
+# Skip inside the image builder.
+if [ ! -d /run/runit ]; then
   exit 0
 fi
 

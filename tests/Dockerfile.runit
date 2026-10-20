@@ -1,0 +1,9 @@
+FROM ubuntu:24.04
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    runit busybox-static python3 chrony && rm -rf /var/lib/apt/lists/*
+COPY userspace/services.sh /src/services.sh
+COPY userspace/root/etc/runit/ /src/root/etc/runit/
+COPY userspace/root/usr/local/bin/ /src/root/usr/local/bin/
+COPY userspace/root/usr/comma/logread.py /usr/comma/logread.py
+COPY tests/test_runit.sh /test_runit.sh
+CMD ["bash", "/test_runit.sh"]

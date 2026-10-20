@@ -1,0 +1,11 @@
+#!/bin/sh
+# runit stage 3: shutdown
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+echo "AGNOS: stopping services"
+sv -w 10 force-stop /etc/service/*
+sv exit /etc/service/*
+killall5 -15; sleep 1; killall5 -9
+sync
+# /run holds runit's reboot/stop flags and must survive until PID 1 reads them.
+umount -r /home /data /persist /cache /firmware /dsp /var/log /var /tmp /rwtmp 2>/dev/null
+[ -x /run/runit/reboot ] || busybox poweroff -f

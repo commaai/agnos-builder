@@ -1,2 +1,0 @@
-ACTION=="add|change", KERNEL=="event[0-9]*", ENV{ID_SEAT}="seat0"
-SUBSYSTEM=="input", MODE="666"

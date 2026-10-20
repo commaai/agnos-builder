@@ -1,2 +1,0 @@
-# rmt_storage opens modemst1/modemst2/fsc/fsg through these UFS partition aliases.
-SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{PARTNAME}=="?*", KERNELS=="1d84000.ufshc", SYMLINK+="block/bootdevice/by-name/$env{PARTNAME}"

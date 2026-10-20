@@ -1,5 +1,0 @@
-[Path]
-PathModified=/data/params/d/SshEnabled
-
-[Install]
-WantedBy=multi-user.target

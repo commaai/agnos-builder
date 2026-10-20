@@ -1,0 +1,8 @@
+#!/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+for service in /etc/service/*; do
+  name=${service##*/}
+  mkdir -p "/run/runit/supervise.$name" "/run/runit/supervise.$name-log"
+done
+exec runsvdir -P /etc/service

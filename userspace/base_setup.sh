@@ -21,6 +21,8 @@ apt-fast install --no-install-recommends -yq \
     apport-retrace \
     bc \
     build-essential \
+    busybox-static \
+    chrony \
     dnsmasq-base \
     gdb \
     git \
@@ -35,23 +37,22 @@ apt-fast install --no-install-recommends -yq \
     libgles-dev \
     libgles1 \
     libgles2 \
+    libglib2.0-dev \
     libnss-myhostname \
     llvm-20 \
     locales \
     lsof \
-    network-manager \
     openssh-client \
     openssh-server \
     openssl \
     ppp \
     psmisc \
+    python3-dev \
+    python3-zeroconf \
     rsync \
+    runit \
     strace \
-    systemd \
-    systemd-resolved \
-    systemd-timesyncd \
     tmux \
-    udev \
     usbutils \
     vim \
     wpasupplicant
@@ -61,7 +62,8 @@ useradd -G sudo -m -s /bin/bash "$USERNAME"
 echo "$USERNAME:$PASSWD" | chpasswd
 groupadd gpio
 groupadd gpu
-usermod -aG root,video,gpio,adm,gpu,audio,disk,dialout,systemd-journal,netdev "$USERNAME"
+getent group netdev >/dev/null || groupadd netdev
+usermod -aG root,video,gpio,adm,gpu,audio,disk,dialout,netdev "$USERNAME"
 echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Kernel and scheduling settings.
