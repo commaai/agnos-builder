@@ -114,7 +114,6 @@ RUN --mount=type=bind,source=userspace/root,target=/tmp/agnos/root \
     tar -C /tmp/agnos/root --owner=0 --group=0 --mode=go-w -cf - . | tar -C / --no-overwrite-dir -xf -
 COPY ./userspace/root/home/$USERNAME/.config/ /root/.config
 RUN chown -R $USERNAME: /home/$USERNAME/.config
-RUN chmod 644 /etc/logrotate.conf
 RUN touch -r /lib/systemd/systemd /etc/fstab
 
 COPY ./output/linux-headers/include/ /usr/include/
