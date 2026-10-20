@@ -126,6 +126,11 @@ RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 COPY ./userspace/alpine/ /tmp/agnos/alpine/
 RUN /tmp/agnos/alpine/trim.sh
 
+# SPIKE: SQUEEZE=1 for the size comparison, see userspace/squeeze.sh
+ARG SQUEEZE
+COPY ./userspace/squeeze.sh /tmp/agnos/
+RUN if [ -n "$SQUEEZE" ]; then /tmp/agnos/squeeze.sh; fi
+
 # Services, Alpine config fixups, read-only rootfs. Keep this last.
 RUN /tmp/agnos/alpine/finalize.sh && rm -rf /tmp/agnos
 

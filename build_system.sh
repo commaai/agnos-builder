@@ -78,6 +78,7 @@ GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
 rm -rf $BUILD_DIR/image
 $BUILD -f $DOCKERFILE $DIR --platform=linux/arm64 \
   --build-arg $BASE_ARG \
+  ${SQUEEZE:+--build-arg SQUEEZE=$SQUEEZE} \
   --build-arg GIT_HASH=$GIT_HASH \
   --build-arg BUILD_DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
 if [ -f $BUILD_DIR/image/system.img.zst ]; then

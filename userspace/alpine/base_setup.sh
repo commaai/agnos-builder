@@ -15,7 +15,7 @@ PKGS="
   bash
   alsa-utils
   bc
-  build-base           # build-essential, libc6-dev
+  binutils gcc g++ make musl-dev fortify-headers patch  # build-essential, libc6-dev (build-base minus file/libmagic)
   dnsmasq              # dnsmasq-base
   gdb
   git
@@ -105,6 +105,9 @@ echo "LANG=C.UTF-8" > /etc/locale.conf
 install -d -o "$USERNAME" -g "$USERNAME" /data /persist
 install -d /config
 ln -sf /bin/bash /bin/sh
+# Alpine isn't usr-merged; our scripts use #!/usr/bin/bash
+ln -sf /bin/bash /usr/bin/bash
+ln -sf /bin/bash /usr/bin/sh
 
 # The Qualcomm blobs use /lib64/ld-linux-aarch64.so.1 (the glibc island, see Dockerfile.alpine)
 mkdir -p /usr/lib64
