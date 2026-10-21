@@ -22,3 +22,6 @@ lib=/usr/lib/aarch64-linux-gnu
 rm -f "$lib"/libgallium-*.so "$lib"/libEGL_mesa.so* "$lib"/libGLX_mesa.so* "$lib"/libgbm.so.1.0.0
 rm -rf "$lib"/dri "$lib"/gbm
 rm /usr/share/glvnd/egl_vendor.d/50_mesa.json
+
+# Drop the removed libraries from ld.so.cache.
+ldconfig
