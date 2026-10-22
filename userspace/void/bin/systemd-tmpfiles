@@ -1,0 +1,18 @@
+#!/bin/bash
+# Tiny systemd-tmpfiles subset (d/q/f lines, --create) for the Void spike.
+shift_create=0
+files=()
+for a in "$@"; do case "$a" in --create) ;; -*) ;; *) files+=("$a");; esac; done
+for f in "${files[@]}"; do
+  while read -r type path mode user group _; do
+    case "$type" in ''|\#*) continue ;; esac
+    [ "$mode" = - ] && mode=; [ "$user" = - ] && user=; [ "$group" = - ] && group=
+    case "$type" in
+      d|q|D) mkdir -p "$path" ;;
+      f) [ -e "$path" ] || : > "$path" ;;
+      *) echo "systemd-tmpfiles shim: skip $type $path"; continue ;;
+    esac
+    [ -n "$mode" ] && chmod "$mode" "$path"
+    [ -n "$user" ] && chown "$user${group:+:$group}" "$path"
+  done < "$f"
+done
