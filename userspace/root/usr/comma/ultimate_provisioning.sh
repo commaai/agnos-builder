@@ -1,6 +1,5 @@
 #!/bin/bash
-# setup for the ultimate provisioning (UP) board. does nothing on other devices
-grep -q "ultimate provisioning" /sys/firmware/devicetree/base/model || exit 0
+# setup for the ultimate provisioning (UP) board
 
 # gpio.sh is for the tici. on a UP it never finishes, the TCAN driver owns some of its pins
 systemctl mask --runtime --now gpio.service
