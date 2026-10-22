@@ -1,0 +1,32 @@
+Subject: [PATCH] media: venus: honor encoder capture buffer requirements
+
+The generic compressed-frame size can be smaller than the firmware's
+encoder output requirement. Query that requirement after configuring the
+session and include it in the capture queue's allocation size. Keep larger
+application requests and the format helper's page alignment.
+---
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -1089,6 +1089,7 @@ static int venc_queue_setup(struct vb2_queue *q,
+ {
+ 	struct venus_inst *inst = vb2_get_drv_priv(q);
+ 	struct venus_core *core = inst->core;
++	struct hfi_buffer_requirements bufreq;
+ 	unsigned int num, min = 4;
+ 	int ret;
+ 
+@@ -1158,9 +1159,14 @@ static int venc_queue_setup(struct vb2_queue *q,
+ 		*num_planes = inst->fmt_cap->num_planes;
+ 		*num_buffers = max(*num_buffers, min);
+ 		inst->num_output_bufs = *num_buffers;
++		ret = venus_helper_get_bufreq(inst, HFI_BUFFER_OUTPUT, &bufreq);
++		if (ret)
++			break;
++
+ 		sizes[0] = venus_helper_get_framesz(inst->fmt_cap->pixfmt,
+ 						    inst->width,
+ 						    inst->height);
++		sizes[0] = max(sizes[0], ALIGN(bufreq.size, SZ_4K));
+ 		sizes[0] = max(sizes[0], inst->output_buf_size);
+ 		inst->output_buf_size = sizes[0];
+ 		break;

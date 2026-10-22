@@ -1,0 +1,19 @@
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Subject: [PATCH] wifi: ath10k: recover after mismatched split RX indications
+
+A mismatched continuation sets rx_confused, which rejects every subsequent
+RX indication until the ring is reinitialized. Schedule recovery just as
+the neighboring malformed-list and extraction error paths already do.
+The caller only reschedules NAPI and cannot clear this condition itself.
+
+---
+--- a/drivers/net/wireless/ath/ath10k/htt_rx.c
++++ b/drivers/net/wireless/ath/ath10k/htt_rx.c
+@@ -3311,6 +3311,7 @@
+ 		 || offload) {
+ 			ath10k_warn(ar, "split amsdu did not resume immediately\n");
+ 			htt->rx_confused = true;
++			ath10k_core_start_recovery(ar);
+ 			return -EIO;
+ 		}
+ 	}

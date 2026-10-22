@@ -1,0 +1,36 @@
+Subject: [PATCH] media: venus: configure VUI timing for HEVC encoding
+
+The firmware timing-info property is shared by H.264 and HEVC. Enable
+it for HEVC too so encoded streams describe the configured frame rate.
+Keep the H.264-specific entropy and filtering properties codec-specific.
+---
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -687,11 +687,9 @@
+ 	if (ret)
+ 		return ret;
+ 
+-	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
++	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264 ||
++	    inst->fmt_cap->pixfmt == V4L2_PIX_FMT_HEVC) {
+ 		struct hfi_h264_vui_timing_info info;
+-		struct hfi_h264_entropy_control entropy;
+-		struct hfi_h264_db_control deblock;
+-		struct hfi_h264_8x8_transform h264_transform;
+ 
+ 		ptype = HFI_PROPERTY_PARAM_VENC_H264_VUI_TIMING_INFO;
+ 		info.enable = 1;
+@@ -701,6 +699,13 @@
+ 		ret = hfi_session_set_property(inst, ptype, &info);
+ 		if (ret)
+ 			return ret;
++
++	}
++
++	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
++		struct hfi_h264_entropy_control entropy;
++		struct hfi_h264_db_control deblock;
++		struct hfi_h264_8x8_transform h264_transform;
+ 
+ 		ptype = HFI_PROPERTY_PARAM_VENC_H264_ENTROPY_CONTROL;
+ 		entropy.entropy_mode = venc_v4l2_to_hfi(

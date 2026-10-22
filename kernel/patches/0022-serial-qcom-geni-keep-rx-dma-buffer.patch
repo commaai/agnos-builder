@@ -1,0 +1,42 @@
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Subject: [PATCH] serial: qcom-geni: keep the mapped RX DMA buffer alive
+
+Non-console UART probe allocates and maps DMA_RX_BUF_SIZE bytes.  Do not
+resize that buffer to the FIFO depth during port setup: dma_map_single()
+would still refer to the freed original allocation, while RX copies from
+the replacement buffer.  The FIFO receive handler uses a local buffer and
+no longer needs this resize.
+
+This fixes zero-filled GNSS UART input on SDM845 and prevents DMA writes
+through a stale mapping.
+
+--- a/drivers/tty/serial/qcom_geni_serial.c
++++ b/drivers/tty/serial/qcom_geni_serial.c
+@@ -1293,7 +1293,6 @@
+ static int setup_fifos(struct qcom_geni_serial_port *port)
+ {
+ 	struct uart_port *uport;
+-	u32 old_rx_fifo_depth = port->rx_fifo_depth;
+ 
+ 	uport = &port->uport;
+ 	port->tx_fifo_depth = geni_se_get_tx_fifo_depth(&port->se);
+@@ -1301,19 +1300,6 @@
+ 	port->rx_fifo_depth = geni_se_get_rx_fifo_depth(&port->se);
+ 	uport->fifosize =
+ 		(port->tx_fifo_depth * port->tx_fifo_width) / BITS_PER_BYTE;
+-
+-	if (port->rx_buf && (old_rx_fifo_depth != port->rx_fifo_depth) && port->rx_fifo_depth) {
+-		/*
+-		 * Use krealloc rather than krealloc_array because rx_buf is
+-		 * accessed as 1 byte entries as well as 4 byte entries so it's
+-		 * not necessarily an array.
+-		 */
+-		port->rx_buf = devm_krealloc(uport->dev, port->rx_buf,
+-					     port->rx_fifo_depth * sizeof(u32),
+-					     GFP_KERNEL);
+-		if (!port->rx_buf)
+-			return -ENOMEM;
+-	}
+ 
+ 	return 0;
+ }

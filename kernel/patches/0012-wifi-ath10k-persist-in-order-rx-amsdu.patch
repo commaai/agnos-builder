@@ -1,0 +1,125 @@
+From: Richard Acayan <mailingradian@gmail.com>
+Date: Mon, 9 Feb 2026 18:12:58 -0800
+Subject: wifi: ath10k: make in-order rx amsdu buffers persistent
+
+The WCN3990 might split MSDUs among multiple "in-order" indications. The
+driver needs information from previous indications to handle MPDUs that
+are not started by the same indications that complete them. Move the
+list that tracks unprocessed MSDUs to the driver state so the driver can
+handle MPDUs that are split in this way and be less confused.
+
+Fixes: c545070e404b ("ath10k: implement rx reorder support")
+Signed-off-by: Richard Acayan <mailingradian@gmail.com>
+---
+--- a/drivers/net/wireless/ath/ath10k/htt.h
++++ b/drivers/net/wireless/ath/ath10k/htt.h
+@@ -1929,6 +1929,10 @@
+ 	bool bundle_tx;
+ 	struct sk_buff_head tx_req_head;
+ 	struct sk_buff_head tx_complete_head;
++
++	u8 rx_in_ord_split_tid;
++	u16 rx_in_ord_split_peer_id;
++	struct sk_buff_head rx_in_ord_split;
+ };
+ 
+ struct ath10k_htt_tx_ops {
+--- a/drivers/net/wireless/ath/ath10k/htt_rx.c
++++ b/drivers/net/wireless/ath/ath10k/htt_rx.c
+@@ -296,6 +296,8 @@
+ 	skb_queue_purge(&htt->rx_in_ord_compl_q);
+ 	skb_queue_purge(&htt->tx_fetch_ind_q);
+ 
++	skb_queue_purge(&htt->rx_in_ord_split);
++
+ 	spin_lock_bh(&htt->rx_ring.lock);
+ 	ath10k_htt_rx_ring_free(htt);
+ 	spin_unlock_bh(&htt->rx_ring.lock);
+@@ -845,6 +847,8 @@
+ 	skb_queue_head_init(&htt->rx_in_ord_compl_q);
+ 	skb_queue_head_init(&htt->tx_fetch_ind_q);
+ 	atomic_set(&htt->num_mpdus_ready, 0);
++
++	skb_queue_head_init(&htt->rx_in_ord_split);
+ 
+ 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "htt rx ring size %d fill_level %d\n",
+ 		   htt->rx_ring.size, htt->rx_ring.fill_level);
+@@ -3262,7 +3266,6 @@
+ 	struct ath10k_htt *htt = &ar->htt;
+ 	struct htt_resp *resp = (void *)skb->data;
+ 	struct ieee80211_rx_status *status = &htt->rx_status;
+-	struct sk_buff_head list;
+ 	struct sk_buff_head amsdu;
+ 	u16 peer_id;
+ 	u16 msdu_count;
+@@ -3297,16 +3300,32 @@
+ 		return -EINVAL;
+ 	}
+ 
++	if (!skb_queue_empty(&htt->rx_in_ord_split)) {
++		/* It might still be possible to handle this case if there is
++		 * only one peer that splits at each given moment. We are
++		 * bailing out because we should have a test case for this
++		 * before trying to fix it.
++		 */
++		if (tid != htt->rx_in_ord_split_tid
++		 || peer_id != htt->rx_in_ord_split_peer_id
++		 || offload) {
++			ath10k_warn(ar, "split amsdu did not resume immediately\n");
++			htt->rx_confused = true;
++			return -EIO;
++		}
++	}
++
+ 	/* The event can deliver more than 1 A-MSDU. Each A-MSDU is later
+ 	 * extracted and processed.
++	 *
++	 * It can also continue a previous A-MSDU.
+ 	 */
+-	__skb_queue_head_init(&list);
+ 	if (ar->hw_params.target_64bit)
+ 		ret = ath10k_htt_rx_pop_paddr64_list(htt, &resp->rx_in_ord_ind,
+-						     &list);
++						     &htt->rx_in_ord_split);
+ 	else
+ 		ret = ath10k_htt_rx_pop_paddr32_list(htt, &resp->rx_in_ord_ind,
+-						     &list);
++						     &htt->rx_in_ord_split);
+ 
+ 	if (ret < 0) {
+ 		ath10k_warn(ar, "failed to pop paddr list: %d\n", ret);
+@@ -3319,11 +3338,12 @@
+ 	 * separately.
+ 	 */
+ 	if (offload)
+-		ath10k_htt_rx_h_rx_offload(ar, &list);
+-
+-	while (!skb_queue_empty(&list)) {
++		ath10k_htt_rx_h_rx_offload(ar, &htt->rx_in_ord_split);
++
++	while (!skb_queue_empty(&htt->rx_in_ord_split)) {
+ 		__skb_queue_head_init(&amsdu);
+-		ret = ath10k_htt_rx_extract_amsdu(&ar->hw_params, &list, &amsdu);
++		ret = ath10k_htt_rx_extract_amsdu(&ar->hw_params,
++						  &htt->rx_in_ord_split, &amsdu);
+ 		switch (ret) {
+ 		case 0:
+ 			/* Note: The in-order indication may report interleaved
+@@ -3339,12 +3359,15 @@
+ 			ath10k_htt_rx_h_enqueue(ar, &amsdu, status);
+ 			break;
+ 		case -EAGAIN:
+-			fallthrough;
++			htt->rx_in_ord_split_tid = tid;
++			htt->rx_in_ord_split_peer_id = peer_id;
++
++			return -EIO;
+ 		default:
+ 			/* Should not happen. */
+ 			ath10k_warn(ar, "failed to extract amsdu: %d\n", ret);
+ 			htt->rx_confused = true;
+-			__skb_queue_purge(&list);
++			__skb_queue_purge(&htt->rx_in_ord_split);
+ 			ath10k_core_start_recovery(ar);
+ 			return -EIO;
+ 		}

@@ -12,4 +12,7 @@ SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="0125",ENV{ID_USB_INT
 # Interface 3 - AT
 SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_USB_INTERFACE_NUM}=="02",SYMLINK+="modem_at0",GROUP="dialout",MODE="0660"
 SUBSYSTEM=="tty",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{ID_USB_INTERFACE_NUM}=="03",SYMLINK+="modem_at1",GROUP="dialout",MODE="0660"
-ACTION=="add",SUBSYSTEM=="usb",ATTR{idVendor}=="2c7c",ATTR{idProduct}=="6007",RUN+="/bin/sh -c 'echo -n $kernel:1.4 > /sys/bus/usb/drivers/cdc_ether/unbind'"
+# The modem exposes a CDC Ethernet gateway even without cellular registration.
+# Keep NetworkManager from auto-configuring it; modem.py owns cellular via PPP.
+# Match USB identity, since enumeration can name this interface usb0 or usb1.
+SUBSYSTEM=="net",ATTRS{idVendor}=="2c7c",ATTRS{idProduct}=="6007",ENV{NM_UNMANAGED}="1"

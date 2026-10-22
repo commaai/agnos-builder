@@ -1,0 +1,37 @@
+From: Trey Moen <trey@moen.ai>
+Subject: squashfs: accept and ignore the "discard" mount option
+
+The legacy comma AGNOS fstab mounts /persist (squashfs) with "discard".
+Old kernels ignored unknown squashfs options; the new mount API rejects
+them, failing persist.mount and dropping systemd into maintenance mode.
+Accept the flag as a no-op.
+
+diff --git a/fs/squashfs/super.c b/fs/squashfs/super.c
+index 4465cf056..cdf89c3db 100644
+--- a/fs/squashfs/super.c
++++ b/fs/squashfs/super.c
+@@ -48,6 +48,7 @@ enum Opt_errors {
+ enum squashfs_param {
+ 	Opt_errors,
+ 	Opt_threads,
++	Opt_discard,
+ };
+ 
+ struct squashfs_mount_opts {
+@@ -65,6 +66,7 @@ static const struct constant_table squashfs_param_errors[] = {
+ static const struct fs_parameter_spec squashfs_fs_parameters[] = {
+ 	fsparam_enum("errors", Opt_errors, squashfs_param_errors),
+ 	fsparam_string("threads", Opt_threads),
++	fsparam_flag("discard", Opt_discard),
+ 	{}
+ };
+ 
+@@ -142,6 +144,8 @@ static int squashfs_parse_param(struct fs_context *fc, struct fs_parameter *para
+ 		if (squashfs_parse_param_threads(param->string, opts) != 0)
+ 			return -EINVAL;
+ 		break;
++	case Opt_discard:
++		break;
+ 	default:
+ 		return -EINVAL;
+ 	}

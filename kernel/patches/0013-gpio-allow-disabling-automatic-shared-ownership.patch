@@ -1,0 +1,36 @@
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Subject: [PATCH] gpio: allow disabling automatic shared GPIO ownership
+
+The downstream Spectra resource manager arbitrates shared camera GPIOs
+through the legacy integer API. Reserving those lines for GPIO proxies
+makes every sensor power-up fail with EBUSY before Spectra can acquire
+them.
+
+Expose the existing setting to expert configurations so vamOS can retain
+Spectra's GPIO ownership. Keep automatic sharing enabled by default.
+
+Signed-off-by: Andrei Radulescu <andi.radulescu@gmail.com>
+---
+ drivers/gpio/Kconfig | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpio/Kconfig b/drivers/gpio/Kconfig
+--- a/drivers/gpio/Kconfig
++++ b/drivers/gpio/Kconfig
+@@ -46,9 +46,15 @@ config GPIOLIB_IRQCHIP
+ 	bool
+ 
+ config GPIO_SHARED
+-	def_bool y
++	bool "Automatic shared GPIO ownership" if EXPERT
++	default y
+ 	depends on HAVE_SHARED_GPIOS || COMPILE_TEST
+ 	select AUXILIARY_BUS
++	help
++	  Automatically reserve GPIOs referenced by multiple firmware consumers
++	  and arbitrate their values through shared GPIO proxies. Disable this
++	  when legacy GPIO consumers already manage ownership of shared lines.
++	  If unsure, say Y.
+ 
+ config DEBUG_GPIO
+ 	bool "Debug GPIO calls"

@@ -1,10 +1,14 @@
 [Unit]
-After=multi-user.target
+After=local-fs.target
+Before=magic.service
+RequiresMountsFor=/persist/comma
 Description=Set screen calibration
 
 [Service]
 Type=oneshot
 User=root
+RuntimeDirectory=panel-firmware
+RemainAfterExit=yes
 ExecStart=/usr/comma/screen_calibration.py
 
 [Install]

@@ -1,9 +1,6 @@
 #!/bin/bash
 
-function gpio {
-  echo "out" > /sys/class/gpio/gpio$1/direction
-  echo $2 > /sys/class/gpio/gpio$1/value
-}
+source /usr/comma/gpio_base.sh
 
 HUB_RST_N=30
 LTE_RST_N=50

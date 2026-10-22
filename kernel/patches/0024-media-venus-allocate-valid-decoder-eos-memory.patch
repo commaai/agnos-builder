@@ -1,0 +1,110 @@
+Subject: [PATCH] media: venus: allocate valid memory for decoder EOS
+
+The SDM845 firmware validates decoder EOS input addresses too. An unmapped
+0xdeadb000 address triggers HFI session error 0x1001 when draining a valid
+HEVC stream on mici. Retain one coherent page per decoder instance until
+session teardown, mirroring the encoder fix. Keep the older IRIS2 firmware
+NULL-address workaround unchanged.
+
+Reproduced on v7.3 with mainline Venus using V4L2_MEMORY_DMABUF decoding;
+encoder output decodes correctly and the session fails on DEC_CMD_STOP.
+---
+--- a/drivers/media/platform/qcom/venus/vdec.c
++++ b/drivers/media/platform/qcom/venus/vdec.c
+@@ -4,6 +4,7 @@
+  * Copyright (C) 2017 Linaro Ltd.
+  */
+ #include <linux/clk.h>
++#include <linux/dma-mapping.h>
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
+ #include <linux/pm_runtime.h>
+@@ -20,6 +21,13 @@
+ #include "helpers.h"
+ #include "vdec.h"
+ #include "pm_helpers.h"
++
++/* Keep EOS memory mapped until the firmware session is closed. */
++struct vdec_eos_instance {
++	struct venus_inst inst;
++	void *eos_va;
++	dma_addr_t eos_da;
++};
+ 
+ /*
+  * Three resons to keep MPLANE formats (despite that the number of planes
+@@ -548,6 +556,7 @@
+ vdec_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd *cmd)
+ {
+ 	struct venus_inst *inst = to_inst(file);
++	struct vdec_eos_instance *eos = container_of(inst, struct vdec_eos_instance, inst);
+ 	struct vb2_queue *dst_vq;
+ 	struct hfi_frame_data fdata = {0};
+ 	int ret;
+@@ -574,10 +583,20 @@
+ 		 * avoids misapplying this quirk and breaking VP9 decode on SC7280.
+ 		 */
+ 
+-		if (IS_IRIS2(inst->core) && is_fw_rev_or_older(inst->core, 1, 0, 87))
++		if (IS_IRIS2(inst->core) && is_fw_rev_or_older(inst->core, 1, 0, 87)) {
+ 			fdata.device_addr = 0;
+-		else
+-			fdata.device_addr = 0xdeadb000;
++		} else {
++			if (!eos->eos_va) {
++				eos->eos_va = dma_alloc_coherent(inst->core->dev, SZ_4K,
++							       &eos->eos_da, GFP_KERNEL);
++				if (!eos->eos_va) {
++					ret = -ENOMEM;
++					goto unlock;
++				}
++			}
++			fdata.device_addr = eos->eos_da;
++			fdata.alloc_len = SZ_4K;
++		}
+ 
+ 		ret = hfi_session_process_buf(inst, &fdata);
+ 
+@@ -1681,11 +1700,13 @@
+ {
+ 	struct venus_core *core = video_drvdata(file);
+ 	struct venus_inst *inst;
++	struct vdec_eos_instance *eos;
+ 	int ret;
+ 
+-	inst = kzalloc_obj(*inst);
+-	if (!inst)
++	eos = kzalloc_obj(*eos);
++	if (!eos)
+ 		return -ENOMEM;
++	inst = &eos->inst;
+ 
+ 	INIT_LIST_HEAD(&inst->dpbbufs);
+ 	INIT_LIST_HEAD(&inst->registeredbufs);
+@@ -1751,21 +1772,24 @@
+ err_ctrl_deinit:
+ 	v4l2_ctrl_handler_free(&inst->ctrl_handler);
+ err_free:
+-	kfree(inst);
++	kfree(eos);
+ 	return ret;
+ }
+ 
+ static int vdec_close(struct file *file)
+ {
+ 	struct venus_inst *inst = to_inst(file);
++	struct vdec_eos_instance *eos = container_of(inst, struct vdec_eos_instance, inst);
+ 
+ 	vdec_pm_get(inst);
+ 	cancel_work_sync(&inst->delayed_process_work);
+ 	venus_close_common(inst, file);
++	if (eos->eos_va)
++		dma_free_coherent(inst->core->dev, SZ_4K, eos->eos_va, eos->eos_da);
+ 	ida_destroy(&inst->dpb_ids);
+ 	vdec_pm_put(inst, false);
+ 
+-	kfree(inst);
++	kfree(eos);
+ 	return 0;
+ }
+ 

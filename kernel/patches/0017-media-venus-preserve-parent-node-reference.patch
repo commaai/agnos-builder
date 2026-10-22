@@ -1,0 +1,21 @@
+Subject: [PATCH] media: venus: preserve the parent node reference during child lookup
+
+of_find_node_by_name() consumes a reference to its starting node. Passing
+dev->of_node without taking a reference drops the parent's reference
+twice on each probe, causing refcount warnings and a crash on reload.
+
+Only children of the Venus node are relevant here.
+Use of_get_child_by_name() to preserve the parent's reference.
+
+---
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -307,7 +307,7 @@ static int venus_add_video_core(struct venus_core *core, const char *node_name,
+ 	if (!node_name)
+ 		return 0;
+ 
+-	enp = of_find_node_by_name(dev->of_node, node_name);
++	enp = of_get_child_by_name(dev->of_node, node_name);
+ 	if (enp) {
+ 		of_node_put(enp);
+ 		return 0;

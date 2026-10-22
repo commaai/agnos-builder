@@ -1,0 +1,18 @@
+Subject: [PATCH] media: venus: handle absent codec children during recovery
+
+The encoder and decoder are separate modules. A firmware error can occur
+when only one child has bound. Do not dereference the absent child while
+waiting for runtime PM to become idle.
+---
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -104,7 +104,8 @@
+ 	core->state = CORE_UNINIT;
+ 
+ 	for (i = 0; i < max_attempts; i++) {
+-		if (!pm_runtime_active(core->dev_dec) && !pm_runtime_active(core->dev_enc))
++		if ((!core->dev_dec || !pm_runtime_active(core->dev_dec)) &&
++		    (!core->dev_enc || !pm_runtime_active(core->dev_enc)))
+ 			break;
+ 		msleep(10);
+ 	}

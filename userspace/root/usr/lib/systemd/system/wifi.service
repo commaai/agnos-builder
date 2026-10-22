@@ -1,8 +1,13 @@
 [Unit]
 Description=Wi-Fi stack: modem subsystem and its daemons
+Requires=qrtr.service tqftpserv.service
+After=qrtr.service tqftpserv.service
+ConditionPathExists=/dev/qcom_rmtfs_mem1
 
 [Service]
-ExecStart=/usr/comma/wifi.sh
+ExecStart=/usr/bin/rmtfs -P -s
+Restart=always
+RestartSec=1
 
 [Install]
 WantedBy=multi-user.target

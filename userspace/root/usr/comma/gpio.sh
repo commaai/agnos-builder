@@ -1,9 +1,6 @@
 #!/bin/bash
 
-function gpio {
-  echo "out" > /sys/class/gpio/gpio$1/direction
-  echo $2 > /sys/class/gpio/gpio$1/value
-}
+source /usr/comma/gpio_base.sh
 
 pins=(
 # 27  # SW_3V3_EN
@@ -19,7 +16,7 @@ pins=(
 33  # GPS_SAFEBOOT_N
 32  # GPS_RST_N
 52  # LTE_BOOT
-1264  # POWER ALERT
+
 )
 
 for p in ${pins[@]}; do
@@ -31,8 +28,10 @@ for p in ${pins[@]}; do
     continue
   fi
 
-  echo $p > /sys/class/gpio/export
-  until [ -d /sys/class/gpio/gpio$p ]
+  pin=$(gpio_number "$p")
+  if [ -d /sys/class/gpio/gpio$pin ]; then continue; fi
+  echo $pin > /sys/class/gpio/export
+  until [ -d /sys/class/gpio/gpio$pin ]
   do
     sleep .05
   done

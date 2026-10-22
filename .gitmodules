@@ -1,3 +1,6 @@
-[submodule "agnos-kernel-sdm845"]
-  path = agnos-kernel-sdm845
-  url = ../../commaai/agnos-kernel-sdm845.git
+[submodule "kernel/linux"]
+  path = kernel/linux
+  url = https://github.com/torvalds/linux.git
+[submodule "kernel/spectra"]
+  path = kernel/spectra
+  url = https://github.com/commaai/vamos.git

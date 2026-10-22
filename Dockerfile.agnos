@@ -17,26 +17,22 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 COPY ./userspace/build_adbd.sh ./userspace/adbd-linux.patch /tmp/agnos/
 RUN /tmp/agnos/build_adbd.sh
 
-# Qualcomm graphics without Wayland or OpenCL runtime dependencies
-FROM agnos-compiler AS agnos-compiler-graphics
-RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
-COPY ./userspace/graphics/ /tmp/agnos/graphics-src/
-RUN mkdir -p /tmp/agnos/graphics && \
-    cp /tmp/agnos/graphics-src/libgbm.so /tmp/agnos/graphics/ && \
-    cp /tmp/agnos/graphics-src/libeglSubDriverWayland.so.patched /tmp/agnos/graphics/libeglSubDriverWayland.so && \
-    cd /tmp/agnos/graphics && \
-    gcc -shared -fPIC -Os -s -Wall -Wextra -Werror -Wl,-z,defs -Wl,-z,relro,-z,now \
-      -Wl,-soname,libagnos-wayland-stubs.so -o libagnos-wayland-stubs.so /tmp/agnos/graphics-src/stubs.c && \
-    gcc -shared -fPIC -Os -s -Wall -Wextra -Werror -Wl,-z,defs -Wl,-z,relro,-z,now \
-      -Wl,-soname,libCB.so -o libCB.so /tmp/agnos/graphics-src/opencl_stubs.c && \
-    nm -D --defined-only libagnos-wayland-stubs.so | \
-      awk '$3 ~ /^agnos_/ { name = $3; sub(/^agnos_/, "", name); print name, $3 }' > /tmp/agnos/graphics-symbols.map && \
-    for lib in libgbm.so libeglSubDriverWayland.so; do \
-      patchelf --rename-dynamic-symbols /tmp/agnos/graphics-symbols.map \
-        --remove-needed libwayland-client.so.0 --remove-needed libwayland-server.so.0 \
-        --remove-needed libwayland-egl.so.1 --remove-needed libffi.so.6 \
-        --add-needed libagnos-wayland-stubs.so "$lib" || exit 1; \
-    done
+FROM agnos-compiler AS agnos-compiler-msm
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    ca-certificates git meson ninja-build pkg-config libudev-dev libzstd-dev
+COPY ./userspace/build_msm_daemons.sh /tmp/agnos/
+RUN /tmp/agnos/build_msm_daemons.sh
+
+FROM agnos-compiler AS agnos-compiler-raylib
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    ca-certificates git python3-dev python3-venv pkg-config libdrm-dev libgbm-dev libegl-dev libgles2-mesa-dev
+COPY ./userspace/build_raylib.sh ./userspace/raylib-python.patch ./userspace/raylib.patch /tmp/agnos/
+RUN /tmp/agnos/build_raylib.sh
+
+FROM agnos-compiler AS agnos-compiler-ffmpeg-headers
+RUN apt-get update && apt-get install -yq --no-install-recommends ca-certificates curl
+COPY ./userspace/build_ffmpeg_headers.sh /tmp/agnos/
+RUN /tmp/agnos/build_ffmpeg_headers.sh
 
 # ################## #
 # ###### Base ###### #
@@ -70,7 +66,7 @@ FROM agnos-base AS agnos
 
 COPY --from=agnos-compiler-adbd /tmp/agnos/adbd /usr/comma/adbd
 COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr/share/doc/adbd/NOTICE
-COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
+COPY --from=agnos-compiler-msm /tmp/agnos/msm-daemons/ /
 
 # modem.service runs the packaged modem.py (AT + IPv4 PPP).
 # NetworkManager still requires libmm-glib0 for Wi-Fi/Ethernet operation.
@@ -100,7 +96,19 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
       --no-install-package pandacan \
       --no-install-package rednose \
       --no-install-package teleoprtc \
-      --no-install-package tinygrad
+      --no-install-package tinygrad \
+      --no-install-package comma-deps-raylib
+
+# The COMMA platform uses Mesa GBM/DRM instead of the vendor KGSL runtime.
+COPY --from=agnos-compiler-raylib /tmp/agnos/raylib/ /tmp/agnos/raylib/
+RUN uv pip install --python $XDG_DATA_HOME/venv/bin/python --no-deps /tmp/agnos/raylib/*.whl && \
+    mkdir -p /usr/share/doc/comma-deps-raylib && \
+    cp /tmp/agnos/raylib/*LICENSE* /tmp/agnos/raylib/*.patch /tmp/agnos/raylib/SOURCES /usr/share/doc/comma-deps-raylib/ && \
+    rm -r /tmp/agnos/raylib
+
+# The pinned FFmpeg wheel includes libswscale but omits its public headers.
+COPY --from=agnos-compiler-ffmpeg-headers /tmp/agnos/ffmpeg-headers/include/ /usr/local/venv/lib/python3.12/site-packages/ffmpeg/install/include/
+COPY --from=agnos-compiler-ffmpeg-headers /tmp/agnos/ffmpeg-headers/share/doc/ /usr/share/doc/
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
@@ -119,6 +127,7 @@ RUN chown -R $USERNAME: /home/$USERNAME
 RUN touch -r /lib/systemd/systemd /etc/fstab
 
 COPY ./output/linux-headers/include/ /usr/include/
+COPY ./output/kernel-modules/lib/modules/ /usr/lib/modules/
 
 COPY ./userspace/irsc_util.c /tmp/agnos/
 RUN clang -O2 -Wall -Wextra -Werror -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c && rm /tmp/agnos/irsc_util.c
@@ -136,7 +145,7 @@ RUN /tmp/agnos/services.sh
 RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
 
 # Block incoming cellular traffic, including modem.py's PPP interface.
-# The SDM845 kernel supports xtables, not Ubuntu's default nftables backend.
+# Keep the firewall backend used by modem.py.
 RUN update-alternatives --set iptables /usr/sbin/iptables-legacy && \
     update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
 
@@ -145,16 +154,6 @@ RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostn
 
 # keep this last
 RUN ldconfig
-# ldconfig rewrites these SONAME links back to Mesa; raylib COMMA needs Adreno.
-RUN cd /usr/lib/aarch64-linux-gnu && \
-    test -f libEGL_adreno.so && \
-    test -f libGLESv2_adreno.so && \
-    install -m 755 libgbm.so /tmp/libgbm_adreno.so && \
-    ln -sf libEGL_adreno.so libEGL.so.1 && \
-    ln -sf libGLESv2_adreno.so libGLESv2.so.2 && \
-    rm -f libgbm.so.1 && \
-    mv /tmp/libgbm_adreno.so libgbm.so.1
-
 COPY ./userspace/trim.sh /tmp/agnos/
 RUN /tmp/agnos/trim.sh
 

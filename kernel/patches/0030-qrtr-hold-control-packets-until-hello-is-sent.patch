@@ -1,0 +1,157 @@
+From: Igor Opaniuk <igor.opaniuk@oss.qualcomm.com>
+Date: Mon, 19 Oct 2026 13:12:02 +0200
+Subject: [PATCH 2/2] net: qrtr: hold control packets behind the HELLO gate instead of dropping them
+Link: https://lore.kernel.org/all/20261019-upstream-qrtr-hello-gate-fix_b4-v1-2-bd420aec171b@oss.qualcomm.com/
+
+Since commit 544d85de4dc2 ("net: qrtr: Send HELLO message on endpoint
+register") qrtr_node_enqueue() refuses every non-HELLO packet to a node
+with -EAGAIN until the HELLO to that node has been sent, and a HELLO
+that cannot be sent yet is retried 100 ms later. The name server does
+not retry, so whatever it sends in that window is lost: the replies to
+the remote's HELLO (announce_servers()) and the NEW_SERVER broadcasts of
+local servers registering at the same time.
+
+A freshly booted remoteproc hits this every time: its glink channel has
+no rx intent yet, so our HELLO fails once. On the QCM2290 (Arduino UNO Q)
+rmtfs and tqftpserv register in the same instant as the modem starts;
+when the RMTFS announcement falls into the window the modem waits for a
+service that exists until its watchdog fires 40 s later ("DOG detects
+stalled initialization"), about one boot in five, and WiFi (whose
+firmware runs on the modem) comes up a minute late.
+
+Keep refusing data packets (they would count against the flow control
+window), but queue control packets for a node whose HELLO is not out
+yet, bounded to 64, and send them in order right after the HELLO
+succeeds. Purge the queue when the endpoint goes away.
+
+Fixes: 544d85de4dc2 ("net: qrtr: Send HELLO message on endpoint register")
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: Igor Opaniuk <igor.opaniuk@oss.qualcomm.com>
+---
+ net/qrtr/af_qrtr.c | 59 +++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 52 insertions(+), 7 deletions(-)
+
+diff --git a/net/qrtr/af_qrtr.c b/net/qrtr/af_qrtr.c
+index e7b3647424b8..071fa980fae2 100644
+--- a/net/qrtr/af_qrtr.c
++++ b/net/qrtr/af_qrtr.c
+@@ -122,6 +122,7 @@ static DEFINE_XARRAY_ALLOC(qrtr_ports);
+  * @qrtr_tx_flow: xarray of qrtr_tx_flow, keyed by node << 32 | port
+  * @qrtr_tx_lock: lock for qrtr_tx_flow inserts
+  * @hello_sent: hello packet send successful
++ * @tx_backlog: control packets waiting for the hello to be sent
+  * @rx_queue: receive queue
+  * @item: list item for broadcast list
+  * @say_hello: delayed work for sending hello packet
+@@ -136,6 +137,7 @@ struct qrtr_node {
+ 	struct mutex qrtr_tx_lock; /* for qrtr_tx_flow */
+ 
+ 	bool hello_sent;
++	struct sk_buff_head tx_backlog;
+ 
+ 	struct sk_buff_head rx_queue;
+ 	struct list_head item;
+@@ -195,6 +197,7 @@ static void __qrtr_node_release(struct kref *kref)
+ 
+ 	cancel_delayed_work_sync(&node->say_hello);
+ 
++	skb_queue_purge(&node->tx_backlog);
+ 	skb_queue_purge(&node->rx_queue);
+ 
+ 	/* Free tx flow counters */
+@@ -340,6 +343,26 @@ static void qrtr_tx_flow_failed(struct qrtr_node *node, int dest_node,
+ 	}
+ }
+ 
++/*
++ * Control packets for a node whose HELLO has not gone out yet are held back
++ * and sent right after it; this bounds how many.
++ */
++#define QRTR_TX_BACKLOG_MAX	64
++
++/* Send the control packets held back until the HELLO, in order. */
++static void qrtr_node_flush_backlog(struct qrtr_node *node)
++{
++	struct sk_buff *skb;
++
++	lockdep_assert_held(&node->ep_lock);
++
++	while ((skb = skb_dequeue(&node->tx_backlog))) {
++		if (node->ep->xmit(node->ep, skb))
++			pr_warn_ratelimited("qrtr: held control packet to node %u lost\n",
++					    node->nid);
++	}
++}
++
+ /* Pass an outgoing packet socket buffer to the endpoint driver. */
+ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
+ 			     int type, struct sockaddr_qrtr *from,
+@@ -349,8 +372,12 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
+ 	size_t len = skb->len;
+ 	int rc, confirm_rx;
+ 
++	/*
++	 * Data before the HELLO is refused: it would count against the flow
++	 * control window. Control packets are held back further down.
++	 */
+ 	mutex_lock(&node->ep_lock);
+-	if (!node->hello_sent && type != QRTR_TYPE_HELLO) {
++	if (!node->hello_sent && type == QRTR_TYPE_DATA) {
+ 		mutex_unlock(&node->ep_lock);
+ 		kfree_skb(skb);
+ 		return -EAGAIN;
+@@ -383,13 +410,29 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
+ 
+ 	if (!rc) {
+ 		mutex_lock(&node->ep_lock);
+-		rc = -ENODEV;
+-		if (node->ep)
+-			rc = node->ep->xmit(node->ep, skb);
+-		else
++		if (!node->ep) {
+ 			kfree_skb(skb);
+-		if (!rc && type == QRTR_TYPE_HELLO)
+-			node->hello_sent = true;
++			rc = -ENODEV;
++		} else if (!node->hello_sent && type != QRTR_TYPE_HELLO) {
++			/*
++			 * The remote may not take traffic yet (a freshly
++			 * booted remoteproc without rx intents). Dropping
++			 * here would lose name server announcements for
++			 * good, so hold them until the HELLO is out.
++			 */
++			if (skb_queue_len(&node->tx_backlog) < QRTR_TX_BACKLOG_MAX) {
++				skb_queue_tail(&node->tx_backlog, skb);
++			} else {
++				kfree_skb(skb);
++				rc = -EAGAIN;
++			}
++		} else {
++			rc = node->ep->xmit(node->ep, skb);
++			if (!rc && type == QRTR_TYPE_HELLO) {
++				node->hello_sent = true;
++				qrtr_node_flush_backlog(node);
++			}
++		}
+ 		mutex_unlock(&node->ep_lock);
+ 	}
+ 	/* Need to ensure that a subsequent message carries the otherwise lost
+@@ -657,6 +700,7 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid)
+ 
+ 	kref_init(&node->ref);
+ 	mutex_init(&node->ep_lock);
++	skb_queue_head_init(&node->tx_backlog);
+ 	skb_queue_head_init(&node->rx_queue);
+ 	node->nid = QRTR_EP_NID_AUTO;
+ 	node->ep = ep;
+@@ -700,6 +744,7 @@ void qrtr_endpoint_unregister(struct qrtr_endpoint *ep)
+ 
+ 	mutex_lock(&node->ep_lock);
+ 	node->ep = NULL;
++	skb_queue_purge(&node->tx_backlog);
+ 	mutex_unlock(&node->ep_lock);
+ 
+ 	/* Notify the local controller about the event */
+
+-- 
+2.53.0

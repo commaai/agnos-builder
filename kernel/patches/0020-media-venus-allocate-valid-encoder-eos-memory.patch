@@ -1,0 +1,110 @@
+Subject: [PATCH] media: venus: allocate valid memory for encoder EOS
+
+The SDM845 stock firmware validates the EOS input address and allocation
+length even when the payload is empty. A synthetic unmapped address with
+zero allocation length fails session validation at encoder drain.
+
+Allocate one coherent page per encoder instance on its first STOP command
+and retain it until session teardown. Reuse it across drain/start cycles.
+Leave the encoder state unchanged if allocation or EOS submission fails.
+---
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -4,6 +4,7 @@
+  * Copyright (C) 2017 Linaro Ltd.
+  */
+ #include <linux/clk.h>
++#include <linux/dma-mapping.h>
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
+ #include <linux/pm_runtime.h>
+@@ -22,6 +23,13 @@
+ #include "pm_helpers.h"
+ 
+ #define NUM_B_FRAMES_MAX	4
++
++/* Keep EOS memory mapped until the firmware session is closed. */
++struct venc_eos_instance {
++	struct venus_inst inst;
++	void *eos_va;
++	dma_addr_t eos_da;
++};
+ 
+ /*
+  * Three resons to keep MPLANE formats (despite that the number of planes
+@@ -528,6 +536,7 @@
+ venc_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd *cmd)
+ {
+ 	struct venus_inst *inst = to_inst(file);
++	struct venc_eos_instance *eos = container_of(inst, struct venc_eos_instance, inst);
+ 	struct hfi_frame_data fdata = {0};
+ 	int ret = 0;
+ 
+@@ -546,13 +555,22 @@
+ 		if (!(inst->streamon_out && inst->streamon_cap))
+ 			goto unlock;
+ 
++		if (!eos->eos_va) {
++			eos->eos_va = dma_alloc_coherent(inst->core->dev, SZ_4K,
++						       &eos->eos_da, GFP_KERNEL);
++			if (!eos->eos_va) {
++				ret = -ENOMEM;
++				goto unlock;
++			}
++		}
+ 		fdata.buffer_type = HFI_BUFFER_INPUT;
+ 		fdata.flags |= HFI_BUFFERFLAG_EOS;
+-		fdata.device_addr = 0xdeadb000;
++		fdata.device_addr = eos->eos_da;
++		fdata.alloc_len = SZ_4K;
+ 
+ 		ret = hfi_session_process_buf(inst, &fdata);
+-
+-		inst->enc_state = VENUS_ENC_STATE_DRAIN;
++		if (!ret)
++			inst->enc_state = VENUS_ENC_STATE_DRAIN;
+ 	} else if (cmd->cmd == V4L2_ENC_CMD_START) {
+ 		if (inst->enc_state == VENUS_ENC_STATE_DRAIN) {
+ 			ret = -EBUSY;
+@@ -1468,11 +1486,13 @@
+ {
+ 	struct venus_core *core = video_drvdata(file);
+ 	struct venus_inst *inst;
++	struct venc_eos_instance *eos;
+ 	int ret;
+ 
+-	inst = kzalloc_obj(*inst);
+-	if (!inst)
++	eos = kzalloc_obj(*eos);
++	if (!eos)
+ 		return -ENOMEM;
++	inst = &eos->inst;
+ 
+ 	INIT_LIST_HEAD(&inst->dpbbufs);
+ 	INIT_LIST_HEAD(&inst->registeredbufs);
+@@ -1533,20 +1553,23 @@
+ err_ctrl_deinit:
+ 	v4l2_ctrl_handler_free(&inst->ctrl_handler);
+ err_free:
+-	kfree(inst);
++	kfree(eos);
+ 	return ret;
+ }
+ 
+ static int venc_close(struct file *file)
+ {
+ 	struct venus_inst *inst = to_inst(file);
++	struct venc_eos_instance *eos = container_of(inst, struct venc_eos_instance, inst);
+ 
+ 	venc_pm_get(inst);
+ 	venus_close_common(inst, file);
++	if (eos->eos_va)
++		dma_free_coherent(inst->core->dev, SZ_4K, eos->eos_va, eos->eos_da);
+ 	inst->enc_state = VENUS_ENC_STATE_DEINIT;
+ 	venc_pm_put(inst, false);
+ 
+-	kfree(inst);
++	kfree(eos);
+ 	return 0;
+ }
+ 
