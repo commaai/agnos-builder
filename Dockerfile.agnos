@@ -143,6 +143,12 @@ RUN update-alternatives --set iptables /usr/sbin/iptables-legacy && \
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
 
+# SPIKE: SQUEEZE=1 for the size comparison, see userspace/squeeze.sh.
+# Before ldconfig: apt-get purge triggers ldconfig.
+ARG SQUEEZE
+COPY ./userspace/squeeze.sh /tmp/agnos/
+RUN if [ -n "$SQUEEZE" ]; then /tmp/agnos/squeeze.sh; fi
+
 # keep this last
 RUN ldconfig
 # ldconfig rewrites these SONAME links back to Mesa; raylib COMMA needs Adreno.

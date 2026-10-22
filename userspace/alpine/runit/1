@@ -1,0 +1,38 @@
+#!/bin/sh
+# runit stage 1: one-time system setup (replaces systemd's sysinit + fs_setup
+# and serial-hostname). The rootfs is a read-only A/B system partition: never
+# fsck or remount it, and keep going when an optional mount fails.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+mountpoint -q /proc || mount -t proc -o nosuid,noexec,nodev proc /proc
+mountpoint -q /sys || mount -t sysfs -o nosuid,noexec,nodev sysfs /sys
+mountpoint -q /dev || mount -t devtmpfs -o mode=0755,nosuid devtmpfs /dev
+mkdir -p /dev/pts /dev/shm
+mountpoint -q /dev/pts || mount -t devpts -o mode=0620,gid=5,nosuid,noexec devpts /dev/pts
+mountpoint -q /dev/shm || mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs /dev/shm
+mountpoint -q /run || mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /run
+mkdir -p /run/runit /run/lock
+mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug 2>/dev/null
+
+echo "AGNOS: starting udev"
+udevd --daemon
+udevadm trigger --action=add --type=subsystems
+udevadm trigger --action=add --type=devices
+udevadm settle --timeout=10
+
+echo "AGNOS: mounting filesystems"
+mount -a -t nosysfs,nonfs,nonfs4,nosmbfs,nocifs -O no_netdev || echo "AGNOS: mount -a had failures, continuing"
+
+# /var is a tmpfs; repopulate from the build-time copy
+mountpoint -q /var && cp -a /usr/default/var/. /var/
+
+echo "AGNOS: fs_setup"
+/usr/comma/fs_setup.sh
+/usr/comma/set-hostname.sh || echo "AGNOS: set-hostname failed"
+
+sysctl -q -p /etc/sysctl.conf
+ip link set lo up
+
+# udevd runs under runit from here on
+udevadm control --exit

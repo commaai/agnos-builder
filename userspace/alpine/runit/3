@@ -1,0 +1,9 @@
+#!/bin/sh
+# runit stage 3: shutdown
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+echo "AGNOS: stopping services"
+sv -w 10 force-stop /etc/runit/runsvdir/default/*
+sv exit /etc/runit/runsvdir/default/*
+killall5 -15; sleep 1; killall5 -9
+sync
+umount -a -r 2>/dev/null
