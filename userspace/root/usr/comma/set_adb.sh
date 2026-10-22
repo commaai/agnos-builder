@@ -54,7 +54,8 @@ if [ -f "$ADB_PARAM" ] && [ "$(< $ADB_PARAM)" == "1" ]; then
   echo "Enabling ADB"
 
   setup
-  systemctl start adbd
+  # setup unbinds the gadget if it's already bound, and adbd only binds it when it starts
+  systemctl restart adbd
 else
   echo "Disabling ADB"
 
