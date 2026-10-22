@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"/..
-TOOLS=$ROOT_DIR/tools
-KERNEL_DIR=$ROOT_DIR/agnos-kernel-sdm845
-CROSS_COMPILE=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-
+KERNEL_DIR="$ROOT_DIR/build/linux"
 
-$KERNEL_DIR/scripts/faddr2line $KERNEL_DIR/out/vmlinux $1
-
+exec docker run --rm -i -v "$ROOT_DIR:$ROOT_DIR" -w "$ROOT_DIR" \
+  --entrypoint bash agnos-mainline-builder -c '
+set -euo pipefail
+if [[ "$(uname -m)" != aarch64 && "$(uname -m)" != arm64 ]]; then
+  export CROSS_COMPILE=aarch64-linux-gnu-
+fi
+exec "$1/scripts/faddr2line" "$2" "${@:3}"
+' bash "$KERNEL_DIR" "$ROOT_DIR/build/kernel-out/vmlinux" "$@"

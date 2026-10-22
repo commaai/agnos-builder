@@ -1,3 +1,13 @@
 *.deb filter=lfs diff=lfs merge=lfs -text
 *.ko filter=lfs diff=lfs merge=lfs -text
 userspace/root/usr/share/fonts/NotoSans??-Regular.woff2 filter=lfs diff=lfs merge=lfs -text
+
+userspace/root/usr/lib/firmware/ath10k/** filter=lfs diff=lfs merge=lfs -text
+userspace/root/usr/lib/firmware/qca/* filter=lfs diff=lfs merge=lfs -text
+userspace/root/usr/lib/firmware/qcom/**/*.mbn filter=lfs diff=lfs merge=lfs -text
+userspace/root/usr/lib/firmware/qcom/*.fw filter=lfs diff=lfs merge=lfs -text
+
+# Preserve patch context and mail trailers; builds check the added source.
+*.patch -whitespace
+# Keep this copied upstream license byte-for-byte.
+userspace/root/usr/share/doc/mainline-firmware/licenses/wireless-regdb-LICENSE whitespace=-blank-at-eof

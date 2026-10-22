@@ -1,0 +1,421 @@
+/dts-v1/;
+
+#include "sdm845-comma-common.dtsi"
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,q6asm.h>
+
+/ {
+	model = "comma mici";
+	compatible = "comma,mici", "qcom,sdm845";
+	qcom,msm-id = <QCOM_ID_SDA845 0x20001>, <QCOM_ID_SDM845 0x20001>,
+		      <QCOM_ID_SDM845 0x20000>, <348 0x20001>;
+	qcom,board-id = <0x22 0>;
+
+	reserved-memory {
+		ramoops@b0000000 {
+			compatible = "ramoops";
+			reg = <0 0xb0000000 0 0x003ff000>;
+			record-size = <0x40000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x40000>;
+			pmsg-size = <0x200000>;
+		};
+
+		/* ABL's power-drop cookie is at the end of this page. */
+		cookies@b03ff000 {
+			no-map;
+			reg = <0 0xb03ff000 0 0x1000>;
+		};
+	};
+
+	aliases {
+		hsuart0 = &uart3;
+		i2c0 = &i2c10;
+		i2c1 = &i2c4;
+		i2c2 = &i2c5;
+		i2c4 = &i2c0;
+		i2c5 = &i2c1;
+		i2c10 = &i2c2;
+	};
+};
+
+&i2c10 {
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c5 {
+	touchscreen@38 {
+		compatible = "focaltech,ft3168";
+		reg = <0x38>;
+
+		interrupts-extended = <&tlmm 125 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 104 GPIO_ACTIVE_LOW>;
+
+		iovcc-supply = <&vreg_s4a_1p8>;
+		vcc-supply = <&lcd3v3>;
+
+		touchscreen-size-x = <240>;
+		touchscreen-size-y = <536>;
+	};
+};
+
+&mdss_dsi0 {
+	panel@0 {
+		compatible = "dwo,do0200fat07";
+
+		reg = <0>;
+
+		vddio-supply = <&vreg_l14a_1p88>;
+		vdd-supply = <&lcd3v3>;
+
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+
+		rotation = <90>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0>;
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&wifi {
+	qcom,calibration-variant = "comma-mici";
+};
+
+/ {
+	spkr_codec: audio-codec-0 {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	mic_codec: audio-codec-1 {
+		compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+	};
+};
+
+&adsp_pas {
+	firmware-name = "adsp.mdt";
+	status = "okay";
+};
+
+&q6afedai {
+	dai@12 {
+		reg = <SECONDARY_MI2S_RX>;
+		qcom,sd-lines = <1>;
+	};
+
+	dai@13 {
+		reg = <SECONDARY_MI2S_TX>;
+		qcom,sd-lines = <0>;
+	};
+};
+
+&q6asmdai {
+	dai@0 {
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA1>;
+		direction = <Q6ASM_DAI_RX>;
+	};
+
+	dai@1 {
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA2>;
+		direction = <Q6ASM_DAI_TX>;
+	};
+};
+
+&sound {
+	compatible = "qcom,sdm845-sndcard";
+	model = "comma-mici";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sec_mi2s_active>;
+
+	mm1-dai-link {
+		link-name = "MultiMedia1";
+		cpu {
+			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA1>;
+		};
+	};
+
+	mm2-dai-link {
+		link-name = "MultiMedia2";
+		cpu {
+			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA2>;
+		};
+	};
+
+	speaker-dai-link {
+		link-name = "Secondary MI2S Playback";
+		cpu {
+			sound-dai = <&q6afedai SECONDARY_MI2S_RX>;
+		};
+		platform {
+			sound-dai = <&q6routing>;
+		};
+		codec {
+			sound-dai = <&spkr_codec>;
+		};
+	};
+
+	mic-dai-link {
+		link-name = "Secondary MI2S Capture";
+		cpu {
+			sound-dai = <&q6afedai SECONDARY_MI2S_TX>;
+		};
+		platform {
+			sound-dai = <&q6routing>;
+		};
+		codec {
+			sound-dai = <&mic_codec>;
+		};
+	};
+};
+
+&tlmm {
+	sec_mi2s_active: sec-mi2s-active-state {
+		pins = "gpio80", "gpio81", "gpio82", "gpio83";
+		function = "sec_mi2s";
+		drive-strength = <8>;
+		bias-disable;
+	};
+};
+
+&venus {
+	status = "okay";
+	firmware-name = "venus.mdt";
+};
+
+
+&pm8998_adc {
+	channel@4d {
+		reg = <ADC5_AMUX_THM1_100K_PU>;
+		label = "intake_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+	channel@4e {
+		reg = <ADC5_AMUX_THM2_100K_PU>;
+		label = "exhaust_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+	channel@50 {
+		reg = <ADC5_AMUX_THM4_100K_PU>;
+		label = "bottom_soc_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+	channel@51 {
+		reg = <ADC5_AMUX_THM5_100K_PU>;
+		label = "gnss_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+};
+
+&pm8998_adc_tm {
+	status = "okay";
+	intake-therm@0 {
+		reg = <0>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM1_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+	exhaust-therm@1 {
+		reg = <1>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM2_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+	bottom-soc-therm@2 {
+		reg = <2>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM4_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+	gnss-therm@3 {
+		reg = <3>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM5_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+};
+
+/ {
+	thermal-zones {
+		intake {
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&pm8998_adc_tm 0>;
+			trips {
+				intake-alert {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+		exhaust {
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&pm8998_adc_tm 1>;
+			trips {
+				exhaust-alert {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+		bottom_soc {
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&pm8998_adc_tm 2>;
+			trips {
+				bottom-soc-alert {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+		gnss {
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&pm8998_adc_tm 3>;
+			trips {
+				gnss-alert {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+	};
+};
+
+/* These board supplies also feed the camera modules. */
+&vreg_l8a_1p2 {
+	regulator-always-on;
+};
+
+&vreg_l19a_3p0 {
+	regulator-always-on;
+};
+
+
+#include "sdm845-comma-spectra.dtsi"
+
+&cam_sensor_mclk0_active { drive-strength = <2>; };
+&cam_sensor_mclk1_active { drive-strength = <2>; };
+&cam_sensor_mclk2_active { drive-strength = <2>; };
+
+/ {
+	som_power: som-power {
+		compatible = "iio-hwmon";
+		io-channels = <&mici_fg_adc 0>, <&mici_fg_adc 1>;
+	};
+};
+
+&pmi8998_lsid0 {
+	mici_fg_adc: adc@4100 {
+		compatible = "qcom,pmi8998-fg-adc";
+		reg = <0x4100>;
+		#io-channel-cells = <1>;
+	};
+};
+
+&pmi8998_flash {
+	status = "okay";
+
+	led-2 {
+		color = <LED_COLOR_ID_IR>;
+		function = LED_FUNCTION_TORCH;
+		led-sources = <3>;
+		led-max-microamp = <300000>;
+	};
+};
+
+/* USB-C / chestnut proposal: requires the gen1 TCPM and PMI8998 VBUS patches. */
+#include <dt-bindings/usb/pd.h>
+
+&pmi8998_lsid0 {
+	mici_vbus: usb-vbus-regulator@1100 {
+		compatible = "qcom,pmi8998-vbus-reg";
+		reg = <0x1100>;
+		interrupts = <0x2 0x11 0x0 IRQ_TYPE_EDGE_RISING>,
+			     <0x2 0x11 0x1 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "otg-fail", "otg-overcurrent";
+		regulator-name = "smb2-vbus";
+		regulator-min-microamp = <1500000>;
+		regulator-max-microamp = <1500000>;
+	};
+};
+
+/* Batteryless mici uses the USBIN controls through the Type-C backend. */
+&pmi8998_charger {
+	status = "disabled";
+};
+
+&pmi8998_typec {
+	status = "okay";
+	vdd-pdphy-supply = <&vreg_l24a_3p075>;
+
+	connector {
+		compatible = "usb-c-connector";
+		power-role = "dual";
+		data-role = "dual";
+		try-power-role = "sink";
+		self-powered;
+		vbus-supply = <&mici_vbus>;
+		source-pdos = <PDO_FIXED(5000, 1500, PDO_FIXED_DUAL_ROLE |
+					PDO_FIXED_USB_COMM | PDO_FIXED_DATA_SWAP)>;
+		sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_DUAL_ROLE |
+				      PDO_FIXED_USB_COMM | PDO_FIXED_DATA_SWAP)>;
+		op-sink-microwatt = <7500000>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				mici_typec_hs: endpoint {
+					remote-endpoint = <&usb_1_dwc3_hs>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				mici_typec_ss: endpoint {
+					remote-endpoint = <&usb_1_qmpphy_out>;
+				};
+			};
+		};
+	};
+};
+
+&usb_1_dwc3 {
+	dr_mode = "otg";
+	usb-role-switch;
+};
+
+&usb_1_dwc3_hs {
+	remote-endpoint = <&mici_typec_hs>;
+};
+
+&usb_1_qmpphy_out {
+	remote-endpoint = <&mici_typec_ss>;
+};

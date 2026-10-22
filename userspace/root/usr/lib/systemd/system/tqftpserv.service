@@ -1,0 +1,13 @@
+[Unit]
+Description=Qualcomm firmware file service
+Requires=qrtr.service
+After=qrtr.service
+Before=wifi.service
+
+[Service]
+ExecStart=/usr/bin/tqftpserv
+Restart=always
+StateDirectory=tqftpserv
+
+[Install]
+WantedBy=multi-user.target

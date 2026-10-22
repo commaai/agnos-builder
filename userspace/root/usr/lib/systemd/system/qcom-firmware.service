@@ -1,0 +1,15 @@
+[Unit]
+Description=Start Qualcomm audio, video and camera firmware
+RequiresMountsFor=/firmware/image
+After=firmware.mount
+Before=sound.service comma.service
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/modprobe qcom_q6v5_pas
+ExecStart=/sbin/modprobe venus_core
+ExecStart=/sbin/modprobe spectra_camera
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

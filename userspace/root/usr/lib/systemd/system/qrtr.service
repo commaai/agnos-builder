@@ -1,0 +1,10 @@
+[Unit]
+Description=Qualcomm IPC router name service
+
+[Service]
+ExecStart=/usr/bin/qrtr-ns -f 1
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

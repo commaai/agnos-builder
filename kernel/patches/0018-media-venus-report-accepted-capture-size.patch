@@ -1,0 +1,17 @@
+Subject: [PATCH] media: venus: report the accepted encoder capture size
+
+S_FMT preserves a requested capture sizeimage above the calculated minimum,
+and queue_setup requires buffers of that size. Return the stored size from
+G_FMT too, so applications do not allocate smaller buffers after querying
+the selected format.
+---
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -321,6 +321,7 @@ static int venc_g_fmt(struct file *file, void *fh, struct v4l2_format *f)
+ 		pixmp->colorspace = inst->colorspace;
+ 		pixmp->ycbcr_enc = inst->ycbcr_enc;
+ 		pixmp->quantization = inst->quantization;
++		pixmp->plane_fmt[0].sizeimage = inst->output_buf_size;
+ 		pixmp->xfer_func = inst->xfer_func;
+ 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+ 		pixmp->width = inst->out_width;

@@ -1,0 +1,38 @@
+From a1d63493634e98360140027fef49d82b1ff0a267 Mon Sep 17 00:00:00 2001
+From: Robin Reckmann <robin.reckmann@gmail.com>
+Subject: [PATCH] clk: qcom: dispcc-sdm845: avoid enabling DSI PLL during probe
+
+CLK_OPS_PARENT_ENABLE makes orphan reparenting enable the DSI PLL.
+Enabling it before PHY initialization can cause 10nm PLL lock failures.
+
+Keep the DSI PLL disabled during reparenting; normal DSI and MDSS paths
+prepare it when needed.
+
+This reverts commit a1d63493634e ("clk: qcom: dispcc-sdm845: Enable parents
+for pixel clocks") for the SDM845 display clock topology.
+---
+ drivers/clk/qcom/dispcc-sdm845.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/clk/qcom/dispcc-sdm845.c b/drivers/clk/qcom/dispcc-sdm845.c
+index 78e43f6d7502..2f9e9665d7e9 100644
+--- a/drivers/clk/qcom/dispcc-sdm845.c
++++ b/drivers/clk/qcom/dispcc-sdm845.c
+@@ -280,7 +280,7 @@ static struct clk_rcg2 disp_cc_mdss_pclk0_clk_src = {
+ 		.name = "disp_cc_mdss_pclk0_clk_src",
+ 		.parent_data = disp_cc_parent_data_4,
+ 		.num_parents = ARRAY_SIZE(disp_cc_parent_data_4),
+-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
++		.flags = CLK_SET_RATE_PARENT,
+ 		.ops = &clk_pixel_ops,
+ 	},
+ };
+@@ -295,7 +295,7 @@ static struct clk_rcg2 disp_cc_mdss_pclk1_clk_src = {
+ 		.name = "disp_cc_mdss_pclk1_clk_src",
+ 		.parent_data = disp_cc_parent_data_4,
+ 		.num_parents = ARRAY_SIZE(disp_cc_parent_data_4),
+-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
++		.flags = CLK_SET_RATE_PARENT,
+ 		.ops = &clk_pixel_ops,
+ 	},
+ };

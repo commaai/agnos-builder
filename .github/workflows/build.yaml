@@ -39,7 +39,7 @@ jobs:
 
     - name: Get kernel submodule ref
       id: kernel-submodule
-      run: echo "ref=$(git ls-tree HEAD | awk '$4 == "agnos-kernel-sdm845"' | awk '{print $3}')" | tee -a $GITHUB_OUTPUT
+      run: echo "ref=$(git -C kernel/linux rev-parse HEAD)" | tee -a $GITHUB_OUTPUT
 
     - name: Restore ccache
       uses: actions/cache@v4
@@ -80,7 +80,7 @@ jobs:
       env:
         AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}
       run: |
-        scripts/package_ota.py
+        scripts/package_ota.py --ota-only
 
     - name: Save PR number, VERSION and stats
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"

@@ -1,0 +1,238 @@
+{
+  "format_version": 1,
+  "firmware_root": "/usr/lib/firmware",
+  "verification": "SHA256SUMS paths are relative to firmware_root. Source revisions were compared byte-for-byte; license assignments use upstream WHENCE. See README for unresolved notices.",
+  "files": [
+    {
+      "path": "ath10k/WCN3990/hw1.0/board-2.bin",
+      "sha256": "a6f2b5ba06d33bae9d0ec525b84b267ff0a26f4fde4e96a5b586e73096cfd769",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/ath10k/WCN3990/hw1.0/board-2.bin",
+      "license_status": "unverified-see-README",
+      "import_commit": "9869d6e05200cb24ad403da110fc9ec620fe972e"
+    },
+    {
+      "path": "ath10k/WCN3990/hw1.0/firmware-5.bin",
+      "sha256": "fef6539e0127579536bc977be57a90d018b83f2931fedc3a8870fbe38d6c4127",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "ath10k/WCN3990/hw1.0/firmware-5.bin",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.QualcommAtheros_ath10k"
+      ]
+    },
+    {
+      "path": "ath10k/WCN3990/hw1.0/wlanmdsp.mbn",
+      "sha256": "aa7a7b3ef5e4c43a242e7bca199b1bb358c1111ddfc39dcdecd9eba7473feb31",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/ath10k/WCN3990/hw1.0/wlanmdsp.mbn",
+      "license_status": "unverified-see-README",
+      "import_commit": "9869d6e05200cb24ad403da110fc9ec620fe972e"
+    },
+    {
+      "path": "qca/crbtfw11.tlv",
+      "sha256": "d6532b99875890fb7969874ff6e904939ca0d6f2d2bd1e1fd3ae86470bebc9f5",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/qca/crbtfw11.tlv",
+      "license_status": "unverified-see-README",
+      "import_commit": "d38d75f7209c49777cd9b9a47db3b90dc7d2268a"
+    },
+    {
+      "path": "qca/crbtfw20.tlv",
+      "sha256": "d9afa5d9facd528f437e83bcc8147681afd432296ebbba5e77904c13fab28209",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/qca/crbtfw20.tlv",
+      "license_status": "unverified-see-README",
+      "import_commit": "d38d75f7209c49777cd9b9a47db3b90dc7d2268a"
+    },
+    {
+      "path": "qca/crbtfw21.tlv",
+      "sha256": "2a42859081393ca6a50a177773385eac4fcabb9f21fc1b78299ed35bf8a598c4",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/qca/crbtfw21.tlv",
+      "license_status": "unverified-see-README",
+      "import_commit": "d38d75f7209c49777cd9b9a47db3b90dc7d2268a"
+    },
+    {
+      "path": "qca/crnv11.bin",
+      "sha256": "206deb651dcfd187d1fd39f1f064af20324d1b4e28dcd72f5ed23bb8ef605d00",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/qca/crnv11.bin",
+      "license_status": "unverified-see-README",
+      "import_commit": "d38d75f7209c49777cd9b9a47db3b90dc7d2268a"
+    },
+    {
+      "path": "qca/crnv20.bin",
+      "sha256": "6c96fe067860a79813b466a1d4644dc2748a4191b21a986a44d2cc0fe6ccaca7",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/qca/crnv20.bin",
+      "license_status": "unverified-see-README",
+      "import_commit": "d38d75f7209c49777cd9b9a47db3b90dc7d2268a"
+    },
+    {
+      "path": "qca/crnv21.bin",
+      "sha256": "18cc38fff25a6a56bc163f1874184da93d90882dc047c9f0c534ed9888c543b3",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/qca/crnv21.bin",
+      "license_status": "unverified-see-README",
+      "import_commit": "d38d75f7209c49777cd9b9a47db3b90dc7d2268a"
+    },
+    {
+      "path": "qcom/a630_gmu.bin",
+      "sha256": "da8d9b1b1f5c1a0b311f32567093b4828f3c80031dd8435f91ac13c664e173a6",
+      "symlink_target": "../a630_gmu.bin",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "qcom/a630_gmu.bin",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.qcom",
+        "licenses/NOTICE.qcom"
+      ]
+    },
+    {
+      "path": "qcom/a630_sqe.fw",
+      "sha256": "1c21b527d9183487cc550dabbb3f43e555df5a977a461934fc61f0635a9aa90c",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "qcom/a630_sqe.fw",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.qcom",
+        "licenses/NOTICE.qcom"
+      ]
+    },
+    {
+      "path": "qcom/sdm845/adspr.jsn",
+      "sha256": "4781dc9312fa017b0e611c752dae2183c0f205af8300b28417a496dae511b0a5",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "qcom/sdm845/adspr.jsn",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.qcom",
+        "licenses/NOTICE.qcom"
+      ]
+    },
+    {
+      "path": "qcom/sdm845/adspua.jsn",
+      "sha256": "d6c6376f53e5449eb4f7b9e5a30679ebc2a9afaad28c13ff171f979e7b1af1f6",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "qcom/sdm845/adspua.jsn",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.qcom",
+        "licenses/NOTICE.qcom"
+      ]
+    },
+    {
+      "path": "qcom/sdm845/cdspr.jsn",
+      "sha256": "15e148599165b38f68e62302d63c87caa5f0b164deb81aa419bbb4ecf920bc4b",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "qcom/sdm845/cdspr.jsn",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.qcom",
+        "licenses/NOTICE.qcom"
+      ]
+    },
+    {
+      "path": "qcom/sdm845/mba.mbn",
+      "sha256": "42f36f2a8bd1c3cfb10f03c7f34e7e31a699cc6d4fb21dc87c4321277d94f87e",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "qcom/sdm845/mba.mbn",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.qcom",
+        "licenses/NOTICE.qcom"
+      ]
+    },
+    {
+      "path": "qcom/sdm845/modem_nm.mbn",
+      "sha256": "f4d4963d7f6ccaeee4245f3c647b0544e2a7b4bcba297198dd0dea180fbeab1a",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "qcom/sdm845/modem_nm.mbn",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.qcom",
+        "licenses/NOTICE.qcom"
+      ]
+    },
+    {
+      "path": "qcom/sdm845/modemr.jsn",
+      "sha256": "a94b089b03820c03fc395cac2aa18dd52ee806de53f18eeb2e7eb10bfb28aaf0",
+      "source_repository": "https://github.com/commaai/vamos",
+      "source_revision": "7626c378c3d5762df673dd14d457631057779d27",
+      "source_path": "kernel/firmware/qcom/sdm845/modemr.jsn",
+      "license_status": "unverified-see-README",
+      "import_commit": "f6f7978442a1381f6e9458b238061a9a868b366c"
+    },
+    {
+      "path": "qcom/sdm845/modemuw.jsn",
+      "sha256": "e75d94b61df3e86c5b3f7a976d93f726cb85f2b897a8ea80a0924b9bb9c1a3bf",
+      "source_repository": "https://gitlab.com/kernel-firmware/linux-firmware",
+      "source_revision": "59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01",
+      "source_path": "qcom/sdm845/modemuw.jsn",
+      "license_status": "verified-upstream-WHENCE",
+      "license_files": [
+        "licenses/LICENSE.qcom",
+        "licenses/NOTICE.qcom"
+      ]
+    },
+    {
+      "path": "regulatory.db",
+      "sha256": "872b1654f84b09d70bb5c63248dbafd757aa4ac0ead2170d1cb2747892e8d37a",
+      "source_repository": "https://git.kernel.org/pub/scm/linux/kernel/git/wens/wireless-regdb.git",
+      "source_revision": "e05260afb7203dd0a7ba6faf9a30c86faf19a24e",
+      "source_path": "regulatory.db",
+      "license_status": "verified-upstream",
+      "license_files": [
+        "licenses/wireless-regdb-LICENSE"
+      ]
+    },
+    {
+      "path": "regulatory.db.p7s",
+      "sha256": "ee7c528c844b4c24753d0b4673b533052bf4d8a8493e7f62d25ba7ca328a32e3",
+      "source_repository": "https://git.kernel.org/pub/scm/linux/kernel/git/wens/wireless-regdb.git",
+      "source_revision": "e05260afb7203dd0a7ba6faf9a30c86faf19a24e",
+      "source_path": "regulatory.db.p7s",
+      "license_status": "verified-upstream",
+      "license_files": [
+        "licenses/wireless-regdb-LICENSE"
+      ]
+    }
+  ],
+  "aliases": [
+    {
+      "path": "qcom/sdm845/wlanmdsp.mbn",
+      "target": "../../ath10k/WCN3990/hw1.0/wlanmdsp.mbn",
+      "license_status": "same-as-target"
+    },
+    {
+      "path": "qcom/sdm845/a630_zap.mbn",
+      "target": "../../a630_zap.elf",
+      "source_repository": "https://github.com/commaai/agnos-builder",
+      "source_revision": "f668ca88a05d71abed957f8cd79d04b03544fd00",
+      "source_path": "userspace/root/usr/lib/firmware/a630_zap.elf",
+      "license_status": "pre-existing-AGNOS-file-not-re-audited"
+    },
+    {
+      "path": "comma/dwo-do0200fat07-gamma.bin",
+      "target": "/run/panel-firmware/dwo-do0200fat07-gamma.bin",
+      "source": "Generated per device from /persist/comma/dwo_gamma_curves by /usr/comma/screen_calibration.py; no calibration bytes shipped here."
+    }
+  ]
+}

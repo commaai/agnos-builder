@@ -1,0 +1,75 @@
+Subject: [PATCH] spmi: pmic-arb: bound IRQ dispatch by hardware ownership
+
+Firmware can leave an APPS-owned interrupt pending before a Linux client
+translates its IRQ. Bounds derived only from translated IRQs can exclude
+that peripheral and leave its interrupt pending.
+
+For arbiters with a complete ownership map, derive the bounds after all
+ownership entries have been read and check ownership before PIC access.
+Keep lazy discovery on older arbiters and leave the existing unmapped-IRQ
+cleanup unchanged.
+
+--- a/drivers/spmi/spmi-pmic-arb.c
++++ b/drivers/spmi/spmi-pmic-arb.c
+@@ -782,7 +782,8 @@
+ 			id = ffs(status) - 1;
+ 			status &= ~BIT(id);
+ 			apid = id + i * 32;
+-			if (apid < first || apid > last) {
++			if (apid < first || apid > last ||
++			    (bus->apid_count && bus->apid_data[apid].irq_ee != ee)) {
+ 				WARN_ONCE(true, "spurious spmi irq received for apid=%d\n",
+ 					apid);
+ 				continue;
+@@ -1001,11 +1002,13 @@
+ 	}
+ 
+ 	apid = rc;
+-	/* Keep track of {max,min}_apid for bounding search during interrupt */
+-	if (apid > bus->max_apid)
+-		bus->max_apid = apid;
+-	if (apid < bus->min_apid)
+-		bus->min_apid = apid;
++	/* Older arbiters discover their ownership map lazily. */
++	if (!bus->apid_count) {
++		if (apid > bus->max_apid)
++			bus->max_apid = apid;
++		if (apid < bus->min_apid)
++			bus->min_apid = apid;
++	}
+ 
+ 	*out_hwirq = spec_to_hwirq(intspec[0], intspec[1], intspec[2], apid);
+ 	*out_type  = intspec[3] & IRQ_TYPE_SENSE_MASK;
+@@ -1276,6 +1279,9 @@
+ 
+ 	apidd = &bus->apid_data[bus->base_apid];
+ 	apid_max = bus->base_apid + bus->apid_count;
++	for (i = bus->base_apid; i < apid_max; i++)
++		bus->apid_data[i].irq_ee = INVALID_EE;
++
+ 	for (i = bus->base_apid; i < apid_max; i++, apidd++) {
+ 		offset = pmic_arb->ver_ops->apid_map_offset(i);
+ 		if (offset >= pmic_arb->core_size)
+@@ -1309,6 +1315,22 @@
+ 
+ 		apidd->ppid = ppid;
+ 		bus->last_apid = i;
++	}
++
++	/*
++	 * Firmware can leave an interrupt pending before its Linux IRQ mapping
++	 * exists. Bound dispatch by the final hardware IRQ ownership map, not
++	 * by the subset of clients which have translated an interrupt so far.
++	 * Duplicate PPID entries above can change an earlier APID's IRQ owner.
++	 */
++	bus->min_apid = pmic_arb->max_periphs - 1;
++	bus->max_apid = 0;
++	for (i = bus->base_apid; i < apid_max; i++) {
++		if (bus->apid_data[i].irq_ee != pmic_arb->ee)
++			continue;
++		if (i < bus->min_apid)
++			bus->min_apid = i;
++		bus->max_apid = i;
+ 	}
+ 
+ 	/* Dump the mapping table for debug purposes. */

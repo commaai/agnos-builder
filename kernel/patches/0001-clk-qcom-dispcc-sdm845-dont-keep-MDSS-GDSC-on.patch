@@ -1,0 +1,40 @@
+From c1341a65e2ce2d80d72fea6a1142f48da16bf9fe Mon Sep 17 00:00:00 2001
+From: Robin Reckmann <robin.reckmann@gmail.com>
+Date: Tue, 24 Mar 2026 21:53:49 +0900
+Subject: clk: qcom: dispcc-sdm845: don't keep MDSS GDSC on across late
+ init
+
+On SDM845 systems where the bootloader leaves the display pipeline enabled
+for splash/handoff, keeping the MDSS power domain on across late init can
+leave the display controller in stale bootloader state during early Linux
+display bring-up.
+
+This can cause the first DSI modeset to fail with:
+
+  disp_cc_mdss_pclk0_clk_src: rcg didn't update its configuration
+
+and can also lead to display handoff issues when the panel driver is built
+into the kernel and probes early.
+
+Set GENPD_FLAG_NO_STAY_ON on mdss_gdsc so the MDSS power domain is not kept
+enabled until late_initcall_sync, allowing Linux to bring the display block
+up from a clean state.
+---
+ drivers/clk/qcom/dispcc-sdm845.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/clk/qcom/dispcc-sdm845.c b/drivers/clk/qcom/dispcc-sdm845.c
+index 2f9e9665d..91c5bc42b 100644
+--- a/drivers/clk/qcom/dispcc-sdm845.c
++++ b/drivers/clk/qcom/dispcc-sdm845.c
+@@ -763,6 +763,7 @@ static struct gdsc mdss_gdsc = {
+ 	.en_rest_wait_val = 0x5,
+ 	.pd = {
+ 		.name = "mdss_gdsc",
++		.flags = GENPD_FLAG_NO_STAY_ON,
+ 	},
+ 	.pwrsts = PWRSTS_OFF_ON,
+ 	.flags = HW_CTRL | POLL_CFG_GDSCR,
+-- 
+2.53.0
+

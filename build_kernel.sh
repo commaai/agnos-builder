@@ -1,120 +1,130 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-DEFCONFIG=tici_defconfig
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$DIR"
 
-# Get directories and make sure we're in the correct spot to start the build
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-TOOLS=$DIR/tools
-TMP_DIR=/tmp/agnos-builder-tmp
-OUTPUT_DIR=$DIR/output
-BOOT_IMG=./boot.img
-cd $DIR
+SOURCE_DIR="$DIR/kernel/linux"
+KERNEL_DIR="$DIR/build/linux"
+OUT_DIR="$DIR/build/kernel-out"
+SPECTRA_DIR="$DIR/build/spectra-camera"
+OUTPUT_DIR="$DIR/output"
+TOOLS="$DIR/tools"
 
-if [[ "$(uname)" == 'Darwin' ]]; then
-  BASE_VOLUME_PATH=$(echo $DIR | grep -o "^/Volumes/[^/]*" || echo "/")
-  if ! diskutil info -plist $BASE_VOLUME_PATH | grep -q "<string>Case-sensitive APFS</string>"; then
-    echo "---------------   macOS support   ---------------"
+if [[ "$(uname)" == Darwin ]]; then
+  BASE_VOLUME_PATH=$(echo "$DIR" | grep -o "^/Volumes/[^/]*" || echo "/")
+  if ! diskutil info -plist "$BASE_VOLUME_PATH" | grep -q "<string>Case-sensitive APFS</string>"; then
     echo "Ensure you are in a Case-sensitive APFS volume to build the AGNOS kernel."
     echo "https://github.com/commaai/agnos-builder?tab=readme-ov-file#macos"
-    echo "-------------------------------------------------"
     exit 1
   fi
 fi
 
-# Setup kernel build container
-echo "Building agnos-meta-builder docker image"
-export DOCKER_BUILDKIT=1
-docker build -f Dockerfile.builder -t agnos-meta-builder $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
-echo "Starting agnos-meta-builder container"
-CONTAINER_ID=$(docker run -d -v $DIR:$DIR -w $DIR agnos-meta-builder)
-
-# Cleanup container on exit
-trap "echo \"Cleaning up container:\"; \
-docker container rm -f $CONTAINER_ID" EXIT
-
-# Clone kernel if not done already
-if git submodule status --cached agnos-kernel-sdm845/ | grep "^-"; then
-  echo "Cloning agnos-kernel-sdm845"
-  git submodule update --init agnos-kernel-sdm845
+if [ ! -f "$SOURCE_DIR/Makefile" ]; then
+  git submodule update --init kernel/linux
+fi
+if [ ! -f "$DIR/kernel/spectra/kernel/spectra-camera/Kbuild" ]; then
+  git submodule update --init kernel/spectra
 fi
 
-$DIR/tools/extract_tools.sh
+# Build the pinned upstream tree plus our patches, keeping the submodule clean.
+# The separate output directory preserves incremental build artifacts.
+SOURCE_ID=$({
+  git -C "$SOURCE_DIR" rev-parse HEAD
+  git -C "$DIR/kernel/spectra" rev-parse HEAD
+  shasum -a 256 kernel/patches/*.patch kernel/dts/*
+} | shasum -a 256 | cut -d ' ' -f 1)
+if [ "$(cat "$KERNEL_DIR/.agnos-source" 2>/dev/null || true)" != "$SOURCE_ID" ]; then
+  rm -rf "$KERNEL_DIR"
+  mkdir -p "$KERNEL_DIR"
+  git -C "$SOURCE_DIR" archive HEAD | tar -xf - -C "$KERNEL_DIR"
+  git -C "$KERNEL_DIR" init -q
+  for patch in "$DIR"/kernel/patches/*.patch; do
+    git -C "$KERNEL_DIR" apply --check --whitespace=error "$patch"
+    git -C "$KERNEL_DIR" apply --whitespace=error "$patch"
+  done
+  cp kernel/dts/* "$KERNEL_DIR/arch/arm64/boot/dts/qcom/"
+  echo "$SOURCE_ID" > "$KERNEL_DIR/.agnos-source"
+fi
+
+SPECTRA_ID=$(git -C "$DIR/kernel/spectra" rev-parse HEAD)
+if [ "$(cat "$SPECTRA_DIR/.agnos-source" 2>/dev/null || true)" != "$SPECTRA_ID" ]; then
+  rm -rf "$SPECTRA_DIR"
+  mkdir -p "$SPECTRA_DIR"
+  git -C "$DIR/kernel/spectra" archive HEAD kernel/spectra-camera | \
+    tar -xf - --strip-components=2 -C "$SPECTRA_DIR"
+  echo "$SPECTRA_ID" > "$SPECTRA_DIR/.agnos-source"
+fi
+
+docker build -f Dockerfile.builder -t agnos-mainline-builder . \
+  --build-arg UNAME="$(id -nu)" --build-arg UID="$(id -u)" --build-arg GID="$(id -g)"
 
 build_kernel() {
-  cd agnos-kernel-sdm845
-
-  # Build parameters
-  ARCH=$(uname -m)
-  if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
-    export CROSS_COMPILE=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-
-    export CC=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-gcc
-    export LD=$TOOLS/aarch64-linux-gnu-gcc/bin/aarch64-linux-gnu-ld.bfd
-  fi
-
-  # Build arm64 arch
   export ARCH=arm64
+  export CROSS_COMPILE=""
+  if [[ "$(uname -m)" != aarch64 && "$(uname -m)" != arm64 ]]; then
+    export CROSS_COMPILE=aarch64-linux-gnu-
+  fi
+  export CCACHE_DIR="$DIR/.ccache"
+  export KBUILD_BUILD_USER=comma
+  export KBUILD_BUILD_HOST=agnos
+  export LOCALVERSION=-agnos
 
-  # Set ccache dir
-  export CCACHE_DIR=$DIR/.ccache
+  cd "$KERNEL_DIR"
+  local args=(O="$OUT_DIR" CC="ccache ${CROSS_COMPILE}gcc" HOSTCC="ccache gcc" HOSTCXX="ccache g++")
+  make "${args[@]}" defconfig
+  KCONFIG_CONFIG="$OUT_DIR/.config" scripts/kconfig/merge_config.sh -m -y \
+    "$OUT_DIR/.config" "$DIR/kernel/configs/mici.config"
+  make "${args[@]}" olddefconfig
+  make -j"$(nproc)" "${args[@]}" Image qcom/sdm845-comma-mici.dtb modules
+  make -j"$(nproc)" "${args[@]}" M="$SPECTRA_DIR" modules
 
-  # Force ccache usage for kernel build (both target and host compilers)
-  export PATH="/usr/lib/ccache:$PATH"
-  export HOSTCC="ccache gcc"
-  export HOSTCXX="ccache g++"
+  local tmp="$DIR/build/boot"
+  mkdir -p "$tmp" "$OUTPUT_DIR"
+  python3 - "$OUT_DIR/arch/arm64/boot/Image" \
+    "$OUT_DIR/arch/arm64/boot/dts/qcom/sdm845-comma-mici.dtb" "$tmp/Image-dtb" <<'PY'
+import struct
+import sys
+from pathlib import Path
 
-  # Avoid LINUX_COMPILE_HOST to change on every run thus invalidating cache
-  # https://patchwork.kernel.org/project/linux-kbuild/patch/1302015561-21047-8-git-send-email-mmarek@suse.cz/
-  export KBUILD_BUILD_HOST="docker"
+image = Path(sys.argv[1]).read_bytes()
+dtb = Path(sys.argv[2]).read_bytes()
+Path(sys.argv[3]).write_bytes(b"UNCOMPRESSED_IMG" + struct.pack("<I", len(image)) + image + dtb)
+PY
+  python3 "$TOOLS/mkbootimg" \
+    --kernel "$tmp/Image-dtb" --ramdisk /dev/null \
+    --cmdline 'console=ttyMSM0,115200n8 isolcpus=6,7 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 firmware_class.path=/lib/firmware/updates net.ifnames=0' \
+    --pagesize 4096 --base 0x80000000 --kernel_offset 0x8000 \
+    --ramdisk_offset 0x8000 --tags_offset 0x100 --output "$tmp/boot.img.nonsecure"
 
-  # Disable all warnings
-  export KCFLAGS="-w"
+  openssl dgst -sha256 -binary "$tmp/boot.img.nonsecure" > "$tmp/boot.img.sha256"
+  openssl pkeyutl -sign -in "$tmp/boot.img.sha256" -inkey "$DIR/vble-qti.key" \
+    -out "$tmp/boot.img.sig" -pkeyopt digest:sha256 -pkeyopt rsa_padding_mode:pkcs1
+  dd if=/dev/zero of="$tmp/boot.img.sig.padded" bs=2048 count=1 status=none
+  dd if="$tmp/boot.img.sig" of="$tmp/boot.img.sig.padded" conv=notrunc status=none
+  cat "$tmp/boot.img.nonsecure" "$tmp/boot.img.sig.padded" > "$OUTPUT_DIR/boot.img"
 
-  # Load defconfig and build kernel
-  echo "-- First make --"
-  make $DEFCONFIG O=out
-  echo "-- Second make: $(nproc --all) cores --"
-  make -j$(nproc --all) O=out  # Image-dtb
-
-  # Turn on if you want perf
-  # LDFLAGS=-static make -j$(nproc --all) -C tools/perf
-
-  # Copy over Image-dtb
-  mkdir -p $TMP_DIR
-  cd $TMP_DIR
-  cp $DIR/agnos-kernel-sdm845/out/arch/arm64/boot/Image-dtb .
-
-  # Make boot image
-  $TOOLS/mkbootimg \
-    --kernel Image-dtb \
-    --ramdisk /dev/null \
-    --cmdline "console=ttyMSM0,115200n8 isolcpus=6,7 quiet loglevel=3 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 ehci-hcd.park=3 lpm_levels.sleep_disabled=1 service_locator.enable=1 androidboot.selinux=permissive firmware_class.path=/firmware/image net.ifnames=0 dyndbg=\"\"" \
-    --pagesize 4096 \
-    --base 0x80000000 \
-    --kernel_offset 0x8000 \
-    --ramdisk_offset 0x8000 \
-    --tags_offset 0x100 \
-    --output $BOOT_IMG.nonsecure
-
-  # le signing
-  openssl dgst -sha256 -binary $BOOT_IMG.nonsecure > $BOOT_IMG.sha256
-  openssl pkeyutl -sign -in $BOOT_IMG.sha256 -inkey $DIR/vble-qti.key -out $BOOT_IMG.sig -pkeyopt digest:sha256 -pkeyopt rsa_padding_mode:pkcs1
-  dd if=/dev/zero of=$BOOT_IMG.sig.padded bs=2048 count=1
-  dd if=$BOOT_IMG.sig of=$BOOT_IMG.sig.padded conv=notrunc
-  cat $BOOT_IMG.nonsecure $BOOT_IMG.sig.padded > $BOOT_IMG
-
-  # Copy to output dir
-  mkdir -p $OUTPUT_DIR
-  mv $BOOT_IMG $OUTPUT_DIR/
-  cd $DIR/agnos-kernel-sdm845
-
-  echo "-- Install kernel UAPI headers --"
-  rm -rf $OUTPUT_DIR/linux-headers
-  make headers_install O=out INSTALL_HDR_PATH=$OUTPUT_DIR/linux-headers
+  rm -rf "$OUTPUT_DIR/linux-headers"
+  make "${args[@]}" headers_install INSTALL_HDR_PATH="$OUTPUT_DIR/linux-headers"
+  cp -a "$SPECTRA_DIR/uapi/." "$OUTPUT_DIR/linux-headers/include/"
+  rm -rf "$OUTPUT_DIR/kernel-modules"
+  make "${args[@]}" modules_install INSTALL_MOD_PATH="$OUTPUT_DIR/kernel-modules" INSTALL_MOD_STRIP=1
+  make "${args[@]}" M="$SPECTRA_DIR" modules_install \
+    INSTALL_MOD_PATH="$OUTPUT_DIR/kernel-modules" INSTALL_MOD_STRIP=1
+  find "$OUTPUT_DIR/kernel-modules" -type l -name build -delete
+  python3 "$DIR/kernel/package_modules.py" "$OUTPUT_DIR/kernel-modules" \
+    --report "$OUTPUT_DIR/modules-mici.json"
 }
 
-# Run build_kernel in container
-docker exec -u $(id -nu) $CONTAINER_ID bash -c "set -e; export DEFCONFIG=$DEFCONFIG DIR=$DIR TOOLS=$TOOLS TMP_DIR=$TMP_DIR OUTPUT_DIR=$OUTPUT_DIR BOOT_IMG=$BOOT_IMG; $(declare -f build_kernel); build_kernel"
+docker run --rm -i -u "$(id -u):$(id -g)" -v "$DIR:$DIR" -w "$DIR" \
+  --entrypoint bash agnos-mainline-builder <<EOF
+set -euo pipefail
+DIR='$DIR'
+KERNEL_DIR='$KERNEL_DIR'
+OUT_DIR='$OUT_DIR'
+SPECTRA_DIR='$SPECTRA_DIR'
+OUTPUT_DIR='$OUTPUT_DIR'
+TOOLS='$TOOLS'
+$(declare -f build_kernel)
+build_kernel
+EOF

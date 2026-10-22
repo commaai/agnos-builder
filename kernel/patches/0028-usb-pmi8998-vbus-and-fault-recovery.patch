@@ -1,0 +1,743 @@
+Subject: [PATCH] usb: support mici PMI8998 VBUS and fault recovery
+
+Add a distinct PMI8998 regulator with the stock 250 mA current encoding,
+protected HALT1_IN8 sequence and bounded boost readiness polling. Forward
+OTG/VCONN faults through standard regulator and TCPM APIs.
+
+Keep USBIN restore state across failed transitions. Dedicated-rail cleanup
+runs the complete provider disable even when CMD_OTG is already off, never
+re-enables a failed output, and quiesces callbacks/TCPM before shutdown.
+The charger must remain disabled and the connector the sole VBUS consumer.
+
+Register definitions and the source/input sequence follow the existing
+commaai/agnos-kernel-sdm845 SMB2 driver. See kernel/USB.md for provenance,
+fault tests and the remaining physical acceptance checks.
+
+diff --git a/Documentation/devicetree/bindings/regulator/qcom,usb-vbus-regulator.yaml b/Documentation/devicetree/bindings/regulator/qcom,usb-vbus-regulator.yaml
+--- a/Documentation/devicetree/bindings/regulator/qcom,usb-vbus-regulator.yaml
++++ b/Documentation/devicetree/bindings/regulator/qcom,usb-vbus-regulator.yaml
+@@ -17,6 +17,9 @@
+   The pm8150b variant uses an OTG current-limit selector, supporting limits
+   of 500 mA, 1000 mA, 1500 mA, 2000 mA, 2500 mA and 3000 mA.
+ 
++  The pmi8998 variant has a different OTG current-limit encoding, supporting
++  250 mA through 2000 mA in 250 mA steps.
++
+   The pm4125 variant uses a different register layout with a 2-bit VBOOST
+   voltage selector supporting output voltages of 4.25 V, 4.5 V, 4.75 V
+   and 5.0 V.
+@@ -25,6 +28,7 @@
+   compatible:
+     oneOf:
+       - enum:
++          - qcom,pmi8998-vbus-reg
+           - qcom,pm8150b-vbus-reg
+           - qcom,pm4125-vbus-reg
+       - items:
+@@ -38,13 +42,35 @@
+     maxItems: 1
+     description: VBUS output base address
+ 
++  interrupts:
++    maxItems: 2
++
++  interrupt-names:
++    items:
++      - const: otg-fail
++      - const: otg-overcurrent
++
+ allOf:
+   - $ref: regulator.yaml#
+   - if:
+       properties:
+         compatible:
+           contains:
++            const: qcom,pmi8998-vbus-reg
++    then:
++      required:
++        - interrupts
++        - interrupt-names
++    else:
++      properties:
++        interrupts: false
++        interrupt-names: false
++  - if:
++      properties:
++        compatible:
++          contains:
+             enum:
++              - qcom,pmi8998-vbus-reg
+               - qcom,pm8150b-vbus-reg
+               - qcom,pm6150-vbus-reg
+               - qcom,pm7250b-vbus-reg
+diff --git a/drivers/regulator/qcom_usb_vbus-regulator.c b/drivers/regulator/qcom_usb_vbus-regulator.c
+--- a/drivers/regulator/qcom_usb_vbus-regulator.c
++++ b/drivers/regulator/qcom_usb_vbus-regulator.c
+@@ -12,6 +12,8 @@
+ #include <linux/regulator/driver.h>
+ #include <linux/regulator/of_regulator.h>
+ #include <linux/regmap.h>
++#include <linux/iopoll.h>
++#include <linux/interrupt.h>
+ 
+ #define CMD_OTG				0x40
+ #define OTG_EN				BIT(0)
+@@ -19,6 +21,17 @@
+ #define OTG_CURRENT_LIMIT_MASK		GENMASK(2, 0)
+ #define OTG_CFG				0x53
+ #define OTG_EN_SRC_CFG			BIT(1)
++#define OTG_ENG_CFG			0xc0
++#define OTG_HALT_1_IN_8			BIT(0)
++#define SEC_ACCESS			0xd0
++#define SEC_UNLOCK			0xa5
++#define OTG_STATUS			0x09
++#define OTG_SOFTSTART_DONE		BIT(3)
++#define OTG_STATE_MASK			GENMASK(2, 0)
++#define OTG_STATE_ENABLED		2
++#define OTG_INT_RT_STS			0x10
++#define OTG_OVERCURRENT			BIT(1)
++#define OTG_FAIL				BIT(0)
+ 
+ #define PM4125_VBOOST_EN		0x50
+ #define PM4125_VBOOST_SEL		0x52
+@@ -45,6 +58,10 @@
+ 	500000, 1000000, 1500000, 2000000, 2500000, 3000000,
+ };
+ 
++static const unsigned int pmi8998_curr_table[] = {
++	250000, 500000, 750000, 1000000, 1250000, 1500000, 1750000, 2000000,
++};
++
+ static const unsigned int pm4125_vboost_table[] = {
+ 	4250000, 4500000, 4750000, 5000000,
+ };
+@@ -68,6 +85,124 @@
+ 	.ops = &qcom_usb_vbus_reg_ops,
+ };
+ 
++static int pmi8998_halt_1_in_8(struct regulator_dev *rdev, bool halt)
++{
++	unsigned int base = rdev->desc->enable_reg - CMD_OTG;
++	int ret;
++
++	/* The engineering register is protected by the peripheral SEC_ACCESS. */
++	ret = regmap_write(rdev->regmap, base + SEC_ACCESS, SEC_UNLOCK);
++	if (ret)
++		return ret;
++	return regmap_update_bits(rdev->regmap, base + OTG_ENG_CFG,
++				 OTG_HALT_1_IN_8, halt ? OTG_HALT_1_IN_8 : 0);
++}
++
++static int pmi8998_vbus_enable(struct regulator_dev *rdev)
++{
++	unsigned int base = rdev->desc->enable_reg - CMD_OTG;
++	unsigned int status;
++	int ret;
++	int rollback;
++
++	/* SMB2 must leave the low-power buck/boost mode before sourcing VBUS. */
++	ret = pmi8998_halt_1_in_8(rdev, true);
++	if (ret)
++		return ret;
++
++	ret = regulator_enable_regmap(rdev);
++	if (!ret)
++		ret = regmap_read_poll_timeout(rdev->regmap, base + OTG_STATUS,
++					      status,
++					      (status & OTG_SOFTSTART_DONE) &&
++					      (status & OTG_STATE_MASK) == OTG_STATE_ENABLED,
++					      1000, 250000);
++	if (!ret)
++		return 0;
++
++	/* Never report a command write as a completed, usable VBUS transition. */
++	rollback = regulator_disable_regmap(rdev);
++	if (!rollback)
++		rollback = pmi8998_halt_1_in_8(rdev, false);
++	if (rollback)
++		dev_err(&rdev->dev, "failed to roll back VBUS enable: %d\n", rollback);
++	return ret;
++}
++
++static int pmi8998_vbus_disable(struct regulator_dev *rdev)
++{
++	int ret;
++
++	ret = regulator_disable_regmap(rdev);
++	if (ret)
++		return ret;
++
++	return pmi8998_halt_1_in_8(rdev, false);
++}
++
++static int pmi8998_vbus_get_error_flags(struct regulator_dev *rdev,
++				      unsigned int *flags)
++{
++	unsigned int base = rdev->desc->enable_reg - CMD_OTG;
++	unsigned int command, status, fault;
++	int ret;
++
++	*flags = 0;
++	ret = regmap_read(rdev->regmap, base + CMD_OTG, &command);
++	if (ret)
++		return ret;
++	if (!(command & OTG_EN))
++		return 0;
++	ret = regmap_read(rdev->regmap, base + OTG_STATUS, &status);
++	if (ret)
++		return ret;
++	ret = regmap_read(rdev->regmap, base + OTG_INT_RT_STS, &fault);
++	if (ret)
++		return ret;
++	if (fault & OTG_OVERCURRENT)
++		*flags |= REGULATOR_ERROR_OVER_CURRENT;
++	if ((fault & OTG_FAIL) || !(status & OTG_SOFTSTART_DONE) ||
++	    (status & OTG_STATE_MASK) != OTG_STATE_ENABLED)
++		*flags |= REGULATOR_ERROR_FAIL;
++	return 0;
++}
++
++static const struct regulator_ops pmi8998_vbus_reg_ops = {
++	.enable = pmi8998_vbus_enable,
++	.disable = pmi8998_vbus_disable,
++	.is_enabled = regulator_is_enabled_regmap,
++	.get_current_limit = regulator_get_current_limit_regmap,
++	.set_current_limit = regulator_set_current_limit_regmap,
++	.get_error_flags = pmi8998_vbus_get_error_flags,
++};
++
++static const struct qcom_usb_vbus_reg_data pmi8998_data = {
++	.cmd_otg = CMD_OTG,
++	.otg_cfg = OTG_CFG,
++	.otg_en_src_cfg = OTG_EN_SRC_CFG,
++	.csel_reg = OTG_CURRENT_LIMIT_CFG,
++	.csel_mask = OTG_CURRENT_LIMIT_MASK,
++	.curr_table = pmi8998_curr_table,
++	.n_current_limits = ARRAY_SIZE(pmi8998_curr_table),
++	.ops = &pmi8998_vbus_reg_ops,
++};
++
++static irqreturn_t pmi8998_vbus_fail_irq(int irq, void *data)
++{
++	struct regulator_dev *rdev = data;
++
++	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_FAIL, NULL);
++	return IRQ_HANDLED;
++}
++
++static irqreturn_t pmi8998_vbus_oc_irq(int irq, void *data)
++{
++	struct regulator_dev *rdev = data;
++
++	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_OVER_CURRENT, NULL);
++	return IRQ_HANDLED;
++}
++
+ static const struct regulator_ops qcom_usb_vbus_pm4125_reg_ops = {
+ 	.enable = regulator_enable_regmap,
+ 	.disable = regulator_disable_regmap,
+@@ -97,7 +232,7 @@
+ 	struct regmap *regmap;
+ 	struct regulator_config config = { };
+ 	struct regulator_init_data *init_data;
+-	int ret;
++	int ret, irq;
+ 	u32 base;
+ 
+ 	ret = of_property_read_u32(dev->of_node, "reg", &base);
+@@ -150,20 +285,40 @@
+ 	config.of_node = dev->of_node;
+ 	config.regmap = regmap;
+ 
++	/* Establish software control before consumers can enable the output. */
++	ret = regmap_update_bits(regmap, base + data->otg_cfg,
++				 data->otg_en_src_cfg, 0);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to select software VBUS control\n");
++
+ 	rdev = devm_regulator_register(dev, rdesc, &config);
+ 	if (IS_ERR(rdev)) {
+ 		ret = PTR_ERR(rdev);
+ 		dev_err(dev, "not able to register vbus reg %d\n", ret);
+ 		return ret;
+ 	}
+-
+-	/* Disable HW logic for VBUS enable */
+-	regmap_update_bits(regmap, base + data->otg_cfg, data->otg_en_src_cfg, 0);
++	if (data == &pmi8998_data) {
++		irq = platform_get_irq_byname(pdev, "otg-fail");
++		if (irq < 0)
++			return irq;
++		ret = devm_request_threaded_irq(dev, irq, NULL, pmi8998_vbus_fail_irq,
++						IRQF_ONESHOT, "otg-fail", rdev);
++		if (ret)
++			return ret;
++		irq = platform_get_irq_byname(pdev, "otg-overcurrent");
++		if (irq < 0)
++			return irq;
++		ret = devm_request_threaded_irq(dev, irq, NULL, pmi8998_vbus_oc_irq,
++						IRQF_ONESHOT, "otg-overcurrent", rdev);
++		if (ret)
++			return ret;
++	}
+ 
+ 	return 0;
+ }
+ 
+ static const struct of_device_id qcom_usb_vbus_regulator_match[] = {
++	{ .compatible = "qcom,pmi8998-vbus-reg", .data = &pmi8998_data },
+ 	{ .compatible = "qcom,pm8150b-vbus-reg", .data = &pm8150b_data },
+ 	{ .compatible = "qcom,pm4125-vbus-reg",  .data = &pm4125_data },
+ 	{ }
+diff --git a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c
+@@ -28,6 +28,7 @@
+ 	const struct pmic_typec_pdphy_resources	*pdphy_res;
+ 	const struct pmic_typec_port_resources	*port_res;
+ 	pmic_typec_port_probe_fn	port_probe;
++	void (*port_shutdown)(struct pmic_typec *tcpm);
+ };
+ 
+ static int qcom_pmic_typec_init(struct tcpc_dev *tcpc)
+@@ -133,17 +134,32 @@
+ static void qcom_pmic_typec_remove(struct platform_device *pdev)
+ {
+ 	struct pmic_typec *tcpm = platform_get_drvdata(pdev);
++	const struct pmic_typec_resources *res = of_device_get_match_data(&pdev->dev);
+ 
+ 	tcpm->pdphy_stop(tcpm);
+ 	tcpm->port_stop(tcpm);
+ 	tcpm_unregister_port(tcpm->tcpm_port);
++	if (res->port_shutdown)
++		res->port_shutdown(tcpm);
+ 	fwnode_handle_put(tcpm->tcpc.fwnode);
++}
++
++static void qcom_pmic_typec_shutdown(struct platform_device *pdev)
++{
++	const struct pmic_typec_resources *res = of_device_get_match_data(&pdev->dev);
++
++	if (!res->port_shutdown)
++		return;
++
++	/* Stop IRQ/work callbacks and TCPM before forcing the final safe state. */
++	qcom_pmic_typec_remove(pdev);
+ }
+ 
+ static const struct pmic_typec_resources gen1_typec_res = {
+ 	.pdphy_res = &pm8150b_pdphy_res,
+ 	.port_res = &gen1_port_res,
+ 	.port_probe = qcom_pmic_typec_gen1_port_probe,
++	.port_shutdown = qcom_pmic_typec_gen1_port_shutdown,
+ };
+ 
+ static const struct pmic_typec_resources pm8150b_typec_res = {
+@@ -174,6 +190,7 @@
+ 	},
+ 	.probe = qcom_pmic_typec_probe,
+ 	.remove = qcom_pmic_typec_remove,
++	.shutdown = qcom_pmic_typec_shutdown,
+ };
+ 
+ module_platform_driver(qcom_pmic_typec_driver);
+diff --git a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c
+@@ -10,6 +10,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/kernel.h>
+ #include <linux/mutex.h>
++#include <linux/notifier.h>
+ #include <linux/of.h>
+ #include <linux/platform_device.h>
+ #include <linux/property.h>
+@@ -43,6 +44,7 @@
+ #define  TYPEC_DEBOUNCE_DONE				BIT(4)
+ #define  CC_ORIENTATION					BIT(1)
+ #define  CC_ATTACHED					BIT(0)
++#define  TYPEC_VCONN_OVERCURRENT				BIT(2)
+ 
+ /* USBIN Type-C configuration */
+ #define TYPEC_CFG_REG					0x58
+@@ -64,6 +66,7 @@
+ 
+ #define TYPEC_SW_CTRL_REG				0x68
+ #define  VCONN_EN_ORIENTATION				BIT(6)
++#define  VCONN_OVERCURRENT_INT_EN				BIT(5)
+ #define  VCONN_EN_SRC					BIT(4)
+ #define  VCONN_EN_VALUE					BIT(3)
+ #define  POWER_ROLE_CMD_MASK				GENMASK(2, 0)
+@@ -71,10 +74,15 @@
+ #define  DFP_EN_CMD					BIT(1)
+ #define  TYPEC_DISABLE_CMD				BIT(0)
+ 
++#define USBIN_CMD_IL_REG					0x40
++#define  USBIN_SUSPEND					BIT(0)
++
+ /* GEN1 TYPEC_PBS_WA_BIT workaround used by the downstream SMB2 driver. */
+ #define MISC_BASE_OFFSET				0x300
+ #define TM_IO_DTEST4_SEL				0xe9
+ #define PBS_CRUDE_SENSOR_ENABLE				0xa5
++#define SEC_ACCESS					0xd0
++#define SEC_UNLOCK					0xa5
+ 
+ /* Interrupt numbers */
+ #define PMIC_TYPEC_CHANGE_IRQ				0x0
+@@ -88,6 +96,11 @@
+ 
+ 	struct regulator	*vbus;
+ 	bool			vbus_enabled;
++	bool			vbus_uncertain;
++	bool			vbus_fault;
++	struct notifier_block	vbus_notifier;
++	unsigned int		usbin_restore;
++	bool			usbin_saved;
+ 	bool			vbus_present;
+ 	bool			vbus_valid;
+ 	struct mutex		lock; /* serializes register RMW and VBUS state */
+@@ -113,7 +126,10 @@
+ 	int ret;
+ 
+ 	ret = regmap_write(port->regmap, port->base +
+-			   MISC_BASE_OFFSET + TM_IO_DTEST4_SEL, val);
++			   MISC_BASE_OFFSET + SEC_ACCESS, SEC_UNLOCK);
++	if (!ret)
++		ret = regmap_write(port->regmap, port->base +
++				   MISC_BASE_OFFSET + TM_IO_DTEST4_SEL, val);
+ 	if (!ret)
+ 		return;
+ 
+@@ -142,45 +158,144 @@
+ {
+ 	struct pmic_typec *tcpm = tcpc_to_tcpm(tcpc);
+ 	struct gen1_typec_port *port = tcpm->pmic_typec_port;
+-	unsigned int status;
++	unsigned int status, errors = 0;
+ 	int ret;
+ 
+ 	mutex_lock(&port->lock);
+ 	ret = regmap_read(port->regmap, port->base +
+ 			  TYPEC_STATUS_4_REG, &status);
+-	if (ret)
+-		ret = port->vbus_enabled;
++	if (port->vbus_enabled) {
++		/* An owned source reference alone does not prove usable VBUS. */
++		ret = regulator_is_enabled(port->vbus);
++		if (ret > 0 && !port->vbus_fault) {
++			ret = regulator_get_error_flags(port->vbus, &errors);
++			ret = ret == -EOPNOTSUPP || ret == -EINVAL ? 1 : !ret && !errors;
++		} else {
++			ret = 0;
++		}
++	} else {
++		ret = !ret && !port->vbus_uncertain && !!(status & TYPEC_VBUS_STATUS);
++	}
++	mutex_unlock(&port->lock);
++
++	return ret;
++}
++
++static int gen1_typec_restore_usbin(struct gen1_typec_port *port)
++{
++	int ret;
++
++	if (!port->usbin_saved)
++		return 0;
++
++	ret = regmap_update_bits(port->regmap,
++				 port->base + USBIN_CMD_IL_REG,
++				 USBIN_SUSPEND, port->usbin_restore);
++	if (!ret)
++		port->usbin_saved = false;
+ 	else
+-		ret = port->vbus_enabled || !!(status & TYPEC_VBUS_STATUS);
+-	mutex_unlock(&port->lock);
++		dev_err(port->dev, "failed to restore USBIN input state: %d\n", ret);
+ 
+ 	return ret;
+ }
+ 
++static int gen1_typec_stop_vbus(struct gen1_typec_port *port)
++{
++	int ret;
++
++	/*
++	 * This dedicated VBUS rail has one consumer. A failed provider enable
++	 * can leave CMD_OTG or its engineering state set without a reference.
++	 * Force the provider's complete disable sequence, even if CMD is off;
++	 * never acquire a reference by enabling a possibly failed source.
++	 */
++	if (!port->vbus_enabled && port->vbus_uncertain) {
++		ret = regulator_force_disable(port->vbus);
++		if (ret)
++			return ret;
++	}
++	if (port->vbus_enabled) {
++		port->vbus_uncertain = true;
++		ret = regulator_disable(port->vbus);
++		if (ret)
++			return ret;
++		port->vbus_enabled = false;
++	}
++	if (port->vbus_uncertain) {
++		ret = regulator_is_enabled(port->vbus);
++		if (ret < 0)
++			return ret;
++		if (ret)
++			return -EBUSY;
++		port->vbus_uncertain = false;
++	}
++	return gen1_typec_restore_usbin(port);
++}
++
+ static int gen1_typec_set_vbus(struct tcpc_dev *tcpc, bool on, bool sink)
+ {
+ 	struct pmic_typec *tcpm = tcpc_to_tcpm(tcpc);
+ 	struct gen1_typec_port *port = tcpm->pmic_typec_port;
+-	bool changed = false;
+-	int ret = 0;
++	bool changed = false, was_enabled;
++	unsigned int usbin;
++	int ret = 0, rollback;
+ 
+ 	if (!port->vbus)
+ 		return 0;
+ 
+ 	mutex_lock(&port->lock);
+ 
+-	if (port->vbus_enabled == on)
+-		goto out;
+-
+-	if (on)
++	if (on && port->vbus_uncertain) {
++		ret = gen1_typec_stop_vbus(port);
++		if (ret)
++			goto out;
++	}
++
++	if (port->vbus_enabled == on) {
++		if (!on && (port->usbin_saved || port->vbus_uncertain))
++			goto source_off;
++		goto out;
++	}
++
++	if (on) {
++		/*
++		 * Avoid drawing the boost output back through USBIN. The SMB2
++		 * charger must remain disabled until the two drivers share
++		 * ownership of USBIN input-current control.
++		 */
++		/* A failed rollback must not replace the original input state. */
++		if (!port->usbin_saved) {
++			ret = regmap_read(port->regmap,
++					  port->base + USBIN_CMD_IL_REG, &usbin);
++			if (ret)
++				goto out;
++		}
++		ret = regmap_update_bits(port->regmap,
++					 port->base + USBIN_CMD_IL_REG,
++					 USBIN_SUSPEND, USBIN_SUSPEND);
++		if (ret)
++			goto out;
++		if (!port->usbin_saved) {
++			port->usbin_restore = usbin & USBIN_SUSPEND;
++			port->usbin_saved = true;
++		}
+ 		ret = regulator_enable(port->vbus);
+-	else
+-		ret = regulator_disable(port->vbus);
+-
+-	if (!ret) {
+-		port->vbus_enabled = on;
++		if (ret) {
++			port->vbus_uncertain = true;
++			rollback = gen1_typec_stop_vbus(port);
++			if (rollback)
++				dev_err(port->dev, "incomplete VBUS enable unwind: %d\n", rollback);
++			goto out;
++		}
++		port->vbus_fault = false;
++		port->vbus_enabled = true;
+ 		changed = true;
+-	}
++		goto out;
++	}
++source_off:
++	was_enabled = port->vbus_enabled;
++	ret = gen1_typec_stop_vbus(port);
++	changed = was_enabled && !port->vbus_enabled;
+ 
+ out:
+ 	mutex_unlock(&port->lock);
+@@ -196,6 +311,59 @@
+ 		tcpm_vbus_change(port->tcpm_port);
+ 
+ 	return ret;
++}
++
++static int gen1_typec_vbus_event(struct notifier_block *nb,
++				unsigned long event, void *data)
++{
++	struct gen1_typec_port *port = container_of(nb, struct gen1_typec_port,
++						 vbus_notifier);
++
++	if (!(event & (REGULATOR_EVENT_FAIL | REGULATOR_EVENT_OVER_CURRENT)))
++		return NOTIFY_DONE;
++
++	mutex_lock(&port->lock);
++	port->vbus_fault = true;
++	if (port->tcpm_port)
++		tcpm_port_error_recovery(port->tcpm_port);
++	mutex_unlock(&port->lock);
++	return NOTIFY_OK;
++}
++
++static void gen1_typec_vbus_cleanup(void *data)
++{
++	struct pmic_typec *tcpm = data;
++	struct gen1_typec_port *port = tcpm->pmic_typec_port;
++	int ret;
++
++	/* TCPM teardown already requests source-off; retry an incomplete unwind. */
++	ret = gen1_typec_set_vbus(&tcpm->tcpc, false, false);
++	if (ret)
++		dev_err(port->dev, "failed to clean up VBUS/USBIN state: %d\n", ret);
++}
++
++static int gen1_typec_init_vbus(struct pmic_typec *tcpm)
++{
++	struct gen1_typec_port *port = tcpm->pmic_typec_port;
++	int ret, cleanup;
++
++	if (!port->vbus)
++		return 0;
++
++	ret = regulator_is_enabled(port->vbus);
++	/*
++	 * Establish source-off before TCPM may select a sink role. This is a
++	 * dedicated output; force-disable also cleans an inherited HALT state
++	 * when CMD_OTG is already off. There is no pre-boot input snapshot;
++	 * release source-only USBIN suspension only for a known inherited source.
++	 */
++	if (ret > 0) {
++		port->usbin_restore = 0;
++		port->usbin_saved = true;
++	}
++	port->vbus_uncertain = true;
++	cleanup = gen1_typec_set_vbus(&tcpm->tcpc, false, false);
++	return ret < 0 ? ret : cleanup;
+ }
+ 
+ static int gen1_typec_get_cc(struct tcpc_dev *tcpc,
+@@ -364,20 +532,19 @@
+ 
+ 	mutex_lock(&port->lock);
+ 
+-	ret = regmap_read(port->regmap, port->base +
+-			  TYPEC_STATUS_4_REG, &status4);
+-	if (ret)
+-		goto out;
+-
+-	/* VCONN is driven on the inactive CC pin. */
+-	orientation = (status4 & CC_ORIENTATION) ?
+-		      0 : VCONN_EN_ORIENTATION;
+-
+ 	if (on) {
+-		mask = VCONN_EN_ORIENTATION | VCONN_EN_VALUE;
+-		val = orientation | VCONN_EN_VALUE;
++		ret = regmap_read(port->regmap, port->base +
++				  TYPEC_STATUS_4_REG, &status4);
++		if (ret)
++			goto out;
++
++		/* VCONN is driven on the inactive CC pin. */
++		orientation = (status4 & CC_ORIENTATION) ?
++			      0 : VCONN_EN_ORIENTATION;
++		mask = VCONN_EN_ORIENTATION | VCONN_EN_VALUE | VCONN_OVERCURRENT_INT_EN;
++		val = orientation | VCONN_EN_VALUE | VCONN_OVERCURRENT_INT_EN;
+ 	} else {
+-		mask = VCONN_EN_VALUE;
++		mask = VCONN_EN_VALUE | VCONN_OVERCURRENT_INT_EN;
+ 		val = 0;
+ 	}
+ 
+@@ -465,6 +632,9 @@
+ 			 TYPEC_STATUS_4_REG, &status4)) {
+ 		if (status4 & TYPEC_VBUS_ERROR)
+ 			dev_warn_ratelimited(port->dev, "Type-C VBUS error\n");
++		if ((status4 & (TYPEC_VBUS_ERROR | TYPEC_VCONN_OVERCURRENT)) &&
++		    port->tcpm_port)
++			tcpm_port_error_recovery(port->tcpm_port);
+ 
+ 		vbus = !!(status4 & TYPEC_VBUS_STATUS);
+ 
+@@ -525,7 +695,11 @@
+ 	if (ret)
+ 		return ret;
+ 
++	mutex_lock(&port->lock);
+ 	port->tcpm_port = tcpm_port;
++	if (port->vbus_fault)
++		tcpm_port_error_recovery(tcpm_port);
++	mutex_unlock(&port->lock);
+ 	enable_irq(port->irq);
+ 
+ 	return 0;
+@@ -536,7 +710,27 @@
+ 	struct gen1_typec_port *port = tcpm->pmic_typec_port;
+ 
+ 	disable_irq(port->irq);
++	mutex_lock(&port->lock);
+ 	port->tcpm_port = NULL;
++	mutex_unlock(&port->lock);
++}
++
++void qcom_pmic_typec_gen1_port_shutdown(struct pmic_typec *tcpm)
++{
++	struct gen1_typec_port *port = tcpm->pmic_typec_port;
++	int ret;
++
++	/* IRQ callbacks and the TCPM worker have already stopped. */
++	gen1_typec_vbus_cleanup(tcpm);
++	ret = gen1_typec_set_vconn(&tcpm->tcpc, false);
++	if (ret)
++		dev_err(port->dev, "failed to turn VCONN off at shutdown: %d\n", ret);
++
++	mutex_lock(&port->lock);
++	ret = gen1_typec_set_power_role(port, UFP_EN_CMD);
++	mutex_unlock(&port->lock);
++	if (ret)
++		dev_err(port->dev, "failed to select sink role at shutdown: %d\n", ret);
+ }
+ 
+ int qcom_pmic_typec_gen1_port_probe(struct platform_device *pdev,
+@@ -601,5 +795,16 @@
+ 	tcpm->port_start = gen1_typec_port_start;
+ 	tcpm->port_stop = gen1_typec_port_stop;
+ 
+-	return 0;
+-}
++	ret = devm_add_action_or_reset(dev, gen1_typec_vbus_cleanup, tcpm);
++	if (ret)
++		return ret;
++
++	if (port->vbus) {
++		port->vbus_notifier.notifier_call = gen1_typec_vbus_event;
++		ret = devm_regulator_register_notifier(port->vbus, &port->vbus_notifier);
++		if (ret)
++			return ret;
++	}
++
++	return gen1_typec_init_vbus(tcpm);
++}
+diff --git a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.h b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.h
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.h
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.h
+@@ -12,4 +12,6 @@
+ 				    struct regmap *regmap,
+ 				    u32 base);
+ 
++void qcom_pmic_typec_gen1_port_shutdown(struct pmic_typec *tcpm);
++
+ #endif /* __QCOM_PMIC_TYPEC_PORT_GEN1_H__ */

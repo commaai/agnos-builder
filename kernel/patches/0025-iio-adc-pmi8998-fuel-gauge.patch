@@ -1,0 +1,369 @@
+Subject: [PATCH] iio: adc: expose batteryless PMI8998 rail measurements
+
+mici has no INA monitor. Its externally supplied VBAT rail is measured by
+PMI8998's fuel-gauge ADC. Use standard IIO voltage/current channels so the
+existing iio-hwmon bridge can expose millivolts and milliamps to userspace.
+
+Voltage/current scaling follows the PMI8998 fuel-gauge RFC:
+https://patch.msgid.link/20251124-pmi8998_fuel_gauge-v1-2-dd3791f61478@ixit.cz
+Instantaneous IADC conversion follows commaai/agnos-kernel-sdm845 commit
+8e3385d2d36228e40892920211e8c91d46a6858f (faster power measurement #112).
+
+Return the previous completed sample and arm the next conversion, like
+downstream. Both triggering and restoring control clear IADC on hardware,
+so delayed work latches a completed sample before restoring control.
+Wait at least 170 ms, including timer rounding. Preserve actual zero
+samples and propagate conversion/restore failures. Serialize transactions
+and retain restoration state across failures. Cancel work before teardown.
+No battery or charger policy is added.
+---
+diff --git a/drivers/iio/adc/qcom-spmi-fg-adc.c b/drivers/iio/adc/qcom-spmi-fg-adc.c
+new file mode 100644
+--- /dev/null
++++ b/drivers/iio/adc/qcom-spmi-fg-adc.c
+@@ -0,0 +1,260 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * PMI8998 fuel-gauge ADC measurements for systems without a battery.
++ * Conversion factors follow the PMI8998 fuel-gauge driver submitted by
++ * Casey Connolly, Joel Selvaraj and Yassine Oudjana. Direct IADC conversion
++ * follows commaai/agnos-kernel-sdm845 commit 8e3385d2d362.
++ */
++#include <linux/jiffies.h>
++#include <linux/iio/iio.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/platform_device.h>
++#include <linux/property.h>
++#include <linux/regmap.h>
++#include <linux/string.h>
++#include <linux/unaligned.h>
++#include <linux/workqueue.h>
++#include <soc/qcom/qcom-spmi-pmic.h>
++
++#define FG_VBATT_LSB		0xa0
++#define FG_IADC_LSB		0xae
++#define FG_SEC_ACCESS		0xd0
++#define FG_TM_MISC		0xe5
++#define FG_DIRECT_MODE		BIT(4)
++#define FG_IADC_CONV		BIT(2)
++#define FG_ADC_ENABLE		BIT(1)
++
++struct fg_adc {
++	struct device *dev;
++	struct regmap *regmap;
++	/* Serialize direct conversions and control-register restoration. */
++	struct mutex lock;
++	u32 base;
++	bool swap_bytes;
++	struct delayed_work restore_work;
++	bool converting;
++	bool restore_pending;
++	u8 saved_control;
++	int restore_error;
++	int conversion_error;
++	u8 current_raw[2];
++	bool current_valid;
++};
++
++static int fg_adc_write_control(struct fg_adc *adc, u8 value)
++{
++	int ret;
++
++	ret = regmap_write(adc->regmap, adc->base + FG_SEC_ACCESS, 0xa5);
++	if (ret)
++		return ret;
++	return regmap_write(adc->regmap, adc->base + FG_TM_MISC, value);
++}
++
++static void fg_adc_restore_work(struct work_struct *work)
++{
++	struct fg_adc *adc = container_of(to_delayed_work(work), struct fg_adc, restore_work);
++	u8 data[2];
++
++	mutex_lock(&adc->lock);
++	/* Restoring control clears IADC, so latch the completed sample first. */
++	adc->conversion_error = regmap_bulk_read(adc->regmap, adc->base + FG_IADC_LSB, data, 2);
++	if (!adc->conversion_error) {
++		memcpy(adc->current_raw, data, sizeof(data));
++		adc->current_valid = true;
++	}
++	adc->restore_error = fg_adc_write_control(adc, adc->saved_control);
++	adc->restore_pending = !!adc->restore_error;
++	adc->converting = false;
++	mutex_unlock(&adc->lock);
++}
++
++static void fg_adc_stop_conversions(void *data)
++{
++	struct fg_adc *adc = data;
++	int ret = 0;
++
++	cancel_delayed_work_sync(&adc->restore_work);
++	mutex_lock(&adc->lock);
++	if (adc->restore_pending) {
++		ret = fg_adc_write_control(adc, adc->saved_control);
++		adc->restore_pending = !!ret;
++	}
++	mutex_unlock(&adc->lock);
++	if (ret)
++		dev_warn(adc->dev, "Failed to restore ADC control: %d\n", ret);
++}
++
++static int fg_adc_read_current(struct fg_adc *adc, u8 *data)
++{
++	unsigned int control;
++	u8 value;
++	int ret;
++
++	/* Report a failed restore once, rather than silently accepting it. */
++	if (adc->restore_error) {
++		ret = adc->restore_error;
++		adc->restore_error = fg_adc_write_control(adc, adc->saved_control);
++		adc->restore_pending = !!adc->restore_error;
++		return ret;
++	}
++
++	if (adc->conversion_error) {
++		ret = adc->conversion_error;
++		adc->conversion_error = 0;
++		return ret;
++	}
++
++	/* Both trigger and restore clear IADC: use the last completed sample. */
++	if (!adc->current_valid) {
++		ret = regmap_bulk_read(adc->regmap, adc->base + FG_IADC_LSB, adc->current_raw, 2);
++		if (ret)
++			return ret;
++		adc->current_valid = true;
++	}
++	memcpy(data, adc->current_raw, sizeof(adc->current_raw));
++	if (adc->converting)
++		return 0;
++
++	ret = regmap_read(adc->regmap, adc->base + FG_TM_MISC, &control);
++	if (ret)
++		return ret;
++
++	/* Save before touching control so a failed trigger can be unwound. */
++	adc->saved_control = control;
++	adc->restore_pending = true;
++	/* Trigger on a rising edge, leaving unrelated control bits unchanged. */
++	value = (control | FG_DIRECT_MODE | FG_ADC_ENABLE) & ~FG_IADC_CONV;
++	ret = fg_adc_write_control(adc, value);
++	if (!ret)
++		ret = fg_adc_write_control(adc, value | FG_IADC_CONV);
++	if (ret) {
++		adc->restore_error = fg_adc_write_control(adc, control);
++		adc->restore_pending = !!adc->restore_error;
++		return ret;
++	}
++
++	adc->converting = true;
++	/* One extra tick prevents rounding below the 170 ms conversion time. */
++	schedule_delayed_work(&adc->restore_work, msecs_to_jiffies(170) + 1);
++	return 0;
++}
++
++static int fg_adc_read_raw(struct iio_dev *indio_dev,
++			   const struct iio_chan_spec *chan,
++			   int *val, int *val2, long mask)
++{
++	struct fg_adc *adc = iio_priv(indio_dev);
++	u8 data[2];
++	u16 raw;
++	int ret;
++
++	switch (mask) {
++	case IIO_CHAN_INFO_SCALE:
++		/* IIO voltage/current units are millivolts and milliamps. */
++		*val = chan->type == IIO_VOLTAGE ? 122070 : 488281;
++		*val2 = 1000000;
++		return IIO_VAL_FRACTIONAL;
++	case IIO_CHAN_INFO_RAW:
++		mutex_lock(&adc->lock);
++		if (chan->type == IIO_CURRENT)
++			ret = fg_adc_read_current(adc, data);
++		else
++			ret = regmap_bulk_read(adc->regmap,
++					       adc->base + FG_VBATT_LSB, data, 2);
++		mutex_unlock(&adc->lock);
++		if (ret)
++			return ret;
++		raw = adc->swap_bytes ? get_unaligned_be16(data) : get_unaligned_le16(data);
++		*val = chan->type == IIO_CURRENT ? (s16)raw : raw;
++		return IIO_VAL_INT;
++	default:
++		return -EINVAL;
++	}
++}
++
++static int fg_adc_read_label(struct iio_dev *indio_dev,
++			     const struct iio_chan_spec *chan, char *buf)
++{
++	return sysfs_emit(buf, "%s\n", chan->datasheet_name);
++}
++
++static const struct iio_info fg_adc_info = {
++	.read_raw = fg_adc_read_raw,
++	.read_label = fg_adc_read_label,
++};
++
++static const struct iio_chan_spec fg_adc_channels[] = {
++	{
++		.type = IIO_VOLTAGE,
++		.indexed = 1,
++		.channel = 0,
++		.datasheet_name = "vbat",
++		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
++	},
++	{
++		.type = IIO_CURRENT,
++		.indexed = 1,
++		.channel = 1,
++		.datasheet_name = "ibat",
++		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
++	},
++};
++
++static int fg_adc_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	const struct qcom_spmi_pmic *pmic;
++	struct iio_dev *indio_dev;
++	struct fg_adc *adc;
++	int ret;
++
++	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
++	if (!indio_dev)
++		return -ENOMEM;
++	adc = iio_priv(indio_dev);
++	adc->dev = dev;
++	adc->regmap = dev_get_regmap(dev->parent, NULL);
++	if (!adc->regmap)
++		return -ENODEV;
++	ret = device_property_read_u32(dev, "reg", &adc->base);
++	if (ret)
++		return ret;
++	pmic = qcom_pmic_get(dev);
++	if (IS_ERR(pmic))
++		return dev_err_probe(dev, PTR_ERR(pmic), "Cannot read PMIC revision\n");
++	if (pmic->subtype != PMI8998_SUBTYPE)
++		return -ENODEV;
++	adc->swap_bytes = pmic->major < 2;
++	mutex_init(&adc->lock);
++	INIT_DELAYED_WORK(&adc->restore_work, fg_adc_restore_work);
++	ret = devm_add_action_or_reset(dev, fg_adc_stop_conversions, adc);
++	if (ret)
++		return ret;
++
++	indio_dev->name = "pmi8998-fg-adc";
++	indio_dev->modes = INDIO_DIRECT_MODE;
++	indio_dev->info = &fg_adc_info;
++	indio_dev->channels = fg_adc_channels;
++	indio_dev->num_channels = ARRAY_SIZE(fg_adc_channels);
++	return devm_iio_device_register(dev, indio_dev);
++}
++
++static const struct of_device_id fg_adc_match[] = {
++	{ .compatible = "qcom,pmi8998-fg-adc" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, fg_adc_match);
++
++static struct platform_driver fg_adc_driver = {
++	.probe = fg_adc_probe,
++	.driver = {
++		.name = "qcom-pmi8998-fg-adc",
++		.of_match_table = fg_adc_match,
++	},
++};
++module_platform_driver(fg_adc_driver);
++
++MODULE_DESCRIPTION("Qualcomm PMI8998 fuel-gauge ADC");
++MODULE_LICENSE("GPL");
+diff --git a/Documentation/devicetree/bindings/iio/adc/qcom,pmi8998-fg-adc.yaml b/Documentation/devicetree/bindings/iio/adc/qcom,pmi8998-fg-adc.yaml
+new file mode 100644
+--- /dev/null
++++ b/Documentation/devicetree/bindings/iio/adc/qcom,pmi8998-fg-adc.yaml
+@@ -0,0 +1,48 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/iio/adc/qcom,pmi8998-fg-adc.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Qualcomm PMI8998 fuel-gauge ADC
++
++maintainers:
++  - Adeeb Shihadeh <adeeb@comma.ai>
++
++description: |
++  Voltage and instantaneous current measurements from the PMI8998 fuel-gauge
++  ADC, for systems where VBAT is externally powered and no battery fuel-gauge
++  algorithm is running. The current channel uses a direct IADC conversion.
++  This device must not be used together with a fuel-gauge driver controlling
++  the same hardware.
++
++properties:
++  compatible:
++    const: qcom,pmi8998-fg-adc
++
++  reg:
++    maxItems: 1
++
++  '#io-channel-cells':
++    const: 1
++    description: 0 selects VBAT voltage and 1 selects VBAT current.
++
++required:
++  - compatible
++  - reg
++  - '#io-channel-cells'
++
++additionalProperties: false
++
++examples:
++  - |
++    pmic {
++      #address-cells = <1>;
++      #size-cells = <0>;
++
++      adc@4100 {
++        compatible = "qcom,pmi8998-fg-adc";
++        reg = <0x4100>;
++        #io-channel-cells = <1>;
++      };
++    };
+diff --git a/drivers/iio/adc/Kconfig b/drivers/iio/adc/Kconfig
+--- a/drivers/iio/adc/Kconfig
++++ b/drivers/iio/adc/Kconfig
+@@ -1366,6 +1366,17 @@
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called qcom-pm8xxx-xoadc.
+ 
++config QCOM_SPMI_FG_ADC
++	tristate "Qualcomm PMI8998 fuel-gauge ADC"
++	depends on MFD_SPMI_PMIC
++	help
++	  Voltage and instantaneous current measurements on batteryless PMI8998
++	  systems. The channels can be consumed by the standard iio-hwmon bridge.
++	  Do not enable together with a driver for the same fuel gauge.
++
++	  To compile this driver as a module, choose M here: the module will
++	  be called qcom-spmi-fg-adc.
++
+ config QCOM_SPMI_RRADC
+ 	tristate "Qualcomm SPMI RRADC"
+ 	depends on MFD_SPMI_PMIC
+diff --git a/drivers/iio/adc/Makefile b/drivers/iio/adc/Makefile
+--- a/drivers/iio/adc/Makefile
++++ b/drivers/iio/adc/Makefile
+@@ -121,6 +121,7 @@
+ obj-$(CONFIG_QCOM_SPMI_ADC5) += qcom-spmi-adc5.o
+ obj-$(CONFIG_QCOM_SPMI_ADC5_GEN3) += qcom-spmi-adc5-gen3.o
+ obj-$(CONFIG_QCOM_SPMI_IADC) += qcom-spmi-iadc.o
++obj-$(CONFIG_QCOM_SPMI_FG_ADC) += qcom-spmi-fg-adc.o
+ obj-$(CONFIG_QCOM_SPMI_RRADC) += qcom-spmi-rradc.o
+ obj-$(CONFIG_QCOM_SPMI_VADC) += qcom-spmi-vadc.o
+ obj-$(CONFIG_QCOM_VADC_COMMON) += qcom-vadc-common.o

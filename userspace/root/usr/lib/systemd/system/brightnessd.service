@@ -2,6 +2,7 @@
 Description=Limit display brightness with uptime
 
 [Service]
+RuntimeDirectory=brightness
 Restart=on-failure
 ExecStart=/usr/local/venv/bin/python -u /usr/comma/brightnessd.py
 

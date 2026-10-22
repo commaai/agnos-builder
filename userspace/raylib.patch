@@ -1,0 +1,137 @@
+diff --git a/src/platforms/rcore_comma.c b/src/platforms/rcore_comma.c
+index c1f976f..d162df0 100644
+--- a/src/platforms/rcore_comma.c
++++ b/src/platforms/rcore_comma.c
+@@ -105,6 +105,8 @@ struct egl_platform {
+ // hold all the low level drm stuff
+ struct drm_platform {
+   int fd;
++  int broker_socket;
++  bool owns_fd;
+ 
+   uint32_t connector_id;
+   uint32_t crtc_id;
+@@ -136,7 +138,7 @@ typedef struct {
+ //----------------------------------------------------------------------------------
+ extern CoreData CORE;                   // Global CORE state context
+ 
+-static PlatformData platform = { 0 };   // Platform specific data
++static PlatformData platform = { .drm = { .fd = -1, .broker_socket = -1 }, .touch = { .fd = -1 } };
+ 
+ //----------------------------------------------------------------------------------
+ // comma specific code
+@@ -362,6 +364,9 @@ static int recv_fd(int sock) {
+ }
+ 
+ static int init_drm (const char *dev_path) {
++  platform.drm.fd = -1;
++  platform.drm.broker_socket = -1;
++  platform.drm.owns_fd = false;
+   const char *s = getenv("DRM_FD");
+   if (s) {
+     char *end = NULL;
+@@ -373,6 +378,7 @@ static int init_drm (const char *dev_path) {
+     platform.drm.fd = (int)v;
+   } else if (getenv("NO_MASTER")) {
+     platform.drm.fd = open(dev_path, O_RDONLY | O_NONBLOCK);
++    platform.drm.owns_fd = true;
+   } else {
+     const char *sock_path = "/tmp/drmfd.sock";
+     int s = socket(AF_UNIX, SOCK_STREAM, 0);
+@@ -380,6 +386,7 @@ static int init_drm (const char *dev_path) {
+       TRACELOG(LOG_WARNING, "COMMA: Failed to open socket to magic");
+       return -1;
+     }
++    platform.drm.broker_socket = s;
+ 
+     struct sockaddr_un addr;
+     memset(&addr, 0, sizeof(addr));
+@@ -392,6 +399,7 @@ static int init_drm (const char *dev_path) {
+     }
+ 
+     platform.drm.fd = recv_fd(s);
++    platform.drm.owns_fd = true;
+   }
+ 
+   if (platform.drm.fd < 0) {
+@@ -631,10 +639,21 @@ static int turn_screen_on () {
+     return -1;
+   }
+ 
++  int percent = 65;
++  f = fopen("/run/brightness/max_percent", "r");
++  if (f) {
++    int limit;
++    if (fscanf(f, "%d", &limit) == 1) {
++      if (limit < 30) limit = 30;
++      if (limit < percent) percent = limit;
++    }
++    fclose(f);
++  }
++
+   snprintf(filepath, sizeof(filepath), "%s/brightness", bl);
+   f = open_with_retry(filepath, "w");
+   if (f) {
+-    max_brightness = (int)((max_brightness / 100.0 ) * 65.0);
++    max_brightness = max_brightness * percent / 100;
+     fprintf(f, "%lu", max_brightness);
+     fclose(f);
+   } else {
+@@ -1173,7 +1192,8 @@ int InitPlatform(void) {
+   }
+ 
+   if (init_touch("/dev/input/by-path/platform-894000.i2c-event")) {
+-    TRACELOG(LOG_WARNING, "COMMA: Failed to initialize touch device, continuing without touch");
++    TRACELOG(LOG_FATAL, "COMMA: Failed to initialize touch device");
++    return -1;
+   }
+ 
+   if (init_screen()) {
+@@ -1204,7 +1224,19 @@ void ClosePlatform(void) {
+ 
+   if (platform.egl.display != EGL_NO_DISPLAY) {
+     eglMakeCurrent(platform.egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
++  }
++
++  // EGL owns the surface bookkeeping used to release locked scanout buffers.
++  if (platform.gbm.surface) {
++    if (platform.gbm.current_bo && platform.gbm.current_bo != platform.gbm.next_bo) {
++      gbm_surface_release_buffer(platform.gbm.surface, platform.gbm.current_bo);
++    }
++    if (platform.gbm.next_bo) gbm_surface_release_buffer(platform.gbm.surface, platform.gbm.next_bo);
++  }
++  platform.gbm.current_bo = NULL;
++  platform.gbm.next_bo = NULL;
+ 
++  if (platform.egl.display != EGL_NO_DISPLAY) {
+     if (platform.egl.surface != EGL_NO_SURFACE) {
+       eglDestroySurface(platform.egl.display, platform.egl.surface);
+       platform.egl.surface = EGL_NO_SURFACE;
+@@ -1218,18 +1250,20 @@ void ClosePlatform(void) {
+   }
+ 
+   if (platform.gbm.surface) {
+-    if (platform.gbm.current_bo && platform.gbm.current_bo != platform.gbm.next_bo) {
+-      gbm_surface_release_buffer(platform.gbm.surface, platform.gbm.current_bo);
+-    }
+-    if (platform.gbm.next_bo) gbm_surface_release_buffer(platform.gbm.surface, platform.gbm.next_bo);
++    gbm_surface_destroy(platform.gbm.surface);
++    platform.gbm.surface = NULL;
+   }
+-  platform.gbm.current_bo = NULL;
+-  platform.gbm.next_bo = NULL;
+ 
+   if (platform.gbm.device) {
+     gbm_device_destroy(platform.gbm.device);
+     platform.gbm.device = NULL;
+   }
+ 
+-  close(platform.touch.fd);
++  if (platform.drm.owns_fd && platform.drm.fd >= 0) close(platform.drm.fd);
++  platform.drm.fd = -1;
++  platform.drm.owns_fd = false;
++  if (platform.drm.broker_socket >= 0) close(platform.drm.broker_socket);
++  platform.drm.broker_socket = -1;
++  if (platform.touch.fd >= 0) close(platform.touch.fd);
++  platform.touch.fd = -1;
+ }

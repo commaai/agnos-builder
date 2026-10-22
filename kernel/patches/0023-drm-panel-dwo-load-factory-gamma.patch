@@ -1,0 +1,314 @@
+From 24103ea9e5f0e111cc104c4180aa497a4894d098 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeebshihadeh@gmail.com>
+Date: Wed, 21 Oct 2026 10:40:06 -0700
+Subject: [PATCH] drm/panel: load per-device DWO gamma calibration as firmware
+
+Read an optional 150-byte firmware table containing three channels of
+25 big-endian gamma points. Apply the existing factory register order
+on each prepare, preserving panel defaults when no calibration is
+supplied. Leave command mode on transfer failure.
+
+Serialize panel preparation and backlight updates so brightness writes
+cannot alter gamma registers while command mode is selected. Defer
+backlight writes until the panel has been prepared.
+---
+ drivers/gpu/drm/panel/panel-dwo-do0200fat07.c | 177 +++++++++++++++++-
+ 1 file changed, 167 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/gpu/drm/panel/panel-dwo-do0200fat07.c b/drivers/gpu/drm/panel/panel-dwo-do0200fat07.c
+index d5fb266..1961381 100644
+--- a/drivers/gpu/drm/panel/panel-dwo-do0200fat07.c
++++ b/drivers/gpu/drm/panel/panel-dwo-do0200fat07.c
+@@ -3,9 +3,11 @@
+ 
+ #include <linux/backlight.h>
+ #include <linux/delay.h>
++#include <linux/firmware.h>
+ #include <linux/gpio/consumer.h>
+ #include <linux/mod_devicetable.h>
+ #include <linux/module.h>
++#include <linux/mutex.h>
+ #include <linux/regulator/consumer.h>
+ 
+ #include <video/mipi_display.h>
+@@ -16,12 +18,103 @@
+ #include <drm/drm_panel.h>
+ #include <drm/drm_probe_helper.h>
+ 
++/* 3 channels, each containing 25 big-endian 16-bit gamma points. */
++#define DWO_GAMMA_FIRMWARE "comma/dwo-do0200fat07-gamma.bin"
++#define DWO_GAMMA_CHANNELS 3
++#define DWO_GAMMA_POINTS 25
++
++static const u8 dwo_gamma_addr[DWO_GAMMA_CHANNELS][DWO_GAMMA_POINTS][2] = {
++	{
++		{ 0x00, 0x01 },
++		{ 0x02, 0x03 },
++		{ 0x04, 0x05 },
++		{ 0x06, 0x07 },
++		{ 0x08, 0x09 },
++		{ 0x0a, 0x0b },
++		{ 0x0c, 0x0d },
++		{ 0x0e, 0x0f },
++		{ 0x10, 0x11 },
++		{ 0x12, 0x13 },
++		{ 0x14, 0x15 },
++		{ 0x16, 0x17 },
++		{ 0x18, 0x19 },
++		{ 0x1a, 0x1b },
++		{ 0x1c, 0x1d },
++		{ 0x1e, 0x1f },
++		{ 0x20, 0x21 },
++		{ 0x22, 0x23 },
++		{ 0x24, 0x25 },
++		{ 0x26, 0x27 },
++		{ 0x28, 0x29 },
++		{ 0x2a, 0x2b },
++		{ 0x2d, 0x2f },
++		{ 0x30, 0x31 },
++		{ 0x32, 0x33 },
++	},
++	{
++		{ 0x34, 0x35 },
++		{ 0x36, 0x37 },
++		{ 0x38, 0x39 },
++		{ 0x3a, 0x3b },
++		{ 0x3d, 0x3f },
++		{ 0x40, 0x41 },
++		{ 0x42, 0x43 },
++		{ 0x44, 0x45 },
++		{ 0x46, 0x47 },
++		{ 0x48, 0x49 },
++		{ 0x4a, 0x4b },
++		{ 0x4c, 0x4d },
++		{ 0x4e, 0x4f },
++		{ 0x50, 0x51 },
++		{ 0x52, 0x53 },
++		{ 0x54, 0x55 },
++		{ 0x56, 0x58 },
++		{ 0x59, 0x5a },
++		{ 0x5b, 0x5c },
++		{ 0x5d, 0x5e },
++		{ 0x5f, 0x60 },
++		{ 0x61, 0x62 },
++		{ 0x63, 0x64 },
++		{ 0x65, 0x66 },
++		{ 0x67, 0x68 },
++	},
++	{
++		{ 0x69, 0x6a },
++		{ 0x6b, 0x6c },
++		{ 0x6d, 0x6e },
++		{ 0x6f, 0x70 },
++		{ 0x71, 0x72 },
++		{ 0x73, 0x74 },
++		{ 0x75, 0x76 },
++		{ 0x77, 0x78 },
++		{ 0x79, 0x7a },
++		{ 0x7b, 0x7c },
++		{ 0x7d, 0x7e },
++		{ 0x7f, 0x80 },
++		{ 0x81, 0x82 },
++		{ 0x83, 0x84 },
++		{ 0x85, 0x86 },
++		{ 0x87, 0x88 },
++		{ 0x89, 0x8a },
++		{ 0x8b, 0x8c },
++		{ 0x8d, 0x8e },
++		{ 0x8f, 0x90 },
++		{ 0x91, 0x92 },
++		{ 0x93, 0x94 },
++		{ 0x95, 0x96 },
++		{ 0x97, 0x98 },
++		{ 0x99, 0x9a },
++	},
++};
++
+ struct dwo_do0200fat07 {
+ 	struct drm_panel panel;
+ 	struct mipi_dsi_device *dsi;
+ 	struct gpio_desc *reset_gpio;
+ 	struct regulator *vddio;
+ 	struct regulator *vdd;
++	struct mutex lock;
++	bool prepared;
+ 	enum drm_panel_orientation orientation;
+ };
+ 
+@@ -65,6 +158,53 @@ static void dwo_do0200fat07_power_off(struct dwo_do0200fat07 *ctx)
+ 	regulator_disable(ctx->vddio);
+ }
+ 
++static int dwo_do0200fat07_load_gamma(struct dwo_do0200fat07 *ctx)
++{
++	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
++	const u8 exit_command_mode[] = { 0xfe, 0xa0 };
++	const struct firmware *firmware;
++	struct device *dev = &ctx->dsi->dev;
++	int color, point, ret;
++
++	ret = request_firmware_direct(&firmware, DWO_GAMMA_FIRMWARE, dev);
++	if (ret) {
++		if (ret != -ENOENT)
++			dev_warn(dev, "Failed to load panel gamma: %d\n", ret);
++		return 0;
++	}
++
++	if (firmware->size != DWO_GAMMA_CHANNELS * DWO_GAMMA_POINTS * 2) {
++		dev_warn(dev, "Ignoring invalid panel gamma size: %zu\n",
++			 firmware->size);
++		release_firmware(firmware);
++		return 0;
++	}
++
++	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfe, 0xa2);
++	for (color = 0; color < DWO_GAMMA_CHANNELS; color++) {
++		for (point = DWO_GAMMA_POINTS - 1; point >= 0; point--) {
++			const u8 *value = &firmware->data[(color * DWO_GAMMA_POINTS + point) * 2];
++			u8 command[] = { dwo_gamma_addr[color][point][0], value[0] };
++
++			mipi_dsi_dcs_write_buffer_multi(&dsi_ctx, command, sizeof(command));
++			command[0] = dwo_gamma_addr[color][point][1];
++			command[1] = value[1];
++			mipi_dsi_dcs_write_buffer_multi(&dsi_ctx, command, sizeof(command));
++		}
++	}
++
++	/* Leave command mode even if a gamma write failed. */
++	ret = mipi_dsi_dcs_write_buffer(ctx->dsi, exit_command_mode,
++				      sizeof(exit_command_mode));
++	if (ret < 0 && !dsi_ctx.accum_err)
++		dsi_ctx.accum_err = ret;
++	if (!dsi_ctx.accum_err)
++		dev_info(dev, "Successfully setup screen calibration\n");
++
++	release_firmware(firmware);
++	return dsi_ctx.accum_err;
++}
++
+ static int dwo_do0200fat07_init_sequence(struct dwo_do0200fat07 *ctx)
+ {
+ 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
+@@ -92,8 +232,10 @@ static int dwo_do0200fat07_init_sequence(struct dwo_do0200fat07 *ctx)
+ 
+ 	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
+ 	mipi_dsi_msleep(&dsi_ctx, 100);
++	if (dsi_ctx.accum_err)
++		return dsi_ctx.accum_err;
+ 
+-	return dsi_ctx.accum_err;
++	return dwo_do0200fat07_load_gamma(ctx);
+ }
+ 
+ static int dwo_do0200fat07_prepare(struct drm_panel *panel)
+@@ -102,10 +244,11 @@ static int dwo_do0200fat07_prepare(struct drm_panel *panel)
+ 	struct device *dev = &ctx->dsi->dev;
+ 	int ret;
+ 
++	mutex_lock(&ctx->lock);
+ 	ret = dwo_do0200fat07_power_on(ctx);
+ 	if (ret) {
+ 		dev_err(dev, "Failed to power on: %d\n", ret);
+-		return ret;
++		goto out;
+ 	}
+ 
+ 	dwo_do0200fat07_reset(ctx);
+@@ -115,19 +258,25 @@ static int dwo_do0200fat07_prepare(struct drm_panel *panel)
+ 		dev_err(dev, "Failed to initialize panel: %d\n", ret);
+ 		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+ 		dwo_do0200fat07_power_off(ctx);
+-		return ret;
++		goto out;
+ 	}
+ 
+-	return 0;
++	ctx->prepared = true;
++out:
++	mutex_unlock(&ctx->lock);
++	return ret;
+ }
+ 
+ static int dwo_do0200fat07_unprepare(struct drm_panel *panel)
+ {
+ 	struct dwo_do0200fat07 *ctx = to_dwo_do0200fat07(panel);
+ 
++	mutex_lock(&ctx->lock);
++	ctx->prepared = false;
+ 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+ 	usleep_range(1000, 2000);
+ 	dwo_do0200fat07_power_off(ctx);
++	mutex_unlock(&ctx->lock);
+ 
+ 	return 0;
+ }
+@@ -211,16 +360,21 @@ static const struct drm_panel_funcs dwo_do0200fat07_panel_funcs = {
+ 
+ static int dwo_do0200fat07_bl_update_status(struct backlight_device *bl)
+ {
+-	struct mipi_dsi_device *dsi = bl_get_data(bl);
++	struct dwo_do0200fat07 *ctx = bl_get_data(bl);
++	struct mipi_dsi_device *dsi = ctx->dsi;
+ 	u16 brightness = backlight_get_brightness(bl);
+-	int ret;
++	int ret = 0;
+ 
++	mutex_lock(&ctx->lock);
++	if (!ctx->prepared)
++		goto out;
+ 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
+ 
+ 	ret = mipi_dsi_dcs_set_display_brightness(dsi, brightness);
+ 
+ 	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+-
++out:
++	mutex_unlock(&ctx->lock);
+ 	return ret;
+ }
+ 
+@@ -229,8 +383,9 @@ static const struct backlight_ops dwo_do0200fat07_bl_ops = {
+ };
+ 
+ static struct backlight_device *
+-dwo_do0200fat07_create_backlight(struct mipi_dsi_device *dsi)
++dwo_do0200fat07_create_backlight(struct dwo_do0200fat07 *ctx)
+ {
++	struct mipi_dsi_device *dsi = ctx->dsi;
+ 	struct device *dev = &dsi->dev;
+ 	const struct backlight_properties props = {
+ 		.type = BACKLIGHT_RAW,
+@@ -238,7 +393,7 @@ dwo_do0200fat07_create_backlight(struct mipi_dsi_device *dsi)
+ 		.max_brightness = 255,
+ 	};
+ 
+-	return devm_backlight_device_register(dev, dev_name(dev), dev, dsi,
++	return devm_backlight_device_register(dev, dev_name(dev), dev, ctx,
+ 					      &dwo_do0200fat07_bl_ops, &props);
+ }
+ 
+@@ -254,6 +409,7 @@ static int dwo_do0200fat07_probe(struct mipi_dsi_device *dsi)
+ 	if (IS_ERR(ctx))
+ 		return PTR_ERR(ctx);
+ 
++	mutex_init(&ctx->lock);
+ 	ctx->vddio = devm_regulator_get(dev, "vddio");
+ 	if (IS_ERR(ctx->vddio))
+ 		return dev_err_probe(dev, PTR_ERR(ctx->vddio),
+@@ -279,7 +435,7 @@ static int dwo_do0200fat07_probe(struct mipi_dsi_device *dsi)
+ 
+ 	ctx->panel.prepare_prev_first = true;
+ 
+-	ctx->panel.backlight = dwo_do0200fat07_create_backlight(dsi);
++	ctx->panel.backlight = dwo_do0200fat07_create_backlight(ctx);
+ 	if (IS_ERR(ctx->panel.backlight))
+ 		return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
+ 				     "Failed to create backlight\n");
+@@ -332,3 +488,4 @@ module_mipi_dsi_driver(dwo_do0200fat07_driver);
+ MODULE_AUTHOR("Robin Reckmann <robin.reckmann@gmail.com>");
+ MODULE_DESCRIPTION("DRM driver for DWo DO0200FAT07 panel");
+ MODULE_LICENSE("GPL");
++MODULE_FIRMWARE(DWO_GAMMA_FIRMWARE);
+-- 
+2.55.0
+

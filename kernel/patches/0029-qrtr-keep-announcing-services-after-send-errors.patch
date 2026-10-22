@@ -1,0 +1,54 @@
+From: Igor Opaniuk <igor.opaniuk@oss.qualcomm.com>
+Date: Mon, 19 Oct 2026 13:12:01 +0200
+Subject: [PATCH 1/2] net: qrtr: ns: keep going when an announcement cannot be sent
+Link: https://lore.kernel.org/all/20261019-upstream-qrtr-hello-gate-fix_b4-v1-1-bd420aec171b@oss.qualcomm.com/
+
+announce_servers() answers a HELLO by announcing every local server to
+the new node, and stops at the first send error: the node then never
+learns about the servers after that one. ctrl_cmd_new_server() returns
+before lookup_notify() when the broadcast of a new local server fails,
+so lookups already registered for that service, including the ones of
+remote nodes, are never told the server exists.
+
+A send failure to one node says nothing about the others. Log it and
+carry on in both places.
+
+Fixes: 0c2204a4ad71 ("net: qrtr: Migrate nameservice to kernel from userspace")
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: Igor Opaniuk <igor.opaniuk@oss.qualcomm.com>
+---
+ net/qrtr/ns.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/net/qrtr/ns.c b/net/qrtr/ns.c
+index bcb090ee79d4..dfc2cdad688f 100644
+--- a/net/qrtr/ns.c
++++ b/net/qrtr/ns.c
+@@ -232,7 +232,7 @@ static int announce_servers(struct sockaddr_qrtr *sq)
+ 				continue;
+ 
+ 			pr_err("failed to announce new service\n");
+-			return ret;
++			/* the remote needs the other servers no less */
+ 		}
+ 	}
+ 	return 0;
+@@ -488,10 +488,12 @@ static int ctrl_cmd_new_server(struct sockaddr_qrtr *from,
+ 
+ 	if (srv->node == qrtr_ns.local_node) {
+ 		ret = service_announce_new(&qrtr_ns.bcast_sq, srv);
+-		if (ret < 0) {
++		/*
++		 * A failed broadcast must not hide the server from the
++		 * lookups already registered for it.
++		 */
++		if (ret < 0)
+ 			pr_err("failed to announce new service\n");
+-			return ret;
+-		}
+ 	}
+ 
+ 	/* Notify any potential lookups about the new server */
+
+-- 
+2.53.0

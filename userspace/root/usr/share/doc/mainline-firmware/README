@@ -1,0 +1,81 @@
+Mainline mici firmware provenance
+================================
+
+SOURCES.json identifies the additional firmware used by this port. Every
+listed file was compared byte-for-byte with the specified source revision.
+SHA256SUMS paths are relative to /usr/lib/firmware. To verify an installed
+image:
+
+  cd /usr/lib/firmware
+  sha256sum -c /usr/share/doc/mainline-firmware/SHA256SUMS
+
+These are provenance records, not a replacement license for the firmware.
+The original notices in licenses/ apply only to the files assigned to them
+in SOURCES.json. They do not establish coverage for other similarly named
+blobs, device extracts, or board-data modifications.
+
+Verified upstream distributions
+-------------------------------
+
+Linux-firmware revision 59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01:
+https://gitlab.com/kernel-firmware/linux-firmware/-/tree/59f9fc2ef8d1e312d2a613d4e1ffad2ff31a0a01
+
+The revision's WHENCE assigns firmware-5.bin to
+LICENSE.QualcommAtheros_ath10k. It assigns the matching A630 SQE/GMU,
+SDM845 MBA/modem images and ADSP/CDSP/modemuw JSON maps to LICENSE.qcom
+and NOTICE.qcom. The original files are copied unchanged into licenses/.
+The GMU alias resolves to an unchanged file already shipped by AGNOS.
+
+Wireless-regdb revision e05260afb7203dd0a7ba6faf9a30c86faf19a24e:
+https://git.kernel.org/pub/scm/linux/kernel/git/wens/wireless-regdb.git/commit/?id=e05260afb7203dd0a7ba6faf9a30c86faf19a24e
+
+Both regulatory.db and its signature match this revision, tagged
+master-2025-07-10. Its original LICENSE is licenses/wireless-regdb-LICENSE.
+
+Device-specific files whose notice coverage remains unverified
+-------------------------------------------------------------
+
+The following files exactly match commaai/vamos revision
+7626c378c3d5762df673dd14d457631057779d27 under kernel/firmware/:
+https://github.com/commaai/vamos/tree/7626c378c3d5762df673dd14d457631057779d27/kernel/firmware
+
+* ath10k/WCN3990/hw1.0/wlanmdsp.mbn:
+  vamos commit 9869d6e05200cb24ad403da110fc9ec620fe972e identifies it as
+  the device's /firmware/image/wlanmdsp.mbn, version
+  WLAN.HL.2.0.c10-00459-QCAHLSWMTPLZ-1. It differs from the upstream
+  linux-firmware image checked above. No license notice accompanying this
+  device-extracted version was found in the import.
+
+* ath10k/WCN3990/hw1.0/board-2.bin:
+  The same commit appends variant=comma-mici and variant=comma-tizi entries
+  to the generic board container. Their payloads exactly match the
+  pre-existing AGNOS /usr/comma/wlan/bdwlan.b01 and bdwlan.b00, respectively:
+    b01 SHA256 34757421765ee3bf9e57eafe59ea47b7c645918b7699753bcfebe31144ba76e7
+    b00 SHA256 52812b95b0ff0aedd0f9f55e21e80fb39057158d91c0b94845c52a3bbbc48e50
+  The source history identifies the custom board data but does not supply
+  its original redistribution notice. The generic upstream ath10k notice
+  is not asserted to license these modifications.
+
+* qca/crbtfw11.tlv, crbtfw20.tlv, crbtfw21.tlv,
+  crnv11.bin, crnv20.bin and crnv21.bin:
+  vamos commit d38d75f7209c49777cd9b9a47db3b90dc7d2268a imports these six
+  files without an upstream revision or redistribution notice. They were
+  not found as identical files in the linux-firmware revision above.
+
+* qcom/sdm845/modemr.jsn:
+  Imported by vamos commit f6f7978442a1381f6e9458b238061a9a868b366c.
+  This exact path is absent in the checked upstream linux-firmware tree,
+  and the import does not identify a separate notice for it.
+
+Original redistribution notices for these files still need to be located;
+no license coverage is inferred from their names or from other firmware.
+This directory records the unresolved status explicitly.
+
+Existing vendor firmware and runtime calibration
+------------------------------------------------
+
+The existing AGNOS a630_zap.elf is exposed through a mainline-compatible
+symlink. The remaining vendor audio/video firmware is loaded from the
+existing /firmware/image partition. Their redistribution notices have not
+been re-audited by this provenance update; no replacement images are added.
+Panel gamma bytes are generated at boot from each device's persist data.

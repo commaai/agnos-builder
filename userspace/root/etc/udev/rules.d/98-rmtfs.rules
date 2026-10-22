@@ -1,0 +1,1 @@
+ACTION=="add", KERNEL=="qcom_rmtfs_mem1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="wifi.service"

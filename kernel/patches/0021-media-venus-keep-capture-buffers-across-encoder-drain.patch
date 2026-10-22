@@ -1,0 +1,25 @@
+Subject: [PATCH] media: venus: keep capture buffers across encoder drain
+
+Capture buffers can be requeued after firmware completes EOS but
+before userspace dequeues LAST. Returning them empty in STOPPED
+leaves empty completions with zero timestamps after START. This
+breaks frame reconciliation.
+
+Keep capture buffers on the normal firmware queue across drain
+and restart. This fixes a hardware regression that queues capture
+after LAST before START; it previously returned an empty non-LAST
+buffer as the next encoded frame.
+---
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -1353,7 +1353,9 @@
+ 
+ 	mutex_lock(&inst->lock);
+ 
+-	if (inst->enc_state == VENUS_ENC_STATE_STOPPED) {
++	/* Capture buffers queued after EOS are needed when encoding resumes. */
++	if (inst->enc_state == VENUS_ENC_STATE_STOPPED &&
++	    V4L2_TYPE_IS_OUTPUT(vb->type)) {
+ 		vbuf->sequence = inst->sequence_cap++;
+ 		vbuf->field = V4L2_FIELD_NONE;
+ 		vb2_set_plane_payload(vb, 0, 0);

@@ -1,0 +1,251 @@
+Subject: [PATCH] clk: qcom: camcc-sdm845: round shared PLL parent rates
+
+The 808 MHz camera PLL runs at 808000195 Hz. Requesting its nominal
+rate for another RCG makes CCF reprogram siblings despite the parent
+staying at the same achievable rate. Their recalculated rates can then
+select the next frequency-table entry and an inactive parent. This also
+occurs through the ordinary CSI timer RCGs, not only the shared RCGs.
+
+Return the achievable parent rate while preserving the canonical RCG
+frequency. Keep the other operations and non-propagating clocks unchanged.
+---
+--- a/drivers/clk/qcom/camcc-sdm845.c
++++ b/drivers/clk/qcom/camcc-sdm845.c
+@@ -16,6 +16,27 @@
+ #include "clk-rcg.h"
+ #include "clk-regmap.h"
+ #include "gdsc.h"
++
++static struct clk_ops cam_cc_shared_ops;
++static struct clk_ops cam_cc_rcg_ops;
++
++static int cam_cc_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
++{
++	long parent_rate;
++	int ret;
++
++	ret = clk_rcg2_ops.determine_rate(hw, req);
++	if (ret || !(clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT))
++		return ret;
++
++	/* Avoid reprogramming siblings for the fractional PLL rounding error. */
++	parent_rate = clk_hw_round_rate(req->best_parent_hw, req->best_parent_rate);
++	if (parent_rate < 0)
++		return parent_rate;
++
++	req->best_parent_rate = parent_rate;
++	return 0;
++}
+ 
+ enum {
+ 	P_BI_TCXO,
+@@ -205,7 +226,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -269,7 +290,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -284,7 +305,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -299,7 +320,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -314,7 +335,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -361,7 +382,7 @@
+ 		.name = "cam_cc_fd_core_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -384,7 +405,7 @@
+ 		.name = "cam_cc_icp_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -409,7 +430,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -431,7 +452,7 @@
+ 		.name = "cam_cc_ife_0_csid_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -446,7 +467,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -460,7 +481,7 @@
+ 		.name = "cam_cc_ife_1_csid_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -475,7 +496,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -489,7 +510,7 @@
+ 		.name = "cam_cc_ife_lite_csid_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -515,7 +536,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -530,7 +551,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -545,7 +566,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -570,7 +591,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -593,7 +614,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -608,7 +629,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -623,7 +644,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -638,7 +659,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -662,7 +683,7 @@
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -1719,6 +1740,11 @@
+ 	struct regmap *regmap;
+ 	struct alpha_pll_config cam_cc_pll_config = { };
+ 
++	cam_cc_shared_ops = clk_rcg2_shared_ops;
++	cam_cc_shared_ops.determine_rate = cam_cc_determine_rate;
++	cam_cc_rcg_ops = clk_rcg2_ops;
++	cam_cc_rcg_ops.determine_rate = cam_cc_determine_rate;
++
+ 	regmap = qcom_cc_map(pdev, &cam_cc_sdm845_desc);
+ 	if (IS_ERR(regmap))
+ 		return PTR_ERR(regmap);

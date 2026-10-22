@@ -31,6 +31,8 @@ apt-fast install --no-install-recommends -yq \
     libc6-dev \
     libegl-dev \
     libegl1 \
+    libegl-mesa0 \
+    libgl1-mesa-dri \
     libgles-dev \
     libgles1 \
     libgles2 \
@@ -81,7 +83,7 @@ ln -sf /bin/bash /bin/sh
 mkdir /usr/lib64
 ln -s usr/lib64 /lib64
 
-# Install Ubuntu's graphics development files before replacing their libraries.
+# Install graphics development files for openpilot.
 /tmp/agnos/openpilot_dependencies.sh
 
 # Versioned LLVM packages don't provide the unversioned commands.

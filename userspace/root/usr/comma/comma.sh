@@ -57,11 +57,18 @@ handle_setup_keys () {
 # factory reset handling
 if [ ! -f /run/comma-booted ]; then
   sudo touch /run/comma-booted
+  touch_count=0
+  for touch_counter in /sys/class/input/input*/device/touch_count; do
+    if [ -r "$touch_counter" ]; then
+      read -r touch_count < "$touch_counter"
+      break
+    fi
+  done
   if [ -f "$RESET_TRIGGER" ]; then
     echo "launching system reset, reset trigger present"
     rm -f $RESET_TRIGGER
     $RESET
-  elif (( "$(cat /sys/class/input/input2/device/touch_count)" > 4 )); then
+  elif [[ "$touch_count" =~ ^[0-9]+$ ]] && (( 10#$touch_count > 4 )); then
     echo "launching system reset, got taps"
     $RESET --tap-reset
   elif ! mountpoint -q /data; then

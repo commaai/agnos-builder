@@ -83,6 +83,14 @@ static void fatal_sig(int s) {
 }
 
 static void leds_on(void) {
+  char model[64], maximum[64];
+  if (sysfs_read("/sys/firmware/devicetree/base/model", model, sizeof(model)) == 0 &&
+      strcmp(model, "comma mici") == 0 &&
+      sysfs_read("/sys/class/leds/ir:torch/max_brightness", maximum, sizeof(maximum)) == 0) {
+    save_and_write("/sys/class/leds/ir:torch/brightness", maximum);
+    return;
+  }
+
   save_and_write("/sys/class/leds/led:torch_0/brightness",  "500");
   save_and_write("/sys/class/leds/led:torch_1/brightness",  "500");
   save_and_write("/sys/class/leds/led:torch_2/brightness",  "300");

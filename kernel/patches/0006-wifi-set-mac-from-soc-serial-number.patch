@@ -1,0 +1,90 @@
+From 93dfd71059244e5e08b567ebc3c31c661fc1f1cb Mon Sep 17 00:00:00 2001
+From: Robin Reckmann <robin.reckmann@gmail.com>
+Date: Mon, 30 Mar 2026 13:53:50 +0900
+Subject: wifi: Set mac address from SoC serial number
+
+This copies the behavior of the downstream qcacld-3.0 wifi driver.
+Using 00:0a:f5 OUI and lowest 3 bytes from soc serial number.
+
+The WCN3990 firmware on mici reports a bogus 0e:00:00:00:00:00 MAC
+which passes is_valid_ether_addr(), so also override that.
+
+---
+ drivers/net/wireless/ath/ath10k/mac.c | 46 +++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+
+diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/ath10k/mac.c
+index 154ac7a70..7af4494e1 100644
+--- a/drivers/net/wireless/ath/ath10k/mac.c
++++ b/drivers/net/wireless/ath/ath10k/mac.c
+@@ -17,6 +17,8 @@
+ #include <linux/of.h>
+ #include <linux/bitfield.h>
+ #include <linux/random.h>
++#include <linux/soc/qcom/smem.h>
++#include <linux/soc/qcom/socinfo.h>
+ 
+ #include "hif.h"
+ #include "core.h"
+@@ -233,6 +235,47 @@ int ath10k_mac_ext_resource_config(struct ath10k *ar, u32 val)
+ 	return 0;
+ }
+ 
++/* The WCN3990 firmware reports a bogus locally-administered MAC instead
++ * of leaving the address unset, so it can't be caught by
++ * is_valid_ether_addr() alone.
++ */
++static bool ath10k_mac_is_fw_dummy_addr(const u8 *mac)
++{
++	static const u8 dummy[ETH_ALEN] = { 0x0e, 0x00, 0x00, 0x00, 0x00, 0x00 };
++
++	return ether_addr_equal(mac, dummy);
++}
++
++static int ath10k_mac_from_socinfo(u8 *mac)
++{
++	const struct socinfo *info;
++	size_t item_size;
++	u32 serial;
++
++	info = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_HW_SW_BUILD_ID, &item_size);
++	if (IS_ERR(info))
++		return PTR_ERR(info);
++
++	if (offsetofend(struct socinfo, serial_num) > item_size)
++		return -EINVAL;
++
++	serial = le32_to_cpu(info->serial_num);
++	if (!serial)
++		return -ENODEV;
++
++	mac[0] = 0x00;
++	mac[1] = 0x0a;
++	mac[2] = 0xf5;
++	mac[3] = (serial >> 16) & 0xff;
++	mac[4] = (serial >> 8) & 0xff;
++	mac[5] = serial & 0xff;
++
++	if (!is_valid_ether_addr(mac))
++		return -EINVAL;
++
++	return 0;
++}
++
+ /**********/
+ /* Crypto */
+ /**********/
+@@ -9998,6 +10040,10 @@ int ath10k_mac_register(struct ath10k *ar)
+ 	void *channels;
+ 	int ret;
+ 
++	if (!is_valid_ether_addr(ar->mac_addr) ||
++	    ath10k_mac_is_fw_dummy_addr(ar->mac_addr))
++		ath10k_mac_from_socinfo(ar->mac_addr);
++
+ 	if (!is_valid_ether_addr(ar->mac_addr)) {
+ 		ath10k_warn(ar, "invalid MAC address; choosing random\n");
+ 		eth_random_addr(ar->mac_addr);
+-- 
+2.53.0
+

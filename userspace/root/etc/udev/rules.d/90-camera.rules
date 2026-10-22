@@ -1,0 +1,1 @@
+SUBSYSTEM=="video4linux", KERNEL=="video*", ATTR{name}=="cam-req-mgr", SYMLINK+="v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0"

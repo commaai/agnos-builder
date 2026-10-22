@@ -1,0 +1,41 @@
+From: Richard Acayan <mailingradian@gmail.com>
+Date: Mon, 9 Feb 2026 18:12:58 -0800
+Subject: wifi: ath10k: only wait for response to SET_KEY
+
+When sending DELETE_KEY, the driver times out waiting for a response
+that doesn't come. Only wait for a response when sending SET_KEY.
+
+Sample dmesg:
+
+	[  117.285854] wlan0: deauthenticating from XX:XX:XX:XX:XX:XX by local choice (Reason: 3=DEAUTH_LEAVING)
+	[  120.302934] ath10k_snoc 18800000.wifi: failed to install key for vdev 0 peer XX:XX:XX:XX:XX:XX: -110
+	[  120.302996] wlan0: failed to remove key (0, XX:XX:XX:XX:XX:XX) from hardware (-110)
+
+Signed-off-by: Richard Acayan <mailingradian@gmail.com>
+---
+ drivers/net/wireless/ath/ath10k/mac.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/ath10k/mac.c
+index da6f7957a0ae..73aa93043f8a 100644
+--- a/drivers/net/wireless/ath/ath10k/mac.c
++++ b/drivers/net/wireless/ath/ath10k/mac.c
+@@ -324,9 +324,11 @@ static int ath10k_install_key(struct ath10k_vif *arvif,
+ 	if (ret)
+ 		return ret;
+ 
+-	time_left = wait_for_completion_timeout(&ar->install_key_done, 3 * HZ);
+-	if (time_left == 0)
+-		return -ETIMEDOUT;
++	if (cmd != DISABLE_KEY) {
++		time_left = wait_for_completion_timeout(&ar->install_key_done, 3 * HZ);
++		if (time_left == 0)
++			return -ETIMEDOUT;
++	}
+ 
+ 	return 0;
+ }
+-- 
+2.53.0
+
+

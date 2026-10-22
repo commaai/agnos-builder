@@ -1,8 +1,5 @@
 #!/bin/bash -e
 
-# Enable DSP services
-systemctl enable cdsp
-
 # Enable our services
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
@@ -13,7 +10,9 @@ systemctl enable lte.service
 systemctl enable modem.service
 systemctl enable sound.service
 systemctl enable magic.service
-systemctl enable init-qcom.service
+systemctl enable qrtr.service
+systemctl enable tqftpserv.service
+systemctl enable qcom-firmware.service
 systemctl enable wifi.service
 systemctl enable varwatch.service
 systemctl enable power_monitor.service

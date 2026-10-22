@@ -1,0 +1,33 @@
+diff --git a/MANIFEST.in b/MANIFEST.in
+index 6c6394e..7650bc8 100644
+--- a/MANIFEST.in
++++ b/MANIFEST.in
+@@ -12,5 +12,6 @@ include version.py
+ exclude tests/*
+ include raylib/py.typed
+ include pyray/py.typed
++recursive-include raylib/install *
+ 
+ 
+diff --git a/setup.py b/setup.py
+index c91f3bb..d456423 100644
+--- a/setup.py
++++ b/setup.py
+@@ -8,7 +8,7 @@ HERE = pathlib.Path(__file__).parent
+ 
+ # The text of the README file
+ README = (HERE / "README.md").read_text()
+-VERSION = (HERE / "version.py").read_text().split()[-1].strip("\"'")
++VERSION = "6.0.0.1.post98+mainline"
+ 
+ RAYLIB_PLATFORM = os.getenv("RAYLIB_PLATFORM", "Desktop")
+ if RAYLIB_PLATFORM == "SDL":
+@@ -25,7 +25,7 @@ class BinaryDistribution(Distribution):
+ 
+ # should be name="raylib"+NAME but then Github doesn't track dependants
+ setup(
+-    name="raylib",
++    name="comma-deps-raylib",
+     version=VERSION,
+     description="Python CFFI bindings for Raylib",
+     long_description=README,

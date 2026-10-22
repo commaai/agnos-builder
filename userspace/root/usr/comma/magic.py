@@ -7,14 +7,21 @@ import pyray as rl
 SOCK_PATH = "/tmp/drmfd.sock"
 DRM_DEVICE = "/dev/dri/card0"
 BACKGROUND = "/usr/comma/bg.png"
+BACKLIGHT = "/sys/class/backlight/ae94000.dsi.0"
 
 def power_screen():
   try:
-    with open("/sys/class/backlight/panel0-backlight/bl_power", "w") as f:
+    with open(f"{BACKLIGHT}/bl_power", "w") as f:
       f.write("0")
-    with open("/sys/class/backlight/panel0-backlight/max_brightness") as f:
-      max_brightness = int((int(f.read().strip()) / 100) * 65)
-    with open("/sys/class/backlight/panel0-backlight/brightness", "w") as f:
+    percent = 65
+    try:
+      with open("/run/brightness/max_percent") as f:
+        percent = max(30, min(percent, int(f.read())))
+    except (OSError, ValueError):
+      pass
+    with open(f"{BACKLIGHT}/max_brightness") as f:
+      max_brightness = int(f.read()) * percent // 100
+    with open(f"{BACKLIGHT}/brightness", "w") as f:
       f.write(str(max_brightness))
   except Exception:
     pass
