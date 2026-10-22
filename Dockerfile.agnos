@@ -143,6 +143,9 @@ RUN update-alternatives --set iptables /usr/sbin/iptables-legacy && \
 # Setup hostname resolution for our custom hostname
 RUN sed -i 's/hosts:          files dns myhostname/hosts:          files myhostname dns/g' /etc/nsswitch.conf
 
+COPY ./userspace/trim.sh /tmp/agnos/
+RUN /tmp/agnos/trim.sh
+
 # keep this last
 RUN ldconfig
 # ldconfig rewrites these SONAME links back to Mesa; raylib COMMA needs Adreno.
@@ -154,9 +157,6 @@ RUN cd /usr/lib/aarch64-linux-gnu && \
     ln -sf libGLESv2_adreno.so libGLESv2.so.2 && \
     rm -f libgbm.so.1 && \
     mv /tmp/libgbm_adreno.so libgbm.so.1
-
-COPY ./userspace/trim.sh /tmp/agnos/
-RUN /tmp/agnos/trim.sh
 
 # Setup RO rootfs
 RUN mkdir -p /rwtmp
