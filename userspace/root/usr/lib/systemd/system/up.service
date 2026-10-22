@@ -1,0 +1,10 @@
+[Unit]
+Description=ultimate provisioning setup
+After=comma.service init-qcom.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/up.sh
+
+[Install]
+WantedBy=multi-user.target
