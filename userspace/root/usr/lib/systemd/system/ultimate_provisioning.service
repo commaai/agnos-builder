@@ -1,0 +1,12 @@
+[Unit]
+Description=ultimate provisioning setup
+# only on a UP: its TCAN4551s are in the devicetree
+ConditionPathExists=/sys/firmware/devicetree/base/soc/spi@880000/can@1
+After=comma.service init-qcom.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/comma/ultimate_provisioning.sh
+
+[Install]
+WantedBy=multi-user.target
