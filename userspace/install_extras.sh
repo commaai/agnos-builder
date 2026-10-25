@@ -30,7 +30,6 @@ rm /tmp/terminfo.src
 kitty_revision=debcde56c0e0f59aab25f6c3887aa655282a876a
 curl -fsSL "https://raw.githubusercontent.com/kovidgoyal/kitty/$kitty_revision/terminfo/kitty.terminfo" -o /tmp/kitty.terminfo
 tic -x -o /usr/share/terminfo /tmp/kitty.terminfo
-tic -x -o /usr/share/terminfo /tmp/agnos/terminfo/ghostty.terminfo
 rm /tmp/kitty.terminfo
 
 # color prompt
