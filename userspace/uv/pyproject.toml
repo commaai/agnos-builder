@@ -37,6 +37,7 @@ dependencies = [
   "spidev2",
   "flaky",
   "matplotlib",
+  "nanobind",
 
   # GUIs
   "comma-deps-raylib",
