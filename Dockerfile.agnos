@@ -114,6 +114,9 @@ RUN rm -r /etc/update-motd.d/*
 RUN --mount=type=bind,source=userspace/root,target=/tmp/agnos/root \
     set -o pipefail && \
     tar -C /tmp/agnos/root --owner=0 --group=0 --mode=go-w -cf - . | tar -C / --no-overwrite-dir -xf -
+# Compile the vendor Ghostty definition supplied by the root filesystem overlay.
+RUN tic -x -o /usr/share/terminfo /usr/share/terminfo/ghostty.terminfo && \
+    rm /usr/share/terminfo/ghostty.terminfo
 COPY ./userspace/root/home/$USERNAME/.config/ /root/.config
 RUN chown -R $USERNAME: /home/$USERNAME
 RUN touch -r /lib/systemd/systemd /etc/fstab
