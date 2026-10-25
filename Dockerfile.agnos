@@ -35,6 +35,7 @@ RUN mkdir -p /tmp/agnos/graphics && \
       patchelf --rename-dynamic-symbols /tmp/agnos/graphics-symbols.map \
         --remove-needed libwayland-client.so.0 --remove-needed libwayland-server.so.0 \
         --remove-needed libwayland-egl.so.1 --remove-needed libffi.so.6 \
+        --remove-needed libpcre.so.1 \
         --add-needed libagnos-wayland-stubs.so "$lib" || exit 1; \
     done
 
@@ -85,6 +86,9 @@ RUN apt-get update && \
     libmm-glib0 \
     libpolkit-gobject-1-0 \
     libsystemd0 \
+    android-liblog \
+    libjson-c5 \
+    patchelf \
     polkitd && \
     test ! -e /lib/systemd/system/ModemManager.service
 
@@ -118,6 +122,15 @@ RUN --mount=type=bind,source=userspace/root,target=/tmp/agnos/root \
 RUN tic -x -o /usr/share/terminfo /usr/share/terminfo/ghostty.terminfo && \
     rm /usr/share/terminfo/ghostty.terminfo
 COPY ./userspace/root/home/$USERNAME/.config/ /root/.config
+
+# These vendor libraries retain unused PCRE dependencies from their original GLib build.
+RUN cd /usr/lib/aarch64-linux-gnu && \
+    for lib in libdiag.so.1 libconfigdb.so.0 libqmi_cci.so.1 libxml.so.0 libqmi_client_qmux.so.1 libdsutils.so.1; do \
+      patchelf --remove-needed libpcre.so.1 "$lib" || exit 1; \
+    done && \
+    patchelf --replace-needed libjson-c.so.2 libjson-c.so.5 /usr/bin/pdmappersvc && \
+    apt-get purge -y patchelf
+
 RUN chown -R $USERNAME: /home/$USERNAME
 RUN touch -r /lib/systemd/systemd /etc/fstab
 

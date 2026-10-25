@@ -6,7 +6,6 @@ root/usr/comma/updater filter=lfs diff=lfs merge=lfs -text
 graphics/libgbm.so filter=lfs diff=lfs merge=lfs -text
 root/usr/lib/aarch64-linux-gnu/libEGL_adreno.so filter=lfs diff=lfs merge=lfs -text
 root/usr/lib/aarch64-linux-gnu/libGLESv2_adreno.so filter=lfs diff=lfs merge=lfs -text
-root/usr/lib/aarch64-linux-gnu/libpcre.so.1 filter=lfs diff=lfs merge=lfs -text
 root/usr/lib/aarch64-linux-gnu/libdiag.so.1 filter=lfs diff=lfs merge=lfs -text
 root/usr/lib/aarch64-linux-gnu/libqmiservices.so.1 filter=lfs diff=lfs merge=lfs -text
 root/usr/sbin/cnss_daemon filter=lfs diff=lfs merge=lfs -text
