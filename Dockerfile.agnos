@@ -104,6 +104,7 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
 
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
+COPY ./userspace/terminfo/ /tmp/agnos/terminfo/
 RUN /tmp/agnos/install_extras.sh
 RUN /usr/comma/adbd --version
 
