@@ -9,7 +9,7 @@ from copy import deepcopy
 from pathlib import Path
 from collections import namedtuple
 
-from flash_images import optimize_image
+from flash_images import optimize_image, stream_index
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -173,6 +173,7 @@ def process_file(entry):
       "ondevice_hash": flash_ondevice_hash,
       "size": flash_size,
       "sparse": True,
+      "stream": stream_index(flash_path),
     }
     ret["flash"] = flash_info
 

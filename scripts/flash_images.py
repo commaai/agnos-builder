@@ -7,6 +7,37 @@ FILL = 0xCAC2
 MAGIC = 0xED26FF3A
 
 
+def stream_index(source):
+  """Index the RAW payload of a fully defined optimized sparse image."""
+  ranges, extents = [], []
+  with open(source, 'rb') as src:
+    magic, major, minor, file_header, chunk_header, block_size, blocks, count, _ = struct.unpack('<IHHHHIIII', src.read(28))
+    assert (magic, major, minor, file_header, chunk_header, block_size) == (MAGIC, 1, 0, 28, 12, BLOCK_SIZE)
+    offset = 0
+    for _ in range(count):
+      kind, _, chunk_blocks, total = struct.unpack('<HHII', src.read(12))
+      assert chunk_blocks > 0
+      if kind == RAW:
+        assert total == 12 + chunk_blocks * BLOCK_SIZE
+        ranges.append([src.tell(), chunk_blocks * BLOCK_SIZE])
+        if extents and extents[-1][0] + extents[-1][1] == offset:
+          extents[-1][1] += chunk_blocks
+        else:
+          extents.append([offset, chunk_blocks])
+        src.seek(total - 12, 1)
+      else:
+        assert kind == FILL and total == 16 and src.read(4) == bytes(4)
+      offset += chunk_blocks
+    assert offset == blocks and src.tell() == source.stat().st_size
+  return {
+    "sector_size": BLOCK_SIZE,
+    "num_partition_sectors": blocks,
+    "data_sectors": sum(length for _, length in extents),
+    "extents": extents,
+    "source_ranges": ranges,
+  }
+
+
 def optimize_image(source, target, max_gap=256 * 1024):
   """Keep exact sector contents while reducing zero writes and program commands."""
   segments, ranges = [], []

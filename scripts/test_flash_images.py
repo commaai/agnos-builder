@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from flash_images import BLOCK_SIZE, FILL, MAGIC, RAW, optimize_image
+from flash_images import BLOCK_SIZE, FILL, MAGIC, RAW, optimize_image, stream_index
 
 
 def expand(path):
@@ -55,6 +55,19 @@ class TestFlashImages(unittest.TestCase):
     data += struct.pack('<HHII', RAW, 0, 1, 12 + BLOCK_SIZE) + b'X' * 100
     with self.assertRaises(AssertionError):
       self.check_image(data)
+
+  def test_stream_index_matches_encoded_payload_and_target_sectors(self):
+    with tempfile.TemporaryDirectory() as directory:
+      source, target = Path(directory) / 'input.img', Path(directory) / 'output.img'
+      source.write_bytes(bytes(BLOCK_SIZE) + b'X' * BLOCK_SIZE + bytes(BLOCK_SIZE) + b'Y' * BLOCK_SIZE)
+      optimize_image(source, target, 0)
+      index = stream_index(target)
+      self.assertEqual(index['extents'], [[1, 1], [3, 1]])
+      self.assertEqual(index['num_partition_sectors'], 4)
+      self.assertEqual(index['data_sectors'], 2)
+      encoded = target.read_bytes()
+      payload = b''.join(encoded[start:start + size] for start, size in index['source_ranges'])
+      self.assertEqual(payload, b'X' * BLOCK_SIZE + b'Y' * BLOCK_SIZE)
 
 
 if __name__ == '__main__':
