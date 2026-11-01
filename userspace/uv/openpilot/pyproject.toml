@@ -30,6 +30,7 @@ dependencies = [
   "comma-deps-acados",
   "comma-deps-ffmpeg",
   "comma-deps-zstd",
+  "comma-deps-zeromq",
   "comma-deps-json11",
   "comma-deps-git-lfs",
   "comma-deps-gcc-arm-none-eabi",
@@ -42,12 +43,15 @@ dependencies = [
   "inputs",
 
   # these should be removed
+  "pyzmq",
+  "sentry-sdk",
   "setproctitle",
   "jeepney",
   "zstandard",  # this can go once we're on Python 3.14+
 
   # ui
   "comma-deps-raylib",
+  "qrcode",
 ]
 
 [project.optional-dependencies]
@@ -71,7 +75,7 @@ tools = [
 ]
 
 submodules = [
-  "msgq-ipc",
+  "msgq",
   "opendbc",
   "pandacan",
   "rednose",
@@ -95,8 +99,6 @@ build-backend = "hatchling.build"
 packages = [
   "openpilot",
 ]
-
-dev-mode-dirs = [".", "msgq_repo"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
