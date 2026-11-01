@@ -7,7 +7,7 @@ description = ""
 dependencies = [
   "openpilot",
   "openpilot[tools,testing,submodules]",
-  "msgq",
+  "msgq-ipc",
   "opendbc",
   "pandacan",
   "rednose",
@@ -45,7 +45,7 @@ dependencies = [
 
 [tool.uv.sources]
 openpilot = { path = "openpilot" }
-msgq = { git = "https://github.com/commaai/msgq.git", rev = "master" }
+msgq-ipc = { git = "https://github.com/commaai/msgq.git", rev = "master" }
 opendbc = { git = "https://github.com/commaai/opendbc.git", rev = "master" }
 pandacan = { git = "https://github.com/commaai/panda.git", rev = "master" }
 rednose = { git = "https://github.com/commaai/rednose.git", rev = "master" }
