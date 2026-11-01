@@ -51,6 +51,8 @@ git submodule update --init agnos-kernel-sdm845
     NS=1 ./build_system.sh
     ```
 
+Packaging release images with `scripts/package_ota.py` requires `xz` and `zstd` on the host.
+
 ### Flashing
 
 Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):

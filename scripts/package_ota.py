@@ -180,7 +180,8 @@ def process_file(entry):
   subprocess.check_call(["zstd", "-19", "-T0", "-f", str(flash_path), "-o", str(zstd_fn)])
   with flash_path.open("rb") as source:
     chunk_hashes = [hashlib.sha256(chunk).hexdigest() for chunk in iter(lambda: source.read(HASH_CHUNK_SIZE), b"")]
-  flash_info.update(zstd_url="{remote_url}/" + zstd_fn.name, file_size=flash_path.stat().st_size,
+  flash_info.update(zstd_url="{remote_url}/" + zstd_fn.name, archive_size=zstd_fn.stat().st_size,
+                    file_size=flash_path.stat().st_size,
                     chunk_size=HASH_CHUNK_SIZE, chunk_hashes=chunk_hashes)
   if flash_path != entry.path:
     flash_path.unlink()
