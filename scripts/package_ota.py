@@ -9,6 +9,8 @@ from copy import deepcopy
 from pathlib import Path
 from collections import namedtuple
 
+from flash_images import optimize_image
+
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
 FIRMWARE_DIR = ROOT / "firmware"
@@ -16,6 +18,7 @@ OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
 BUILD_DIR = ROOT / "build"
 
 SECTOR_SIZE = 4096
+HASH_CHUNK_SIZE = 4 * 1024 * 1024
 
 AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate")
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
@@ -98,16 +101,25 @@ def ondevice_checksum_sparse(fn, ota):
       chunk_sz = header[2]
 
       if chunk_type == 0xCAC1: # RAW
-        d = data_source.read(chunk_sz * SECTOR_SIZE)
-        hash_raw.update(d)
-        ondevice_hash.update(d)
-        total_size += chunk_sz * SECTOR_SIZE
-      elif chunk_type == 0xCAC2: # FILL
-        d = data_source.read(4) * (chunk_sz * SECTOR_SIZE // 4)
-        if d[:4] != b'\x00\x00\x00\x00': # For ondevice_hash, treat FILL 0 like DONT_CARE
+        remaining = chunk_sz * SECTOR_SIZE
+        while remaining:
+          d = data_source.read(min(remaining, 1024 * 1024))
+          assert d, 'Truncated sparse chunk'
+          hash_raw.update(d)
           ondevice_hash.update(d)
-        hash_raw.update(d)
-        total_size += chunk_sz * SECTOR_SIZE
+          total_size += len(d)
+          remaining -= len(d)
+      elif chunk_type == 0xCAC2: # FILL
+        fill = data_source.read(4)
+        assert len(fill) == 4
+        remaining = chunk_sz * SECTOR_SIZE
+        while remaining:
+          d = fill * (min(remaining, 1024 * 1024) // 4)
+          if fill != bytes(4):
+            ondevice_hash.update(d)
+          hash_raw.update(d)
+          total_size += len(d)
+          remaining -= len(d)
       elif chunk_type == 0xCAC3: # DONT_CARE
         assert not ota, 'DONT_CARE chunks are currently not supported for OTA'
       else:
@@ -116,9 +128,7 @@ def ondevice_checksum_sparse(fn, ota):
     return hash_raw.hexdigest(), ondevice_hash.hexdigest(), total_size
 
 def compress(fin, fout) -> None:
-  # since system.img is a squashfs now, we don't rely on this compression.
-  # however, openpilot's updater still expects an xz archive, so use lowest
-  # compression level for quick packaging.
+  # The OTA updater expects xz; keep packaging fast for that archive.
   subprocess.check_call(f"xz -0 -T0 -vc {fin} > {fout}", shell=True)
 
 
@@ -150,6 +160,30 @@ def process_file(entry):
     "has_ab": entry.has_ab,
     "ondevice_hash": ondevice_hash,
   }
+
+  flash_path = entry.path
+  flash_info = ret
+  if not isinstance(entry, GPT) and entry.name != "persist" and (not entry.sparse or entry.name == "system" or entry.name.startswith("userdata_")):
+    flash_path = OTA_OUTPUT_DIR / f"{entry.name}.flash.img"
+    optimize_image(entry.path, flash_path)
+    flash_hash_raw, flash_ondevice_hash, flash_size = ondevice_checksum_sparse(flash_path, True)
+    flash_info = {
+      "hash": file_checksum(flash_path).hexdigest(),
+      "hash_raw": flash_hash_raw,
+      "ondevice_hash": flash_ondevice_hash,
+      "size": flash_size,
+      "sparse": True,
+    }
+    ret["flash"] = flash_info
+
+  zstd_fn = OTA_OUTPUT_DIR / f"{entry.name}-{flash_info['hash']}.img.zst"
+  subprocess.check_call(["zstd", "-19", "-T0", "-f", str(flash_path), "-o", str(zstd_fn)])
+  with flash_path.open("rb") as source:
+    chunk_hashes = [hashlib.sha256(chunk).hexdigest() for chunk in iter(lambda: source.read(HASH_CHUNK_SIZE), b"")]
+  flash_info.update(zstd_url="{remote_url}/" + zstd_fn.name, file_size=flash_path.stat().st_size,
+                    chunk_size=HASH_CHUNK_SIZE, chunk_hashes=chunk_hashes)
+  if flash_path != entry.path:
+    flash_path.unlink()
 
   if entry.name == "system":
     ret["alt"] = {
@@ -187,6 +221,8 @@ if __name__ == "__main__":
       if only_ota and not ota:
         continue
       f["url"] = f["url"].format(remote_url=remote_url)
+      flash_info = f.get("flash", f)
+      flash_info["zstd_url"] = flash_info["zstd_url"].format(remote_url=remote_url)
       if "alt" in f:
         f["alt"]["url"] = f["alt"]["url"].format(remote_url=remote_url)
       processed_files.append(f)

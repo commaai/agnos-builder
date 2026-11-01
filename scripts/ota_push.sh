@@ -40,6 +40,10 @@ process_file() {
   local NAME=$1
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
   upload_file "$NAME-$HASH_RAW.img.xz"
+  local ZSTD_URL=$(jq -r --arg name "$NAME" '.[] | select(.name == $name) | (.flash // .).zstd_url // empty' "$OTA_JSON")
+  if [ -n "$ZSTD_URL" ]; then
+    upload_file "${ZSTD_URL##*/}"
+  fi
   if [ -f "$OTA_DIR/$NAME-$HASH_RAW.img" ]; then
     upload_file "$NAME-$HASH_RAW.img"
   fi
