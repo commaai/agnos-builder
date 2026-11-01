@@ -41,6 +41,7 @@ dependencies = [
 
   # GUIs
   "comma-deps-raylib",
+  "raylib-nanobind",
 ]
 
 [tool.uv.sources]
@@ -51,3 +52,4 @@ pandacan = { git = "https://github.com/commaai/panda.git", rev = "master" }
 rednose = { git = "https://github.com/commaai/rednose.git", rev = "master" }
 teleoprtc = { git = "https://github.com/commaai/teleoprtc.git", rev = "master" }
 tinygrad = { git = "https://github.com/tinygrad/tinygrad.git", rev = "master" }
+raylib-nanobind = { git = "https://github.com/commaai/raylib.git", rev = "7a9d876fff8bb040cfda5961d88f440e2b6c6e18" }

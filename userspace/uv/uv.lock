@@ -24,6 +24,7 @@ dependencies = [
     { name = "pycapnp" },
     { name = "pyserial" },
     { name = "pyusb" },
+    { name = "raylib-nanobind" },
     { name = "rednose" },
     { name = "smbus2" },
     { name = "spidev2" },
@@ -52,6 +53,7 @@ requires-dist = [
     { name = "pycapnp", specifier = "==2.1.0" },
     { name = "pyserial" },
     { name = "pyusb" },
+    { name = "raylib-nanobind", git = "https://github.com/commaai/raylib.git?rev=7a9d876fff8bb040cfda5961d88f440e2b6c6e18" },
     { name = "rednose", git = "https://github.com/commaai/rednose.git?rev=master" },
     { name = "smbus2" },
     { name = "spidev2" },
@@ -1142,6 +1144,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/8f/b2/7fc2931bfae0af02d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/b8/d2d6d731733f51684bbf76bf34dab3b70a9148e8f2cef2bb544fccec681a/qrcode-8.2-py3-none-any.whl", hash = "sha256:16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f", size = 45986, upload-time = "2025-05-01T15:44:22.781Z" },
 ]
+
+[[package]]
+name = "raylib-nanobind"
+version = "6.0.0.0"
+source = { git = "https://github.com/commaai/raylib.git?rev=7a9d876fff8bb040cfda5961d88f440e2b6c6e18#7a9d876fff8bb040cfda5961d88f440e2b6c6e18" }
 
 [[package]]
 name = "rednose"
