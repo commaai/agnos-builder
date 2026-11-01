@@ -311,15 +311,15 @@ wheels = [
 
 [[package]]
 name = "comma-deps-raylib"
-version = "6.0.0.1.post105"
+version = "6.0.0.1.post106"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/d2/1621ec768724e1c18e043ef2cd30ea82906c1a8ab35ebd5bde69d669498a/comma_deps_raylib-6.0.0.1.post105-py3-none-macosx_11_0_arm64.whl", hash = "sha256:c6cc5e7e86e1267f021a32b4de287997bf217412d66ca20b11c88dc558c71de3", size = 1885400, upload-time = "2026-11-01T04:49:24.792Z" },
-    { url = "https://files.pythonhosted.org/packages/76/b9/7b6f433b7cbacb89badd59ed942f2f6dbf7c7a3237a02f4facf5dc4e53b4/comma_deps_raylib-6.0.0.1.post105-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:1817ca79908462277a26c14c406c95e5dabf3b0e0f821c8c2201a143d51c3420", size = 21708186, upload-time = "2026-11-01T04:49:29.102Z" },
-    { url = "https://files.pythonhosted.org/packages/0b/04/5b12ae6fb06f5fcf16a5a491997dc3dc8c696a22fbc0d7fe28591d4fb46b/comma_deps_raylib-6.0.0.1.post105-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:a14a80cc1171ba7e81508e9eda3bcedd02994c99e0b71af47fbf991bb189dab6", size = 20722498, upload-time = "2026-11-01T04:49:34.391Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/71/e8a63d9969441d0e31b5cd5fa908a245b46e160bd86b73ce13f85aa9eb45/comma_deps_raylib-6.0.0.1.post106-cp312-abi3-macosx_11_0_arm64.whl", hash = "sha256:d3dba4ad783f11f9f1e56105afa856cf3ffb9268dcca44ac3dc1d93e7cbf1874", size = 2383355, upload-time = "2026-11-01T22:33:11.034Z" },
+    { url = "https://files.pythonhosted.org/packages/12/4f/865bf68faf83832540d51c344685d6810a2927cb1c4a5ba5ef6a80cf799b/comma_deps_raylib-6.0.0.1.post106-cp312-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:cfcfd422e36caa47b7cf6a315653a40be2dde87a419637bd87d917ec3b13dec3", size = 26737944, upload-time = "2026-11-01T22:33:15.262Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/56/791a9c5d8ccb0aef0d793dc6a12d574df45861fbb860f8255e4eebf9e05a/comma_deps_raylib-6.0.0.1.post106-cp312-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:22a267761192f9303d13bffe765b9e9bde27986293a10653960aa07a8c65c0ff", size = 24258130, upload-time = "2026-11-01T22:33:20.148Z" },
 ]
 
 [[package]]
