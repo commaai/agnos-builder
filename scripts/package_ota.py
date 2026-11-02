@@ -7,7 +7,8 @@ import struct
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from collections import namedtuple
+from collections import deque, namedtuple
+from concurrent.futures import ThreadPoolExecutor
 
 from flash_images import optimize_image, stream_index
 
@@ -67,7 +68,7 @@ PARTITIONS = [
 def file_checksum(fn):
   sha256 = hashlib.sha256()
   with open(fn, 'rb') as f:
-    for chunk in iter(lambda: f.read(4096), b""):
+    for chunk in iter(lambda: f.read(1024 * 1024), b""):
       sha256.update(chunk)
   return sha256
 
@@ -132,6 +133,39 @@ def compress(fin, fout) -> None:
   subprocess.check_call(f"xz -0 -T0 -vc {fin} > {fout}", shell=True)
 
 
+def compress_chunks(source, target, chunk_size=HASH_CHUNK_SIZE, workers=8):
+  def compress_chunk(data):
+    return subprocess.check_output(["zstd", "-19", "-T1", "-q", "-c", f"--stream-size={len(data)}"], input=data)
+
+  sizes, hashes, pending = [], [], deque()
+  workers = min(workers, os.cpu_count() or 1)
+  with source.open("rb") as src, target.open("wb") as dst, ThreadPoolExecutor(max_workers=workers) as pool:
+    def submit():
+      data = src.read(chunk_size)
+      if not data:
+        return False
+      hashes.append(hashlib.sha256(data).hexdigest())
+      pending.append(pool.submit(compress_chunk, data))
+      return True
+
+    for _ in range(workers):
+      if not submit():
+        break
+    while pending:
+      frame = pending.popleft().result()
+      sizes.append(len(frame))
+      dst.write(frame)
+      submit()
+  return sizes, hashes
+
+
+def name_archive(path, name, chunked=False):
+  digest = file_checksum(path).hexdigest()
+  destination = path.parent / f"{name}-{digest}{'.chunked' if chunked else ''}.img.zst"
+  path.replace(destination)
+  return destination
+
+
 def process_file(entry):
   size = entry.path.stat().st_size
   print(f"\n{entry.name} {size} bytes")
@@ -139,7 +173,9 @@ def process_file(entry):
   sha256 = file_checksum(entry.path)
   hash = hash_raw = sha256.hexdigest()
 
-  if struct.unpack("<I", open(entry.path, 'rb').read(4))[0] == 0xED26FF3A:
+  with entry.path.open('rb') as source:
+    sparse = struct.unpack("<I", source.read(4))[0] == 0xED26FF3A
+  if sparse:
     hash_raw, ondevice_hash, size = ondevice_checksum_sparse(entry.path, entry.ota)
   else:
     sha256.update(b'\x00' * ((SECTOR_SIZE - (size % SECTOR_SIZE)) % SECTOR_SIZE))
@@ -177,13 +213,21 @@ def process_file(entry):
     }
     ret["flash"] = flash_info
 
-  zstd_fn = OTA_OUTPUT_DIR / f"{entry.name}-{flash_info['hash']}.img.zst"
+  zstd_fn = OTA_OUTPUT_DIR / f"{entry.name}.img.zst"
   subprocess.check_call(["zstd", "-19", "-T0", "-f", str(flash_path), "-o", str(zstd_fn)])
-  with flash_path.open("rb") as source:
-    chunk_hashes = [hashlib.sha256(chunk).hexdigest() for chunk in iter(lambda: source.read(HASH_CHUNK_SIZE), b"")]
+  zstd_fn = name_archive(zstd_fn, entry.name)
+  if flash_path.stat().st_size > HASH_CHUNK_SIZE:
+    chunked_fn = OTA_OUTPUT_DIR / f"{entry.name}.chunked.img.zst"
+    frame_sizes, chunk_hashes = compress_chunks(flash_path, chunked_fn)
+    chunked_fn = name_archive(chunked_fn, entry.name, chunked=True)
+  else:
+    chunked_fn = zstd_fn
+    frame_sizes, chunk_hashes = [zstd_fn.stat().st_size], [flash_info['hash']]
   flash_info.update(zstd_url="{remote_url}/" + zstd_fn.name, archive_size=zstd_fn.stat().st_size,
                     file_size=flash_path.stat().st_size,
-                    chunk_size=HASH_CHUNK_SIZE, chunk_hashes=chunk_hashes)
+                    chunk_size=HASH_CHUNK_SIZE, chunk_hashes=chunk_hashes,
+                    zstd_chunked_url="{remote_url}/" + chunked_fn.name,
+                    zstd_chunked_size=chunked_fn.stat().st_size, zstd_frame_sizes=frame_sizes)
   if flash_path != entry.path:
     flash_path.unlink()
 
@@ -224,7 +268,8 @@ if __name__ == "__main__":
         continue
       f["url"] = f["url"].format(remote_url=remote_url)
       flash_info = f.get("flash", f)
-      flash_info["zstd_url"] = flash_info["zstd_url"].format(remote_url=remote_url)
+      for key in ("zstd_url", "zstd_chunked_url"):
+        flash_info[key] = flash_info[key].format(remote_url=remote_url)
       if "alt" in f:
         f["alt"]["url"] = f["alt"]["url"].format(remote_url=remote_url)
       processed_files.append(f)

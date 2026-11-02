@@ -44,6 +44,10 @@ process_file() {
   if [ -n "$ZSTD_URL" ]; then
     upload_file "${ZSTD_URL##*/}"
   fi
+  local CHUNKED_URL=$(jq -r --arg name "$NAME" '.[] | select(.name == $name) | (.flash // .).zstd_chunked_url // empty' "$OTA_JSON")
+  if [ -n "$CHUNKED_URL" ] && [ "$CHUNKED_URL" != "$ZSTD_URL" ]; then
+    upload_file "${CHUNKED_URL##*/}"
+  fi
   if [ -f "$OTA_DIR/$NAME-$HASH_RAW.img" ]; then
     upload_file "$NAME-$HASH_RAW.img"
   fi

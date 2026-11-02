@@ -53,6 +53,11 @@ git submodule update --init agnos-kernel-sdm845
 
 Packaging release images with `scripts/package_ota.py` requires `xz` and `zstd` on the host.
 
+Manifests retain the XZ OTA artifacts and add optional `flash` metadata for optimized images.
+`zstd_url` names the solid archive; `zstd_chunked_url` names independent frames located by `zstd_frame_sizes`.
+Each decoded frame matches the corresponding `chunk_hashes` entry and `chunk_size` (with a shorter final frame).
+The `stream` index omits zero FILL ranges, so its destination ranges must be erased before programming.
+
 ### Flashing
 
 Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
