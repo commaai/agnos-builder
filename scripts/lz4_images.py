@@ -1,6 +1,14 @@
 import ctypes
+import functools
 import hashlib
+import os
+import shlex
 import struct
+import subprocess
+import tempfile
+import threading
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from flash_images import stream_index
@@ -24,6 +32,23 @@ def codec():
   lib.LZ4_compress_default.restype = ctypes.c_int
   lib.LZ4_decompress_safe.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
   lib.LZ4_decompress_safe.restype = ctypes.c_int
+  return lib
+
+
+@functools.lru_cache(maxsize=1)
+def hc_codec():
+  # favorDecompressionSpeed is a static-link-only liblz4 API. Compile the small
+  # public-header adapter instead of depending on private context layouts.
+  temporary = tempfile.TemporaryDirectory(prefix='agnos-lz4-')
+  target = Path(temporary.name) / 'lz4_hc.so'
+  subprocess.check_call([*shlex.split(os.getenv('CC', 'cc')), '-O2', '-fPIC', '-shared',
+                         str(Path(__file__).with_name('lz4_hc.c')), '-Wl,-Bstatic', '-llz4', '-Wl,-Bdynamic', '-o', str(target)])
+  lib = ctypes.CDLL(str(target))
+  lib.temporary = temporary
+  lib.agnos_lz4_create.restype = ctypes.c_void_p
+  lib.agnos_lz4_destroy.argtypes = [ctypes.c_void_p]
+  lib.agnos_lz4_compress.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+  lib.agnos_lz4_compress.restype = ctypes.c_int
   return lib
 
 
@@ -63,25 +88,48 @@ class PayloadReader:
 
 
 def write_frames(source, target, index, block_size):
-  lib = codec()
-  raw_buffer = ctypes.create_string_buffer(block_size)
-  compressed_buffer = ctypes.create_string_buffer(lib.LZ4_compressBound(block_size))
-  raw = memoryview(raw_buffer).cast('B')
-  compressed = memoryview(compressed_buffer).cast('B')
+  lib = hc_codec()
+  capacity = codec().LZ4_compressBound(block_size)
+  local, contexts = threading.local(), []
+
+  def compress(raw):
+    if not hasattr(local, 'context'):
+      local.context = lib.agnos_lz4_create()
+      check(local.context, 'could not allocate compression context')
+      contexts.append(local.context)
+      local.output = ctypes.create_string_buffer(capacity)
+    size = lib.agnos_lz4_compress(local.context, raw, local.output, len(raw), capacity)
+    check(0 < size <= capacity, 'compression failed')
+    flags = int(size >= len(raw))
+    return (raw if flags else local.output.raw[:size]), len(raw), flags
+
   previous = None
   first = wire_bytes = 0
-  with source.open('rb') as src, target.open('wb') as dst:
-    payload = PayloadReader(src, index['source_ranges'])
-    for _, sectors in index['extents']:
-      remaining = sectors * SECTOR_SIZE
-      while remaining:
-        count = min(block_size, remaining)
-        payload.readinto(raw[:count])
-        encoded = lib.LZ4_compress_default(raw_buffer, compressed_buffer, count, len(compressed_buffer))
-        check(0 < encoded <= len(compressed_buffer), 'compression failed')
-        flags = int(encoded >= count)
-        encoded = count if flags else encoded
-        wire = (HEADER_SIZE + encoded + SECTOR_SIZE - 1) // SECTOR_SIZE * SECTOR_SIZE
+  try:
+    with source.open('rb') as src, target.open('wb') as dst, ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as pool:
+      payload = PayloadReader(src, index['source_ranges'])
+      raw = bytearray(block_size)
+      def blocks():
+        for _, sectors in index['extents']:
+          remaining = sectors * SECTOR_SIZE
+          while remaining:
+            count = min(block_size, remaining)
+            payload.readinto(memoryview(raw)[:count])
+            yield bytes(raw[:count])
+            remaining -= count
+        payload.finish()
+
+      pending, inputs = deque(), iter(blocks())
+      def submit():
+        block = next(inputs, None)
+        if block is not None:
+          pending.append(pool.submit(compress, block))
+
+      for _ in range(8):
+        submit()
+      while pending:
+        encoded, count, flags = pending.popleft().result()
+        wire = (HEADER_SIZE + len(encoded) + SECTOR_SIZE - 1) // SECTOR_SIZE * SECTOR_SIZE
         if previous is None:
           first = wire
         else:
@@ -89,12 +137,14 @@ def write_frames(source, target, index, block_size):
           dst.write(struct.pack('<I', wire))
           dst.seek(wire_bytes)
         previous = wire_bytes
-        dst.write(struct.pack('<IIII', 0, encoded, count, flags))
-        dst.write(raw[:encoded] if flags else compressed[:encoded])
-        dst.write(bytes(wire - HEADER_SIZE - encoded))
+        dst.write(struct.pack('<IIII', 0, len(encoded), count, flags))
+        dst.write(encoded)
+        dst.write(bytes(wire - HEADER_SIZE - len(encoded)))
         wire_bytes += wire
-        remaining -= count
-    payload.finish()
+        submit()
+  finally:
+    for context in contexts:
+      lib.agnos_lz4_destroy(context)
   return {
     'sector_size': SECTOR_SIZE,
     'num_partition_sectors': index['num_partition_sectors'],
@@ -168,7 +218,7 @@ def verify_lz4(source, target, metadata):
 
 
 def encode_lz4(source, target, block_size=MAX_DECODED_BYTES):
-  """Encode and independently verify an optimized sparse image using about 2 MiB of buffers."""
+  """Encode with at most eight bounded jobs, then independently verify every sector."""
   source, target = Path(source), Path(target)
   check(source.resolve() != target.resolve() and not (target.exists() and source.samefile(target)), 'source and target must differ')
   check(type(block_size) is int and 0 < block_size <= MAX_DECODED_BYTES and block_size % SECTOR_SIZE == 0, 'invalid block size')

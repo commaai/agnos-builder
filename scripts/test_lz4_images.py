@@ -98,6 +98,15 @@ class Lz4ImagesTest(unittest.TestCase):
     metadata = self.encode([(RAW, b'a' * (BLOCK_SIZE * 3))], BLOCK_SIZE)
     self.assertEqual(len(frames(self.target, metadata)), 3)
 
+  def test_parallel_context_reuse_is_independent_and_deterministic(self):
+    contents = b''.join(bytes([i]) * BLOCK_SIZE for i in range(24))
+    first = self.encode([(RAW, contents)], BLOCK_SIZE)
+    expected = self.target.read_bytes()
+    second = encode_lz4(self.source, self.target, BLOCK_SIZE)
+    self.assertEqual(first, second)
+    self.assertEqual(self.target.read_bytes(), expected)
+    self.assertEqual(len(frames(self.target, second)), 24)
+
   def test_invalid_block_sizes_do_not_touch_source(self):
     sparse(self.source, [(RAW, b'a' * BLOCK_SIZE)])
     before = self.source.read_bytes()

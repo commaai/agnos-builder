@@ -51,7 +51,7 @@ git submodule update --init agnos-kernel-sdm845
     NS=1 ./build_system.sh
     ```
 
-Packaging release images with `scripts/package_ota.py` requires `xz`, `zstd`, and `liblz4` on the host.
+Packaging release images with `scripts/package_ota.py` requires `xz`, `zstd`, a C compiler, and `liblz4-dev` on the Linux host.
 
 Manifests retain the XZ OTA artifacts and add optional `flash` metadata for optimized images.
 `zstd_url` names the solid archive; `zstd_chunked_url` names independent frames located by `zstd_frame_sizes`.
