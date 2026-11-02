@@ -51,10 +51,14 @@ git submodule update --init agnos-kernel-sdm845
     NS=1 ./build_system.sh
     ```
 
-Packaging release images with `scripts/package_ota.py` requires `xz` and `zstd` on the host.
+Packaging release images with `scripts/package_ota.py` requires `xz`, `zstd`, and `liblz4` on the host.
 
 Manifests retain the XZ OTA artifacts and add optional `flash` metadata for optimized images.
 `zstd_url` names the solid archive; `zstd_chunked_url` names independent frames located by `zstd_frame_sizes`.
+Large images also include a `flash.lz4` companion for programmers that decode LZ4 while writing UFS.
+Its verified transport bytes use the same Zstd archive and chunk-hash fields; `stream` describes the target extents and chained LZ4 frames.
+The raw sparse fallback minimizes programmed zero sectors, while the LZ4 companion bridges small zero gaps to reduce frame overhead.
+Both have identical expanded contents, and the original OTA archives remain unchanged.
 Each decoded frame matches the corresponding `chunk_hashes` entry and `chunk_size` (with a shorter final frame).
 The `stream` index omits zero FILL ranges, so its destination ranges must be erased before programming.
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import package_ota
+from lz4_images import verify_lz4
 
 
 class TestFlashArchives(unittest.TestCase):
@@ -79,6 +80,29 @@ class TestFlashArchives(unittest.TestCase):
         decoded = subprocess.check_output(['zstd', '-q', '-dc'], input=archive[offset:offset + size])
         self.assertEqual(hashlib.sha256(decoded).hexdigest(), digest)
         offset += size
+
+  def test_lz4_companion_keeps_logical_contents_and_original_archives(self):
+    contents = b'A' * 4096 + bytes(16384) + b'B' * 8192
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source = root / 'system.img'
+      source.write_bytes(contents)
+      with patch.object(package_ota, 'OTA_OUTPUT_DIR', root):
+        metadata = package_ota.process_file(package_ota.Partition('system', source, True, True, False, True))
+      flash, lz4 = metadata['flash'], metadata['flash']['lz4']
+      self.assertEqual(metadata['hash'], hashlib.sha256(contents).hexdigest())
+      self.assertEqual(lzma.decompress((root / Path(metadata['url']).name).read_bytes()), contents)
+      self.assertEqual(flash['stream']['extents'], [[0, 1], [5, 2]])
+      self.assertEqual(lz4['stream']['extents'], [[0, 7]])
+      self.assertEqual(lz4['hash_raw'], flash['hash_raw'])
+      encoded = subprocess.check_output(['zstd', '-q', '-dc', str(root / Path(lz4['zstd_url']).name)])
+      self.assertEqual(hashlib.sha256(encoded).hexdigest(), lz4['hash'])
+      self.assertEqual(len(encoded), lz4['file_size'])
+      self.assertEqual(lz4['file_size'], lz4['stream']['compressed_bytes'])
+      coarse, wire = root / 'coarse.img', root / 'wire.lz4'
+      package_ota.optimize_image(source, coarse)
+      wire.write_bytes(encoded)
+      self.assertEqual(verify_lz4(coarse, wire, lz4), lz4['hash'])
 
 
 if __name__ == '__main__':

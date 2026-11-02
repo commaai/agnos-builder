@@ -11,6 +11,8 @@ from collections import deque, namedtuple
 from concurrent.futures import ThreadPoolExecutor
 
 from flash_images import optimize_image, stream_index
+from lz4_images import encode_lz4
+from sparse_equivalence import verify_sparse_equal
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -166,6 +168,24 @@ def name_archive(path, name, chunked=False):
   return destination
 
 
+def flash_archives(source, name, metadata):
+  zstd_fn = OTA_OUTPUT_DIR / f"{name}.img.zst"
+  subprocess.check_call(["zstd", "-19", "-T0", "-f", str(source), "-o", str(zstd_fn)])
+  zstd_fn = name_archive(zstd_fn, name)
+  if source.stat().st_size > HASH_CHUNK_SIZE:
+    chunked_fn = OTA_OUTPUT_DIR / f"{name}.chunked.img.zst"
+    frame_sizes, chunk_hashes = compress_chunks(source, chunked_fn)
+    chunked_fn = name_archive(chunked_fn, name, chunked=True)
+  else:
+    chunked_fn = zstd_fn
+    frame_sizes, chunk_hashes = [zstd_fn.stat().st_size], [metadata['hash']]
+  metadata.update(zstd_url="{remote_url}/" + zstd_fn.name, archive_size=zstd_fn.stat().st_size,
+                  file_size=source.stat().st_size,
+                  chunk_size=HASH_CHUNK_SIZE, chunk_hashes=chunk_hashes,
+                  zstd_chunked_url="{remote_url}/" + chunked_fn.name,
+                  zstd_chunked_size=chunked_fn.stat().st_size, zstd_frame_sizes=frame_sizes)
+
+
 def process_file(entry):
   size = entry.path.stat().st_size
   print(f"\n{entry.name} {size} bytes")
@@ -201,7 +221,7 @@ def process_file(entry):
   flash_info = ret
   if not isinstance(entry, GPT) and entry.name != "persist" and (not entry.sparse or entry.name == "system" or entry.name.startswith("userdata_")):
     flash_path = OTA_OUTPUT_DIR / f"{entry.name}.flash.img"
-    optimize_image(entry.path, flash_path)
+    optimize_image(entry.path, flash_path, max_gap=0, max_extents=4096)
     flash_hash_raw, flash_ondevice_hash, flash_size = ondevice_checksum_sparse(flash_path, True)
     flash_info = {
       "hash": file_checksum(flash_path).hexdigest(),
@@ -213,21 +233,19 @@ def process_file(entry):
     }
     ret["flash"] = flash_info
 
-  zstd_fn = OTA_OUTPUT_DIR / f"{entry.name}.img.zst"
-  subprocess.check_call(["zstd", "-19", "-T0", "-f", str(flash_path), "-o", str(zstd_fn)])
-  zstd_fn = name_archive(zstd_fn, entry.name)
-  if flash_path.stat().st_size > HASH_CHUNK_SIZE:
-    chunked_fn = OTA_OUTPUT_DIR / f"{entry.name}.chunked.img.zst"
-    frame_sizes, chunk_hashes = compress_chunks(flash_path, chunked_fn)
-    chunked_fn = name_archive(chunked_fn, entry.name, chunked=True)
-  else:
-    chunked_fn = zstd_fn
-    frame_sizes, chunk_hashes = [zstd_fn.stat().st_size], [flash_info['hash']]
-  flash_info.update(zstd_url="{remote_url}/" + zstd_fn.name, archive_size=zstd_fn.stat().st_size,
-                    file_size=flash_path.stat().st_size,
-                    chunk_size=HASH_CHUNK_SIZE, chunk_hashes=chunk_hashes,
-                    zstd_chunked_url="{remote_url}/" + chunked_fn.name,
-                    zstd_chunked_size=chunked_fn.stat().st_size, zstd_frame_sizes=frame_sizes)
+  flash_archives(flash_path, entry.name, flash_info)
+  if (entry.name == "system" or entry.name.startswith("userdata_")) and flash_info["stream"]["data_sectors"]:
+    coarse_path = OTA_OUTPUT_DIR / f"{entry.name}.coarse.img"
+    wire_path = OTA_OUTPUT_DIR / f"{entry.name}.lz4"
+    optimize_image(entry.path, coarse_path, max_gap=256 * 1024, max_extents=4096)
+    verify_sparse_equal(flash_path, coarse_path)
+    # Independently compare every decoded frame and the complete zero-hole layout.
+    lz4 = encode_lz4(coarse_path, wire_path)
+    lz4["hash_raw"] = flash_info["hash_raw"]
+    flash_archives(wire_path, entry.name + ".lz4", lz4)
+    flash_info["lz4"] = lz4
+    coarse_path.unlink()
+    wire_path.unlink()
   if flash_path != entry.path:
     flash_path.unlink()
 
@@ -268,8 +286,9 @@ if __name__ == "__main__":
         continue
       f["url"] = f["url"].format(remote_url=remote_url)
       flash_info = f.get("flash", f)
-      for key in ("zstd_url", "zstd_chunked_url"):
-        flash_info[key] = flash_info[key].format(remote_url=remote_url)
+      for info in [flash_info, *([flash_info["lz4"]] if "lz4" in flash_info else [])]:
+        for key in ("zstd_url", "zstd_chunked_url"):
+          info[key] = info[key].format(remote_url=remote_url)
       if "alt" in f:
         f["alt"]["url"] = f["alt"]["url"].format(remote_url=remote_url)
       processed_files.append(f)

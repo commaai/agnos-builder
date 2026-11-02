@@ -69,6 +69,19 @@ class TestFlashImages(unittest.TestCase):
       payload = b''.join(encoded[start:start + size] for start, size in index['source_ranges'])
       self.assertEqual(payload, b'X' * BLOCK_SIZE + b'Y' * BLOCK_SIZE)
 
+  def test_extent_limit_adds_only_the_smallest_zero_gaps(self):
+    with tempfile.TemporaryDirectory() as directory:
+      source, target = Path(directory) / 'input.img', Path(directory) / 'output.img'
+      data = bytearray(10 * BLOCK_SIZE)
+      for block in (0, 2, 6, 9):
+        data[block * BLOCK_SIZE:(block + 1) * BLOCK_SIZE] = b'X' * BLOCK_SIZE
+      source.write_bytes(data)
+      optimize_image(source, target, max_gap=0, max_extents=2)
+      self.assertEqual(expand(target), (data, 2))
+      index = stream_index(target)
+      self.assertEqual(index['extents'], [[0, 3], [6, 4]])
+      self.assertEqual(index['data_sectors'], 7)
+
 
 if __name__ == '__main__':
   unittest.main()

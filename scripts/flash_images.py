@@ -38,7 +38,7 @@ def stream_index(source):
   }
 
 
-def optimize_image(source, target, max_gap=256 * 1024):
+def optimize_image(source, target, max_gap=256 * 1024, max_extents=None):
   """Keep exact sector contents while reducing zero writes and program commands."""
   segments, ranges = [], []
 
@@ -76,6 +76,21 @@ def optimize_image(source, target, max_gap=256 * 1024):
           if data[offset:offset + BLOCK_SIZE].ljust(BLOCK_SIZE, b'\0') != zero:
             add_range(offset, offset + BLOCK_SIZE)
       segments.append((0, size, RAW, 0, None))
+
+    if max_extents is not None:
+      assert isinstance(max_extents, int) and max_extents > 0
+      if len(ranges) > max_extents:
+        # Each bridged gap removes one extent. Choosing the smallest gaps adds
+        # the fewest zero sectors needed to fit the programmer's table.
+        gaps = sorted(range(1, len(ranges)), key=lambda i: (ranges[i][0] - ranges[i - 1][1], i))
+        bridge = set(gaps[:len(ranges) - max_extents])
+        bounded = []
+        for i, (start, end) in enumerate(ranges):
+          if i in bridge:
+            bounded[-1][1] = end
+          else:
+            bounded.append([start, end])
+        ranges = bounded
 
     chunks, offset = [], 0
     for start, end in ranges:
