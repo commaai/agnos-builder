@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 06:32:34 -0800
+Subject: [PATCH] dt-bindings: clock: qcom,sdm845-camcc: add the CX power
+ domain
+
+The SDM845 camera clock controller and its GDSCs sit on the CX rail,
+like GCC's, whose binding already takes the CX power domain. Allow the
+same here, so that the GDSCs become CX subdomains and a camera block's
+performance-state vote on its GDSC reaches CX.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ .../devicetree/bindings/clock/qcom,sdm845-camcc.yaml       | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/clock/qcom,sdm845-camcc.yaml b/Documentation/devicetree/bindings/clock/qcom,sdm845-camcc.yaml
+index 6214e41eec..2286b06512 100644
+--- a/Documentation/devicetree/bindings/clock/qcom,sdm845-camcc.yaml
++++ b/Documentation/devicetree/bindings/clock/qcom,sdm845-camcc.yaml
+@@ -34,6 +34,11 @@ properties:
+     items:
+       - const: bi_tcxo
+ 
++  power-domains:
++    maxItems: 1
++    description:
++      CX power domain.
++
+   reg:
+     maxItems: 1
+ 
+@@ -47,11 +52,13 @@ unevaluatedProperties: false
+ examples:
+   - |
+     #include <dt-bindings/clock/qcom,rpmh.h>
++    #include <dt-bindings/power/qcom,rpmhpd.h>
+     clock-controller@ad00000 {
+       compatible = "qcom,sdm845-camcc";
+       reg = <0x0ad00000 0x10000>;
+       clocks = <&rpmhcc RPMH_CXO_CLK>;
+       clock-names = "bi_tcxo";
++      power-domains = <&rpmhpd SDM845_CX>;
+       #clock-cells = <1>;
+       #reset-cells = <1>;
+       #power-domain-cells = <1>;

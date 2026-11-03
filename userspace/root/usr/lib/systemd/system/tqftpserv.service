@@ -1,0 +1,7 @@
+[Unit]
+Description=Qualcomm firmware file service
+Before=rmtfs.service
+
+[Service]
+ExecStart=/usr/bin/tqftpserv
+Restart=always

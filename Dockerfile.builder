@@ -1,6 +1,6 @@
 # check=error=true
 
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 ARG UNAME
 ARG UID
@@ -10,11 +10,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    python2 \
+    python3 \
     build-essential \
+    gcc-aarch64-linux-gnu \
+    bison \
+    flex \
+    git \
+    kmod \
+    zstd \
+    rsync \
+    libelf-dev \
     libssl-dev \
     bc \
-    python-is-python2 \
     openssl \
     ccache \
     libcap2-bin \
@@ -34,5 +41,3 @@ RUN CCACHE_PATH=$(which ccache) && \
     ln -s $CCACHE_PATH /usr/local/bin/cc && \
     ln -s $CCACHE_PATH /usr/local/bin/c++ && \
     ln -s $CCACHE_PATH /usr/local/bin/clang
-
-ENTRYPOINT ["tail", "-f", "/dev/null"]

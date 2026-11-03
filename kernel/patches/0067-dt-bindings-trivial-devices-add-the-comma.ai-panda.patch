@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 04:50:55 -0800
+Subject: [PATCH] dt-bindings: trivial-devices: add the comma.ai panda
+
+The panda is comma's CAN interface microcontroller. On the comma four it
+sits on an SPI bus of the SoC and is driven from userspace through
+spidev, so it needs nothing beyond a compatible, reg and
+spi-max-frequency.
+
+This is local to AGNOS, like the spidev patch that uses it.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ Documentation/devicetree/bindings/trivial-devices.yaml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/trivial-devices.yaml b/Documentation/devicetree/bindings/trivial-devices.yaml
+index 2de8eb09cb..539d364b59 100644
+--- a/Documentation/devicetree/bindings/trivial-devices.yaml
++++ b/Documentation/devicetree/bindings/trivial-devices.yaml
+@@ -85,6 +85,8 @@ properties:
+           - capella,cm3323
+             # Cisco SPI Petra
+           - cisco,spi-petra
++            # comma.ai panda CAN interface, driven from userspace through spidev
++          - commaai,panda
+             # High-Precision Digital Thermometer
+           - dallas,ds1631
+             # Total-Elapsed-Time Recorder with Alarm

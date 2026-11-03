@@ -20,7 +20,7 @@ Run once to set things up:
 git clone https://github.com/commaai/agnos-builder.git
 
 cd agnos-builder
-git submodule update --init agnos-kernel-sdm845
+git submodule update --init --depth 1 kernel/linux
 ./tools/extract_tools.sh
 ```
 
@@ -44,22 +44,30 @@ git submodule update --init agnos-kernel-sdm845
     ./build_system.sh
     ```
 
-    To build using [namespace.so](https://namespace.so) remote ARM64 builders, prefix with `NS=1`:
+    To build the system image using [namespace.so](https://namespace.so) remote ARM64 builders, prefix it with `NS=1`
+    (the kernel always builds locally, in docker):
 
     ```
-    NS=1 ./build_kernel.sh
     NS=1 ./build_system.sh
     ```
 
+The mainline kernel build targets the comma four (mici) and comma 3X (tizi) and retains
+the current Ubuntu userspace. Its boot payload uses the stock `UNCOMPRESSED_IMG` format:
+16-byte magic, little-endian 32-bit raw Image length, raw arm64 Image, and the mici and
+tizi DTBs. The bootloader picks the DTB whose `qcom,board-id` matches the device. Boot
+image addresses and the signature format remain unchanged.
+
 ### Flashing
 
-Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
+Flashing to a comma four (mici): put the device in [QDL mode](https://flash.comma.ai/) before flashing.
 ```
 ./flash_kernel.sh
 ./flash_system.sh
 
 ./flash_all.sh 
 ```
+
+The kernel modules are in `system.img`, so flash `boot.img` and `system.img` from the same build (see [kernel/README.md](kernel/README.md)).
 
 In the event that flashing from building doesn't work, `scripts/download-from-manifest.py` allows you to download the latest AGNOS version for flashing.
 

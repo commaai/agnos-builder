@@ -33,7 +33,3 @@ chown comma: /data/ssh
 # /data/tmp - clear out
 rm -rf /data/tmp/
 mkdir -p /data/tmp/
-
-# /data/persist - served to the modem and DSPs through /system/rfs
-mkdir -p /data/persist/hlos_rfs/shared /data/persist/rfs/shared \
-  /data/persist/rfs/msm/adsp /data/persist/rfs/msm/mpss

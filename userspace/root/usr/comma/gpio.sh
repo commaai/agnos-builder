@@ -1,43 +1,16 @@
-#!/bin/bash
+#!/bin/bash -e
+# The board's DT names its GPIO lines (gpio-line-names), gpiofind looks them up
 
-function gpio {
-  echo "out" > /sys/class/gpio/gpio$1/direction
-  echo $2 > /sys/class/gpio/gpio$1/value
-}
-
-pins=(
-# 27  # SW_3V3_EN
-# 25  # SW_5V_EN
-30  # HUB_RST_N
-49  # SOM_ST_IO
-134 # ST_BOOT0
-41  # PANDA_1V8_EN_N
-50  # LTE_RST_N
-116 # LTE_PWRKEY
-124 # ST_RST_N
-34  # GPS_PWR_EN
-33  # GPS_SAFEBOOT_N
-32  # GPS_RST_N
-52  # LTE_BOOT
-1264  # POWER ALERT
-)
-
-for p in ${pins[@]}; do
-  echo $p
-
-  # this is SSD_3v3 EN on tici
-  if [ "$p" -eq 41 ] && grep -q "comma tici" /sys/firmware/devicetree/base/model; then
-    echo "Skipping $p"
-    continue
-  fi
-
-  echo $p > /sys/class/gpio/export
-  until [ -d /sys/class/gpio/gpio$p ]
-  do
-    sleep .05
-  done
+# openpilot's common/gpio.py still drives these through the legacy sysfs ABI.
+# The per-chip export (/sys/class/gpio/chipN/export, v6.17+) takes the line
+# offset, and GPIO_SYSFS_LEGACY also creates the global gpioNNN that openpilot
+# opens. Lines that are already exported are skipped, so this can run again.
+for name in SOM_ST_IO STM_BOOT0 STM_PWR_EN_N STM_RST_N GNSS_PWR_EN UBLOX_SAFEBOOT_N UBLOX_RST_N; do
+  line=$(gpiofind $name)  # "gpiochipN offset"
+  chip=${line% *}
+  offset=${line#* }
+  export_dir=/sys/class/gpio/${chip#gpio}
+  [ -e $export_dir/gpio$offset ] || echo $offset > $export_dir/export
 done
 
-
-HUB_RST_N=30
-gpio $HUB_RST_N 1
+gpioset $(gpiofind HUB_RST_N)=1

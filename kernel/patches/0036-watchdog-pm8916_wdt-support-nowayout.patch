@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 19:19:49 -0800
+Subject: [PATCH] watchdog: pm8916_wdt: support nowayout
+
+Most watchdog drivers let CONFIG_WATCHDOG_NOWAYOUT, or a nowayout module
+parameter, keep userspace from stopping the watchdog once it runs. This
+one doesn't, so a watchdog daemon that disarms it on its way out turns it
+off whatever the system wants.
+
+systemd does that: systemd-shutdown disarms the watchdog right before it
+calls reboot(), so on a comma four a driver whose .shutdown() hangs on the
+way down was never reset. With nowayout the watchdog keeps counting
+through the kernel's shutdown, and the driver still stops it itself where
+nothing will ping it any more (power off, halt, a restart into the
+bootloader or a download mode).
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/watchdog/pm8916_wdt.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/watchdog/pm8916_wdt.c b/drivers/watchdog/pm8916_wdt.c
+index a3b6f696bb..88ea1cf2ea 100644
+--- a/drivers/watchdog/pm8916_wdt.c
++++ b/drivers/watchdog/pm8916_wdt.c
+@@ -59,6 +59,11 @@ static const struct pm8916_wdt_data pm8998_wdt_data = {
+ 	.otst3 = BIT(15),
+ };
+ 
++static bool nowayout = WATCHDOG_NOWAYOUT;
++module_param(nowayout, bool, 0);
++MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
++		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
++
+ struct pm8916_wdt {
+ 	struct regmap *regmap;
+ 	struct watchdog_device wdev;
+@@ -297,6 +302,7 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
+ 	wdt->wdev.max_timeout = PM8916_WDT_MAX_TIMEOUT;
+ 	wdt->wdev.timeout = PM8916_WDT_DEFAULT_TIMEOUT;
+ 	wdt->wdev.pretimeout = 0;
++	watchdog_set_nowayout(&wdt->wdev, nowayout);
+ 	watchdog_set_drvdata(&wdt->wdev, wdt);
+ 	platform_set_drvdata(pdev, wdt);
+ 

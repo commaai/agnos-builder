@@ -1,0 +1,534 @@
+From f2abefca7d523fa6712ee2a96177049c136a0ab0 Mon Sep 17 00:00:00 2001
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Date: Sat, 19 Sep 2026 20:47:26 +0300
+Subject: [PATCH] comma: support the mainline kernel's display and touchscreen
+
+The COMMA backend was written for the downstream SDE display driver and
+Qualcomm's EGL. On mainline msm DRM with Mesa:
+
+- Get the display with eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_KHR),
+  looked up through eglGetProcAddress. Qualcomm's EGL 1.4 on the
+  downstream kernel doesn't have it, so fall back to eglGetDisplay
+  there, and the same binary runs on both kernels.
+- Accept the XRGB/ARGB8888 configs Mesa offers (it has no ABGR8888
+  scanout config), creating framebuffers in the buffer's own format.
+- Present each frame with a blocking atomic commit that changes only the
+  primary plane's FB_ID, and modeset (drmModeSetCrtc) only when the CRTC
+  isn't showing a framebuffer. The commit returns once the frame is
+  latched at vblank, which paces the UI to the panel and frees the
+  previous buffer. magic.py hands every client the same DRM file, so a
+  client can't count on reading its own flip events, and a flip queued
+  before the last one completes fails with EBUSY; a blocking commit
+  needs neither. A modeset per frame, as a legacy SETCRTC, would include
+  the connector, whose encoder->crtc link msm clears and restores in
+  every such commit while DPU reads it from the vblank IRQ ("no encoder
+  found for crtc 0"). Without the atomic cap or a primary plane for the
+  CRTC, fall back to setting the CRTC every frame. The downstream SDE
+  driver of AGNOS 20.2 grants both, but the installer built on mainline
+  runs on every kernel AGNOS has shipped, so it must not refuse to
+  start there.
+- Find the backlight under /sys/class/backlight instead of assuming the
+  downstream panel0-backlight name.
+- Without som_id, detect the comma four's touch orientation from the
+  devicetree compatible.
+- Open the touchscreen by its stable by-path name, seed each slot's
+  position from the kernel (evdev only reports changed axes), and track
+  the active slot per device. Run without touch rather than exit if it
+  is missing.
+
+Rebased from dorapilot/raylib 231c8eec onto commaai/raylib 0f2319ad.
+---
+ src/platforms/rcore_comma.c | 188 +++++++++++++++++++++++++++++-------
+ 1 file changed, 152 insertions(+), 36 deletions(-)
+
+diff --git a/src/platforms/rcore_comma.c b/src/platforms/rcore_comma.c
+index 89e66bff..ee167a54 100644
+--- a/src/platforms/rcore_comma.c
++++ b/src/platforms/rcore_comma.c
+@@ -45,6 +45,7 @@
+ *     3. This notice may not be removed or altered from any source distribution.
+ *
+ **********************************************************************************************/
++#include <dirent.h>
+ #include <errno.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -54,11 +55,13 @@
+ #include <unistd.h>
+ 
+ #include <sys/socket.h>
++#include <sys/ioctl.h>
+ #include <sys/un.h>
+ 
+ #include <linux/input.h>
+ 
+ #include <EGL/egl.h>
++#include <EGL/eglext.h>
+ #include <EGL/eglplatform.h>
+ 
+ #include <GLES2/gl2.h>
+@@ -89,6 +92,7 @@ struct finger {
+ struct touch {
+   struct finger fingers[MAX_TOUCH_POINTS];
+   int fd;
++  int slot;
+ };
+ 
+ // hold all the low level egl stuff
+@@ -106,7 +110,10 @@ struct drm_platform {
+ 
+   uint32_t connector_id;
+   uint32_t crtc_id;
++  uint32_t plane_id;
++  uint32_t fb_id_prop;
+   bool needs_modeset;
++  bool display_lost;  // a modeset failed; logged once, until one succeeds
+ 
+   drmModeModeInfo mode;
+ };
+@@ -438,6 +445,34 @@ static int init_drm (const char *dev_path) {
+   drmModeFreeConnector(connector);
+   drmModeFreeResources(res);
+ 
++  // Frames are atomic commits of the primary plane's FB_ID
++  drmModePlaneRes *planes = NULL;
++  if (drmSetClientCap(platform.drm.fd, DRM_CLIENT_CAP_ATOMIC, 1) == 0) planes = drmModeGetPlaneResources(platform.drm.fd);
++  for (uint32_t i = 0; planes && i < planes->count_planes && !platform.drm.fb_id_prop; i++) {
++    drmModePlane *plane = drmModeGetPlane(platform.drm.fd, planes->planes[i]);
++    drmModeObjectProperties *props = drmModeObjectGetProperties(platform.drm.fd, planes->planes[i], DRM_MODE_OBJECT_PLANE);
++    bool primary = false;
++    uint32_t fb_id_prop = 0;
++    for (uint32_t j = 0; props && j < props->count_props; j++) {
++      drmModePropertyRes *prop = drmModeGetProperty(platform.drm.fd, props->props[j]);
++      if (strcmp(prop->name, "type") == 0) primary = props->prop_values[j] == DRM_PLANE_TYPE_PRIMARY;
++      if (strcmp(prop->name, "FB_ID") == 0) fb_id_prop = prop->prop_id;
++      drmModeFreeProperty(prop);
++    }
++    if (primary && (plane->possible_crtcs & 1)) {  // res->crtcs[0]
++      platform.drm.plane_id = plane->plane_id;
++      platform.drm.fb_id_prop = fb_id_prop;
++    }
++    drmModeFreeObjectProperties(props);
++    drmModeFreePlane(plane);
++  }
++  drmModeFreePlaneResources(planes);
++  // Without one (the downstream SDE driver may refuse atomic), modeset every frame
++  if (!platform.drm.fb_id_prop) {
++    TRACELOG(LOG_INFO, "COMMA: No atomic primary plane, setting the CRTC every frame");
++    platform.drm.needs_modeset = true;
++  }
++
+   return 0;
+ }
+ 
+@@ -464,7 +499,12 @@ static int init_egl () {
+      return -1;
+    }
+ 
+-   platform.egl.display = eglGetDisplay(platform.gbm.device);
++   // eglGetPlatformDisplay is EGL 1.5 (Mesa). the downstream kernel's Adreno EGL is 1.4: look the EXT up at runtime,
++   // and fall back to eglGetDisplay, which takes the gbm device as its native display there
++   PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display =
++     (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
++   platform.egl.display = get_platform_display ? get_platform_display(EGL_PLATFORM_GBM_KHR, platform.gbm.device, NULL)
++                                               : eglGetDisplay(platform.gbm.device);
+    if (platform.egl.display == EGL_NO_DISPLAY) {
+      TRACELOG(LOG_WARNING, "COMMA: Failed to get an EGL display");
+      return -1;
+@@ -491,14 +531,16 @@ static int init_egl () {
+      return -1;
+    }
+ 
++   uint32_t selected_gbm_format = 0;
+    for (int i = 0; i < num_config; ++i) {
+      EGLint gbm_format;
+      if (!eglGetConfigAttrib(platform.egl.display, configs[i], EGL_NATIVE_VISUAL_ID, &gbm_format)) {
+        continue;
+      }
+ 
+-     if (gbm_format == GBM_FORMAT_ABGR8888) {
++     if (gbm_format == GBM_FORMAT_ABGR8888 || gbm_format == GBM_FORMAT_ARGB8888 || gbm_format == GBM_FORMAT_XRGB8888) {
+        config = configs[i];
++       selected_gbm_format = gbm_format;
+        free(configs);
+        break;
+      }
+@@ -509,7 +551,7 @@ static int init_egl () {
+      return -1;
+    }
+ 
+-   platform.gbm.surface = gbm_surface_create(platform.gbm.device, platform.drm.mode.hdisplay, platform.drm.mode.vdisplay, GBM_FORMAT_ABGR8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
++   platform.gbm.surface = gbm_surface_create(platform.gbm.device, platform.drm.mode.hdisplay, platform.drm.mode.vdisplay, selected_gbm_format, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+    if (!platform.gbm.surface) {
+      TRACELOG(LOG_WARNING, "COMMA: Failed to create gbm surface");
+      return -1;
+@@ -565,7 +607,7 @@ static int get_or_create_fb_for_bo(struct gbm_bo *bo, uint32_t *out_fb) {
+     uint32_t offsets[4] = { 0 };
+     uint32_t fb_id = 0;
+ 
+-    if (drmModeAddFB2(platform.drm.render_fd, w, h, GBM_FORMAT_ABGR8888, handles, pitches, offsets, &fb_id, 0) != 0) {
++    if (drmModeAddFB2(platform.drm.render_fd, w, h, gbm_bo_get_format(bo), handles, pitches, offsets, &fb_id, 0) != 0) {
+       return -1;
+     }
+ 
+@@ -593,8 +635,31 @@ static FILE* open_with_retry(const char *path, const char *mode) {
+   return NULL;
+ }
+ 
++static const char *find_backlight(void) {
++  static char path[256];
++  DIR *d = opendir("/sys/class/backlight");
++  if (!d) return NULL;
++  struct dirent *ent;
++  while ((ent = readdir(d)) != NULL) {
++    if (ent->d_name[0] == '.') continue;
++    snprintf(path, sizeof(path), "/sys/class/backlight/%s", ent->d_name);
++    closedir(d);
++    return path;
++  }
++  closedir(d);
++  return NULL;
++}
++
+ static int turn_screen_on () {
+-  FILE *f = open_with_retry("/sys/class/backlight/panel0-backlight/bl_power", "w");
++  const char *bl = find_backlight();
++  if (!bl) {
++    TRACELOG(LOG_WARNING, "COMMA: No backlight device found");
++    return -1;
++  }
++
++  char filepath[512];
++  snprintf(filepath, sizeof(filepath), "%s/bl_power", bl);
++  FILE *f = open_with_retry(filepath, "w");
+   if (f) {
+     fputs("0", f);
+     fclose(f);
+@@ -604,7 +669,8 @@ static int turn_screen_on () {
+   }
+ 
+   unsigned long max_brightness = 0;
+-  f = open_with_retry("/sys/class/backlight/panel0-backlight/max_brightness", "r");
++  snprintf(filepath, sizeof(filepath), "%s/max_brightness", bl);
++  f = open_with_retry(filepath, "r");
+   if (f) {
+     if (fscanf(f, "%lu", &max_brightness) != 1) {
+       TRACELOG(LOG_WARNING, "COMMA: Failed to read max_brightness");
+@@ -617,7 +683,8 @@ static int turn_screen_on () {
+     return -1;
+   }
+ 
+-  f = open_with_retry("/sys/class/backlight/panel0-backlight/brightness", "w");
++  snprintf(filepath, sizeof(filepath), "%s/brightness", bl);
++  f = open_with_retry(filepath, "w");
+   if (f) {
+     max_brightness = (int)((max_brightness / 100.0 ) * 65.0);
+     fprintf(f, "%lu", max_brightness);
+@@ -683,18 +750,37 @@ static int init_touch(const char *dev_path) {
+       platform.canonical_zero = origin == 1;
+     }
+   } else {
+-    TRACELOG(LOG_WARNING, "COMMA: Failed to open screen origin");
+-    platform.canonical_zero = false;
++    // Mainline identifies comma four through device tree instead of som_id.
++    char compatible[sizeof("comma,mici")];
++    fp = fopen("/proc/device-tree/compatible", "r");
++    platform.canonical_zero = fp != NULL &&
++                              fread(compatible, 1, sizeof(compatible), fp) == sizeof(compatible) &&
++                              memcmp(compatible, "comma,mici", sizeof(compatible)) == 0;
++    if (fp != NULL) fclose(fp);
++    else TRACELOG(LOG_WARNING, "COMMA: Failed to open screen origin");
+   }
+ 
++  // evdev omits unchanged coordinates, including on the first contact.
++  int x[MAX_TOUCH_POINTS + 1] = { ABS_MT_POSITION_X };
++  int y[MAX_TOUCH_POINTS + 1] = { ABS_MT_POSITION_Y };
++  bool have_positions = ioctl(platform.touch.fd, EVIOCGMTSLOTS(sizeof(x)), x) == 0 &&
++                        ioctl(platform.touch.fd, EVIOCGMTSLOTS(sizeof(y)), y) == 0;
++  if (!have_positions) TRACELOG(LOG_WARNING, "COMMA: Failed to read initial touch positions");
++
++  struct input_absinfo slot = {0};
++  if (ioctl(platform.touch.fd, EVIOCGABS(ABS_MT_SLOT), &slot) < 0) {
++    TRACELOG(LOG_WARNING, "COMMA: Failed to read initial touch slot");
++  }
++  platform.touch.slot = slot.value;
++
+   for (int i = 0; i < MAX_TOUCH_POINTS; ++i) {
+-    platform.touch.fingers[i].x = -1;
+-    platform.touch.fingers[i].y = -1;
++    platform.touch.fingers[i].x = have_positions ? (platform.canonical_zero ? CORE.Window.screen.width - y[i + 1] : y[i + 1]) : -1;
++    platform.touch.fingers[i].y = have_positions ? (platform.canonical_zero ? x[i + 1] : CORE.Window.screen.height - x[i + 1]) : -1;
+     platform.touch.fingers[i].state = FINGER_STATE_REMOVED;
+     platform.touch.fingers[i].resetNextFrame = false;
+ 
+-    CORE.Input.Touch.currentTouchState[0] = 0;
+-    CORE.Input.Touch.previousTouchState[0] = 0;
++    CORE.Input.Touch.currentTouchState[i] = 0;
++    CORE.Input.Touch.previousTouchState[i] = 0;
+   }
+ 
+   for (int i = 0; i < MAX_MOUSE_BUTTONS; ++i) {
+@@ -934,6 +1020,17 @@ void DisableCursor(void) {
+   CORE.Input.Mouse.cursorHidden = true;
+ }
+ 
++// Show a frame with a blocking atomic commit of the primary plane's
++// framebuffer: it returns once the frame is on screen, which paces rendering
++// to the display, and the previous buffer is then free.
++static int present(uint32_t fb) {
++  drmModeAtomicReq *req = drmModeAtomicAlloc();
++  int ret = req ? drmModeAtomicAddProperty(req, platform.drm.plane_id, platform.drm.fb_id_prop, fb) : -1;
++  if (ret >= 0) ret = drmModeAtomicCommit(platform.drm.fd, req, 0, NULL);
++  drmModeAtomicFree(req);
++  return ret;
++}
++
+ // Swap back buffer with front buffer (screen drawing)
+ void SwapScreenBuffer(void) {
+   static uint32_t vblank_id = 0;
+@@ -953,38 +1050,50 @@ void SwapScreenBuffer(void) {
+     return;
+   }
+ 
+-  // Closing another client's DRM file can remove the active framebuffer and
+-  // disable the CRTC. Restore it when page flipping is no longer possible.
+-  if (platform.drm.needs_modeset ||
+-      drmModePageFlip(platform.drm.fd, platform.drm.crtc_id, platform.gbm.next_fb, 0, NULL) != 0) {
+-    if (!platform.drm.needs_modeset) TRACELOG(LOG_WARNING, "COMMA: Failed to page flip");
++  // When another client of magic's DRM file exits, it removes its
++  // framebuffers, and removing the one on screen disables the CRTC. A plane
++  // update can't turn it back on, so that's the normal handover: note it and
++  // modeset. If the modeset fails too, warn once and retry every frame
++  // quietly until the display is back.
++  bool modeset = platform.drm.needs_modeset;
++  if (!modeset && present(platform.gbm.next_fb) != 0) {
++    TRACELOG(LOG_INFO, "COMMA: Plane update failed, setting the CRTC");
++    modeset = true;
++  }
++  if (modeset) {
+     if (drmModeSetCrtc(platform.drm.fd, platform.drm.crtc_id, platform.gbm.next_fb, 0, 0, &platform.drm.connector_id, 1, &platform.drm.mode) != 0) {
+-      TRACELOG(LOG_WARNING, "COMMA: Failed to set CRTC");
++      if (!platform.drm.display_lost) TRACELOG(LOG_WARNING, "COMMA: Failed to set CRTC: %s", strerror(errno));
++      platform.drm.display_lost = true;
+       gbm_surface_release_buffer(platform.gbm.surface, platform.gbm.next_bo);
+       platform.gbm.next_bo = NULL;
+       platform.gbm.next_fb = 0;
+       platform.drm.needs_modeset = true;
+       return;
+     }
+-    platform.drm.needs_modeset = false;
++    if (platform.drm.display_lost) TRACELOG(LOG_INFO, "COMMA: Display restored");
++    platform.drm.display_lost = false;
++    platform.drm.needs_modeset = !platform.drm.fb_id_prop;
+   }
+ 
+-  drmVBlank v = {0};
+-  v.request.type = DRM_VBLANK_RELATIVE;
+-  v.request.sequence = 1;
+-  drmWaitVBlank(platform.drm.fd, &v);
+   if (platform.debug_mode) {
+-    if ((v.reply.sequence - vblank_id) > 1) {
+-      TRACELOG(LOG_WARNING, "%i FRAME(s) DROPPED!", (v.reply.sequence - vblank_id) - 1);
++    drmVBlank v = {0};
++    v.request.type = DRM_VBLANK_RELATIVE;
++    if (drmWaitVBlank(platform.drm.fd, &v) != 0) {
++      TRACELOG(LOG_WARNING, "COMMA: Reading display sequence failed: %s", strerror(errno));
++    } else {
++      if (vblank_id && (v.reply.sequence - vblank_id) > 1) {
++        TRACELOG(LOG_WARNING, "%i FRAME(s) DROPPED!", (v.reply.sequence - vblank_id) - 1);
++      }
++      vblank_id = v.reply.sequence;
+     }
+   }
+-  vblank_id = v.reply.sequence;
+ 
+   if (platform.gbm.current_bo) {
+     gbm_surface_release_buffer(platform.gbm.surface, platform.gbm.current_bo);
+   }
+ 
+   platform.gbm.current_bo = platform.gbm.next_bo;
++  platform.gbm.current_fb = platform.gbm.next_fb;
+ }
+ 
+ //----------------------------------------------------------------------------------
+@@ -1039,9 +1148,6 @@ const char *GetKeyName(int key) {
+ }
+ 
+ void PollInputEvents(void) {
+-  // slot i is for events of finger i
+-  static int slot = 0;
+-
+   for (int i = 0; i < MAX_TOUCH_POINTS; ++i) {
+     CORE.Input.Touch.previousTouchState[i] = CORE.Input.Touch.currentTouchState[i];
+     // caused by single frame down and up events
+@@ -1093,9 +1199,18 @@ void PollInputEvents(void) {
+     } else if (event.type == EV_ABS) { // raw events. Process these untill we get a sync frame
+ 
+       if (event.code == ABS_MT_SLOT) { // switch finger
+-        slot = event.value;
+-      } else if (event.code == ABS_MT_TRACKING_ID) { // finger on screen or not
+-        platform.touch.fingers[slot].state = event.value == -1 ? FINGER_STATE_REMOVING : FINGER_STATE_TOUCHING;
++        platform.touch.slot = event.value;
++        continue;
++      }
++      int slot = platform.touch.slot;
++      if (slot < 0 || slot >= MAX_TOUCH_POINTS) continue;
++
++      if (event.code == ABS_MT_TRACKING_ID) { // finger on screen or not
++        if (event.value >= 0) {
++          platform.touch.fingers[slot].state = FINGER_STATE_TOUCHING;
++        } else if (platform.touch.fingers[slot].state == FINGER_STATE_TOUCHING) {
++          platform.touch.fingers[slot].state = FINGER_STATE_REMOVING;
++        }
+       } else if (event.code == ABS_MT_POSITION_X) {
+         platform.touch.fingers[slot].y = (1 - platform.canonical_zero) * (CORE.Window.screen.height - event.value) + (platform.canonical_zero * event.value);
+       } else if (event.code == ABS_MT_POSITION_Y) {
+@@ -1142,9 +1257,8 @@ int InitPlatform(void) {
+     return -1;
+   }
+ 
+-  if (init_touch("/dev/input/event2")) {
+-    TRACELOG(LOG_FATAL, "COMMA: Failed to initialize touch device");
+-    return -1;
++  if (init_touch("/dev/input/by-path/platform-894000.i2c-event")) {
++    TRACELOG(LOG_WARNING, "COMMA: Failed to initialize touch device, continuing without touch");
+   }
+ 
+   if (init_screen()) {
+@@ -1193,6 +1307,8 @@ void ClosePlatform(void) {
+   if (platform.gbm.surface && platform.gbm.next_bo) {
+     gbm_surface_release_buffer(platform.gbm.surface, platform.gbm.next_bo);
+   }
++  platform.gbm.current_bo = NULL;
++  platform.gbm.next_bo = NULL;
+ 
+   if (platform.gbm.surface) {
+     gbm_surface_destroy(platform.gbm.surface);
+-- 
+2.55.0
+
+
+From b1cdf6f612a530db45ca83493574201acfb68d8d Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 01:38:39 -0800
+Subject: [PATCH] rlgl: upload GRAY_ALPHA as RG8 with a swizzle on OpenGL ES 3
+ contexts
+
+The OpenGL ES 2.0 build maps GRAY_ALPHA to GL_LUMINANCE_ALPHA. That format
+isn't color-renderable, so a driver may not be able to generate its
+mipmaps by rendering. Mesa's freedreno (Adreno 6xx) falls back to a CPU
+box filter that reads the base level through an uncached GPU mapping:
+glGenerateMipmap of a 4096x4096 font atlas takes 2.4 s, against 0.1 ms
+to queue the GPU blits for RG8.
+
+An ES 2.0 context request can return a later, compatible version, and
+Mesa returns ES 3.2. When the context is ES 3.0 or later, upload
+GRAY_ALPHA as GL_RG8 and set the texture swizzle to (R, R, R, G). It
+samples exactly as LUMINANCE_ALPHA did, with the same memory use, and
+its mipmaps are generated on the GPU. ES 2.0 contexts are unchanged.
+---
+ src/rlgl.h | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)
+
+diff --git a/src/rlgl.h b/src/rlgl.h
+index 5c6e95af..76723c35 100644
+--- a/src/rlgl.h
++++ b/src/rlgl.h
+@@ -988,6 +988,25 @@ RLAPI void rlLoadDrawQuad(void);     // Load and draw a quad
+         #define GL_READ_FRAMEBUFFER         GL_FRAMEBUFFER
+         #define GL_DRAW_FRAMEBUFFER         GL_FRAMEBUFFER
+     #endif
++    // OpenGL ES 3.0 tokens, used when the context is ES 3.0 or later
++    #ifndef GL_TEXTURE_SWIZZLE_R
++        #define GL_TEXTURE_SWIZZLE_R        0x8E42
++        #define GL_TEXTURE_SWIZZLE_G        0x8E43
++        #define GL_TEXTURE_SWIZZLE_B        0x8E44
++        #define GL_TEXTURE_SWIZZLE_A        0x8E45
++    #endif
++    #ifndef GL_RED
++        #define GL_RED                      0x1903
++    #endif
++    #ifndef GL_GREEN
++        #define GL_GREEN                    0x1904
++    #endif
++    #ifndef GL_RG
++        #define GL_RG                       0x8227
++    #endif
++    #ifndef GL_RG8
++        #define GL_RG8                      0x822B
++    #endif
+ #endif
+ 
+ // Default shader vertex attribute names to set location points
+@@ -1125,6 +1144,7 @@ typedef struct rlglData {
+         bool texCompASTC;                   // ASTC texture compression support (GL_KHR_texture_compression_astc_hdr, GL_KHR_texture_compression_astc_ldr)
+         bool texMirrorClamp;                // Clamp mirror wrap mode supported (GL_EXT_texture_mirror_clamp)
+         bool texAnisoFilter;                // Anisotropic texture filtering support (GL_EXT_texture_filter_anisotropic)
++        bool texSwizzle;                    // RG textures and texture swizzle supported (OpenGL ES 3.0 context on an OpenGL ES 2.0 build)
+         bool computeShader;                 // Compute shaders support (GL_ARB_compute_shader)
+         bool ssbo;                          // Shader storage buffer object support (GL_ARB_shader_storage_buffer_object)
+ 
+@@ -2516,6 +2536,10 @@ void rlLoadExtensions(void *loader)
+     for (int i = 0; i < numExt; i++) TRACELOG(RL_LOG_INFO, "    %s", extList[i]);
+ #endif
+ 
++    // An OpenGL ES 2.0 context request can return a later, compatible version (Mesa returns ES 3.2)
++    const char *glVersion = (const char *)glGetString(GL_VERSION);
++    if ((glVersion != NULL) && (strncmp(glVersion, "OpenGL ES ", 10) == 0) && (glVersion[10] >= '3') && (glVersion[10] <= '9')) RLGL.ExtSupported.texSwizzle = true;
++
+     // Check required extensions
+     for (int i = 0; i < numExt; i++)
+     {
+@@ -3350,6 +3374,15 @@ unsigned int rlLoadTexture(const void *data, int width, int height, int format,
+ #endif
+                 glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+             }
++#endif
++#if defined(GRAPHICS_API_OPENGL_ES2)
++            if ((format == RL_PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA) && RLGL.ExtSupported.texSwizzle)
++            {
++                // Sample the RG8 texture as LUMINANCE_ALPHA: (R, R, R, G)
++                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
++                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
++                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_GREEN);
++            }
+ #endif
+         }
+ 
+@@ -3554,6 +3587,15 @@ unsigned int rlLoadTextureCubemap(const void *data, int size, int format, int mi
+ #endif
+                 glTexParameteriv(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+             }
++#endif
++#if defined(GRAPHICS_API_OPENGL_ES2)
++            if ((format == RL_PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA) && RLGL.ExtSupported.texSwizzle)
++            {
++                // Sample the RG8 texture as LUMINANCE_ALPHA: (R, R, R, G)
++                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_SWIZZLE_G, GL_RED);
++                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_SWIZZLE_B, GL_RED);
++                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_SWIZZLE_A, GL_GREEN);
++            }
+ #endif
+             if (face == 5)
+             {
+@@ -3616,7 +3658,17 @@ void rlGetGlTextureFormats(int format, unsigned int *glInternalFormat, unsigned
+     #if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21) || defined(GRAPHICS_API_OPENGL_ES2)
+         // NOTE: on OpenGL ES 2.0 (WebGL), internalFormat must match format and options allowed are: GL_LUMINANCE, GL_RGB, GL_RGBA
+         case RL_PIXELFORMAT_UNCOMPRESSED_GRAYSCALE: *glInternalFormat = GL_LUMINANCE; *glFormat = GL_LUMINANCE; *glType = GL_UNSIGNED_BYTE; break;
++    #if defined(GRAPHICS_API_OPENGL_ES2)
++        // Prefer RG8 with a swizzle (set on load): unlike LUMINANCE_ALPHA it is color-renderable, so drivers
++        // can generate its mipmaps on the GPU (Mesa's freedreno generates LUMINANCE_ALPHA mipmaps on the CPU)
++        case RL_PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA:
++            if (RLGL.ExtSupported.texSwizzle) { *glInternalFormat = GL_RG8; *glFormat = GL_RG; }
++            else { *glInternalFormat = GL_LUMINANCE_ALPHA; *glFormat = GL_LUMINANCE_ALPHA; }
++            *glType = GL_UNSIGNED_BYTE;
++            break;
++    #else
+         case RL_PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA: *glInternalFormat = GL_LUMINANCE_ALPHA; *glFormat = GL_LUMINANCE_ALPHA; *glType = GL_UNSIGNED_BYTE; break;
++    #endif
+         case RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5: *glInternalFormat = GL_RGB; *glFormat = GL_RGB; *glType = GL_UNSIGNED_SHORT_5_6_5; break;
+         case RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8: *glInternalFormat = GL_RGB; *glFormat = GL_RGB; *glType = GL_UNSIGNED_BYTE; break;
+         case RL_PIXELFORMAT_UNCOMPRESSED_R5G5B5A1: *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_5_5_5_1; break;
+-- 
+2.55.0
+

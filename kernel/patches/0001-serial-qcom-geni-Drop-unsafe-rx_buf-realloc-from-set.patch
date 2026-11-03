@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Praveen Talari <praveen.talari@oss.qualcomm.com>
+Date: Mon, 24 Aug 2026 20:00:17 +0530
+Subject: [PATCH] serial: qcom-geni: Drop unsafe rx_buf realloc from
+ setup_fifos()
+
+The RX buffer is allocated once during probe using a fixed DMA_RX_BUF_SIZE
+and is DMA-mapped for the lifetime of the port. However, setup_fifos()
+attempts to reallocate rx_buf whenever the reported RX FIFO depth changes.
+Since the DMA mapping is not re-established after reallocation, the buffer
+pointer may change while the DMA engine continues using the stale DMA
+address. This can result in RX DMA targeting memory that no longer
+corresponds to the active buffer, leading to invalid DMA accesses and
+potential memory corruption.
+
+The RX FIFO depth is unrelated to the size of rx_buf. The buffer is
+allocated independently using DMA_RX_BUF_SIZE and all RX DMA paths consume
+it at that fixed size. As such, resizing the buffer based on FIFO depth
+changes provides no functional benefit.
+
+Signed-off-by: Praveen Talari <praveen.talari@oss.qualcomm.com>
+Link: https://patch.msgid.link/20260824-drop-unsafe-rx-buf-realloc-from-setup-fifos-v1-1-52d231c840e1@oss.qualcomm.com
+Link: https://patch.msgid.link/20260824-drop-unsafe-rx-buf-realloc-from-setup-fifos-v2-1-9a1c8f711e98@oss.qualcomm.com
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+(cherry picked from commit 16ccb505ff021ebbd1207c66e5f68521f6d7fa4c)
+---
+ drivers/tty/serial/qcom_geni_serial.c | 14 --------------
+ 1 file changed, 14 deletions(-)
+
+diff --git a/drivers/tty/serial/qcom_geni_serial.c b/drivers/tty/serial/qcom_geni_serial.c
+index a851b8f0ef..08e29ce979 100644
+--- a/drivers/tty/serial/qcom_geni_serial.c
++++ b/drivers/tty/serial/qcom_geni_serial.c
+@@ -1293,7 +1293,6 @@ static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
+ static int setup_fifos(struct qcom_geni_serial_port *port)
+ {
+ 	struct uart_port *uport;
+-	u32 old_rx_fifo_depth = port->rx_fifo_depth;
+ 
+ 	uport = &port->uport;
+ 	port->tx_fifo_depth = geni_se_get_tx_fifo_depth(&port->se);
+@@ -1302,19 +1301,6 @@ static int setup_fifos(struct qcom_geni_serial_port *port)
+ 	uport->fifosize =
+ 		(port->tx_fifo_depth * port->tx_fifo_width) / BITS_PER_BYTE;
+ 
+-	if (port->rx_buf && (old_rx_fifo_depth != port->rx_fifo_depth) && port->rx_fifo_depth) {
+-		/*
+-		 * Use krealloc rather than krealloc_array because rx_buf is
+-		 * accessed as 1 byte entries as well as 4 byte entries so it's
+-		 * not necessarily an array.
+-		 */
+-		port->rx_buf = devm_krealloc(uport->dev, port->rx_buf,
+-					     port->rx_fifo_depth * sizeof(u32),
+-					     GFP_KERNEL);
+-		if (!port->rx_buf)
+-			return -ENOMEM;
+-	}
+-
+ 	return 0;
+ }
+ 

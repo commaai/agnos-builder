@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 00:31:12 -0800
+Subject: [PATCH] media: venus: venc: make every I-frame an IDR frame
+
+The V4L2 codec controls documentation says that the period between IDR
+frames is taken from V4L2_CID_MPEG_VIDEO_GOP_SIZE. Venus programs the
+GOP size as the intra period, i.e. the distance between I-frames, but
+sets HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD, which counts I-frames, to 0,
+which means "only the first I-frame is an IDR frame". So the key frames
+at every later GOP boundary are non-IDR I-frames. P-frames after them
+may still reference earlier pictures, so they are not random access
+points, even though they are returned with V4L2_BUF_FLAG_KEYFRAME. A
+receiver that joins the stream or seeks to such a key frame cannot
+decode from it.
+
+The original encoder set the IDR period to the GOP size, in I-frame
+units. Commit 8fc58186bb41 ("media: venus: venc: set correctly GOP size
+and number of B-frames") changed it to 0, and its message gives no
+reason.
+
+Set the IDR period to 1, so that every I-frame is an IDR frame and
+GOP_SIZE is the IDR period that the specification describes. Forced key
+frames (V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME) were already IDR frames.
+The HFI property is common to all HFI versions, so this changes the
+output on every Venus platform: GOPs become closed, which costs a little
+compression efficiency. In addition, with the default
+V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME, every key frame now
+carries the sequence headers. On SDM845, the firmware emits VPS/SPS/PPS
+only with IDR frames.
+
+Tested on SDM845 (HFI v4) with H.264 and HEVC, GOP size 20 and no
+B-frames. Before, only frame 0 was an IDR frame and had headers. Now
+frames 0, 20, 40, ... are IDR frames with headers.
+
+Fixes: 8fc58186bb41 ("media: venus: venc: set correctly GOP size and number of B-frames")
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/media/platform/qcom/venus/venc.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/qcom/venus/venc.c b/drivers/media/platform/qcom/venus/venc.c
+index 984483a3bf..25f6804ab6 100644
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -771,9 +771,13 @@ static int venc_set_properties(struct venus_inst *inst)
+ 		 * n = 0 - only the first I-frame is IDR frame
+ 		 * n = 1 - all I-frames will be IDR frames
+ 		 * n > 1 - every n-th I-frame will be IDR frame
++		 *
++		 * Make every I-frame an IDR frame, so that each buffer
++		 * flagged V4L2_BUF_FLAG_KEYFRAME is a random access point
++		 * and carries the sequence headers.
+ 		 */
+ 		ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
+-		idrp.idr_period = 0;
++		idrp.idr_period = 1;
+ 		ret = hfi_session_set_property(inst, ptype, &idrp);
+ 		if (ret)
+ 			return ret;

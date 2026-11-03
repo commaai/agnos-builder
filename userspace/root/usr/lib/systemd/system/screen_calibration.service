@@ -1,6 +1,9 @@
 [Unit]
-After=multi-user.target
 Description=Set screen calibration
+# Only needs /persist and /run, so run it early instead of delaying magic.
+DefaultDependencies=no
+RequiresMountsFor=/persist/comma
+Before=magic.service
 
 [Service]
 Type=oneshot

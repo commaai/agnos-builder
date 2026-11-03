@@ -6,29 +6,11 @@ git lfs &> /dev/null || {
   exit 1
 }
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-ROOT=$DIR/..
-
-cd $DIR
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 # grep for `-`, which stands for LFS pointer
-git lfs ls-files | awk '{print $2}' | grep "-" &>/dev/null && {
+if git lfs ls-files | awk '{print $2}' | grep -q -- "-"; then
   echo "Pulling git lfs objects..."
-  cd $ROOT
   git lfs install
   git lfs pull
-  cd $DIR
-}
-
-LINARO_GCC=aarch64-linux-gnu-gcc
-
-LINARO_GCC_TARBALL=$LINARO_GCC.tar.gz
-
-ARCH=$(uname -m)
-if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
-  echo "Extracting tools..."
-  if [ ! -d $LINARO_GCC ]; then
-    tar -xzf $LINARO_GCC_TARBALL &>/dev/null
-  fi
 fi

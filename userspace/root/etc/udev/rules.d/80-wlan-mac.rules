@@ -1,0 +1,2 @@
+# NetworkManager only takes a device once udev has finished with it, so it sees this address from the start
+SUBSYSTEM=="net", ACTION=="add", KERNEL=="wlan*", DRIVERS=="ath10k_snoc", RUN+="/usr/comma/wlan_mac.sh $name"

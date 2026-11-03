@@ -1,0 +1,16 @@
+[Unit]
+Description=Qualcomm remote filesystem service
+# rmtfs boots the modem DSP, which runs the Wi-Fi firmware, once it serves
+# the modem's EFS partitions. udev starts it when the shared memory appears.
+# The modem firmware is on the modem partition.
+Requires=tqftpserv.service
+After=tqftpserv.service
+RequiresMountsFor=/firmware/image
+# Each restart also restarts the modem DSP, so stop retrying a crash loop.
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+ExecStart=/usr/bin/rmtfs -P -s
+Restart=always
+RestartSec=1

@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 03:46:41 -0800
+Subject: [PATCH] dt-bindings: watchdog: qcom,pm8916-wdt: add PM8998
+
+The PM8998 PON block has the same PMIC watchdog as PM8916: the timer,
+control and pet registers and the bark interrupt work the same way. Its
+second generation PON keeps the power-off reasons at different offsets,
+though, so it gets its own compatible, with qcom,pm8916-wdt as the
+fallback.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ .../devicetree/bindings/watchdog/qcom,pm8916-wdt.yaml       | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/devicetree/bindings/watchdog/qcom,pm8916-wdt.yaml b/Documentation/devicetree/bindings/watchdog/qcom,pm8916-wdt.yaml
+index a519422c37..d27ccff0f6 100644
+--- a/Documentation/devicetree/bindings/watchdog/qcom,pm8916-wdt.yaml
++++ b/Documentation/devicetree/bindings/watchdog/qcom,pm8916-wdt.yaml
+@@ -14,7 +14,11 @@ allOf:
+ 
+ properties:
+   compatible:
+-    const: qcom,pm8916-wdt
++    oneOf:
++      - const: qcom,pm8916-wdt
++      - items:
++          - const: qcom,pm8998-wdt
++          - const: qcom,pm8916-wdt
+ 
+   interrupts:
+     maxItems: 1

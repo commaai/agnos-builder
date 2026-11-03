@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, socket, threading, time
+import glob, os, socket, threading, time
 from array import array
 
 import pyray as rl
@@ -10,11 +10,12 @@ BACKGROUND = "/usr/comma/bg.png"
 
 def power_screen():
   try:
-    with open("/sys/class/backlight/panel0-backlight/bl_power", "w") as f:
+    backlight = glob.glob("/sys/class/backlight/*")[0]
+    with open(f"{backlight}/bl_power", "w") as f:
       f.write("0")
-    with open("/sys/class/backlight/panel0-backlight/max_brightness") as f:
+    with open(f"{backlight}/max_brightness") as f:
       max_brightness = int((int(f.read().strip()) / 100) * 65)
-    with open("/sys/class/backlight/panel0-backlight/brightness", "w") as f:
+    with open(f"{backlight}/brightness", "w") as f:
       f.write(str(max_brightness))
   except Exception:
     pass

@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 00:31:12 -0800
+Subject: [PATCH] scsi: ufs: qcom: allow HS-G3 at 150 MHz on pre-v4 controllers
+
+ufs_qcom_freq_to_gear_speed() maps a 150 MHz UniPro core clock to
+HS-G2. That holds for the newer controllers whose OPP tables go up to
+300 or 403 MHz. On v3 controllers, however, 150 MHz is the highest
+UniPro rate, and these controllers run HS-G3 at it.
+
+Before commit c02fe9e222d1 ("scsi: ufs: qcom: Implement the
+freq_to_gear_speed() vop"), scaling up restored the power mode that was
+negotiated at probe. Since that commit, the gear comes from the UniPro
+rate, so a link that negotiated HS-G3 is scaled down to HS-G2 at its
+highest OPP and stays there under load. On the comma four (SDM845,
+SanDisk SDINDDH4 UFS 2.1), sequential O_DIRECT reads drop to 517 MB/s,
+compared to 725 MB/s on the downstream kernel, which runs HS-G3 Rate B
+at a 150 MHz UniPro clock.
+
+Map 150 MHz to HS-G3 on controllers older than v4. Their maximum gear
+is HS-G3 anyway (see ufs_qcom_get_hs_gear()), and the result is still
+capped by the negotiated gear. With this change, the SDM845 link runs
+HS-G3 Rate B under load and reads reach 744-779 MB/s.
+
+Other affected platforms: SM6350 and QCS615 also top out at a 150 MHz
+UniPro OPP, and if their controllers are older than v4, they also go
+from HS-G2 to HS-G3 at that OPP. I tested only SDM845. Controllers on
+v4 and later, where 150 MHz is an intermediate OPP (SC7280, SM8550 and
+others), keep HS-G2.
+
+Fixes: c02fe9e222d1 ("scsi: ufs: qcom: Implement the freq_to_gear_speed() vop")
+Cc: stable@vger.kernel.org # 6.15+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/ufs/host/ufs-qcom.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/drivers/ufs/host/ufs-qcom.c b/drivers/ufs/host/ufs-qcom.c
+index 954be9343f..89a3ca0657 100644
+--- a/drivers/ufs/host/ufs-qcom.c
++++ b/drivers/ufs/host/ufs-qcom.c
+@@ -2497,6 +2497,7 @@ static unsigned long ufs_qcom_opp_freq_to_clk_freq(struct ufs_hba *hba,
+ 
+ static u32 ufs_qcom_freq_to_gear_speed(struct ufs_hba *hba, unsigned long freq)
+ {
++	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+ 	u32 gear = UFS_HS_DONT_CHANGE;
+ 	unsigned long unipro_freq;
+ 
+@@ -2515,6 +2516,12 @@ static u32 ufs_qcom_freq_to_gear_speed(struct ufs_hba *hba, unsigned long freq)
+ 		gear = UFS_HS_G3;
+ 		break;
+ 	case 150000000:
++		/*
++		 * Controllers older than v4 top out at a 150 MHz UniPro core
++		 * clock, and run HS-G3 at that rate.
++		 */
++		gear = host->hw_ver.major < 0x4 ? UFS_HS_G3 : UFS_HS_G2;
++		break;
+ 	case 100000000:
+ 		gear = UFS_HS_G2;
+ 		break;
