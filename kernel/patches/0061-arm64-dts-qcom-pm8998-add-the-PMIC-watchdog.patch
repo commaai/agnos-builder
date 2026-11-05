@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 02:12:43 -0800
+Subject: [PATCH] arm64: dts: qcom: pm8998: add the PMIC watchdog
+
+The PM8998 PON block has the PMIC watchdog that pm8916_wdt drives, with
+its bark on PON interrupt 6. Only the power-off reason registers differ,
+hence the qcom,pm8998-wdt compatible in front of the PM8916 fallback.
+
+Its bite resets the PMIC directly, without going through the secure world.
+That matters on SDM845 devices whose TZ does not reset on an APSS watchdog
+bite. Leave it disabled, so boards opt in.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ arch/arm64/boot/dts/qcom/pm8998.dtsi | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/pm8998.dtsi b/arch/arm64/boot/dts/qcom/pm8998.dtsi
+index 3ecb330590..8fdba4a3e5 100644
+--- a/arch/arm64/boot/dts/qcom/pm8998.dtsi
++++ b/arch/arm64/boot/dts/qcom/pm8998.dtsi
+@@ -59,6 +59,12 @@ pm8998_resin: resin {
+ 				bias-pull-up;
+ 				status = "disabled";
+ 			};
++
++			pm8998_wdt: watchdog {
++				compatible = "qcom,pm8998-wdt", "qcom,pm8916-wdt";
++				interrupts = <0x0 0x8 6 IRQ_TYPE_EDGE_RISING>;
++				status = "disabled";
++			};
+ 		};
+ 
+ 		pm8998_temp: temp-alarm@2400 {

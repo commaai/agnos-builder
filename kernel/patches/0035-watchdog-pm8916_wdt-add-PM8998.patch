@@ -1,0 +1,123 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 03:47:22 -0800
+Subject: [PATCH] watchdog: pm8916_wdt: add PM8998
+
+The PM8998 PMIC watchdog works like the PM8916 one, but its second
+generation PON block keeps the power-off reasons elsewhere: POFF_REASON1
+is at 0xc5, and UVLO and OTST3 are in FAULT_REASON1/2 (0xc8/0xc9, bits 6
+and 7). Read through the PM8916 offsets, a reset by the PMIC watchdog was
+never reported as WDIOF_CARDRESET, and UVLO and OTST3 were decoded from
+unrelated registers.
+
+Describe where the reasons live per compatible, and add qcom,pm8998-wdt.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/watchdog/pm8916_wdt.c | 58 +++++++++++++++++++++++++++--------
+ 1 file changed, 45 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/watchdog/pm8916_wdt.c b/drivers/watchdog/pm8916_wdt.c
+index 940e961d05..a3b6f696bb 100644
+--- a/drivers/watchdog/pm8916_wdt.c
++++ b/drivers/watchdog/pm8916_wdt.c
+@@ -10,11 +10,7 @@
+ #include <linux/regmap.h>
+ #include <linux/watchdog.h>
+ 
+-#define PON_POFF_REASON1		0x0c
+-#define PON_POFF_REASON1_PMIC_WD	BIT(2)
+-#define PON_POFF_REASON2		0x0d
+-#define PON_POFF_REASON2_UVLO		BIT(5)
+-#define PON_POFF_REASON2_OTST3		BIT(6)
++#define PON_POFF_REASON_PMIC_WD	BIT(2)
+ 
+ #define PON_INT_RT_STS			0x10
+ #define PMIC_WD_BARK_STS_BIT		BIT(6)
+@@ -37,6 +33,32 @@
+ #define PM8916_WDT_MIN_TIMEOUT		1
+ #define PM8916_WDT_MAX_TIMEOUT		127
+ 
++/*
++ * Where the PON block records why the PMIC last powered off. The UVLO and
++ * OTST3 bits sit in the two bytes starting at @fault_reason.
++ */
++struct pm8916_wdt_data {
++	unsigned int poff_reason;
++	unsigned int fault_reason;
++	u16 uvlo;
++	u16 otst3;
++};
++
++static const struct pm8916_wdt_data pm8916_wdt_data = {
++	.poff_reason = 0x0c,
++	.fault_reason = 0x0d,
++	.uvlo = BIT(5),
++	.otst3 = BIT(6),
++};
++
++/* Second generation PON, as on PM8998 */
++static const struct pm8916_wdt_data pm8998_wdt_data = {
++	.poff_reason = 0xc5,
++	.fault_reason = 0xc8,
++	.uvlo = BIT(6),
++	.otst3 = BIT(15),
++};
++
+ struct pm8916_wdt {
+ 	struct regmap *regmap;
+ 	struct watchdog_device wdev;
+@@ -186,7 +208,10 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
+ 	struct device *parent;
+ 	unsigned int val;
+ 	int err, irq;
+-	u8 poff[2];
++	const struct pm8916_wdt_data *data;
++	unsigned int poff;
++	u8 fault[2];
++	u16 faults;
+ 
+ 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+ 	if (!wdt)
+@@ -227,19 +252,25 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
+ 		wdt->wdev.info = &pm8916_wdt_ident;
+ 	}
+ 
+-	err = regmap_bulk_read(wdt->regmap, wdt->baseaddr + PON_POFF_REASON1,
+-			       &poff, ARRAY_SIZE(poff));
++	data = device_get_match_data(dev);
++
++	err = regmap_read(wdt->regmap, wdt->baseaddr + data->poff_reason, &poff);
++	if (!err)
++		err = regmap_bulk_read(wdt->regmap,
++				       wdt->baseaddr + data->fault_reason,
++				       fault, ARRAY_SIZE(fault));
+ 	if (err) {
+ 		dev_err(dev, "failed to read POFF reason: %d\n", err);
+ 		return err;
+ 	}
+ 
+-	dev_dbg(dev, "POFF reason: %#x %#x\n", poff[0], poff[1]);
+-	if (poff[0] & PON_POFF_REASON1_PMIC_WD)
++	faults = fault[0] | fault[1] << 8;
++	dev_dbg(dev, "POFF reason: %#x, faults: %#x\n", poff, faults);
++	if (poff & PON_POFF_REASON_PMIC_WD)
+ 		wdt->wdev.bootstatus |= WDIOF_CARDRESET;
+-	if (poff[1] & PON_POFF_REASON2_UVLO)
++	if (faults & data->uvlo)
+ 		wdt->wdev.bootstatus |= WDIOF_POWERUNDER;
+-	if (poff[1] & PON_POFF_REASON2_OTST3)
++	if (faults & data->otst3)
+ 		wdt->wdev.bootstatus |= WDIOF_OVERHEAT;
+ 
+ 	err = regmap_read(wdt->regmap, wdt->baseaddr + PON_PMIC_WD_RESET_S2_CTL2,
+@@ -321,7 +352,8 @@ static SIMPLE_DEV_PM_OPS(pm8916_wdt_pm_ops, pm8916_wdt_suspend,
+ 			 pm8916_wdt_resume);
+ 
+ static const struct of_device_id pm8916_wdt_id_table[] = {
+-	{ .compatible = "qcom,pm8916-wdt" },
++	{ .compatible = "qcom,pm8916-wdt", .data = &pm8916_wdt_data },
++	{ .compatible = "qcom,pm8998-wdt", .data = &pm8998_wdt_data },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(of, pm8916_wdt_id_table);

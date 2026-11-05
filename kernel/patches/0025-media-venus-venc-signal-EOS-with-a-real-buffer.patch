@@ -1,0 +1,234 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Date: Sun, 1 Nov 2026 20:04:30 -0800
+Subject: [PATCH] media: venus: venc: signal EOS with a real buffer
+
+The encoder signals the end of the stream the way the decoder used to,
+with an empty input buffer at the dummy address 0xdeadb000. The SDM845
+(Venus v4) firmware validates that address and the allocation length
+even when the payload is empty, and fails the session:
+
+  qcom-venus aa00000.video-codec: session error: event id:1001 (deadb000)
+
+so V4L2_ENC_CMD_STOP never completes a drain. The encoder also entered
+the drain state even when the EOS buffer could not be queued, and then
+waited for an EOS that would never come.
+
+Give the encoder the same real EOS buffer as the decoder. Move the
+allocation into venus_helper_set_eos_buf(), shared by both, free the
+buffer in venus_close_common() for either kind of instance, and only
+enter the drain state when the EOS buffer was queued.
+
+Fixes: 7493db46e4c4 ("venus: venc: add handling for VIDIOC_ENCODER_CMD")
+[adeeb: rebase onto the decoder fix and share its buffer through a
+ helper instead of an encoder-only allocation]
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/media/platform/qcom/venus/core.c    |  4 +++
+ drivers/media/platform/qcom/venus/core.h    |  7 ++++--
+ drivers/media/platform/qcom/venus/helpers.c | 24 ++++++++++++++++++
+ drivers/media/platform/qcom/venus/helpers.h |  2 ++
+ drivers/media/platform/qcom/venus/vdec.c    | 28 +++------------------
+ drivers/media/platform/qcom/venus/venc.c    |  8 +++---
+ 6 files changed, 43 insertions(+), 30 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/venus/core.c b/drivers/media/platform/qcom/venus/core.c
+index ae3d446cc9..c894c3ce94 100644
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -9,6 +9,7 @@
+ #include <linux/ioctl.h>
+ #include <linux/delay.h>
+ #include <linux/devcoredump.h>
++#include <linux/dma-mapping.h>
+ #include <linux/list.h>
+ #include <linux/module.h>
+ #include <linux/of.h>
+@@ -624,6 +625,9 @@ void venus_close_common(struct venus_inst *inst, struct file *filp)
+ 	v4l2_m2m_ctx_release(inst->m2m_ctx);
+ 	v4l2_m2m_release(inst->m2m_dev);
+ 	hfi_session_destroy(inst);
++	if (inst->eos_va)
++		dma_free_attrs(inst->core->dev, VENUS_EOS_BUF_SIZE, inst->eos_va,
++			       inst->eos_da, DMA_ATTR_NO_KERNEL_MAPPING);
+ 	v4l2_fh_del(&inst->fh, filp);
+ 	v4l2_fh_exit(&inst->fh);
+ 	v4l2_ctrl_handler_free(&inst->ctrl_handler);
+diff --git a/drivers/media/platform/qcom/venus/core.h b/drivers/media/platform/qcom/venus/core.h
+index 136bbeb3da..caaee4f247 100644
+--- a/drivers/media/platform/qcom/venus/core.h
++++ b/drivers/media/platform/qcom/venus/core.h
+@@ -9,6 +9,7 @@
+ 
+ #include <linux/bitops.h>
+ #include <linux/list.h>
++#include <linux/sizes.h>
+ #include <media/videobuf2-v4l2.h>
+ #include <media/v4l2-ctrls.h>
+ #include <media/v4l2-device.h>
+@@ -457,8 +458,8 @@ enum venus_inst_modes {
+  * @drain_active:	Drain sequence is in progress
+  * @flags:	bitmask flags describing current instance mode
+  * @dpb_ids:	DPB buffer ID's
+- * @eos_va:	kernel cookie of the buffer used to signal decoder EOS
+- * @eos_da:	device address of the buffer used to signal decoder EOS
++ * @eos_va:	kernel cookie of the buffer used to signal EOS
++ * @eos_da:	device address of the buffer used to signal EOS
+  */
+ struct venus_inst {
+ 	struct list_head list;
+@@ -534,6 +535,8 @@ struct venus_inst {
+ 	dma_addr_t eos_da;
+ };
+ 
++#define VENUS_EOS_BUF_SIZE	SZ_4K
++
+ #define IS_V1(core)	((core)->res->hfi_version == HFI_VERSION_1XX)
+ #define IS_V3(core)	((core)->res->hfi_version == HFI_VERSION_3XX)
+ #define IS_V4(core)	((core)->res->hfi_version == HFI_VERSION_4XX)
+diff --git a/drivers/media/platform/qcom/venus/helpers.c b/drivers/media/platform/qcom/venus/helpers.c
+index 59eee3dd9e..aced55bc8e 100644
+--- a/drivers/media/platform/qcom/venus/helpers.c
++++ b/drivers/media/platform/qcom/venus/helpers.c
+@@ -3,6 +3,7 @@
+  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+  * Copyright (C) 2017 Linaro Ltd.
+  */
++#include <linux/dma-mapping.h>
+ #include <linux/idr.h>
+ #include <linux/list.h>
+ #include <linux/mutex.h>
+@@ -1616,6 +1617,29 @@ int venus_helper_process_initial_cap_bufs(struct venus_inst *inst)
+ }
+ EXPORT_SYMBOL_GPL(venus_helper_process_initial_cap_bufs);
+ 
++/*
++ * The firmware validates the address of the empty input buffer used to
++ * signal EOS: Venus v4 rejects made-up addresses with a fatal session
++ * error. Hand it a real buffer, allocated on first use and freed when the
++ * instance is closed.
++ */
++int venus_helper_set_eos_buf(struct venus_inst *inst, struct hfi_frame_data *fdata)
++{
++	if (!inst->eos_va) {
++		inst->eos_va = dma_alloc_attrs(inst->core->dev, VENUS_EOS_BUF_SIZE,
++					       &inst->eos_da, GFP_KERNEL,
++					       DMA_ATTR_NO_KERNEL_MAPPING);
++		if (!inst->eos_va)
++			return -ENOMEM;
++	}
++
++	fdata->device_addr = inst->eos_da;
++	fdata->alloc_len = VENUS_EOS_BUF_SIZE;
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(venus_helper_set_eos_buf);
++
+ int venus_helper_process_initial_out_bufs(struct venus_inst *inst)
+ {
+ 	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+diff --git a/drivers/media/platform/qcom/venus/helpers.h b/drivers/media/platform/qcom/venus/helpers.h
+index 358e4f39c9..b5127c414b 100644
+--- a/drivers/media/platform/qcom/venus/helpers.h
++++ b/drivers/media/platform/qcom/venus/helpers.h
+@@ -9,6 +9,7 @@
+ #include <media/videobuf2-v4l2.h>
+ 
+ struct venus_inst;
++struct hfi_frame_data;
+ struct venus_core;
+ 
+ bool venus_helper_check_codec(struct venus_inst *inst, u32 v4l2_pixfmt);
+@@ -65,6 +66,7 @@ int venus_helper_queue_dpb_bufs(struct venus_inst *inst);
+ int venus_helper_unregister_bufs(struct venus_inst *inst);
+ int venus_helper_process_initial_cap_bufs(struct venus_inst *inst);
+ int venus_helper_process_initial_out_bufs(struct venus_inst *inst);
++int venus_helper_set_eos_buf(struct venus_inst *inst, struct hfi_frame_data *fdata);
+ void venus_helper_get_ts_metadata(struct venus_inst *inst, u64 timestamp_us,
+ 				  struct vb2_v4l2_buffer *vbuf);
+ int venus_helper_get_profile_level(struct venus_inst *inst, u32 *profile, u32 *level);
+diff --git a/drivers/media/platform/qcom/venus/vdec.c b/drivers/media/platform/qcom/venus/vdec.c
+index 74591c7a82..796056a98d 100644
+--- a/drivers/media/platform/qcom/venus/vdec.c
++++ b/drivers/media/platform/qcom/venus/vdec.c
+@@ -4,11 +4,9 @@
+  * Copyright (C) 2017 Linaro Ltd.
+  */
+ #include <linux/clk.h>
+-#include <linux/dma-mapping.h>
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
+ #include <linux/pm_runtime.h>
+-#include <linux/sizes.h>
+ #include <linux/slab.h>
+ #include <media/v4l2-ioctl.h>
+ #include <media/v4l2-event.h>
+@@ -23,8 +21,6 @@
+ #include "vdec.h"
+ #include "pm_helpers.h"
+ 
+-#define VDEC_EOS_BUF_SIZE	SZ_4K
+-
+ /*
+  * Three resons to keep MPLANE formats (despite that the number of planes
+  * currently is one):
+@@ -581,24 +577,9 @@ vdec_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd *cmd)
+ 		if (IS_IRIS2(inst->core) && is_fw_rev_or_older(inst->core, 1, 0, 87)) {
+ 			fdata.device_addr = 0;
+ 		} else {
+-			/*
+-			 * Firmware may validate the address of the EOS buffer,
+-			 * so hand it a real one rather than a made-up address.
+-			 */
+-			if (!inst->eos_va) {
+-				inst->eos_va = dma_alloc_attrs(inst->core->dev,
+-							       VDEC_EOS_BUF_SIZE,
+-							       &inst->eos_da,
+-							       GFP_KERNEL,
+-							       DMA_ATTR_NO_KERNEL_MAPPING);
+-				if (!inst->eos_va) {
+-					ret = -ENOMEM;
+-					goto unlock;
+-				}
+-			}
+-
+-			fdata.device_addr = inst->eos_da;
+-			fdata.alloc_len = VDEC_EOS_BUF_SIZE;
++			ret = venus_helper_set_eos_buf(inst, &fdata);
++			if (ret)
++				goto unlock;
+ 		}
+ 
+ 		ret = hfi_session_process_buf(inst, &fdata);
+@@ -1785,9 +1766,6 @@ static int vdec_close(struct file *file)
+ 	cancel_work_sync(&inst->delayed_process_work);
+ 	venus_close_common(inst, file);
+ 	ida_destroy(&inst->dpb_ids);
+-	if (inst->eos_va)
+-		dma_free_attrs(inst->core->dev, VDEC_EOS_BUF_SIZE, inst->eos_va,
+-			       inst->eos_da, DMA_ATTR_NO_KERNEL_MAPPING);
+ 	vdec_pm_put(inst, false);
+ 
+ 	kfree(inst);
+diff --git a/drivers/media/platform/qcom/venus/venc.c b/drivers/media/platform/qcom/venus/venc.c
+index b610577346..ca7009b8ec 100644
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -549,11 +549,13 @@ venc_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd *cmd)
+ 
+ 		fdata.buffer_type = HFI_BUFFER_INPUT;
+ 		fdata.flags |= HFI_BUFFERFLAG_EOS;
+-		fdata.device_addr = 0xdeadb000;
++		ret = venus_helper_set_eos_buf(inst, &fdata);
++		if (ret)
++			goto unlock;
+ 
+ 		ret = hfi_session_process_buf(inst, &fdata);
+-
+-		inst->enc_state = VENUS_ENC_STATE_DRAIN;
++		if (!ret)
++			inst->enc_state = VENUS_ENC_STATE_DRAIN;
+ 	} else if (cmd->cmd == V4L2_ENC_CMD_START) {
+ 		if (inst->enc_state == VENUS_ENC_STATE_DRAIN) {
+ 			ret = -EBUSY;

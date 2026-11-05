@@ -52,7 +52,7 @@ if [ ! -z "$NS" ]; then
   fi
   BUILD="nsc build --region ${NS_REGION:-us} --output-local $BUILD_DIR/image --build-arg ZSTD=1"
 fi
-GIT_HASH=${GIT_HASH:-$(git --git-dir=$DIR/.git rev-parse HEAD)}
+GIT_HASH=${GIT_HASH:-$(git -C "$DIR" rev-parse HEAD)}
 rm -rf $BUILD_DIR/image
 $BUILD -f Dockerfile.agnos $DIR --platform=linux/arm64 \
   --build-arg UBUNTU_BASE_IMAGE=$UBUNTU_FILE \

@@ -23,6 +23,7 @@ apt-fast install --no-install-recommends -yq \
     dnsmasq-base \
     gdb \
     git \
+    gpiod \
     iptables-persistent \
     iputils-ping \
     jq \
@@ -31,6 +32,8 @@ apt-fast install --no-install-recommends -yq \
     libc6-dev \
     libegl-dev \
     libegl1 \
+    libegl-mesa0 \
+    libgl1-mesa-dri \
     libgles-dev \
     libgles1 \
     libgles2 \
@@ -45,6 +48,7 @@ apt-fast install --no-install-recommends -yq \
     openssl \
     ppp \
     psmisc \
+    python3-libgpiod \
     rsync \
     strace \
     systemd \
@@ -54,6 +58,7 @@ apt-fast install --no-install-recommends -yq \
     udev \
     usbutils \
     vim \
+    wireless-regdb \
     wpasupplicant
 
 # Create the privileged user and hardware access groups.
@@ -77,11 +82,7 @@ install -d -o "$USERNAME" -g "$USERNAME" /data /persist
 install -d /config
 ln -sf /bin/bash /bin/sh
 
-# Ubuntu Base doesn't provide the merged /lib64 directory.
-mkdir /usr/lib64
-ln -s usr/lib64 /lib64
-
-# Install Ubuntu's graphics development files before replacing their libraries.
+# Install graphics development files for openpilot.
 /tmp/agnos/openpilot_dependencies.sh
 
 # Versioned LLVM packages don't provide the unversioned commands.

@@ -1,2 +1,4 @@
-SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c 'find -L /sys/class/gpio/ -maxdepth 2 -exec chown root:gpio {} + -exec chmod 770 {} + || true'"
-SUBSYSTEM=="gpio", KERNEL=="gpiochip[0]", GROUP="gpio", MODE="660"
+# openpilot's common/gpio.py drives the lines gpio.sh exports through the legacy sysfs ABI
+SUBSYSTEM=="gpio", KERNEL=="gpio[0-9]*", ACTION=="add", RUN+="/bin/chgrp gpio /sys%p/direction /sys%p/value", RUN+="/bin/chmod g+w /sys%p/direction /sys%p/value"
+# openpilot's sensord takes the IMU interrupt from the TLMM's character device
+SUBSYSTEM=="gpio", KERNEL=="gpiochip[0-9]*", KERNELS=="3400000.pinctrl", GROUP="gpio", MODE="0660"

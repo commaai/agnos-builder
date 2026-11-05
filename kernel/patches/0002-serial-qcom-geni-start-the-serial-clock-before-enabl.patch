@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 00:30:47 -0800
+Subject: [PATCH] serial: qcom-geni: start the serial clock before enabling the
+ receiver
+
+Since commit fa103d2599e1 ("serial: qcom-geni: fix receiver enable"),
+startup() starts the receiver, and set_termios() no longer stops and
+restarts it. The serial core calls startup() before set_termios(), so
+the first read command is issued before the serial clock has been set
+up.
+
+On a port that the bootloader never used, GENI_SER_S_CLK_CFG is still
+zero at that point. The sequencer rejects UART_START_READ with the clock
+disabled: S_IRQ_STATUS reads S_CMD_DONE | S_ILLEGAL_CMD right after
+startup(), and SE_GENI_STATUS shows no active command. The receiver then
+stays off until the port is closed and opened again, because by then
+set_termios() has left the clock running. On the comma four (SDM845)
+this made the u-blox GNSS receiver on ttyHS0 look dead on the first open
+after every boot, which is the only open its daemon does.
+
+Bluetooth, the most common user of a non-console GENI UART, hides the
+problem: hci_qca closes and reopens the port during setup
+(qca_port_reopen(), and qca_regulator_init() when the regulators were
+off), so the receiver works from the second open on.
+
+If the serial clock is off when a non-console port is opened, program it
+for the port's current speed before starting the receiver. Console ports
+already have it running, because console setup calls set_termios()
+before any open.
+
+Fixes: fa103d2599e1 ("serial: qcom-geni: fix receiver enable")
+Cc: stable@vger.kernel.org
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/tty/serial/qcom_geni_serial.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/tty/serial/qcom_geni_serial.c b/drivers/tty/serial/qcom_geni_serial.c
+index 08e29ce979..19b2fe41cd 100644
+--- a/drivers/tty/serial/qcom_geni_serial.c
++++ b/drivers/tty/serial/qcom_geni_serial.c
+@@ -1391,6 +1391,7 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
+ 
+ static int qcom_geni_serial_startup(struct uart_port *uport)
+ {
++	unsigned int baud;
+ 	int ret;
+ 	struct qcom_geni_serial_port *port = to_dev_port(uport);
+ 	struct tty_port *tport = &uport->state->port;
+@@ -1416,6 +1417,13 @@ static int qcom_geni_serial_startup(struct uart_port *uport)
+ 	if (uart_console(uport))
+ 		tport->closing_wait = ASYNC_CLOSING_WAIT_NONE;
+ 
++	/* The receiver is started before set_termios(), make sure its clock runs */
++	if (!uart_console(uport) &&
++	    !(readl(uport->membase + GENI_SER_S_CLK_CFG) & SER_CLK_EN)) {
++		baud = uart_get_baud_rate(uport, &tport->tty->termios, NULL, 300, 8000000);
++		port->dev_data->set_rate(&port->se, baud);
++	}
++
+ 	uart_port_lock_irq(uport);
+ 	qcom_geni_serial_start_rx(uport);
+ 	uart_port_unlock_irq(uport);

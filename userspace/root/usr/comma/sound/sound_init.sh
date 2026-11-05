@@ -1,25 +1,24 @@
 #!/bin/bash
+set -euo pipefail
 
-/usr/comma/sound/adsp-start.sh
+case "$(tr -d '\0' < /proc/device-tree/model)" in
+  "comma mici") card=commamici; capture=SEC_MI2S_TX ;;
+  "comma tizi") card=commatizi; capture=TERT_MI2S_TX ;;
+  *) echo "unknown device" >&2; exit 1 ;;
+esac
 
+# qcom-firmware.service boots the ADSP, which brings up the card
 echo "waiting for sound card to come online"
-while [ ! -d /proc/asound/sdm845tavilsndc ] || [ "$(cat /proc/asound/card0/state 2> /dev/null)" != "ONLINE" ] ; do
-  sleep 0.01
+for _ in $(seq 100); do
+  [ -d "/proc/asound/$card" ] && break
+  sleep 0.1
 done
+test -d "/proc/asound/$card"
 echo "sound card online"
 
-while ! amixer -D hw:0 controls | grep -q "SEC_MI2S_RX Audio Mixer MultiMedia1"; do
-  sleep 0.01
-done
-echo "mixer controls ready"
-
-amixer -D hw:0 -q cset "name='SEC_MI2S_RX Audio Mixer MultiMedia1'" 1
-if grep -q mici /sys/firmware/devicetree/base/model; then
-  amixer -D hw:0 -q cset "name='MultiMedia1 Mixer SEC_MI2S_TX'" 1
-else
-  amixer -D hw:0 -q cset "name='MultiMedia1 Mixer TERT_MI2S_TX'" 1
-  amixer -D hw:0 -q cset "name='TERT_MI2S_TX Channels'" Two
-fi
+# playback is MultiMedia1 (device 0), capture is MultiMedia2 (device 1)
+amixer -c "$card" -q cset "name='SEC_MI2S_RX Audio Mixer MultiMedia1'" 1
+amixer -c "$card" -q cset "name='MultiMedia2 Mixer $capture'" 1
 
 # setup the amplifier registers
 /usr/local/venv/bin/python /usr/comma/sound/amplifier.py

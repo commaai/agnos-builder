@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 07:36:06 -0800
+Subject: [PATCH] wifi: ath10k: initialise the HTC TX works before a start can
+ fail
+
+ath10k_htc_wait_target() initialises bundle_tx_work and
+tx_complete_work only once the target has answered. When it fails, for
+example because the firmware never sends the HTC ready message,
+ath10k_core_start() unwinds through ath10k_htt_tx_free() and
+ath10k_htc_stop_hl(), which calls cancel_work_sync() on the work items
+that were never initialised:
+
+  WARNING: kernel/workqueue.c:4409 at __flush_work+0x334/0x358
+  Call trace:
+   __flush_work+0x334/0x358
+   cancel_work_sync+0x6c/0x90
+   ath10k_htc_stop_hl+0x20/0x64 [ath10k_core]
+   ath10k_htt_tx_free+0x20/0x5c [ath10k_core]
+   ath10k_core_start+0x3cc/0x10f0 [ath10k_core]
+   ath10k_core_register_work+0x590/0x96c [ath10k_core]
+
+On WCN3990 this happens when the modem, which manages the WLAN firmware,
+is stopped while the first firmware start is waiting for the target.
+
+Initialise the works in ath10k_htc_init(), which every start runs before
+anything can queue or cancel them.
+
+Fixes: c8334512f3dd ("ath10k: add htt TX bundle for sdio")
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/net/wireless/ath/ath10k/htc.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath10k/htc.c b/drivers/net/wireless/ath/ath10k/htc.c
+index 821a12090b..01d896520b 100644
+--- a/drivers/net/wireless/ath/ath10k/htc.c
++++ b/drivers/net/wireless/ath/ath10k/htc.c
+@@ -995,9 +995,6 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
+ 			   htc->alt_data_credit_size);
+ 	}
+ 
+-	INIT_WORK(&ar->bundle_tx_work, ath10k_htc_bundle_tx_work);
+-	INIT_WORK(&ar->tx_complete_work, ath10k_htc_tx_complete_work);
+-
+ 	return 0;
+ }
+ 
+@@ -1296,6 +1293,8 @@ int ath10k_htc_init(struct ath10k *ar)
+ 	struct ath10k_htc_svc_conn_resp conn_resp;
+ 
+ 	spin_lock_init(&htc->tx_lock);
++	INIT_WORK(&ar->bundle_tx_work, ath10k_htc_bundle_tx_work);
++	INIT_WORK(&ar->tx_complete_work, ath10k_htc_tx_complete_work);
+ 
+ 	ath10k_htc_reset_endpoint_states(htc);
+ 

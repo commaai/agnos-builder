@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 06:59:23 -0800
+Subject: [PATCH] wifi: ath10k: snoc: keep the copy engine IRQs balanced across
+ a restart
+
+The copy engine IRQs are left enabled across a firmware restart: hif_stop
+skips disabling them when CRASH_FLUSH is set, and hif_start skips
+enabling them when RECOVERY is set. The two flags do not always pair up.
+The "fw down" indication sets RECOVERY even when the device is not
+started, for example when the modem restarts while the interface is down
+or before the first interface up. hif_stop has disabled the IRQs in that
+case, so the next hif_start leaves them disabled. The firmware start then
+falls back to polling for the HTC control response and fails with
+"failed to connect htt (-110)", and Wi-Fi stays down until reboot.
+
+On a comma four this happened after a modem restart while wlan0 was
+down.
+
+Track whether the IRQs are enabled and enable or disable them only on a
+real change, keeping them enabled across a crash restart as before.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/net/wireless/ath/ath10k/snoc.c | 9 ++++++---
+ drivers/net/wireless/ath/ath10k/snoc.h | 1 +
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath10k/snoc.c b/drivers/net/wireless/ath/ath10k/snoc.c
+index 8de133fe2a..ab5b11dbd4 100644
+--- a/drivers/net/wireless/ath/ath10k/snoc.c
++++ b/drivers/net/wireless/ath/ath10k/snoc.c
+@@ -925,7 +925,11 @@ static void ath10k_snoc_buffer_cleanup(struct ath10k *ar)
+ 
+ static void ath10k_snoc_hif_stop(struct ath10k *ar)
+ {
+-	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
++	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
++
++	/* IRQs are left enabled when we restart due to a firmware crash */
++	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags) &&
++	    test_and_clear_bit(ATH10K_SNOC_FLAG_IRQS_ENABLED, &ar_snoc->flags))
+ 		ath10k_snoc_irq_disable(ar);
+ 
+ 	ath10k_core_napi_sync_disable(ar);
+@@ -941,8 +945,7 @@ static int ath10k_snoc_hif_start(struct ath10k *ar)
+ 
+ 	netif_threaded_enable(ar->napi_dev);
+ 	ath10k_core_napi_enable(ar);
+-	/* IRQs are left enabled when we restart due to a firmware crash */
+-	if (!test_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags))
++	if (!test_and_set_bit(ATH10K_SNOC_FLAG_IRQS_ENABLED, &ar_snoc->flags))
+ 		ath10k_snoc_irq_enable(ar);
+ 	ath10k_snoc_rx_post(ar);
+ 
+diff --git a/drivers/net/wireless/ath/ath10k/snoc.h b/drivers/net/wireless/ath/ath10k/snoc.h
+index 46574fd8f8..42dbab3c1e 100644
+--- a/drivers/net/wireless/ath/ath10k/snoc.h
++++ b/drivers/net/wireless/ath/ath10k/snoc.h
+@@ -52,6 +52,7 @@ enum ath10k_snoc_flags {
+ 	ATH10K_SNOC_FLAG_RECOVERY,
+ 	ATH10K_SNOC_FLAG_8BIT_HOST_CAP_QUIRK,
+ 	ATH10K_SNOC_FLAG_SKIP_HOST_CAP_QUIRK,
++	ATH10K_SNOC_FLAG_IRQS_ENABLED,
+ };
+ 
+ struct clk_bulk_data;

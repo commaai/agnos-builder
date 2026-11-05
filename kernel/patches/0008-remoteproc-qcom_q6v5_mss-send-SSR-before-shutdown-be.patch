@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 03:53:14 -0800
+Subject: [PATCH] remoteproc: qcom_q6v5_mss: send SSR "before shutdown" before
+ sysmon stop
+
+Subdevices are stopped in the reverse order they were added. The MSS
+driver adds the SSR subdevice before sysmon, so on a graceful stop sysmon
+first asks the modem to shut down over SSCTL and only then are the SSR
+notifier clients (ath10k on SDM845) told that the modem is about to go
+away. By then the modem has already torn down the services those clients
+would need to quiesce their hardware, e.g. the WLAN firmware QMI service.
+
+Add the SSR subdevice after sysmon, as qcom_q6v5_pas already does, so
+QCOM_SSR_BEFORE_SHUTDOWN reaches the clients while the modem still runs,
+which matches the downstream order (SUBSYS_BEFORE_SHUTDOWN, then sysmon
+shutdown). Crash handling is unchanged: sysmon skips the shutdown request
+on a crash, and the notification still carries the crashed flag.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/remoteproc/qcom_q6v5_mss.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/remoteproc/qcom_q6v5_mss.c b/drivers/remoteproc/qcom_q6v5_mss.c
+index 2f71ed2fef..0ca760eca6 100644
+--- a/drivers/remoteproc/qcom_q6v5_mss.c
++++ b/drivers/remoteproc/qcom_q6v5_mss.c
+@@ -2201,13 +2201,20 @@ static int q6v5_probe(struct platform_device *pdev)
+ 	qcom_add_glink_subdev(rproc, &qproc->glink_subdev, "mpss");
+ 	qcom_add_smd_subdev(rproc, &qproc->smd_subdev);
+ 	qcom_add_pdm_subdev(rproc, &qproc->pdm_subdev);
+-	qcom_add_ssr_subdev(rproc, &qproc->ssr_subdev, "mpss");
+ 	qproc->sysmon = qcom_add_sysmon_subdev(rproc, "modem", desc->ssctl_id);
+ 	if (IS_ERR(qproc->sysmon)) {
+ 		ret = PTR_ERR(qproc->sysmon);
+ 		goto remove_subdevs;
+ 	}
+ 
++	/*
++	 * Subdevices are stopped in reverse order, so adding the SSR subdevice
++	 * after sysmon sends the "before shutdown" notification to clients such
++	 * as ath10k while the modem is still running, before sysmon asks it to
++	 * shut down.
++	 */
++	qcom_add_ssr_subdev(rproc, &qproc->ssr_subdev, "mpss");
++
+ 	ret = rproc_add(rproc);
+ 	if (ret)
+ 		goto remove_sysmon_subdev;
+@@ -2219,9 +2226,9 @@ static int q6v5_probe(struct platform_device *pdev)
+ 	return 0;
+ 
+ remove_sysmon_subdev:
++	qcom_remove_ssr_subdev(rproc, &qproc->ssr_subdev);
+ 	qcom_remove_sysmon_subdev(qproc->sysmon);
+ remove_subdevs:
+-	qcom_remove_ssr_subdev(rproc, &qproc->ssr_subdev);
+ 	qcom_remove_smd_subdev(rproc, &qproc->smd_subdev);
+ 	qcom_remove_glink_subdev(rproc, &qproc->glink_subdev);
+ detach_proxy_pds:
+@@ -2240,8 +2247,8 @@ static void q6v5_remove(struct platform_device *pdev)
+ 	rproc_del(rproc);
+ 
+ 	qcom_q6v5_deinit(&qproc->q6v5);
+-	qcom_remove_sysmon_subdev(qproc->sysmon);
+ 	qcom_remove_ssr_subdev(rproc, &qproc->ssr_subdev);
++	qcom_remove_sysmon_subdev(qproc->sysmon);
+ 	qcom_remove_pdm_subdev(rproc, &qproc->pdm_subdev);
+ 	qcom_remove_smd_subdev(rproc, &qproc->smd_subdev);
+ 	qcom_remove_glink_subdev(rproc, &qproc->glink_subdev);

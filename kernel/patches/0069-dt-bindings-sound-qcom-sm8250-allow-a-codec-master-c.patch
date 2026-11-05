@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 05:08:16 -0800
+Subject: [PATCH] dt-bindings: sound: qcom,sm8250: allow a codec master clock
+ on the card
+
+The comma 3X's MAX98089 codec is programmed from userspace and has no
+kernel driver, so nothing would enable the master clock it runs from.
+Allow the sound card to take that clock as an optional "mclk", which
+the sdm845 machine driver then keeps enabled while the card is bound.
+
+This is local to AGNOS, like the sdm845 patch that uses it. Upstream,
+the codec would be described as a device that owns its own MCLK.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ Documentation/devicetree/bindings/sound/qcom,sm8250.yaml | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/sound/qcom,sm8250.yaml b/Documentation/devicetree/bindings/sound/qcom,sm8250.yaml
+index 1536fcd96d..59765f7b2d 100644
+--- a/Documentation/devicetree/bindings/sound/qcom,sm8250.yaml
++++ b/Documentation/devicetree/bindings/sound/qcom,sm8250.yaml
+@@ -55,6 +55,15 @@ properties:
+           - qcom,sm8450-sndcard
+           - qcom,x1e80100-sndcard
+ 
++  clocks:
++    maxItems: 1
++    description:
++      Master clock of a codec that is not described as a device, kept
++      enabled while the card is bound.
++
++  clock-names:
++    const: mclk
++
+   audio-routing:
+     $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+     description:

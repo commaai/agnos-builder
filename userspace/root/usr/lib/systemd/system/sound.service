@@ -1,5 +1,7 @@
 [Unit]
 Description=Sound
+Requires=qcom-firmware.service
+After=qcom-firmware.service
 
 [Service]
 Type=oneshot
