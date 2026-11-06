@@ -42,7 +42,7 @@ else
   amixer -D hw:0 -q cset "name='TERT_MI2S_TX Channels'" Two
 fi
 
-# sound is ready, clients shouldn't have to wait on udev for access
+# sound is ready, let clients in. opening a PCM before the ADSP is up floods the console with errors
 find /dev/snd -maxdepth 1 -type c -exec chgrp audio {} + -exec chmod 660 {} +
 
 # setup the amplifier registers
