@@ -1,9 +1,6 @@
 #!/bin/bash
 # setup for the ultimate provisioning (UP) board
 
-# gpio.sh is for the tici. on a UP it never finishes, the TCAN driver owns some of its pins
-systemctl mask --runtime --now gpio.service
-
 # at 1.2 GHz the gold cores run ~17 C cooler under full CAN load, same CAN throughput.
 # comma.sh sets its own limit on boot, so wait for that first
 GOLD_MAX=/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
