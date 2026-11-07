@@ -33,7 +33,7 @@ function start_venus {
   until [ -e /dev/video33 ]; do
     sleep 0.01
   done
-  # just opening the node boots venus, openpilot's booted check waits for that
+  # opening the node boots the venus encoder
   : < /dev/video33
 }
 
