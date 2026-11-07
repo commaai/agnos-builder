@@ -115,13 +115,14 @@ function setup_devices {
   fi
 
   chgrp gpu /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}*
-  chgrp gpio /dev/gpiochip0 /dev/i2c-* /dev/ttyHS*
+  # /sys/class/gpio is for provisioning, it exports its pins as comma
+  chgrp gpio /dev/gpiochip0 /dev/i2c-* /dev/ttyHS* /sys/class/gpio/{export,unexport}
   chgrp input /dev/input/{event,mouse}* /dev/input/mice
   chgrp video /dev/media* /dev/v4l-subdev* /dev/video*
   chgrp disk /dev/sd* /dev/sg*
   chgrp dialout /dev/ttyMSM*
   chmod 660 /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}* \
-    /dev/gpiochip0 /dev/i2c-* /dev/ttyHS* \
+    /dev/gpiochip0 /dev/i2c-* /dev/ttyHS* /sys/class/gpio/{export,unexport} \
     /dev/media* /dev/v4l-subdev* /dev/video* \
     /dev/sd* /dev/sg* \
     /dev/ttyMSM*
