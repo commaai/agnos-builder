@@ -33,22 +33,24 @@ function run_init {
   ) & PIDS+=($!)
 }
 
-# mount_part <partition> <mount point> [mount options]
-# partitions are mounted here, not in fstab: a mount from fstab waits for its device unit,
-# and systemd only gets those from udev. they're found through sysfs so this doesn't wait
-# for udev's links
-function mount_part {
-  local part=$1 where=$2 uevent dev
-  shift 2
-  until uevent=$(grep -lx "PARTNAME=$part" /sys/class/block/sd*/uevent 2>/dev/null); do
+# part_dev <partition>
+# prints the partition's device. it's found through sysfs so this doesn't wait for udev's links
+function part_dev {
+  local uevent
+  until uevent=$(grep -lx "PARTNAME=$1" /sys/class/block/sd*/uevent 2>/dev/null); do
     sleep 0.1
   done
-  dev=${uevent%/uevent}
-  dev=/dev/${dev##*/}
-  if [ "$part" = cache ]; then
-    /usr/lib/systemd/systemd-makefs ext4 "$dev" || return 1
-  fi
-  mount "$@" "$dev" "$where"
+  uevent=${uevent%/uevent}
+  echo "/dev/${uevent##*/}"
+}
+
+# mount_part <partition> <mount point> [mount options]
+# partitions are mounted here, not in fstab: a mount from fstab waits for its device unit,
+# and systemd only gets those from udev
+function mount_part {
+  local dev
+  dev=$(part_dev "$1")
+  mount "${@:3}" "$dev" "$2"
 }
 
 # wait_mount <mount point>
@@ -87,8 +89,13 @@ function mount_data {
 }
 
 function mount_cache {
-  mount_part cache /cache -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
-  chown -R comma:comma /cache/
+  local opts=(-t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid)
+  if ! mount_part cache /cache "${opts[@]}"; then
+    # cache is formatted on first boot
+    /usr/lib/systemd/systemd-makefs ext4 "$(part_dev cache)"
+    mount_part cache /cache "${opts[@]}"
+  fi
+  chown comma: /cache
 }
 
 function mount_tmp {
