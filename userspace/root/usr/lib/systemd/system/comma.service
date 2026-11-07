@@ -1,5 +1,8 @@
 [Unit]
-After=local-fs.target
+DefaultDependencies=no
+After=boot.service
+Before=shutdown.target
+Conflicts=shutdown.target
 
 [Service]
 Type=oneshot

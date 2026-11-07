@@ -83,7 +83,7 @@ function mount_data {
     /data/persist/hlos_rfs/shared /data/persist/rfs/shared \
     /data/persist/rfs/msm/adsp /data/persist/rfs/msm/mpss
   touch /data/etc/timezone /data/etc/localtime
-  chown comma: /data/ssh
+  chown comma: /data /data/ssh
 }
 
 function mount_cache {

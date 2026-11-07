@@ -38,4 +38,7 @@ systemctl disable motd-news.timer
 systemctl disable systemd-pstore.service
 systemctl mask systemd-backlight@.service
 systemctl mask alsa-restore.service
+
+# boot.sh mounts a fresh /tmp, and this would delete what's already using it
+ln -s /dev/null /etc/tmpfiles.d/tmp.conf
 systemctl disable dpkg-db-backup.timer
