@@ -15,7 +15,7 @@
 - [ ] Clean setup: factory reset -> install openpilot -> openpilot works
 - [ ] Color calibration works from `/persist/comma/`
   - [ ] tizi: `journalctl -u magic | grep 'Successfully setup color correction'`
-  - [ ] mici: `journalctl -u screen_calibration | grep -i 'Successfully setup screen calibration'`
+  - [ ] mici: `journalctl -u magic | grep -i 'Successfully setup screen calibration'`
 - [ ] AGNOS update works on warm boot
   - [ ] previous -> new
   - [ ] new -> previous
