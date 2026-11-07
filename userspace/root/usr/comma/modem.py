@@ -34,8 +34,8 @@ logging.basicConfig(
   datefmt="%H:%M:%S",
 )
 
-AT_PORT = "/dev/modem_at0"
-PPP_PORT = "/dev/modem_at1"
+AT_PORT = "/dev/ttyUSB2"
+PPP_PORT = "/dev/ttyUSB3"
 STATE_PATH = "/dev/shm/modem"
 AT_LOCK = "/dev/shm/modem.lock"  # shared with LPA
 AT_INIT = [
