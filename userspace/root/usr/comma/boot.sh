@@ -32,8 +32,8 @@ function run_init {
 
 # mount_part <partition> <mount point> [mount options]
 # partitions are mounted here, not in fstab: a mount from fstab waits for its device unit,
-# and systemd only gets those from udev. they're found through sysfs so this doesn't depend
-# on devices.py having made its links
+# and systemd only gets those from udev. they're found through sysfs so this doesn't wait
+# for udev's links
 function mount_part {
   local part=$1 where=$2 uevent dev
   shift 2

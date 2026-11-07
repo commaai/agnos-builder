@@ -5,7 +5,6 @@ systemctl enable cdsp
 
 # Enable our services
 systemctl enable boot.service
-systemctl enable devices.service
 systemctl enable uevent-helper.service
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
