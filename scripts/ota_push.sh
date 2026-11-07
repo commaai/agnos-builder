@@ -40,6 +40,10 @@ process_file() {
   local NAME=$1
   local HASH_RAW=$(cat $OTA_JSON | jq -r ".[] | select(.name == \"$NAME\") | .hash_raw")
   upload_file "$NAME-$HASH_RAW.img.xz"
+  while IFS= read -r URL; do
+    upload_file "${URL##*/}"
+  done < <(jq -r --arg name "$NAME" '.[] | select(.name == $name) | (.flash // .) |
+    [.zstd_url, .zstd_chunked_url, .lz4.zstd_url, .lz4.zstd_chunked_url] | map(select(. != null)) | unique[]' "$OTA_JSON")
   if [ -f "$OTA_DIR/$NAME-$HASH_RAW.img" ]; then
     upload_file "$NAME-$HASH_RAW.img"
   fi

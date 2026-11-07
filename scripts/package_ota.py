@@ -7,7 +7,12 @@ import struct
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from collections import namedtuple
+from collections import deque, namedtuple
+from concurrent.futures import ThreadPoolExecutor
+
+from flash_images import optimize_image, stream_index
+from lz4_images import encode_lz4
+from sparse_equivalence import verify_sparse_equal
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -16,6 +21,7 @@ OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
 BUILD_DIR = ROOT / "build"
 
 SECTOR_SIZE = 4096
+HASH_CHUNK_SIZE = 4 * 1024 * 1024
 
 AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate")
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
@@ -64,7 +70,7 @@ PARTITIONS = [
 def file_checksum(fn):
   sha256 = hashlib.sha256()
   with open(fn, 'rb') as f:
-    for chunk in iter(lambda: f.read(4096), b""):
+    for chunk in iter(lambda: f.read(1024 * 1024), b""):
       sha256.update(chunk)
   return sha256
 
@@ -98,16 +104,25 @@ def ondevice_checksum_sparse(fn, ota):
       chunk_sz = header[2]
 
       if chunk_type == 0xCAC1: # RAW
-        d = data_source.read(chunk_sz * SECTOR_SIZE)
-        hash_raw.update(d)
-        ondevice_hash.update(d)
-        total_size += chunk_sz * SECTOR_SIZE
-      elif chunk_type == 0xCAC2: # FILL
-        d = data_source.read(4) * (chunk_sz * SECTOR_SIZE // 4)
-        if d[:4] != b'\x00\x00\x00\x00': # For ondevice_hash, treat FILL 0 like DONT_CARE
+        remaining = chunk_sz * SECTOR_SIZE
+        while remaining:
+          d = data_source.read(min(remaining, 1024 * 1024))
+          assert d, 'Truncated sparse chunk'
+          hash_raw.update(d)
           ondevice_hash.update(d)
-        hash_raw.update(d)
-        total_size += chunk_sz * SECTOR_SIZE
+          total_size += len(d)
+          remaining -= len(d)
+      elif chunk_type == 0xCAC2: # FILL
+        fill = data_source.read(4)
+        assert len(fill) == 4
+        remaining = chunk_sz * SECTOR_SIZE
+        while remaining:
+          d = fill * (min(remaining, 1024 * 1024) // 4)
+          if fill != bytes(4):
+            ondevice_hash.update(d)
+          hash_raw.update(d)
+          total_size += len(d)
+          remaining -= len(d)
       elif chunk_type == 0xCAC3: # DONT_CARE
         assert not ota, 'DONT_CARE chunks are currently not supported for OTA'
       else:
@@ -116,10 +131,59 @@ def ondevice_checksum_sparse(fn, ota):
     return hash_raw.hexdigest(), ondevice_hash.hexdigest(), total_size
 
 def compress(fin, fout) -> None:
-  # since system.img is a squashfs now, we don't rely on this compression.
-  # however, openpilot's updater still expects an xz archive, so use lowest
-  # compression level for quick packaging.
+  # The OTA updater expects xz; keep packaging fast for that archive.
   subprocess.check_call(f"xz -0 -T0 -vc {fin} > {fout}", shell=True)
+
+
+def compress_chunks(source, target, chunk_size=HASH_CHUNK_SIZE, workers=8):
+  def compress_chunk(data):
+    return subprocess.check_output(["zstd", "-19", "-T1", "-q", "-c", f"--stream-size={len(data)}"], input=data)
+
+  sizes, hashes, pending = [], [], deque()
+  workers = min(workers, os.cpu_count() or 1)
+  with source.open("rb") as src, target.open("wb") as dst, ThreadPoolExecutor(max_workers=workers) as pool:
+    def submit():
+      data = src.read(chunk_size)
+      if not data:
+        return False
+      hashes.append(hashlib.sha256(data).hexdigest())
+      pending.append(pool.submit(compress_chunk, data))
+      return True
+
+    for _ in range(workers):
+      if not submit():
+        break
+    while pending:
+      frame = pending.popleft().result()
+      sizes.append(len(frame))
+      dst.write(frame)
+      submit()
+  return sizes, hashes
+
+
+def name_archive(path, name, chunked=False):
+  digest = file_checksum(path).hexdigest()
+  destination = path.parent / f"{name}-{digest}{'.chunked' if chunked else ''}.img.zst"
+  path.replace(destination)
+  return destination
+
+
+def flash_archives(source, name, metadata):
+  zstd_fn = OTA_OUTPUT_DIR / f"{name}.img.zst"
+  subprocess.check_call(["zstd", "-19", "-T0", "-f", str(source), "-o", str(zstd_fn)])
+  zstd_fn = name_archive(zstd_fn, name)
+  if source.stat().st_size > HASH_CHUNK_SIZE:
+    chunked_fn = OTA_OUTPUT_DIR / f"{name}.chunked.img.zst"
+    frame_sizes, chunk_hashes = compress_chunks(source, chunked_fn)
+    chunked_fn = name_archive(chunked_fn, name, chunked=True)
+  else:
+    chunked_fn = zstd_fn
+    frame_sizes, chunk_hashes = [zstd_fn.stat().st_size], [metadata['hash']]
+  metadata.update(zstd_url="{remote_url}/" + zstd_fn.name, archive_size=zstd_fn.stat().st_size,
+                  file_size=source.stat().st_size,
+                  chunk_size=HASH_CHUNK_SIZE, chunk_hashes=chunk_hashes,
+                  zstd_chunked_url="{remote_url}/" + chunked_fn.name,
+                  zstd_chunked_size=chunked_fn.stat().st_size, zstd_frame_sizes=frame_sizes)
 
 
 def process_file(entry):
@@ -129,7 +193,9 @@ def process_file(entry):
   sha256 = file_checksum(entry.path)
   hash = hash_raw = sha256.hexdigest()
 
-  if struct.unpack("<I", open(entry.path, 'rb').read(4))[0] == 0xED26FF3A:
+  with entry.path.open('rb') as source:
+    sparse = struct.unpack("<I", source.read(4))[0] == 0xED26FF3A
+  if sparse:
     hash_raw, ondevice_hash, size = ondevice_checksum_sparse(entry.path, entry.ota)
   else:
     sha256.update(b'\x00' * ((SECTOR_SIZE - (size % SECTOR_SIZE)) % SECTOR_SIZE))
@@ -150,6 +216,38 @@ def process_file(entry):
     "has_ab": entry.has_ab,
     "ondevice_hash": ondevice_hash,
   }
+
+  flash_path = entry.path
+  flash_info = ret
+  if not isinstance(entry, GPT) and entry.name != "persist" and (not entry.sparse or entry.name == "system" or entry.name.startswith("userdata_")):
+    flash_path = OTA_OUTPUT_DIR / f"{entry.name}.flash.img"
+    optimize_image(entry.path, flash_path, max_gap=0, max_extents=4096)
+    flash_hash_raw, flash_ondevice_hash, flash_size = ondevice_checksum_sparse(flash_path, True)
+    flash_info = {
+      "hash": file_checksum(flash_path).hexdigest(),
+      "hash_raw": flash_hash_raw,
+      "ondevice_hash": flash_ondevice_hash,
+      "size": flash_size,
+      "sparse": True,
+      "stream": stream_index(flash_path),
+    }
+    ret["flash"] = flash_info
+
+  flash_archives(flash_path, entry.name, flash_info)
+  if (entry.name == "system" or entry.name.startswith("userdata_")) and flash_info["stream"]["data_sectors"]:
+    coarse_path = OTA_OUTPUT_DIR / f"{entry.name}.coarse.img"
+    wire_path = OTA_OUTPUT_DIR / f"{entry.name}.lz4"
+    optimize_image(entry.path, coarse_path, max_gap=256 * 1024, max_extents=4096)
+    verify_sparse_equal(flash_path, coarse_path)
+    # Independently compare every decoded frame and the complete zero-hole layout.
+    lz4 = encode_lz4(coarse_path, wire_path)
+    lz4["hash_raw"] = flash_info["hash_raw"]
+    flash_archives(wire_path, entry.name + ".lz4", lz4)
+    flash_info["lz4"] = lz4
+    coarse_path.unlink()
+    wire_path.unlink()
+  if flash_path != entry.path:
+    flash_path.unlink()
 
   if entry.name == "system":
     ret["alt"] = {
@@ -187,6 +285,10 @@ if __name__ == "__main__":
       if only_ota and not ota:
         continue
       f["url"] = f["url"].format(remote_url=remote_url)
+      flash_info = f.get("flash", f)
+      for info in [flash_info, *([flash_info["lz4"]] if "lz4" in flash_info else [])]:
+        for key in ("zstd_url", "zstd_chunked_url"):
+          info[key] = info[key].format(remote_url=remote_url)
       if "alt" in f:
         f["alt"]["url"] = f["alt"]["url"].format(remote_url=remote_url)
       processed_files.append(f)

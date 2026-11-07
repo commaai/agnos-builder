@@ -80,6 +80,8 @@ jobs:
       env:
         AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}
       run: |
+        sudo apt-get update
+        sudo apt-get install -y zstd liblz4-dev build-essential
         scripts/package_ota.py
 
     - name: Save PR number, VERSION and stats
