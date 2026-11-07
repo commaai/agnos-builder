@@ -91,6 +91,13 @@ function set_firmware_timeout {
   echo 1 > /sys/class/firmware/timeout
 }
 
+function set_hostname {
+  # NetworkManager sends this in DHCP requests, boot.service is ordered before it
+  local serial
+  serial=$(sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//' /proc/cmdline)
+  echo "comma-$serial" > /proc/sys/kernel/hostname
+}
+
 function setup_devices {
   # keep going so one missing node doesn't take the rest with it, and fail at the end
   local ret=0
@@ -174,6 +181,7 @@ run_init mount_cache
 run_init set_restart_levels
 run_init start_venus
 run_init set_firmware_timeout
+run_init set_hostname
 run_init setup_devices
 
 RET=0
