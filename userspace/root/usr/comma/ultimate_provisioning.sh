@@ -1,14 +1,8 @@
 #!/bin/bash
 # setup for the ultimate provisioning (UP) board
 
-# at 1.2 GHz the gold cores run ~17 C cooler under full CAN load, same CAN throughput.
-# comma.sh sets its own limit on boot, so wait for that first
-GOLD_MAX=/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
-for i in {1..100}; do
-  [ "$(cat $GOLD_MAX)" -eq 1689600 ] && break
-  sleep 0.1
-done
-echo 1209600 > $GOLD_MAX
+# at 1.2 GHz the gold cores run ~17 C cooler under full CAN load, same CAN throughput
+echo 1209600 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
 
 # the USB7002 hub leaves reset at power-on, before the host's SuperSpeed port is up, and on about
 # half the boots only its USB 2.0 half enumerates, so there's no eth0. reset the hub until eth0 shows up
