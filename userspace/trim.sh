@@ -23,6 +23,6 @@ rm -f "$lib"/libgallium-*.so "$lib"/libEGL_mesa.so* "$lib"/libGLX_mesa.so* "$lib
 rm -rf "$lib"/dri "$lib"/gbm
 rm /usr/share/glvnd/egl_vendor.d/50_mesa.json
 
-# udev isn't used, see hotplug.py. NetworkManager and others still depend on the package.
+# udev isn't used, see devices.py. NetworkManager and others still depend on the package.
 dpkg --purge --force-depends udev
 rm -rf /usr/lib/udev /etc/udev
