@@ -5,7 +5,7 @@
 #   /dev/snd: sound_init.sh, once the ADSP is ready for clients
 #   /sys/class/gpio: gpio.sh, as it exports them
 #   /dev/ttyUSB*: modem.py, the modem can re-enumerate at any time
-#   /dev/bus/usb: the kernel's usb_devnode
+#   /dev/bus/usb: uevent_helper.sh
 import glob
 import grp
 import os

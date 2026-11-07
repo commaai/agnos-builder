@@ -1,0 +1,11 @@
+[Unit]
+Description=Uevent helper
+# boot fires thousands of uevents, each one would fork the helper
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo /usr/comma/uevent_helper.sh > /sys/kernel/uevent_helper; chmod 664 /dev/bus/usb/*/*'
+
+[Install]
+WantedBy=multi-user.target
