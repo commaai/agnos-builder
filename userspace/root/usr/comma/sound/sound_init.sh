@@ -42,5 +42,8 @@ else
   amixer -D hw:0 -q cset "name='TERT_MI2S_TX Channels'" Two
 fi
 
+# sound is ready, clients shouldn't have to wait on udev for access
+find /dev/snd -maxdepth 1 -type c -exec chgrp audio {} + -exec chmod 660 {} +
+
 # setup the amplifier registers
 /usr/local/venv/bin/python /usr/comma/sound/amplifier.py
