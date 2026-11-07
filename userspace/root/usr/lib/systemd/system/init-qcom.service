@@ -5,12 +5,11 @@ After=sysinit.target
 Before=wifi.service sound.service cdsp.service
 
 [Service]
-# ready once the restart levels are set, it then shows as failed if anything after that fails
-Type=notify
-NotifyAccess=all
-RemainAfterExit=true
+Type=oneshot
 ExecStart=/usr/comma/init.qcom.sh
 StandardOutput=journal+console
+# only a backstop, init.qcom.sh gives up first and reports what failed
+TimeoutStartSec=30
 TimeoutStopSec=1
 
 [Install]
