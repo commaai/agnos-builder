@@ -16,3 +16,4 @@ qcom_xbl/
 .vscode
 
 edk2_tici/
+*.tar.xz

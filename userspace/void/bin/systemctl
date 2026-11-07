@@ -1,0 +1,33 @@
+#!/bin/sh
+# AGNOS-on-Void spike: minimal systemctl -> runit sv shim.
+# Covers what AGNOS scripts and openpilot call: start/stop/restart/is-active.
+# runsv's supervise dirs are root-only, so non-root callers go through sudo
+# (comma has NOPASSWD sudo). On Ubuntu this was polkit/D-Bus.
+[ "$(id -u)" = 0 ] || exec sudo -n "$0" "$@"
+quiet=0; args=""
+for a in "$@"; do
+  case "$a" in
+    -q|--quiet) quiet=1 ;;
+    --no-block|--now|--user) ;;
+    *) args="$args $a" ;;
+  esac
+done
+set -- $args
+cmd=$1; shift
+map() { n=${1%.service}; case "$n" in ssh) n=sshd ;; avahi-daemon) n=avahi-daemon ;; esac; echo "$n"; }
+rc=0
+for u in "$@"; do
+  s=$(map "$u")
+  case "$cmd" in
+    start|stop|restart|reload|status) out=$(sv "$cmd" "$s" 2>&1) || rc=$? ;;
+    try-restart) out=$(sv try-restart "$s" 2>&1) || rc=$? ;;
+    kill) out=$(sv kill "$s" 2>&1) || rc=$? ;;
+    is-active) if sv status "$s" 2>/dev/null | grep -q '^run:'; then out=active; else out=inactive; rc=3; fi ;;
+    is-enabled) if [ -e "/etc/runit/runsvdir/default/$s" ] && [ ! -e "/etc/sv/$s/down" ]; then out=enabled; else out=disabled; rc=1; fi ;;
+    enable|disable|mask|unmask|daemon-reload) out="systemctl $cmd: no-op on runit"; ;;
+    *) echo "systemctl shim: unsupported command '$cmd'" >&2; exit 1 ;;
+  esac
+  [ $quiet = 1 ] || [ -z "$out" ] || echo "$out"
+done
+[ "$cmd" = daemon-reload ] && exit 0
+exit $rc
