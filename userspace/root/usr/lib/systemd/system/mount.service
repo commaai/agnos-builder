@@ -1,0 +1,16 @@
+[Unit]
+Description=Mount partitions
+DefaultDependencies=no
+After=local-fs-pre.target
+Before=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/comma/mount.sh
+# boot goes on without a stuck mount
+TimeoutStartSec=90
+TimeoutStopSec=5
+
+[Install]
+WantedBy=local-fs.target
