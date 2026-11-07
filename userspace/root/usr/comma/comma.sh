@@ -8,31 +8,30 @@ CONTINUE="/data/continue.sh"
 INSTALLER="/tmp/installer"
 RESET_TRIGGER="/data/__system_reset__"
 
-# blip power to ~5W to see if the PSU is stable
-if grep -q mici /sys/firmware/devicetree/base/model; then
-  sudo timeout --kill-after=2 5 /home/comma/power_burn_max 0.3 2
-fi
+(
+  # blip power to ~5W to see if the PSU is stable
+  if grep -q mici /sys/firmware/devicetree/base/model; then
+    sudo timeout --kill-after=2 5 /home/comma/power_burn_max 0.3 2
+  fi
 
-# use max freq to boot up quickly, then limit
-echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
-echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+  # use max freq to boot up quickly, then limit
+  echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+  echo 1689600 | sudo tee /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+) &
 
 echo "waiting for magic"
-for i in {1..200}; do
-  if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
+for i in {1..2000}; do
+  if [ -S /tmp/drmfd.sock ]; then
     break
   fi
-  sleep 0.1
+  sleep 0.01
 done
 
-if systemctl is-active --quiet magic && [ -S /tmp/drmfd.sock ]; then
+if [ -S /tmp/drmfd.sock ]; then
   echo "magic ready after ${SECONDS}s"
 else
   echo "timed out waiting for magic, ${SECONDS}s"
 fi
-
-sudo chown comma: /data
-sudo chown comma: /data/media
 
 handle_setup_keys () {
   # install default SSH key while still in setup

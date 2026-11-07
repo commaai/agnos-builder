@@ -2,6 +2,8 @@
 Description=Boot
 DefaultDependencies=no
 After=local-fs-pre.target
+# magic opens a node in debugfs as soon as this is done
+After=sys-kernel-debug.mount
 Before=local-fs.target
 # set the restart levels before any subsystem boots
 Before=wifi.service
