@@ -5,10 +5,12 @@ After=sysinit.target
 Before=wifi.service sound.service cdsp.service
 
 [Service]
-Type=oneshot
-# keeps what's still running in the background alive after the script exits
+# ready once the restart levels are set, it then shows as failed if anything after that fails
+Type=notify
+NotifyAccess=all
 RemainAfterExit=true
 ExecStart=/usr/comma/init.qcom.sh
+StandardOutput=journal+console
 TimeoutStopSec=1
 
 [Install]
