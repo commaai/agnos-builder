@@ -29,11 +29,11 @@ function run_init {
   ) & PIDS+=($!)
 }
 
-# the video core boots on first open, openpilot's booted check waits for it
-function start_video {
+function start_venus {
   until [ -e /dev/video33 ]; do
     sleep 0.01
   done
+  # just opening the node boots venus, openpilot's booted check waits for that
   : < /dev/video33
 }
 
@@ -42,7 +42,7 @@ for i in {0..7}; do
   echo "related" > /sys/bus/msm_subsys/devices/subsys${i}/restart_level
 done
 
-run_init video start_video
+run_init venus start_venus
 
 RET=0
 for pid in "${PIDS[@]}"; do
