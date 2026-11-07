@@ -11,7 +11,7 @@ adsp=$(grep -lx adsp /sys/bus/msm_subsys/devices/*/name)
 [ -n "$adsp" ] || { echo "adsp subsystem not found"; exit 1; }
 state=$(dirname "$adsp")/state
 
-# FIXME: See ATL-3054
+# TODO: is this needed?
 echo 1 > /sys/module/subsystem_restart/parameters/enable_debug
 
 echo "bringing adsp out of reset"

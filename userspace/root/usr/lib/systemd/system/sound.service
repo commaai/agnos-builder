@@ -3,7 +3,6 @@ Description=Sound
 
 [Service]
 Type=oneshot
-TimeoutStartSec=30
 ExecStart=/usr/comma/sound/sound_init.sh
 
 [Install]
