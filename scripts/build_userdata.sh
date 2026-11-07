@@ -1,55 +1,44 @@
 #!/bin/bash
 set -e
+# Match the permissions of the original root-owned clone.
+umask 022
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-ROOT=$DIR/..
 OUTPUT_DIR=$DIR/../output
 GIT_BRANCH="release-tizi-staging"
 RELEASE_BRANCH="release-tizi"
 
-export DOCKER_BUILDKIT=1
-docker build -f $ROOT/Dockerfile.builder -t agnos-meta-builder $DIR \
-  --build-arg UNAME=$(id -nu) \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g)
+WORKDIR=$(mktemp -d)
+trap 'rm -rf "$WORKDIR"' EXIT
+ROOTFS=$WORKDIR/rootfs
+mkdir -p $ROOTFS $OUTPUT_DIR
 
-function create_image() {
-  IMAGE_SIZE=$1
+git clone --branch=$GIT_BRANCH --depth=1 https://github.com/commaai/openpilot.git $ROOTFS/openpilot
+touch $ROOTFS/.openpilot_cache
 
-  WORKDIR=$(mktemp -d)
-  MNTDIR=$WORKDIR/mnt
-  USERDATA_IMAGE=$WORKDIR/raw.img
+git -C $ROOTFS/openpilot remote set-branches --add origin $RELEASE_BRANCH
+git -C $ROOTFS/openpilot update-ref refs/remotes/origin/$RELEASE_BRANCH refs/remotes/origin/$GIT_BRANCH
+git -C $ROOTFS/openpilot branch -m $RELEASE_BRANCH
+git -C $ROOTFS/openpilot branch --set-upstream-to=origin/$RELEASE_BRANCH
 
-  cd $WORKDIR
-
-  # Keep the userdata image's logical size without allocating empty space on disk.
-  truncate -s $IMAGE_SIZE $USERDATA_IMAGE
-  mkfs.ext4 -F $USERDATA_IMAGE
-
-  mkdir $MNTDIR
-  sudo mount $USERDATA_IMAGE $MNTDIR
-  sudo git clone --branch=$GIT_BRANCH --depth=1 https://github.com/commaai/openpilot.git $MNTDIR/openpilot
-  sudo touch $MNTDIR/.openpilot_cache
-
-  sudo git -C $MNTDIR/openpilot remote set-branches --add origin $RELEASE_BRANCH
-  sudo git -C $MNTDIR/openpilot update-ref refs/remotes/origin/$RELEASE_BRANCH refs/remotes/origin/$GIT_BRANCH
-  sudo git -C $MNTDIR/openpilot branch -m $RELEASE_BRANCH
-  sudo git -C $MNTDIR/openpilot branch --set-upstream-to=origin/$RELEASE_BRANCH
-
-  # assume comma is the first non root user created
-  sudo chown 1000:1000 -R $MNTDIR/openpilot
-
-  echo "clone done for $(sudo cat $MNTDIR/openpilot/common/version.h)"
-  sudo umount $MNTDIR
-
-  echo "Sparsify"
-  docker run --rm -u $(id -nu) --entrypoint img2simg -v $WORKDIR:$WORKDIR -v $ROOT:$ROOT -w $DIR agnos-meta-builder $USERDATA_IMAGE $OUTPUT_DIR/userdata_${sz}.img
-  rm -rf $WORKDIR
-}
+echo "clone done for $(cat $ROOTFS/openpilot/common/version.h)"
 
 for sz in 89 90; do
   echo "Building ${sz}GB userdata image"
-  create_image ${sz}G
+  USERDATA_IMAGE=$WORKDIR/raw.img
+  truncate -s 0 $USERDATA_IMAGE
+  truncate -s ${sz}G $USERDATA_IMAGE
+
+  # Populate without mounting, preserving the device's root and comma ownership.
+  fakeroot sh -ec '
+    chown -R 0:0 "$1"
+    chown -R 1000:1000 "$1/openpilot"
+    mkfs.ext4 -F -E root_owner=0:0 -d "$1" "$2"
+  ' sh $ROOTFS $USERDATA_IMAGE
+
+  # Skip host filesystem holes instead of reading 89-90GB of zeros.
+  img2simg -s $USERDATA_IMAGE $WORKDIR/sparse.img
+  python3 $DIR/sparse_fill.py $WORKDIR/sparse.img $OUTPUT_DIR/userdata_${sz}.img
 done
 
 echo "Done!"
