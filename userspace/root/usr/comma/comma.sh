@@ -74,21 +74,20 @@ ln -s /data/tmp/vscode-server ~/.cursor-server
 ln -s /data/tmp/vscode-server ~/.windsurf-server
 
 while true; do
-  pkill -f "$SETUP"
   handle_setup_keys
 
   if [ -f $CONTINUE ]; then
     exec "$CONTINUE"
   fi
 
-  sudo abctl --set_success
-
   # cleanup installers from previous runs
   rm -f $INSTALLER
-  pkill -f $INSTALLER
 
-  # run setup and wait for installer
+  # run setup first, it only needs the screen. the rest can happen while it starts
   $SETUP &
+  pkill -f $INSTALLER
+  sudo abctl --set_success
+
   echo "waiting for installer"
   while [ ! -f $INSTALLER ]; do
     sleep 0.1
@@ -101,4 +100,5 @@ while true; do
   while [ ! -f $CONTINUE ] && ps -p $! > /dev/null; do
     sleep 0.1
   done
+  pkill -f "$SETUP"
 done
