@@ -1,6 +1,27 @@
 #!/bin/bash
 
-/usr/comma/sound/adsp-start.sh
+# wait for the firmware partition
+for _ in {1..100}; do
+  [ -s /firmware/image/adsp.mdt ] && break
+  sleep 0.1
+done
+[ -s /firmware/image/adsp.mdt ] || { echo "adsp firmware not found"; exit 1; }
+
+adsp=$(grep -lx adsp /sys/bus/msm_subsys/devices/*/name)
+[ -n "$adsp" ] || { echo "adsp subsystem not found"; exit 1; }
+state=$(dirname "$adsp")/state
+
+# TODO: is this needed?
+echo 1 > /sys/module/subsystem_restart/parameters/enable_debug
+
+echo "bringing adsp out of reset"
+echo 1 > /sys/kernel/boot_adsp/boot
+
+for _ in {1..200}; do
+  [ "$(< "$state")" = "ONLINE" ] && break
+  sleep 0.1
+done
+[ "$(< "$state")" = "ONLINE" ] || { echo "adsp failed to boot"; exit 1; }
 
 echo "waiting for sound card to come online"
 while [ ! -d /proc/asound/sdm845tavilsndc ] || [ "$(cat /proc/asound/card0/state 2> /dev/null)" != "ONLINE" ] ; do
