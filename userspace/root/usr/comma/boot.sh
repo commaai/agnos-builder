@@ -92,7 +92,6 @@ function set_firmware_timeout {
 }
 
 function set_hostname {
-  # NetworkManager sends this in DHCP requests, boot.service is ordered before it
   local serial
   serial=$(sed -e 's/^.*androidboot.serialno=//' -e 's/ .*$//' /proc/cmdline)
   echo "comma-$serial" > /proc/sys/kernel/hostname
