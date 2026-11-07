@@ -8,6 +8,7 @@ Before=local-fs.target
 Type=oneshot
 RemainAfterExit=true
 ExecStart=/usr/comma/mount.sh
+StandardOutput=journal+console
 # boot goes on without a stuck mount
 TimeoutStartSec=90
 TimeoutStopSec=5

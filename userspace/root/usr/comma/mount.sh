@@ -19,19 +19,32 @@ function wait_for_parts {
   echo "timed out waiting for partitions"
 }
 
+function mount_cache {
+  /usr/lib/systemd/systemd-makefs ext4 "${PARTS[cache]}" &&
+    mount -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid "${PARTS[cache]}" /cache
+}
+
+function report {
+  local where=$1
+  shift
+  if "$@"; then
+    echo "mounted $where"
+  else
+    echo "failed to mount $where"
+    return 1
+  fi
+}
+
 SLOT_SUFFIX=$(sed -n 's/.*androidboot.slot_suffix=\([^ ]*\).*/\1/p' /proc/cmdline)
 wait_for_parts "$SLOT_SUFFIX"
 
 PIDS=()
-mount -o ro "${PARTS[dsp$SLOT_SUFFIX]}" /dsp & PIDS+=($!)
-mount -o ro "${PARTS[modem_a]}" /firmware & PIDS+=($!)
-mount -o ro,discard,nosuid,nodev,noexec "${PARTS[persist]}" /persist & PIDS+=($!)
+report /dsp mount -o ro "${PARTS[dsp$SLOT_SUFFIX]}" /dsp & PIDS+=($!)
+report /firmware mount -o ro "${PARTS[modem_a]}" /firmware & PIDS+=($!)
+report /persist mount -o ro,discard,nosuid,nodev,noexec "${PARTS[persist]}" /persist & PIDS+=($!)
 # comma.sh handles this one failing, it starts the reset UI
-mount -o discard,noatime,nodiratime,nosuid,nodev "${PARTS[userdata]}" /data & PIDS+=($!)
-(
-  /usr/lib/systemd/systemd-makefs ext4 "${PARTS[cache]}"
-  mount -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid "${PARTS[cache]}" /cache
-) & PIDS+=($!)
+report /data mount -o discard,noatime,nodiratime,nosuid,nodev "${PARTS[userdata]}" /data & PIDS+=($!)
+report /cache mount_cache & PIDS+=($!)
 
 RET=0
 for pid in "${PIDS[@]}"; do
