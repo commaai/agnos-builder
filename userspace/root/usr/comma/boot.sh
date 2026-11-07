@@ -45,9 +45,10 @@ function mount_part {
   done
   dev=${uevent%/uevent}
   dev=/dev/${dev##*/}
-  if [ "$part" = cache ]; then
-    /usr/lib/systemd/systemd-makefs ext4 "$dev" || return 1
-  fi
+  mount "$@" "$dev" "$where" && return
+  [ "$part" = cache ] || return 1
+  # cache is formatted on first boot
+  /usr/lib/systemd/systemd-makefs ext4 "$dev" || return 1
   mount "$@" "$dev" "$where"
 }
 
@@ -88,7 +89,7 @@ function mount_data {
 
 function mount_cache {
   mount_part cache /cache -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
-  chown -R comma:comma /cache/
+  chown comma: /cache
 }
 
 function mount_tmp {
