@@ -9,7 +9,7 @@ Type=oneshot
 ExecStart=/usr/comma/init.qcom.sh
 StandardOutput=journal+console
 # only a backstop, init.qcom.sh gives up first and reports what failed
-TimeoutStartSec=30
+TimeoutStartSec=130
 TimeoutStopSec=1
 
 [Install]

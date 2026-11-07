@@ -1,32 +1,37 @@
 #!/bin/bash
 # each init starts immediately in the background and waits for whatever it needs itself
 
-INIT_TIMEOUT=10
+# init-qcom.service's timeout has to stay above this
+INIT_TIMEOUT=120
 
 PIDS=()
 
-# run_init <name> <command> [args]
-# runs the command in the background, reporting how it went. a stuck open can't be killed
+# run_init <function>
+# runs the function in the background, reporting how it went. a stuck open can't be killed
 # and timeout would wait on it, so this races it against a timer
 function run_init {
   local name=$1
-  shift
   (
-    "$@" & pid=$!
+    "$name" & pid=$!
     sleep "$INIT_TIMEOUT" & timer=$!
     wait -n -p first "$pid" "$timer"
     ret=$?
     if [ "$first" = "$timer" ]; then
-      echo "timed out starting $name"
+      echo "$name timed out"
       exit 1
     fi
     kill "$timer"
     if [ "$ret" != 0 ]; then
-      echo "failed to start $name"
+      echo "$name failed"
       exit 1
     fi
-    echo "started $name"
+    echo "$name done"
   ) & PIDS+=($!)
+}
+
+function set_restart_levels {
+  # don't restart whole SoC on subsystem crash
+  echo related | tee /sys/bus/msm_subsys/devices/subsys*/restart_level > /dev/null
 }
 
 function start_venus {
@@ -37,12 +42,8 @@ function start_venus {
   : < /dev/video33
 }
 
-# don't restart whole SoC on subsystem crash. this has to happen before anything below boots
-for i in {0..7}; do
-  echo "related" > /sys/bus/msm_subsys/devices/subsys${i}/restart_level
-done
-
-run_init venus start_venus
+run_init set_restart_levels
+run_init start_venus
 
 RET=0
 for pid in "${PIDS[@]}"; do
