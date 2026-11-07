@@ -6,7 +6,10 @@ Before=wifi.service sound.service cdsp.service
 
 [Service]
 Type=oneshot
+# keeps what's still running in the background alive after the script exits
+RemainAfterExit=true
 ExecStart=/usr/comma/init.qcom.sh
+TimeoutStopSec=1
 
 [Install]
 WantedBy=multi-user.target
