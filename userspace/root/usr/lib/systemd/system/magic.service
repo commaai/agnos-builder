@@ -10,6 +10,8 @@ ExecStartPre=/bin/bash -c "mkdir -p /data/misc/display || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/sdm_dbg_cfg.txt || true"
 ExecStartPre=/bin/bash -c "echo 0 > /data/misc/display/gbm_dbg_cfg.txt || true"
 
+# debugfs is root only, so this hands magic the screen calibration node as fd 3. not every panel has it
+OpenFile=/sys/kernel/debug/dsi_dwo_video_display/mipi_command:mipi_command:graceful
 ExecStart=/bin/bash -c "source /etc/profile && /usr/local/venv/bin/python -u /usr/comma/magic.py"
 Restart=on-failure
 RestartSec=1
