@@ -8,6 +8,7 @@ import subprocess
 from copy import deepcopy
 from pathlib import Path
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -16,6 +17,7 @@ OTA_OUTPUT_DIR = OUTPUT_DIR / "ota"
 BUILD_DIR = ROOT / "build"
 
 SECTOR_SIZE = 4096
+HASH_BUFFER_SIZE = 1024 * 1024
 
 AGNOS_UPDATE_URL = os.getenv("AGNOS_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate")
 AGNOS_STAGING_UPDATE_URL = os.getenv("AGNOS_STAGING_UPDATE_URL", "https://commadist.azureedge.net/agnosupdate-staging")
@@ -64,7 +66,7 @@ PARTITIONS = [
 def file_checksum(fn):
   sha256 = hashlib.sha256()
   with open(fn, 'rb') as f:
-    for chunk in iter(lambda: f.read(4096), b""):
+    for chunk in iter(lambda: f.read(HASH_BUFFER_SIZE), b""):
       sha256.update(chunk)
   return sha256
 
@@ -90,6 +92,7 @@ def ondevice_checksum_sparse(fn, ota):
     hash_raw = hashlib.sha256()
     ondevice_hash = hashlib.sha256()
     total_size = 0
+    fill = None
     for _ in range(total_chunks):
       header_bin = data_source.read(12)
 
@@ -98,15 +101,29 @@ def ondevice_checksum_sparse(fn, ota):
       chunk_sz = header[2]
 
       if chunk_type == 0xCAC1: # RAW
-        d = data_source.read(chunk_sz * SECTOR_SIZE)
-        hash_raw.update(d)
-        ondevice_hash.update(d)
+        remaining = chunk_sz * SECTOR_SIZE
+        while remaining:
+          d = data_source.read(min(remaining, HASH_BUFFER_SIZE))
+          if not d:
+            raise EOFError('Truncated RAW chunk')
+          hash_raw.update(d)
+          ondevice_hash.update(d)
+          remaining -= len(d)
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC2: # FILL
-        d = data_source.read(4) * (chunk_sz * SECTOR_SIZE // 4)
-        if d[:4] != b'\x00\x00\x00\x00': # For ondevice_hash, treat FILL 0 like DONT_CARE
-          ondevice_hash.update(d)
-        hash_raw.update(d)
+        pattern = data_source.read(4)
+        if len(pattern) != 4:
+          raise EOFError('Truncated FILL chunk')
+        if pattern != fill:
+          fill = pattern
+          fill_buffer = memoryview(pattern * (HASH_BUFFER_SIZE // 4))
+        remaining = chunk_sz * SECTOR_SIZE
+        while remaining:
+          d = fill_buffer[:min(remaining, HASH_BUFFER_SIZE)]
+          if pattern != b'\x00\x00\x00\x00': # For ondevice_hash, treat FILL 0 like DONT_CARE
+            ondevice_hash.update(d)
+          hash_raw.update(d)
+          remaining -= len(d)
         total_size += chunk_sz * SECTOR_SIZE
       elif chunk_type == 0xCAC3: # DONT_CARE
         assert not ota, 'DONT_CARE chunks are currently not supported for OTA'
@@ -116,25 +133,31 @@ def ondevice_checksum_sparse(fn, ota):
     return hash_raw.hexdigest(), ondevice_hash.hexdigest(), total_size
 
 def compress(fin, fout) -> None:
-  # since system.img is a squashfs now, we don't rely on this compression.
-  # however, openpilot's updater still expects an xz archive, so use lowest
+  # openpilot's updater expects an xz archive, so use lowest
   # compression level for quick packaging.
   subprocess.check_call(f"xz -0 -T0 -vc {fin} > {fout}", shell=True)
 
 
-def process_file(entry):
+def checksum(entry):
   size = entry.path.stat().st_size
-  print(f"\n{entry.name} {size} bytes")
 
   sha256 = file_checksum(entry.path)
   hash = hash_raw = sha256.hexdigest()
 
-  if struct.unpack("<I", open(entry.path, 'rb').read(4))[0] == 0xED26FF3A:
+  with open(entry.path, 'rb') as f:
+    sparse = struct.unpack("<I", f.read(4))[0] == 0xED26FF3A
+  if sparse:
     hash_raw, ondevice_hash, size = ondevice_checksum_sparse(entry.path, entry.ota)
   else:
     sha256.update(b'\x00' * ((SECTOR_SIZE - (size % SECTOR_SIZE)) % SECTOR_SIZE))
     ondevice_hash = sha256.hexdigest()
 
+  return hash, hash_raw, ondevice_hash, size
+
+
+def process_file(entry, checksums):
+  hash, hash_raw, ondevice_hash, size = checksums
+  print(f"\n{entry.name} {entry.path.stat().st_size} bytes")
   print("  compressing")
   xz_fn = OTA_OUTPUT_DIR / f"{entry.path.stem}-{hash_raw}.img.xz"
   compress(entry.path, xz_fn)
@@ -172,7 +195,11 @@ def process_file(entry):
 if __name__ == "__main__":
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-  files = [(process_file(x), x.ota) for x in GPTS + PARTITIONS]
+  # Hash in parallel, but keep compression and manifest order deterministic.
+  entries = GPTS + PARTITIONS
+  with ThreadPoolExecutor(max_workers=4) as executor:
+    checksums = executor.map(checksum, entries)
+    files = [(process_file(entry, hashes), entry.ota) for entry, hashes in zip(entries, checksums)]
 
   configs = [
     # URL, file name, only OTA partitions
