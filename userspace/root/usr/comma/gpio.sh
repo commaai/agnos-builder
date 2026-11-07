@@ -36,6 +36,11 @@ for p in ${pins[@]}; do
   do
     sleep .05
   done
+
+  # give these to the gpio group here, so nothing has to wait on udev for access
+  d=/sys/class/gpio/gpio$p
+  chgrp -f gpio $d $d/active_low $d/direction $d/edge $d/value
+  chmod -f 770 $d $d/active_low $d/direction $d/edge $d/value
 done
 
 

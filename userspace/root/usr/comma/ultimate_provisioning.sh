@@ -17,6 +17,8 @@ echo 1209600 > $GOLD_MAX
 # half the boots only its USB 2.0 half enumerates, so there's no eth0. reset the hub until eth0 shows up
 HUB_RST=/sys/class/gpio/gpio134
 [ -d $HUB_RST ] || echo 134 > /sys/class/gpio/export
+chgrp -f gpio $HUB_RST $HUB_RST/active_low $HUB_RST/direction $HUB_RST/edge $HUB_RST/value
+chmod -f 770 $HUB_RST $HUB_RST/active_low $HUB_RST/direction $HUB_RST/edge $HUB_RST/value
 for i in {1..5}; do
   for j in {1..100}; do
     [ -e /sys/class/net/eth0 ] && exit 0
