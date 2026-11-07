@@ -3,7 +3,6 @@
 # Enable our services
 systemctl enable boot.service
 systemctl enable uevent-helper.service
-systemctl enable fs_setup.service
 systemctl enable comma.service
 systemctl enable agnos-debug.service
 systemctl enable ultimate_provisioning.service
