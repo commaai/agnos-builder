@@ -79,6 +79,18 @@ def set_screen_calibration():
   print("Successfully setup screen calibration")
 
 def main():
+  # listen first so comma.sh can start setup while magic loads. clients wait for accept()
+  # below, which comes after the background is drawn
+  try:
+    os.unlink(SOCK_PATH)
+  except FileNotFoundError:
+    pass
+
+  server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+  server.bind(SOCK_PATH)
+  server.settimeout(0.1)
+  server.listen(1)
+
   while True:
     try:
       drm_master = os.open(DRM_DEVICE, os.O_RDWR | os.O_CLOEXEC)
@@ -99,16 +111,6 @@ def main():
 
   # the panel only takes this once it's on, and loses it when magic restarts
   threading.Thread(target=set_screen_calibration, daemon=True).start()
-
-  try:
-    os.unlink(SOCK_PATH)
-  except FileNotFoundError:
-    pass
-
-  server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-  server.bind(SOCK_PATH)
-  server.settimeout(0.1)
-  server.listen(1)
 
   clients = set()
   need_background = False
