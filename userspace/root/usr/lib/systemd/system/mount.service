@@ -9,8 +9,8 @@ Type=oneshot
 RemainAfterExit=true
 ExecStart=/usr/comma/mount.sh
 StandardOutput=journal+console
-# boot goes on without a stuck mount
-TimeoutStartSec=90
+# only a backstop, mount.sh gives up first and reports which mount failed
+TimeoutStartSec=120
 TimeoutStopSec=5
 
 [Install]

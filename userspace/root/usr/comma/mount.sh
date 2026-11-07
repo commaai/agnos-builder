@@ -3,6 +3,9 @@
 # device unit, and systemd only gets those from udev. Partitions are found
 # through sysfs so this doesn't wait for udev's links.
 
+# mount.service's timeout has to stay above this plus the partition wait
+MOUNT_TIMEOUT=60
+
 declare -A PARTS
 
 function wait_for_parts {
@@ -24,10 +27,20 @@ function mount_cache {
     mount -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid "${PARTS[cache]}" /cache
 }
 
+# a stuck mount can't be killed and timeout would wait on it, so race it against a timer
 function report {
-  local where=$1
+  local where=$1 pid timer first ret
   shift
-  if "$@"; then
+  "$@" & pid=$!
+  sleep "$MOUNT_TIMEOUT" & timer=$!
+  wait -n -p first "$pid" "$timer"
+  ret=$?
+  if [ "$first" = "$timer" ]; then
+    echo "timed out mounting $where"
+    return 1
+  fi
+  kill "$timer"
+  if [ "$ret" = 0 ]; then
     echo "mounted $where"
   else
     echo "failed to mount $where"
