@@ -1,8 +1,5 @@
 #!/bin/bash -e
 
-# Enable DSP services
-systemctl enable cdsp
-
 # Enable our services
 systemctl enable boot.service
 systemctl enable uevent-helper.service
