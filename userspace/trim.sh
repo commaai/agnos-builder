@@ -34,3 +34,6 @@ rm -rf initrd* systemd-pcr* systemd-tpm2* systemd-repart* systemd-firstboot* sys
   systemd-battery-check* systemd-hibernate-resume* systemd-soft-reboot* soft-reboot.target systemd-fsck* \
   remote-* cryptsetup* veritysetup* integritysetup* systemd-binfmt* proc-sys-fs-binfmt*
 find . -xtype l -delete
+
+# goes over loglevel=3 from the kernel cmdline, the serial console is slow enough that printing errors stalls boot
+rm /etc/sysctl.d/10-console-messages.conf

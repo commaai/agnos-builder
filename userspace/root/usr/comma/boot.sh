@@ -11,33 +11,33 @@ SOUND_TIMEOUT=20
 PIDS=()
 
 # run_init <function>
-# runs the function in the background, reporting how it went. a stuck open can't be killed
-# and timeout would wait on it, so this races it against a timer
+# runs the function in the background, reporting how it went. it stops at its first failure,
+# unless it opts out with set +e. a stuck open can't be killed
+# and timeout would wait on it, so this gives up on reading its status instead
 function run_init {
   local name=$1
   (
-    "$name" & pid=$!
-    sleep "$INIT_TIMEOUT" & timer=$!
-    wait -n -p first "$pid" "$timer"
-    ret=$?
-    if [ "$first" = "$timer" ]; then
-      echo "$name timed out"
+    start=${EPOCHREALTIME/./}
+    if ! read -r -t "$INIT_TIMEOUT" ret < <((set -e; "$name") >&2; echo $?); then
+      echo -e "\e[31m$name timed out\e[0m"
       exit 1
     fi
-    kill "$timer"
+    ms=$(( (${EPOCHREALTIME/./} - start) / 1000 ))
+    printf -v took '%d.%02ds' $(( ms / 1000 )) $(( ms % 1000 / 10 ))
     if [ "$ret" != 0 ]; then
-      echo "$name failed"
+      echo -e "\e[31m$name failed in $took\e[0m"
       exit 1
     fi
-    echo "$name done"
+    echo -e "\e[32m$name done in $took\e[0m"
   ) & PIDS+=($!)
 }
 
 # part_dev <partition>
 # prints the partition's device. it's found through sysfs so this doesn't wait for udev's links
 function part_dev {
-  local uevent
+  local uevent start=$SECONDS
   until uevent=$(grep -lx "PARTNAME=$1" /sys/class/block/sd*/uevent 2>/dev/null); do
+    (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "no partition $1" >&2; return 1; }
     sleep 0.1
   done
   uevent=${uevent%/uevent}
@@ -62,14 +62,13 @@ function wait_mount {
   done
 }
 
-SLOT_SUFFIX=$(sed -n 's/.*androidboot.slot_suffix=\([^ ]*\).*/\1/p' /proc/cmdline)
-
+# OTAs don't write these, so both slots use slot a's copy
 function mount_dsp {
-  mount_part "dsp$SLOT_SUFFIX" /dsp -o ro
+  mount_part dsp_a /dsp -o ro
 }
 
 function mount_firmware {
-  mount_part "modem$SLOT_SUFFIX" /firmware -o ro
+  mount_part modem_a /firmware -o ro
 }
 
 function mount_persist {
@@ -78,6 +77,8 @@ function mount_persist {
 
 function mount_data {
   mount_part userdata /data -o discard,noatime,nodiratime,nosuid,nodev
+  # first, so comma.sh can still clean up /data if something below fails
+  chown comma: /data
   rm -rf /data/tmp
   # the rootfs symlinks /etc paths to these, and /data/persist is served to the modem and DSPs
   # through /system/rfs
@@ -85,7 +86,7 @@ function mount_data {
     /data/persist/hlos_rfs/shared /data/persist/rfs/shared \
     /data/persist/rfs/msm/adsp /data/persist/rfs/msm/mpss
   touch /data/etc/timezone /data/etc/localtime
-  chown comma: /data /data/ssh
+  chown comma: /data/ssh
 }
 
 function mount_cache {
@@ -189,6 +190,7 @@ function set_hostname {
 
 function setup_devices {
   # keep going so one missing node doesn't take the rest with it, and fail at the end
+  set +e
   local ret=0
   trap 'ret=1' ERR
   shopt -s nullglob
@@ -223,6 +225,7 @@ function setup_devices {
     /dev/sd* /dev/sg* \
     /dev/ttyMSM*
   chmod 666 /dev/input/{event,mouse}* /dev/input/mice /dev/fuse /dev/net/tun /dev/spidev*
+  chmod 664 /dev/rfkill
 
   # not every display and LED is on every device
   local attr video_attrs=()
@@ -267,6 +270,7 @@ function setup_gpios {
   grep -q "ultimate provisioning" /sys/firmware/devicetree/base/model && return 0
 
   # keep going so one bad pin doesn't take the rest with it, and fail at the end
+  set +e
   local ret=0
   trap 'ret=1' ERR
 

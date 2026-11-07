@@ -1,0 +1,6 @@
+#!/bin/sh
+# NetworkManager runs "netplan generate" at startup and after every connection change. the
+# real CLI is half a second of python around the generator, and it needs udev for the rest
+[ "$1" = generate ] || { echo "netplan: only generate is available" >&2; exit 1; }
+shift
+exec /usr/libexec/netplan/generate "$@"

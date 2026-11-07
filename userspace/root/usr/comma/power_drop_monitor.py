@@ -65,7 +65,7 @@ def update_param(stage, v_initial, i_initial, v_final, i_final):
 
 def printk(msg):
   with open('/dev/kmsg', 'w') as kmsg:
-    kmsg.write(f"<3>[power drop monitor] {msg}\n")
+    kmsg.write(f"<2>[power drop monitor] {msg}\n")
   print(msg)
 
 def perform_controlled_shutdown():
