@@ -4,6 +4,8 @@
 # boot.service's timeout has to stay above this
 INIT_TIMEOUT=120
 PARTITION_TIMEOUT=5
+# above PARTITION_TIMEOUT, a mount still has to find its partition and maybe format it
+MOUNT_TIMEOUT=10
 
 PIDS=()
 
@@ -48,6 +50,15 @@ function mount_part {
   mount "$@" "$dev" "$where"
 }
 
+# wait_mount <mount point>
+function wait_mount {
+  local start=$SECONDS
+  until mountpoint -q "$1"; do
+    (( SECONDS - start < MOUNT_TIMEOUT )) || { echo "$1 not mounted"; return 1; }
+    sleep 0.01
+  done
+}
+
 SLOT_SUFFIX=$(sed -n 's/.*androidboot.slot_suffix=\([^ ]*\).*/\1/p' /proc/cmdline)
 
 function mount_dsp {
@@ -64,10 +75,36 @@ function mount_persist {
 
 function mount_data {
   mount_part userdata /data -o discard,noatime,nodiratime,nosuid,nodev
+  rm -rf /data/tmp
+  # the rootfs symlinks /etc paths to these, and /data/persist is served to the modem and DSPs
+  # through /system/rfs
+  mkdir -p /data/etc/netplan /data/etc/NetworkManager/system-connections /data/ssh /data/tmp \
+    /data/persist/hlos_rfs/shared /data/persist/rfs/shared \
+    /data/persist/rfs/msm/adsp /data/persist/rfs/msm/mpss
+  touch /data/etc/timezone /data/etc/localtime
+  chown comma: /data/ssh
 }
 
 function mount_cache {
   mount_part cache /cache -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
+  chown -R comma:comma /cache/
+}
+
+function mount_tmp {
+  mount -t tmpfs -o rw,nosuid,nodev,size=150M,mode=1777 tmpfs /tmp
+}
+
+function mount_var {
+  mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var
+  mkdir /var/log
+  mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log
+  systemd-tmpfiles --create /usr/comma/tmpfiles.conf
+}
+
+function mount_home {
+  mount -t tmpfs -o rw,nosuid,nodev,size=100M,mode=1777 tmpfs /rwtmp
+  mkdir /rwtmp/home_work /rwtmp/home_upper
+  mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home
 }
 
 function set_restart_levels {
@@ -76,9 +113,7 @@ function set_restart_levels {
 }
 
 function start_venus {
-  until mountpoint -q /firmware; do
-    sleep 0.01
-  done
+  wait_mount /firmware
   until [ -e /dev/video33 ]; do
     sleep 0.01
   done
@@ -87,11 +122,8 @@ function start_venus {
 }
 
 function start_cdsp {
+  wait_mount /firmware
   local start=$SECONDS
-  until mountpoint -q /firmware; do
-    (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "/firmware not mounted"; return 1; }
-    sleep 0.01
-  done
   while grep -qvx RELATED /sys/bus/msm_subsys/devices/subsys*/restart_level; do
     (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "restart levels not set"; return 1; }
     sleep 0.01
@@ -229,6 +261,9 @@ run_init mount_firmware
 run_init mount_persist
 run_init mount_data
 run_init mount_cache
+run_init mount_tmp
+run_init mount_var
+run_init mount_home
 run_init set_restart_levels
 run_init start_venus
 run_init start_cdsp

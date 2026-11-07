@@ -1,3 +1,0 @@
-tmpfs /var tmpfs rw,nosuid,nodev,size=128M,mode=755 0 0
-tmpfs /tmp tmpfs rw,nosuid,nodev,size=150M,mode=1777 0 0
-tmpfs /rwtmp tmpfs rw,nosuid,nodev,size=100M,mode=1777 0 0
