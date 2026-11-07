@@ -165,7 +165,8 @@ function start_sound {
   # sound is ready, let clients in. opening a PCM before the ADSP is up floods the console with errors
   find /dev/snd -maxdepth 1 -type c -exec chgrp audio {} + -exec chmod 660 {} +
 
-  /usr/local/venv/bin/python /usr/comma/sound/amplifier.py
+  # mici has no amp config, and starting Python to find that out is most of this job
+  grep -q mici /sys/firmware/devicetree/base/model || /usr/local/venv/bin/python /usr/comma/sound/amplifier.py
 }
 
 function set_firmware_timeout {
