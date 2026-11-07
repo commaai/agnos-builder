@@ -34,7 +34,10 @@ boot wlan /sys/kernel/boot_wlan/boot_wlan
   # the modem reads its EFS partitions through rmt_storage and /system/rfs through tftp_server
   echo "modem: waiting for EFS partitions"
   for p in modemst1 modemst2 fsc fsg; do
-    until [ -e /dev/block/bootdevice/by-name/$p ]; do sleep 0.1; done
+    for i in {1..100}; do
+      [ -e /dev/block/bootdevice/by-name/$p ] && break
+      sleep 0.1
+    done
   done
   daemon /usr/sbin/rmt_storage
   daemon /usr/sbin/tftp_server

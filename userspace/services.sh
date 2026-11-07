@@ -6,6 +6,7 @@ systemctl enable cdsp
 # Enable our services
 systemctl enable boot.service
 systemctl enable hotplug.service
+systemctl enable devices.service
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
 systemctl enable comma.service
