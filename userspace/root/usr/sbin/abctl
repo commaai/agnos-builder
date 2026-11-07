@@ -178,8 +178,7 @@ def boot_slot():
 def open_ufs_sg(stack):
   # UFS_IOCTL_QUERY: u32 opcode, u8 idn, padding, u16 size, u32 value.
   # https://github.com/commaai/agnos-kernel-sdm845/blob/8b0e4d289b246a5cc1b0484b25a3f9f8d4772544/include/uapi/scsi/ufs/ioctl.h
-  # Use the stable UFS LUN node: udev temporarily removes by-partlabel links
-  # while reprobing the GPT after a slot change.
+  # Use the stable UFS LUN node.
   sg, = Path('/sys/class/block/sdb/device/scsi_generic').iterdir()
   f = stack.enter_context(open(f'/dev/{sg.name}', 'r+b', buffering=0))
   return f

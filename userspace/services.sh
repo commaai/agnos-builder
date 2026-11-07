@@ -5,6 +5,7 @@ systemctl enable cdsp
 
 # Enable our services
 systemctl enable boot.service
+systemctl enable uevent-helper.service
 systemctl enable fs_setup.service
 systemctl enable serial-hostname.service
 systemctl enable comma.service
@@ -46,5 +47,4 @@ systemctl disable motd-news.timer
 systemctl disable systemd-pstore.service
 systemctl mask systemd-backlight@.service
 systemctl mask alsa-restore.service
-ln -s /dev/null /etc/udev/rules.d/90-alsa-restore.rules
 systemctl disable dpkg-db-backup.timer

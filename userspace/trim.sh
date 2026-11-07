@@ -22,3 +22,7 @@ lib=/usr/lib/aarch64-linux-gnu
 rm -f "$lib"/libgallium-*.so "$lib"/libEGL_mesa.so* "$lib"/libGLX_mesa.so* "$lib"/libgbm.so.1.0.0
 rm -rf "$lib"/dri "$lib"/gbm
 rm /usr/share/glvnd/egl_vendor.d/50_mesa.json
+
+# udev isn't used, see boot.sh. NetworkManager and others still depend on the package.
+dpkg --purge --force-depends udev
+rm -rf /usr/lib/udev /etc/udev

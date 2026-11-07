@@ -51,7 +51,6 @@ apt-fast install --no-install-recommends -yq \
     systemd-resolved \
     systemd-timesyncd \
     tmux \
-    udev \
     usbutils \
     vim \
     wpasupplicant

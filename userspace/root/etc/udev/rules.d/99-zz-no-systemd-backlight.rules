@@ -1,2 +1,0 @@
-# systemd-backlight@.service is masked (brightnessd owns the backlight), so don't ask systemd to start it
-SUBSYSTEM=="backlight", ENV{SYSTEMD_WANTS}=""
