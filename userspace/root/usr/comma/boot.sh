@@ -86,6 +86,20 @@ function start_venus {
   : < /dev/video33
 }
 
+function start_cdsp {
+  local start=$SECONDS
+  until mountpoint -q /firmware; do
+    (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "/firmware not mounted"; return 1; }
+    sleep 0.01
+  done
+  while grep -qvx RELATED /sys/bus/msm_subsys/devices/subsys*/restart_level; do
+    (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "restart levels not set"; return 1; }
+    sleep 0.01
+  done
+  # only queues the load, the cdsp comes up in the background
+  echo 1 > /sys/kernel/boot_cdsp/boot
+}
+
 function set_firmware_timeout {
   # nothing in userspace provides firmware, a request for a missing one would wait 60s
   echo 1 > /sys/class/firmware/timeout
@@ -179,6 +193,7 @@ run_init mount_data
 run_init mount_cache
 run_init set_restart_levels
 run_init start_venus
+run_init start_cdsp
 run_init set_firmware_timeout
 run_init set_hostname
 run_init setup_devices
