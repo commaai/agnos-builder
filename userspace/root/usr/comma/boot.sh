@@ -186,6 +186,44 @@ function setup_devices {
   return $ret
 }
 
+function setup_gpios {
+  # a UP's TCAN driver owns some of these and nothing there uses them, it exports its own
+  grep -q "ultimate provisioning" /sys/firmware/devicetree/base/model && return 0
+
+  # keep going so one bad pin doesn't take the rest with it, and fail at the end
+  local ret=0
+  trap 'ret=1' ERR
+
+  local pins=(
+    49   # SOM_ST_IO
+    134  # ST_BOOT0
+    50   # LTE_RST_N
+    116  # LTE_PWRKEY
+    124  # ST_RST_N
+    34   # GPS_PWR_EN, not connected on mici but pigeond still drives it
+    52   # LTE_BOOT
+  )
+  if grep -q mici /sys/firmware/devicetree/base/model; then
+    pins+=(
+      33   # GPS_SAFEBOOT_N
+      32   # GPS_RST_N
+    )
+  elif grep -q tizi /sys/firmware/devicetree/base/model; then
+    pins+=(1264) # POWER ALERT
+  fi
+
+  local p d nodes=()
+  for p in "${pins[@]}"; do
+    echo "$p" > /sys/class/gpio/export
+    d=/sys/class/gpio/gpio$p
+    nodes+=("$d" "$d"/{active_low,direction,edge,value})
+  done
+  chgrp -f gpio "${nodes[@]}"
+  chmod -f 770 "${nodes[@]}"
+
+  return $ret
+}
+
 run_init mount_dsp
 run_init mount_firmware
 run_init mount_persist
@@ -197,6 +235,7 @@ run_init start_cdsp
 run_init set_firmware_timeout
 run_init set_hostname
 run_init setup_devices
+run_init setup_gpios
 
 RET=0
 for pid in "${PIDS[@]}"; do
