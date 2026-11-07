@@ -22,45 +22,47 @@ function wait_for_parts {
   echo "timed out waiting for partitions"
 }
 
-# same arguments as mount, and reports how it went. a stuck mount can't be killed
-# and timeout would wait on it, so this races it against a timer
+# same arguments as mount, but runs in the background and reports how it went. a stuck
+# mount can't be killed and timeout would wait on it, so this races it against a timer
 function mount_part {
-  local where=${!#} pid timer first ret
-  mount "$@" & pid=$!
-  sleep "$MOUNT_TIMEOUT" & timer=$!
-  wait -n -p first "$pid" "$timer"
-  ret=$?
-  if [ "$first" = "$timer" ]; then
-    echo "timed out mounting $where"
-    return 1
-  fi
-  kill "$timer"
-  if [ "$ret" = 0 ]; then
+  local where=${!#}
+  (
+    mount "$@" & pid=$!
+    sleep "$MOUNT_TIMEOUT" & timer=$!
+    wait -n -p first "$pid" "$timer"
+    ret=$?
+    if [ "$first" = "$timer" ]; then
+      echo "timed out mounting $where"
+      exit 1
+    fi
+    kill "$timer"
+    if [ "$ret" != 0 ]; then
+      echo "failed to mount $where"
+      exit 1
+    fi
     echo "mounted $where"
-  else
-    echo "failed to mount $where"
-    return 1
-  fi
+  ) & PIDS+=($!)
 }
 
 SLOT_SUFFIX=$(sed -n 's/.*androidboot.slot_suffix=\([^ ]*\).*/\1/p' /proc/cmdline)
 wait_for_parts "$SLOT_SUFFIX"
 
-PIDS=()
-mount_part -o ro "${PARTS[dsp$SLOT_SUFFIX]}" /dsp & PIDS+=($!)
-mount_part -o ro "${PARTS[modem_a]}" /firmware & PIDS+=($!)
-mount_part -o ro,discard,nosuid,nodev,noexec "${PARTS[persist]}" /persist & PIDS+=($!)
-# comma.sh handles this one failing, it starts the reset UI
-mount_part -o discard,noatime,nodiratime,nosuid,nodev "${PARTS[userdata]}" /data & PIDS+=($!)
-(
-  if ! /usr/lib/systemd/systemd-makefs ext4 "${PARTS[cache]}"; then
-    echo "failed to format /cache"
-    exit 1
-  fi
-  mount_part -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid "${PARTS[cache]}" /cache
-) & PIDS+=($!)
-
 RET=0
+PIDS=()
+mount_part -o ro "${PARTS[dsp$SLOT_SUFFIX]}" /dsp
+mount_part -o ro "${PARTS[modem_a]}" /firmware
+mount_part -o ro,discard,nosuid,nodev,noexec "${PARTS[persist]}" /persist
+# comma.sh handles this one failing, it starts the reset UI
+mount_part -o discard,noatime,nodiratime,nosuid,nodev "${PARTS[userdata]}" /data
+
+# last, so the others are already going while this formats
+if /usr/lib/systemd/systemd-makefs ext4 "${PARTS[cache]}"; then
+  mount_part -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid "${PARTS[cache]}" /cache
+else
+  echo "failed to format /cache"
+  RET=1
+fi
+
 for pid in "${PIDS[@]}"; do
   wait "$pid" || RET=1
 done
