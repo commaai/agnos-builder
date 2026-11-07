@@ -6,6 +6,7 @@ INIT_TIMEOUT=120
 PARTITION_TIMEOUT=5
 # above PARTITION_TIMEOUT, a mount still has to find its partition and maybe format it
 MOUNT_TIMEOUT=10
+SOUND_TIMEOUT=20
 
 PIDS=()
 
@@ -107,6 +108,16 @@ function mount_home {
   mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home
 }
 
+# wait_restart_levels
+# a subsystem booted before these are set would take the whole SoC down if it crashes
+function wait_restart_levels {
+  local start=$SECONDS
+  while grep -qvx RELATED /sys/bus/msm_subsys/devices/subsys*/restart_level; do
+    (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "restart levels not set"; return 1; }
+    sleep 0.01
+  done
+}
+
 function set_restart_levels {
   # don't restart whole SoC on subsystem crash
   echo related | tee /sys/bus/msm_subsys/devices/subsys*/restart_level > /dev/null
@@ -123,13 +134,38 @@ function start_venus {
 
 function start_cdsp {
   wait_mount /firmware
-  local start=$SECONDS
-  while grep -qvx RELATED /sys/bus/msm_subsys/devices/subsys*/restart_level; do
-    (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "restart levels not set"; return 1; }
-    sleep 0.01
-  done
+  wait_restart_levels
   # only queues the load, the cdsp comes up in the background
   echo 1 > /sys/kernel/boot_cdsp/boot
+}
+
+function start_sound {
+  wait_mount /firmware
+  wait_restart_levels
+
+  # TODO: is this needed?
+  echo 1 > /sys/module/subsystem_restart/parameters/enable_debug
+  echo 1 > /sys/kernel/boot_adsp/boot
+
+  local start=$SECONDS
+  until [ "$(cat /proc/asound/card0/state 2>/dev/null)" = ONLINE ] && \
+      amixer -D hw:0 controls | grep -q "SEC_MI2S_RX Audio Mixer MultiMedia1"; do
+    (( SECONDS - start < SOUND_TIMEOUT )) || { echo "sound card not ready"; return 1; }
+    sleep 0.01
+  done
+
+  amixer -D hw:0 -q cset "name='SEC_MI2S_RX Audio Mixer MultiMedia1'" 1
+  if grep -q mici /sys/firmware/devicetree/base/model; then
+    amixer -D hw:0 -q cset "name='MultiMedia1 Mixer SEC_MI2S_TX'" 1
+  else
+    amixer -D hw:0 -q cset "name='MultiMedia1 Mixer TERT_MI2S_TX'" 1
+    amixer -D hw:0 -q cset "name='TERT_MI2S_TX Channels'" Two
+  fi
+
+  # sound is ready, let clients in. opening a PCM before the ADSP is up floods the console with errors
+  find /dev/snd -maxdepth 1 -type c -exec chgrp audio {} + -exec chmod 660 {} +
+
+  /usr/local/venv/bin/python /usr/comma/sound/amplifier.py
 }
 
 function set_firmware_timeout {
@@ -267,6 +303,7 @@ run_init mount_home
 run_init set_restart_levels
 run_init start_venus
 run_init start_cdsp
+run_init start_sound
 run_init set_firmware_timeout
 run_init set_hostname
 run_init setup_devices

@@ -4,7 +4,7 @@ DefaultDependencies=no
 After=local-fs-pre.target
 Before=local-fs.target
 # set the restart levels before any subsystem boots
-Before=wifi.service sound.service
+Before=wifi.service
 # the only units before local-fs.target that use /var
 Before=systemd-journal-flush.service systemd-random-seed.service
 
