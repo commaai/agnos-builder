@@ -4,8 +4,6 @@
 # boot.service's timeout has to stay above this
 INIT_TIMEOUT=120
 PARTITION_TIMEOUT=5
-# above PARTITION_TIMEOUT, a mount still has to find its partition and maybe format it
-MOUNT_TIMEOUT=10
 
 PIDS=()
 
@@ -52,9 +50,7 @@ function mount_part {
 
 # wait_mount <mount point>
 function wait_mount {
-  local start=$SECONDS
   until mountpoint -q "$1"; do
-    (( SECONDS - start < MOUNT_TIMEOUT )) || { echo "$1 not mounted"; return 1; }
     sleep 0.01
   done
 }
