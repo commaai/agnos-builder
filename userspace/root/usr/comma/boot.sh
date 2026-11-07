@@ -3,6 +3,7 @@
 
 # boot.service's timeout has to stay above this
 INIT_TIMEOUT=120
+PARTITION_TIMEOUT=5
 
 PIDS=()
 
@@ -85,6 +86,85 @@ function start_venus {
   : < /dev/video33
 }
 
+function set_firmware_timeout {
+  # nothing in userspace provides firmware, a request for a missing one would wait 60s
+  echo 1 > /sys/class/firmware/timeout
+}
+
+function setup_devices {
+  # keep going so one missing node doesn't take the rest with it, and fail at the end
+  local ret=0
+  trap 'ret=1' ERR
+  shopt -s nullglob
+
+  # rmt_storage reads the EFS partitions by name. the others are for the updater, reset and hardware.h
+  local efs=(modemst1 modemst2 fsc fsg)
+  local parts=("${efs[@]}" persist ssd userdata {abl,aop,boot,devcfg,system,xbl,xbl_config}_{a,b})
+  local pattern
+  pattern="^PARTNAME=($(IFS='|'; echo "${parts[*]}"))\$"
+
+  # the UFS LUNs might still be probing
+  local found start=$SECONDS
+  while mapfile -t found < <(grep -HE "$pattern" /sys/class/block/sd*/uevent); do
+    (( ${#found[@]} < ${#parts[@]} && SECONDS - start < PARTITION_TIMEOUT )) || break
+    sleep 0.01
+  done
+  if (( ${#found[@]} < ${#parts[@]} )); then
+    echo "only found ${#found[@]} of ${#parts[@]} partitions"
+    ret=1
+  fi
+
+  chgrp gpu /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}*
+  chgrp gpio /dev/gpiochip0 /dev/i2c-* /dev/ttyHS*
+  chgrp input /dev/input/{event,mouse}* /dev/input/mice
+  chgrp video /dev/media* /dev/v4l-subdev* /dev/video*
+  chgrp disk /dev/sd* /dev/sg*
+  chgrp dialout /dev/ttyMSM*
+  chmod 660 /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}* \
+    /dev/gpiochip0 /dev/i2c-* /dev/ttyHS* \
+    /dev/media* /dev/v4l-subdev* /dev/video* \
+    /dev/sd* /dev/sg* \
+    /dev/ttyMSM*
+  chmod 666 /dev/input/{event,mouse}* /dev/input/mice /dev/fuse /dev/net/tun /dev/spidev*
+
+  # not every display and LED is on every device
+  local attr video_attrs=()
+  for attr in /sys/class/backlight/panel0-backlight/{brightness,bl_power} \
+      /sys/class/leds/led:{torch,switch}_2/brightness \
+      /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent; do
+    [ -e "$attr" ] && video_attrs+=("$attr")
+  done
+  chgrp video "${video_attrs[@]}"
+  chmod 664 "${video_attrs[@]}"
+
+  mkdir -p /dev/disk/by-partlabel /dev/block/bootdevice/by-name /dev/input/by-path /dev/v4l/by-path
+
+  local line path dev name
+  for line in "${found[@]}"; do
+    IFS== read -r path name <<< "$line"
+    dev=${path%/uevent:PARTNAME}
+    dev=${dev##*/}
+    case " ${efs[*]} " in
+      *" $name "*) ln -sf "../../../$dev" "/dev/block/bootdevice/by-name/$name" ;;
+      *) ln -sf "../../$dev" "/dev/disk/by-partlabel/$name" ;;
+    esac
+  done
+
+  # the touchscreen and cameras can enumerate in any order
+  for path in /sys/devices/platform/soc/894000.i2c/i2c-*/*/input/input*/event*; do
+    ln -sf "../${path##*/}" /dev/input/by-path/platform-894000.i2c-event
+  done
+  for path in /sys/devices/platform/soc/soc:qcom,cam-req-mgr/video4linux/video*; do
+    ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
+  done
+  for path in /sys/devices/platform/cam_sync/video4linux/video*; do
+    ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-cam_sync-video-index0
+  done
+  ln -sf ../../video33 /dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1
+
+  return $ret
+}
+
 run_init mount_dsp
 run_init mount_firmware
 run_init mount_persist
@@ -92,6 +172,8 @@ run_init mount_data
 run_init mount_cache
 run_init set_restart_levels
 run_init start_venus
+run_init set_firmware_timeout
+run_init setup_devices
 
 RET=0
 for pid in "${PIDS[@]}"; do
