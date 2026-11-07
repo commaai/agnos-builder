@@ -53,7 +53,6 @@ SLOT_SUFFIX=$(sed -n 's/.*androidboot.slot_suffix=\([^ ]*\).*/\1/p' /proc/cmdlin
 mount_part "dsp$SLOT_SUFFIX" /dsp -o ro
 mount_part "modem$SLOT_SUFFIX" /firmware -o ro
 mount_part persist /persist -o ro,discard,nosuid,nodev,noexec
-# comma.sh handles this one failing, it starts the reset UI
 mount_part userdata /data -o discard,noatime,nodiratime,nosuid,nodev
 mount_part cache /cache -t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid
 
