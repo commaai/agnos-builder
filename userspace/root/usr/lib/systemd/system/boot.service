@@ -1,0 +1,19 @@
+[Unit]
+Description=Boot
+DefaultDependencies=no
+After=local-fs-pre.target
+Before=local-fs.target
+# set the restart levels before any subsystem boots
+Before=wifi.service sound.service cdsp.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/comma/boot.sh
+StandardOutput=journal+console
+# only a backstop, boot.sh gives up first and reports what failed
+TimeoutStartSec=130
+TimeoutStopSec=1
+
+[Install]
+WantedBy=local-fs.target
