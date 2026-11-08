@@ -123,12 +123,10 @@ function wait_restart_levels {
   while true; do
     if grep -qvx RELATED /sys/bus/msm_subsys/devices/subsys*/restart_level; then
       : # at least one subsystem is not ready
-    else
-      local ret=$?
-      [ "$ret" = 1 ] && return 0
-      echo "cannot read restart levels" >&2
-      return 1
+    elif [ "$?" = 1 ]; then
+      return 0
     fi
+    # Read errors can be transient too; retry until the same deadline.
     (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "restart levels not set"; return 1; }
     sleep 0.01
   done
