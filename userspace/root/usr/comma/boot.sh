@@ -99,8 +99,12 @@ function mount_cache {
   chown comma: /cache
 }
 
+# openpilot makes its queues in /dev/shm and its sockets in /tmp. a file there costs about 1kB of
+# memory, so with this many, something that leaks files runs out of its memory before it can take
+# the last one. the default, half of RAM's pages, runs out first
 function mount_tmp {
-  mount -t tmpfs -o rw,nosuid,nodev,size=150M,mode=1777 tmpfs /tmp
+  mount -t tmpfs -o rw,nosuid,nodev,size=150M,nr_inodes=1M,mode=1777 tmpfs /tmp
+  mount -o remount,nr_inodes=1M /dev/shm
 }
 
 function mount_var {
