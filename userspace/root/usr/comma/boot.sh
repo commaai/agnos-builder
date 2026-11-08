@@ -92,8 +92,8 @@ function mount_data {
 function mount_cache {
   local opts=(-t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid)
   if ! mount_part cache /cache "${opts[@]}"; then
-    # cache is formatted on first boot
-    /usr/lib/systemd/systemd-makefs ext4 "$(part_dev cache)"
+    # it's blank on first boot, and it only holds debug logs, so format it whenever it won't mount
+    mkfs.ext4 -F -q "$(part_dev cache)"
     mount_part cache /cache "${opts[@]}"
   fi
   chown comma: /cache
