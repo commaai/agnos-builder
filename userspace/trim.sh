@@ -26,3 +26,11 @@ rm /usr/share/glvnd/egl_vendor.d/50_mesa.json
 # udev isn't used, see boot.sh. NetworkManager and others still depend on the package.
 dpkg --purge --force-depends udev
 rm -rf /usr/lib/udev /etc/udev
+
+# systemd loads every unit it can reach before it starts the first job, about 1 ms each at boot.
+# AGNOS has no initrd, TPM, encrypted or verity disks, sysext, fsck or binfmt, so drop their units.
+cd /usr/lib/systemd/system
+rm -rf initrd* systemd-pcr* systemd-tpm2* systemd-repart* systemd-firstboot* systemd-sysext* systemd-bsod* \
+  systemd-battery-check* systemd-hibernate-resume* systemd-soft-reboot* soft-reboot.target systemd-fsck* \
+  remote-* cryptsetup* veritysetup* integritysetup* systemd-binfmt* proc-sys-fs-binfmt*
+find . -xtype l -delete
