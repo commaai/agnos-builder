@@ -79,6 +79,9 @@ function mount_data {
   mount_part userdata /data -o discard,noatime,nodiratime,nosuid,nodev
   # first, so comma.sh can still clean up /data if something below fails
   chown comma: /data
+  if [ -d /data/media ]; then
+    chown comma: /data/media
+  fi
   rm -rf /data/tmp
   # the rootfs symlinks /etc paths to these, and /data/persist is served to the modem and DSPs
   # through /system/rfs
