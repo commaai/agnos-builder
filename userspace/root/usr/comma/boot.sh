@@ -120,7 +120,15 @@ function mount_home {
 # a subsystem booted before these are set would take the whole SoC down if it crashes
 function wait_restart_levels {
   local start=$SECONDS
-  while grep -qvx RELATED /sys/bus/msm_subsys/devices/subsys*/restart_level; do
+  while true; do
+    if grep -qvx RELATED /sys/bus/msm_subsys/devices/subsys*/restart_level; then
+      : # at least one subsystem is not ready
+    else
+      local ret=$?
+      [ "$ret" = 1 ] && return 0
+      echo "cannot read restart levels" >&2
+      return 1
+    fi
     (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "restart levels not set"; return 1; }
     sleep 0.01
   done
