@@ -3,8 +3,8 @@
 echo "Installing openpilot dependencies"
 
 # Install necessary libs
-apt-fast update
-apt-fast install --no-install-recommends -yq \
+apt-get update
+apt-get install --no-install-recommends -yq \
     clang-20 \
     curl \
     libdbus-1-dev \

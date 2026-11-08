@@ -2,7 +2,7 @@
 
 # for all the non-essential nice to haves
 
-apt-fast update && apt-fast install -y --no-install-recommends \
+apt-get update && apt-get install -y --no-install-recommends \
   bash-completion \
   btop \
   hyperfine \
