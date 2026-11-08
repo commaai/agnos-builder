@@ -6,6 +6,8 @@ After=multi-user.target
 [Service]
 Type=oneshot
 ExecStart=/bin/sh -c 'echo /usr/comma/uevent_helper.sh > /sys/kernel/uevent_helper; chmod 664 /dev/bus/usb/*/*'
+# Reconcile input nodes added between boot.sh's sweep and installing the helper.
+ExecStartPost=/usr/bin/find /dev/input -maxdepth 1 -type c -exec chgrp input {} + -exec chmod 666 {} +
 
 [Install]
 WantedBy=multi-user.target
