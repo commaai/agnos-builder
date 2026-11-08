@@ -189,11 +189,11 @@ function set_hostname {
 }
 
 function setup_devices {
-  # keep going so one missing node doesn't take the rest with it, and fail at the end
+  # all of these should be there, so a missing one fails boot and the command that hit it says which.
+  # keep going so it doesn't take the rest with it, and fail at the end
   set +e
   local ret=0
   trap 'ret=1' ERR
-  shopt -s nullglob
 
   # rmt_storage reads the EFS partitions by name. the others are for the updater, reset and hardware.h
   local efs=(modemst1 modemst2 fsc fsg)
@@ -213,14 +213,17 @@ function setup_devices {
   fi
 
   chgrp gpu /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}*
+  # the 3X has no high speed UART
+  local uart=()
+  [ -e /dev/ttyHS0 ] && uart=(/dev/ttyHS*)
   # /sys/class/gpio is for provisioning, it exports its pins as comma
-  chgrp gpio /dev/gpiochip0 /dev/i2c-* /dev/ttyHS* /sys/class/gpio/{export,unexport}
+  chgrp gpio /dev/gpiochip0 /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport}
   chgrp input /dev/input/{event,mouse}* /dev/input/mice
   chgrp video /dev/media* /dev/v4l-subdev* /dev/video*
   chgrp disk /dev/sd* /dev/sg*
   chgrp dialout /dev/ttyMSM*
   chmod 660 /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}* \
-    /dev/gpiochip0 /dev/i2c-* /dev/ttyHS* /sys/class/gpio/{export,unexport} \
+    /dev/gpiochip0 /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport} \
     /dev/media* /dev/v4l-subdev* /dev/video* \
     /dev/sd* /dev/sg* \
     /dev/ttyMSM*
@@ -251,15 +254,12 @@ function setup_devices {
   done
 
   # the touchscreen and cameras can enumerate in any order
-  for path in /sys/devices/platform/soc/894000.i2c/i2c-*/*/input/input*/event*; do
-    ln -sf "../${path##*/}" /dev/input/by-path/platform-894000.i2c-event
-  done
-  for path in /sys/devices/platform/soc/soc:qcom,cam-req-mgr/video4linux/video*; do
-    ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
-  done
-  for path in /sys/devices/platform/cam_sync/video4linux/video*; do
-    ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-cam_sync-video-index0
-  done
+  path=$(ls -d /sys/devices/platform/soc/894000.i2c/i2c-*/*/input/input*/event*)
+  ln -sf "../${path##*/}" /dev/input/by-path/platform-894000.i2c-event
+  path=$(ls -d /sys/devices/platform/soc/soc:qcom,cam-req-mgr/video4linux/video*)
+  ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
+  path=$(ls -d /sys/devices/platform/cam_sync/video4linux/video*)
+  ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-cam_sync-video-index0
   ln -sf ../../video33 /dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1
 
   return $ret
