@@ -7,14 +7,13 @@ export DEBIAN_FRONTEND=noninteractive
 # Identify this image to openpilot.
 touch /TICI /AGNOS
 
-# Install apt-fast.
+# Install package management prerequisites.
 apt-get update
 apt-get install --no-install-recommends -yq ca-certificates curl sudo wget
-bash -c "$(curl -fsSL https://git.io/vokNn)"
 
 # Base packages, development tools, and networking.
-apt-fast upgrade -yq
-apt-fast install --no-install-recommends -yq \
+apt-get upgrade -yq
+apt-get install --no-install-recommends -yq \
     adduser \
     alsa-utils \
     apport \
