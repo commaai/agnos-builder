@@ -29,7 +29,7 @@ fi
 
 handle_setup_keys () {
   # install default SSH key while still in setup
-  if [[ ! -e /data/params/d/GithubSshKeys && ! -e /data/continue.sh ]]; then
+  if [[ ! -s /data/params/d/GithubSshKeys && ! -e /data/continue.sh ]]; then
     if [ ! -e /data/params/d ]; then
       mkdir -p /data/params/d_tmp
       ln -s /data/params/d_tmp /data/params/d
@@ -37,6 +37,8 @@ handle_setup_keys () {
 
     echo -n 1 > /data/params/d/AdbEnabled
     echo -n 1 > /data/params/d/SshEnabled
+    # a power cut can leave these empty. GithubSshKeys goes last and is checked above, so that redoes them next boot
+    sync /data/params/d/AdbEnabled /data/params/d/SshEnabled
     cp /usr/comma/setup_keys /data/params/d/GithubSshKeys
   elif [[ -e /data/params/d/GithubSshKeys && -e /data/continue.sh ]]; then
     if cmp -s /data/params/d/GithubSshKeys /usr/comma/setup_keys; then
