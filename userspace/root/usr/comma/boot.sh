@@ -11,33 +11,33 @@ SOUND_TIMEOUT=20
 PIDS=()
 
 # run_init <function>
-# runs the function in the background, reporting how it went. a stuck open can't be killed
-# and timeout would wait on it, so this races it against a timer
+# runs the function in the background, reporting how it went. it stops at its first failure,
+# unless it opts out with set +e. a stuck open can't be killed
+# and timeout would wait on it, so this gives up on reading its status instead
 function run_init {
   local name=$1
   (
-    "$name" & pid=$!
-    sleep "$INIT_TIMEOUT" & timer=$!
-    wait -n -p first "$pid" "$timer"
-    ret=$?
-    if [ "$first" = "$timer" ]; then
-      echo "$name timed out"
+    start=${EPOCHREALTIME/./}
+    if ! read -r -t "$INIT_TIMEOUT" ret < <((set -e; "$name") >&2; echo $?); then
+      echo -e "\e[31m$name timed out\e[0m"
       exit 1
     fi
-    kill "$timer"
+    ms=$(( (${EPOCHREALTIME/./} - start) / 1000 ))
+    printf -v took '%d.%02ds' $(( ms / 1000 )) $(( ms % 1000 / 10 ))
     if [ "$ret" != 0 ]; then
-      echo "$name failed"
+      echo -e "\e[31m$name failed in $took\e[0m"
       exit 1
     fi
-    echo "$name done"
+    echo -e "\e[32m$name done in $took\e[0m"
   ) & PIDS+=($!)
 }
 
 # part_dev <partition>
 # prints the partition's device. it's found through sysfs so this doesn't wait for udev's links
 function part_dev {
-  local uevent
+  local uevent start=$SECONDS
   until uevent=$(grep -lx "PARTNAME=$1" /sys/class/block/sd*/uevent 2>/dev/null); do
+    (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "no partition $1" >&2; return 1; }
     sleep 0.1
   done
   uevent=${uevent%/uevent}
@@ -62,14 +62,13 @@ function wait_mount {
   done
 }
 
-SLOT_SUFFIX=$(sed -n 's/.*androidboot.slot_suffix=\([^ ]*\).*/\1/p' /proc/cmdline)
-
+# OTAs don't write these, so both slots use slot a's copy
 function mount_dsp {
-  mount_part "dsp$SLOT_SUFFIX" /dsp -o ro
+  mount_part dsp_a /dsp -o ro
 }
 
 function mount_firmware {
-  mount_part "modem$SLOT_SUFFIX" /firmware -o ro
+  mount_part modem_a /firmware -o ro
 }
 
 function mount_persist {
@@ -78,6 +77,8 @@ function mount_persist {
 
 function mount_data {
   mount_part userdata /data -o discard,noatime,nodiratime,nosuid,nodev
+  # first, so comma.sh can still clean up /data if something below fails
+  chown comma: /data
   rm -rf /data/tmp
   # the rootfs symlinks /etc paths to these, and /data/persist is served to the modem and DSPs
   # through /system/rfs
@@ -85,14 +86,14 @@ function mount_data {
     /data/persist/hlos_rfs/shared /data/persist/rfs/shared \
     /data/persist/rfs/msm/adsp /data/persist/rfs/msm/mpss
   touch /data/etc/timezone /data/etc/localtime
-  chown comma: /data /data/ssh
+  chown comma: /data/ssh /data/tmp
 }
 
 function mount_cache {
   local opts=(-t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid)
   if ! mount_part cache /cache "${opts[@]}"; then
-    # cache is formatted on first boot
-    /usr/lib/systemd/systemd-makefs ext4 "$(part_dev cache)"
+    # it's blank on first boot, and it only holds debug logs, so format it whenever it won't mount
+    mkfs.ext4 -F -q "$(part_dev cache)"
     mount_part cache /cache "${opts[@]}"
   fi
   chown comma: /cache
@@ -188,10 +189,11 @@ function set_hostname {
 }
 
 function setup_devices {
-  # keep going so one missing node doesn't take the rest with it, and fail at the end
+  # all of these should be there, so a missing one fails boot and the command that hit it says which.
+  # keep going so it doesn't take the rest with it, and fail at the end
+  set +e
   local ret=0
   trap 'ret=1' ERR
-  shopt -s nullglob
 
   # rmt_storage reads the EFS partitions by name. the others are for the updater, reset and hardware.h
   local efs=(modemst1 modemst2 fsc fsg)
@@ -211,18 +213,22 @@ function setup_devices {
   fi
 
   chgrp gpu /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}*
+  # the 3X has no high speed UART
+  local uart=()
+  [ -e /dev/ttyHS0 ] && uart=(/dev/ttyHS*)
   # /sys/class/gpio is for provisioning, it exports its pins as comma
-  chgrp gpio /dev/gpiochip0 /dev/i2c-* /dev/ttyHS* /sys/class/gpio/{export,unexport}
+  chgrp gpio /dev/gpiochip0 /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport}
   chgrp input /dev/input/{event,mouse}* /dev/input/mice
   chgrp video /dev/media* /dev/v4l-subdev* /dev/video*
   chgrp disk /dev/sd* /dev/sg*
   chgrp dialout /dev/ttyMSM*
   chmod 660 /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}* \
-    /dev/gpiochip0 /dev/i2c-* /dev/ttyHS* /sys/class/gpio/{export,unexport} \
+    /dev/gpiochip0 /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport} \
     /dev/media* /dev/v4l-subdev* /dev/video* \
     /dev/sd* /dev/sg* \
     /dev/ttyMSM*
   chmod 666 /dev/input/{event,mouse}* /dev/input/mice /dev/fuse /dev/net/tun /dev/spidev*
+  chmod 664 /dev/rfkill
 
   # not every display and LED is on every device
   local attr video_attrs=()
@@ -248,15 +254,12 @@ function setup_devices {
   done
 
   # the touchscreen and cameras can enumerate in any order
-  for path in /sys/devices/platform/soc/894000.i2c/i2c-*/*/input/input*/event*; do
-    ln -sf "../${path##*/}" /dev/input/by-path/platform-894000.i2c-event
-  done
-  for path in /sys/devices/platform/soc/soc:qcom,cam-req-mgr/video4linux/video*; do
-    ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
-  done
-  for path in /sys/devices/platform/cam_sync/video4linux/video*; do
-    ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-cam_sync-video-index0
-  done
+  path=$(ls -d /sys/devices/platform/soc/894000.i2c/i2c-*/*/input/input*/event*)
+  ln -sf "../${path##*/}" /dev/input/by-path/platform-894000.i2c-event
+  path=$(ls -d /sys/devices/platform/soc/soc:qcom,cam-req-mgr/video4linux/video*)
+  ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
+  path=$(ls -d /sys/devices/platform/cam_sync/video4linux/video*)
+  ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-cam_sync-video-index0
   ln -sf ../../video33 /dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1
 
   return $ret
@@ -267,6 +270,7 @@ function setup_gpios {
   grep -q "ultimate provisioning" /sys/firmware/devicetree/base/model && return 0
 
   # keep going so one bad pin doesn't take the rest with it, and fail at the end
+  set +e
   local ret=0
   trap 'ret=1' ERR
 

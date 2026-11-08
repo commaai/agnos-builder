@@ -42,3 +42,8 @@ systemctl mask alsa-restore.service
 # boot.sh mounts a fresh /tmp, and this would delete what's already using it
 ln -s /dev/null /etc/tmpfiles.d/tmp.conf
 systemctl disable dpkg-db-backup.timer
+
+# unused, and mounting them all at once can trip systemd's mount rate limit, holding up everything else for up to 1s
+systemctl mask sys-fs-fuse-connections.mount sys-kernel-tracing.mount sys-kernel-config.mount
+# NetworkManager waits on this at startup and nothing uses it
+systemctl mask systemd-hostnamed.service
