@@ -52,13 +52,13 @@ apt-get install --no-install-recommends -yq \
     systemd-timesyncd \
     tmux \
     usbutils \
-    vim \
-    wpasupplicant
+    vim
 
-# Our build of dhcpcd-base (build_dhcpcd.sh), held so apt never swaps Ubuntu's back in
-apt-get install --no-install-recommends -yq /tmp/agnos/dhcpcd-base.deb
-apt-mark hold dhcpcd-base
-rm /tmp/agnos/dhcpcd-base.deb
+# Our builds of dhcpcd-base and wpasupplicant (build_dhcpcd.sh, build_wpasupplicant.sh), held so apt never swaps
+# Ubuntu's back in. Installing wpasupplicant creates the netdev group, used below
+apt-get install --no-install-recommends -yq /tmp/agnos/dhcpcd-base.deb /tmp/agnos/wpasupplicant.deb
+apt-mark hold dhcpcd-base wpasupplicant
+rm /tmp/agnos/dhcpcd-base.deb /tmp/agnos/wpasupplicant.deb
 
 # Create the privileged user and hardware access groups.
 useradd -G sudo -m -s /bin/bash "$USERNAME"

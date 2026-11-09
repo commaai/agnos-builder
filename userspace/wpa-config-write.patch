@@ -1,0 +1,132 @@
+From c53b2ce62ee11f0d5d95177feeb031196a5ccd25 Mon Sep 17 00:00:00 2001
+From: Jouni Malinen <jouni.malinen@oss.qualcomm.com>
+Date: Sat, 1 Aug 2026 11:15:37 +0300
+Subject: [PATCH 1/3] Remove alternative wpa_config_write() path on failed
+ memory allocation
+
+The memory allocation here for the temporary file name is not really
+going to fail in practice and there is no need to maintain two different
+approaches for saving the configuration. Remove the unneeded fallback
+option to simplify this.
+
+Signed-off-by: Jouni Malinen <jouni.malinen@oss.qualcomm.com>
+---
+ wpa_supplicant/config_file.c | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)
+
+diff --git a/wpa_supplicant/config_file.c b/wpa_supplicant/config_file.c
+index 6db5010..770a7e5 100644
+--- a/wpa_supplicant/config_file.c
++++ b/wpa_supplicant/config_file.c
+@@ -1584,10 +1584,11 @@ int wpa_config_write(const char *name, struct wpa_config *config)
+ 
+ 	tmp_len = os_strlen(name) + 5; /* allow space for .tmp suffix */
+ 	tmp_name = os_malloc(tmp_len);
+-	if (tmp_name) {
+-		os_snprintf(tmp_name, tmp_len, "%s.tmp", name);
+-		name = tmp_name;
+-	}
++	if (!tmp_name)
++		return -1;
++
++	os_snprintf(tmp_name, tmp_len, "%s.tmp", name);
++	name = tmp_name;
+ 
+ 	wpa_printf(MSG_DEBUG, "Writing configuration file '%s'", name);
+ 
+@@ -1634,18 +1635,14 @@ int wpa_config_write(const char *name, struct wpa_config *config)
+ 
+ 	fclose(f);
+ 
+-	if (tmp_name) {
+-		int chmod_ret = 0;
+-
+ #ifdef ANDROID
+-		chmod_ret = chmod(tmp_name,
+-				  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
++	if (!ret)
++		ret = chmod(tmp_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+ #endif /* ANDROID */
+-		if (chmod_ret != 0 || rename(tmp_name, orig_name) != 0)
+-			ret = -1;
++	if (!ret)
++		ret = rename(tmp_name, orig_name);
+ 
+-		os_free(tmp_name);
+-	}
++	os_free(tmp_name);
+ 
+ 	wpa_printf(MSG_DEBUG, "Configuration file '%s' written %ssuccessfully",
+ 		   orig_name, ret ? "un" : "");
+-- 
+2.55.0
+
+
+From b35d7d48bb646eda965fc4aa7cee750eacd87687 Mon Sep 17 00:00:00 2001
+From: Jouni Malinen <jouni.malinen@oss.qualcomm.com>
+Date: Sat, 1 Aug 2026 11:18:41 +0300
+Subject: [PATCH 2/3] Remove the temporary wpa_supplicant config file in error
+ case
+
+There is no need to leave the temporary wpa_supplicant configuration
+file in place if it cannot be fully written or if renaming it to the
+original location fails.
+
+Signed-off-by: Jouni Malinen <jouni.malinen@oss.qualcomm.com>
+---
+ wpa_supplicant/config_file.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/wpa_supplicant/config_file.c b/wpa_supplicant/config_file.c
+index 770a7e5..c445f4e 100644
+--- a/wpa_supplicant/config_file.c
++++ b/wpa_supplicant/config_file.c
+@@ -1641,6 +1641,8 @@ int wpa_config_write(const char *name, struct wpa_config *config)
+ #endif /* ANDROID */
+ 	if (!ret)
+ 		ret = rename(tmp_name, orig_name);
++	if (ret)
++		unlink(tmp_name);
+ 
+ 	os_free(tmp_name);
+ 
+-- 
+2.55.0
+
+
+From 50e7efc698f9211717f484614e04f42e4f4f7878 Mon Sep 17 00:00:00 2001
+From: Jouni Malinen <jouni.malinen@oss.qualcomm.com>
+Date: Sun, 23 Aug 2026 11:56:50 +0300
+Subject: [PATCH 3/3] Verify that fclose() succeeds on temporary configuration
+ file
+
+Writing the final data from buffers could fail at least in theory, so
+verify that fclose() returns success before proceeding with replacing
+the actual configuration file.
+
+Signed-off-by: Jouni Malinen <jouni.malinen@oss.qualcomm.com>
+---
+ wpa_supplicant/config_file.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/wpa_supplicant/config_file.c b/wpa_supplicant/config_file.c
+index c445f4e..88dbe8a 100644
+--- a/wpa_supplicant/config_file.c
++++ b/wpa_supplicant/config_file.c
+@@ -1633,7 +1633,12 @@ int wpa_config_write(const char *name, struct wpa_config *config)
+ 
+ 	os_fdatasync(f);
+ 
+-	fclose(f);
++	if (fclose(f) != 0) {
++		wpa_printf(MSG_DEBUG,
++			   "fclose() failed ton temporary configuration file: %s",
++			   strerror(errno));
++		ret = -1;
++	}
+ 
+ #ifdef ANDROID
+ 	if (!ret)
+-- 
+2.55.0
+

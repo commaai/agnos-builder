@@ -22,6 +22,11 @@ FROM agnos-compiler AS agnos-compiler-dhcpcd
 COPY ./userspace/build_dhcpcd.sh ./userspace/dhcpcd-roaming.patch /tmp/agnos/
 RUN /tmp/agnos/build_dhcpcd.sh
 
+# With noble's wpa_supplicant 2.10, SAVE_CONFIG on a full /data replies OK and leaves an empty or cut-off config
+FROM agnos-compiler AS agnos-compiler-wpa
+COPY ./userspace/build_wpasupplicant.sh ./userspace/wpa-config-write.patch ./userspace/wpa-config-write-checks.patch /tmp/agnos/
+RUN /tmp/agnos/build_wpasupplicant.sh
+
 # Qualcomm graphics without Wayland or OpenCL runtime dependencies
 FROM agnos-compiler AS agnos-compiler-graphics
 RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
@@ -63,6 +68,7 @@ ARG USERNAME=comma
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 COPY --from=agnos-compiler-dhcpcd /tmp/agnos/dhcpcd-base.deb /tmp/agnos/
+COPY --from=agnos-compiler-wpa /tmp/agnos/wpasupplicant.deb /tmp/agnos/
 COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 

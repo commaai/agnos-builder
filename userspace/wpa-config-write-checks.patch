@@ -1,0 +1,89 @@
+Description: Never install a config file that wasn't written completely, and write every value so it reads back
+ Upstream checks fclose(), but a write that fails in the final flush (ENOSPC on a full /data) loses the buffered
+ data and fclose() then succeeds: SAVE_CONFIG replied OK and installed an empty or cut-off file. Check the flush
+ and fdatasync, and every earlier write. And the reader takes a # outside a pair of " for a comment: write a
+ string that has one in hex, and such a passphrase as its PSK.
+Author: comma.ai
+Forwarded: no
+
+diff --git a/wpa_supplicant/config.c b/wpa_supplicant/config.c
+index de08fff..ff60fad 100644
+--- a/wpa_supplicant/config.c
++++ b/wpa_supplicant/config.c
+@@ -165,12 +165,32 @@ static char * wpa_config_write_string_hex(const u8 *value, size_t len)
+ }
+ 
+ 
++/*
++ * Whether a value written between quotes would be cut short when read back: the
++ * configuration file reader takes a # that isn't inside a pair of " for the
++ * start of a comment.
++ */
++static int wpa_config_has_comment(const u8 *value, size_t len)
++{
++	size_t i;
++	int quoted = 1;
++
++	for (i = 0; i < len; i++) {
++		if (value[i] == '"')
++			quoted = !quoted;
++		else if (value[i] == '#' && !quoted)
++			return 1;
++	}
++	return 0;
++}
++
++
+ static char * wpa_config_write_string(const u8 *value, size_t len)
+ {
+ 	if (value == NULL)
+ 		return NULL;
+ 
+-	if (is_hex(value, len))
++	if (is_hex(value, len) || wpa_config_has_comment(value, len))
+ 		return wpa_config_write_string_hex(value, len);
+ 	else
+ 		return wpa_config_write_string_ascii(value, len);
+@@ -637,10 +657,16 @@ static char * wpa_config_write_psk(const struct parse_data *data,
+ 	}
+ #endif /* CONFIG_EXT_PASSWORD */
+ 
+-	if (ssid->passphrase)
+-		return wpa_config_write_string_ascii(
+-			(const u8 *) ssid->passphrase,
+-			os_strlen(ssid->passphrase));
++	if (ssid->passphrase) {
++		size_t len = os_strlen(ssid->passphrase);
++
++		/* one that can't go between quotes goes as its PSK, if any */
++		if (!wpa_config_has_comment((const u8 *) ssid->passphrase, len))
++			return wpa_config_write_string_ascii(
++				(const u8 *) ssid->passphrase, len);
++		if (!ssid->psk_set)
++			return NULL;
++	}
+ 
+ 	if (ssid->psk_set)
+ 		return wpa_config_write_string_hex(ssid->psk, PMK_LEN);
+diff --git a/wpa_supplicant/config_file.c b/wpa_supplicant/config_file.c
+index 88dbe8a..35c39a0 100644
+--- a/wpa_supplicant/config_file.c
++++ b/wpa_supplicant/config_file.c
+@@ -1631,7 +1631,16 @@ int wpa_config_write(const char *name, struct wpa_config *config)
+ 	}
+ #endif /* CONFIG_NO_CONFIG_BLOBS */
+ 
+-	os_fdatasync(f);
++	/*
++	 * A write that fails in the final flush loses the buffered data, and
++	 * fclose() then succeeds: check the flush and every earlier write too.
++	 */
++	if (os_fdatasync(f) != 0 || ferror(f)) {
++		wpa_printf(MSG_DEBUG,
++			   "Failed to write temporary configuration file: %s",
++			   strerror(errno));
++		ret = -1;
++	}
+ 
+ 	if (fclose(f) != 0) {
+ 		wpa_printf(MSG_DEBUG,
