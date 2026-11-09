@@ -5,7 +5,8 @@
 conf=/run/systemd/resolved.conf.d/dhcpcd-$interface.conf
 old=$(cat "$conf" 2>/dev/null)
 new=$old
-if $if_up; then
+# NOCARRIER_ROAMING (between access points of one network) keeps the lease, so it keeps the DNS servers too
+if $if_up && [ "$reason" != NOCARRIER_ROAMING ]; then
   new=
   [ -z "$new_domain_name_servers" ] || new="[Resolve]
 DNS=$new_domain_name_servers"

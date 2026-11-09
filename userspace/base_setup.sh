@@ -19,7 +19,6 @@ apt-get install --no-install-recommends -yq \
     apport \
     apport-retrace \
     bc \
-    dhcpcd-base \
     dnsmasq-base \
     gdb \
     git \
@@ -54,6 +53,11 @@ apt-get install --no-install-recommends -yq \
     usbutils \
     vim \
     wpasupplicant
+
+# Our build of dhcpcd-base (build_dhcpcd.sh), held so apt never swaps Ubuntu's back in
+apt-get install --no-install-recommends -yq /tmp/agnos/dhcpcd-base.deb
+apt-mark hold dhcpcd-base
+rm /tmp/agnos/dhcpcd-base.deb
 
 # Create the privileged user and hardware access groups.
 useradd -G sudo -m -s /bin/bash "$USERNAME"
