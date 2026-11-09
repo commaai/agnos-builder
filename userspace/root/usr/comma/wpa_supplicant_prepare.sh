@@ -10,9 +10,11 @@ conf=/data/etc/wpa_supplicant/wlan0.conf
   [ -z "$freqs" ] || echo "initial_freq_list=$freqs"
 } > /run/wpa_supplicant-wlan0-globals.conf
 
-# first start: an empty config
+# first start: an empty config, and NetworkManager's networks get imported once wpa_supplicant is up
+# (wifi-migrate.service, temporary)
 if [ ! -e "$conf" ]; then
   mkdir -p "${conf%/*}"
+  touch "${conf%/*}/migrate-from-networkmanager"
   echo update_config=1 > "$conf"
 fi
 

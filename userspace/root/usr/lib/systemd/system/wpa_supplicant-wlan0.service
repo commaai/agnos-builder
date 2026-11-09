@@ -1,6 +1,8 @@
 [Unit]
 Description=Wi-Fi client: wpa_supplicant on wlan0, with the saved networks
 After=wifi.service
+# imports NetworkManager's saved networks, if they haven't been yet (temporary)
+Wants=wifi-migrate.service
 # keep retrying, Wi-Fi must never stay down
 StartLimitIntervalSec=0
 

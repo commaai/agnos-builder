@@ -44,6 +44,7 @@ apt-get install --no-install-recommends -yq \
     openssl \
     ppp \
     psmisc \
+    python3-yaml \
     rsync \
     strace \
     systemd \
