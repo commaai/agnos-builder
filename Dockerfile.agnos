@@ -86,7 +86,6 @@ COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 
 # modem.service runs the packaged modem.py (AT + IPv4 PPP).
-# NetworkManager still requires libmm-glib0 for Wi-Fi/Ethernet operation.
 RUN apt-get update && \
     apt-get install -yq --no-install-recommends \
     python3 \
@@ -94,14 +93,10 @@ RUN apt-get update && \
     libglib2.0-dev \
     libc6 \
     libglib2.0-0t64 \
-    libgudev-1.0-0 \
-    libmm-glib0 \
-    libpolkit-gobject-1-0 \
     libsystemd0 \
     android-liblog \
     libjson-c5 \
-    patchelf \
-    polkitd && \
+    patchelf && \
     test ! -e /lib/systemd/system/ModemManager.service
 
 ARG XDG_DATA_HOME="/usr/local"

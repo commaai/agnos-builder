@@ -35,6 +35,7 @@ apt-get install --no-install-recommends -yq \
     libgles1 \
     libgles2 \
     libnss-myhostname \
+    libpam-systemd \
     llvm-20 \
     locales \
     lsof \
@@ -49,6 +50,7 @@ apt-get install --no-install-recommends -yq \
     strace \
     systemd \
     systemd-resolved \
+    systemd-sysv \
     systemd-timesyncd \
     tmux \
     usbutils \

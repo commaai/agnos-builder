@@ -8,7 +8,6 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "comma-deps-raylib" },
-    { name = "dbus-python" },
     { name = "evdev" },
     { name = "flaky" },
     { name = "ipython" },
@@ -35,7 +34,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "comma-deps-raylib" },
-    { name = "dbus-python" },
     { name = "evdev" },
     { name = "flaky" },
     { name = "ipython" },
@@ -468,12 +466,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/19/a2/5f4d305cbd4489d21570e5491ad5c483c478cdab032853e2125c280e3bd5/cython-3.3.0-cp39-abi3-win_arm64.whl", hash = "sha256:dce56c26d388f00a19426371b6926bf2f77c5c03b71d5273e4556c68be98c2dd", size = 2608078, upload-time = "2026-08-22T05:17:56.386Z" },
     { url = "https://files.pythonhosted.org/packages/bf/77/67b0b24e45073a699610e50f00c18474ff9b09ea29ecc95083bdf5e60acd/cython-3.3.0-py3-none-any.whl", hash = "sha256:9b24b5c8cd536946b62086fcafee6d5509d3f549f72d553d2336af87ffbe0da1", size = 1349151, upload-time = "2026-08-22T05:16:36.741Z" },
 ]
-
-[[package]]
-name = "dbus-python"
-version = "1.5.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f3/cc/23f24bc7cbfec3a0ab508b7e11bc98837d77a91445d5f666a8545353a147/dbus_python-1.5.1.tar.gz", hash = "sha256:57423cf87d09b7d084f420b55b737fe654c33339b06df77945620d97795c6ac4", size = 205464, upload-time = "2026-10-23T13:47:13.997Z" }
 
 [[package]]
 name = "evdev"
