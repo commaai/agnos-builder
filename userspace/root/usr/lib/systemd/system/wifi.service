@@ -1,5 +1,8 @@
 [Unit]
-Description=Wi-Fi stack: modem subsystem and its daemons
+Description=Wi-Fi stack: the modem subsystem's daemons
+# the IPC router rules
+After=subsys-modem.service
+Wants=subsys-modem.service
 
 [Service]
 ExecStart=/usr/comma/wifi.sh

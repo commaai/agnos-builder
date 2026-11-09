@@ -1,0 +1,14 @@
+[Unit]
+Description=Modem subsystem, see /usr/comma/subsys_modem.sh
+# killing it can hang the SoC, so nothing does
+RefuseManualStop=true
+
+[Service]
+# IPC router security rules. rmt_storage, tftp_server and wifi.service's daemons are the only
+# IPC router clients, and they block until this has run
+ExecStartPre=/usr/bin/irsc_util
+ExecStart=/usr/comma/subsys_modem.sh
+OOMScoreAdjust=-1000
+
+[Install]
+WantedBy=multi-user.target
