@@ -1,0 +1,10 @@
+[Unit]
+Description=DHCP and DNS for the Wi-Fi hotspot
+# tethering.service starts it, once wlan0 has the hotspot's address, and it stops with it
+BindsTo=tethering.service
+After=tethering.service
+
+[Service]
+ExecStart=/usr/sbin/dnsmasq --keep-in-foreground --conf-file=/etc/tethering-dnsmasq.conf
+# dnsmasq exits with 5 when it's stopped while still starting up
+SuccessExitStatus=5

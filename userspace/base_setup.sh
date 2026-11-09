@@ -19,9 +19,11 @@ apt-get install --no-install-recommends -yq \
     apport \
     apport-retrace \
     bc \
+    dhcpcd-base \
     dnsmasq-base \
     gdb \
     git \
+    iproute2 \
     iptables-persistent \
     iputils-ping \
     jq \
@@ -38,7 +40,6 @@ apt-get install --no-install-recommends -yq \
     locales \
     lsof \
     make \
-    network-manager \
     openssh-client \
     openssh-server \
     openssl \
@@ -59,6 +60,8 @@ useradd -G sudo -m -s /bin/bash "$USERNAME"
 echo "$USERNAME:$PASSWD" | chpasswd
 groupadd gpio
 groupadd gpu
+# udev's group for /dev/input, which boot.sh and uevent_helper.sh hand out; there's no udev to create it
+groupadd --system input
 usermod -aG root,video,gpio,adm,gpu,audio,disk,dialout,systemd-journal,netdev "$USERNAME"
 echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 

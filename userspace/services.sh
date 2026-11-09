@@ -10,6 +10,9 @@ systemctl enable lte.service
 systemctl enable modem.service
 systemctl enable magic.service
 systemctl enable wifi.service
+systemctl enable wpa_supplicant-wlan0.service
+systemctl enable dhcpcd-wlan0.service
+systemctl enable dhcpcd-eth.service
 systemctl enable power_monitor.service
 systemctl enable power_drop_monitor.service
 systemctl enable brightnessd.service
@@ -17,8 +20,14 @@ systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable adb-param-watcher.path
 systemctl enable adb-param-watcher.service
+systemctl enable tethering-param-watcher.path
 systemctl enable avahi-daemon
 systemctl enable avahi-ssh-publish.service
+
+# wpa_supplicant-wlan0.service runs the supplicant; this is the D-Bus one NetworkManager used (disabling also removes
+# its D-Bus activation alias)
+systemctl disable wpa_supplicant.service
+systemctl mask wpa_supplicant.service
 
 # Disable SSH by default, ssh-param-watcher starts it
 systemctl disable ssh ssh.socket
@@ -45,7 +54,7 @@ systemctl disable dpkg-db-backup.timer
 
 # unused, and mounting them all at once can trip systemd's mount rate limit, holding up everything else for up to 1s
 systemctl mask sys-fs-fuse-connections.mount sys-kernel-tracing.mount sys-kernel-config.mount
-# NetworkManager waits on this at startup and nothing uses it
+# nothing uses it
 systemctl mask systemd-hostnamed.service
 
 # Promote SSH sessions, leaving the listening daemon in the background.

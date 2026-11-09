@@ -1,0 +1,17 @@
+[Unit]
+Description=Wired Ethernet DHCP client (eth*)
+# keep retrying, the network must never stay down
+StartLimitIntervalSec=0
+
+[Service]
+# one dhcpcd handles every eth* interface, including ones plugged in later (USB Ethernet). It gets its own
+# /run/dhcpcd, where dhcpcd-wlan0's would otherwise find it running and leave wlan0 to it
+TemporaryFileSystem=/run/dhcpcd
+ExecStart=/usr/sbin/dhcpcd --nobackground --allowinterfaces eth*
+# dhcpcd logs to syslog as well, don't log everything twice
+StandardError=null
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

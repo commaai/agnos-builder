@@ -1,0 +1,7 @@
+[Path]
+# openpilot turns the hotspot on and off with its Tethering* params. boot.sh deletes TetheringEnabled (the hotspot
+# doesn't survive a reboot), and the watcher runs from when openpilot writes it again
+PathExists=/data/params/d/TetheringEnabled
+
+[Install]
+WantedBy=multi-user.target

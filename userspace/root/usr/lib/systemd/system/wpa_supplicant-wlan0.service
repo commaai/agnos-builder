@@ -1,0 +1,20 @@
+[Unit]
+Description=Wi-Fi client: wpa_supplicant on wlan0, with the saved networks
+After=wifi.service
+# keep retrying, Wi-Fi must never stay down
+StartLimitIntervalSec=0
+
+[Service]
+# saved networks live in wpa_supplicant's own config, which openpilot changes over the control socket
+# (SAVE_CONFIG); it holds passwords, so it's root-only
+UMask=0077
+ExecStartPre=/usr/comma/wpa_supplicant_prepare.sh
+# -I is read last, so AGNOS's globals win over what SAVE_CONFIG copied into the config
+ExecStart=/usr/comma/wait_for_wlan0.sh /usr/sbin/wpa_supplicant -i wlan0 -D nl80211 -c /data/etc/wpa_supplicant/wlan0.conf -I /run/wpa_supplicant-wlan0-globals.conf
+# wait_for_wlan0.sh execs wpa_supplicant: log as it, not as the wrapper
+SyslogIdentifier=wpa_supplicant
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

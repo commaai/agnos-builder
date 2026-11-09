@@ -1,0 +1,40 @@
+# AGNOS glue, sourced by dhcpcd-run-hooks
+
+# Hand the DHCP DNS servers to systemd-resolved. resolvectl needs D-Bus, so this uses a resolved.conf drop-in,
+# and a restart: resolved can't reload it
+conf=/run/systemd/resolved.conf.d/dhcpcd-$interface.conf
+old=$(cat "$conf" 2>/dev/null)
+new=$old
+if $if_up; then
+  new=
+  [ -z "$new_domain_name_servers" ] || new="[Resolve]
+DNS=$new_domain_name_servers"
+  # an empty Domains= would clear the other interfaces' search domains
+  [ -z "$new" ] || [ -z "$new_domain_search$new_domain_name" ] || new="$new
+Domains=$new_domain_search $new_domain_name"
+elif $if_down || [ "$reason" = STOPPED ]; then
+  # dhcpcd stopped (e.g. tethering takes wlan0): its DNS servers go with its address
+  new=
+fi
+if [ "$new" != "$old" ]; then
+  if [ -n "$new" ]; then
+    mkdir -p "${conf%/*}"
+    printf '%s\n' "$new" > "$conf"
+  else
+    rm -f "$conf"
+  fi
+  systemctl reset-failed systemd-resolved.service
+  systemctl --no-block restart systemd-resolved.service
+fi
+
+# Remember the channels of the last few Wi-Fi networks, so the first scan after boot
+# only has to look there (wpa_supplicant_prepare.sh puts them in initial_freq_list)
+freqs=/data/etc/dhcpcd/wifi-freqs
+case "$interface:$reason" in
+wlan0:BOUND|wlan0:REBOOT|wlan0:REBIND)
+  freq=$(wpa_cli -i "$interface" status 2>/dev/null | sed -n 's/^freq=//p')
+  if [ -n "$freq" ]; then
+    { echo "$freq"; grep -vx "$freq" "$freqs" 2>/dev/null | head -n 3; } > "$freqs.tmp" && mv "$freqs.tmp" "$freqs"
+  fi
+  ;;
+esac
