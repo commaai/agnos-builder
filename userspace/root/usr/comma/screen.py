@@ -1,7 +1,7 @@
 #!/usr/local/venv/bin/python
 """Look at and touch the screen without a person.
 
-usage: /usr/comma/screen.py COMMAND [COMMAND ...]
+usage: {path} COMMAND [COMMAND ...]
 
   screenshot [PATH]          PNG of the screen, upright, once it stops changing (up to 3s).
                              PATH defaults to stdout when that isn't a terminal, else /tmp/screen.png
@@ -13,8 +13,8 @@ usage: /usr/comma/screen.py COMMAND [COMMAND ...]
 Commands run in order, so one call can act and then look. Taps and swipes are
 spaced so each one registers, so typing on the keyboard is just a run of taps:
 
-  ssh DEVICE /usr/comma/screen.py tap 315 120 screenshot > after.png
-  ssh DEVICE /usr/comma/screen.py screenshot /tmp/before.png tap 315 120 screenshot > after.png
+  ssh DEVICE {path} tap 315 120 screenshot > after.png
+  ssh DEVICE {path} screenshot /tmp/before.png tap 315 120 screenshot > after.png
 
 Only one screenshot can go to stdout; give the others a PATH on the device.
 
@@ -303,13 +303,17 @@ def parse(argv):
   return cmds
 
 
+def usage():
+  return __doc__.format(path=os.path.abspath(__file__))
+
+
 def main(argv):
   try:
     cmds = parse(argv)
   except ValueError as err:
-    sys.exit(f"screen.py: {err}\n\n{__doc__}")
+    sys.exit(f"screen.py: {err}\n\n{usage()}")
   if not cmds:
-    print(__doc__)
+    print(usage())
     return
 
   touch = None
@@ -324,6 +328,8 @@ def main(argv):
         else:
           with open(path, "wb") as f:
             write_png(img, f)
+          if "SUDO_UID" in os.environ:  # so whoever asked for it can delete it
+            os.chown(path, int(os.environ["SUDO_UID"]), int(os.environ["SUDO_GID"]))
         print(f"screenshot {img.shape[1]}x{img.shape[0]}" + ("" if path == "-" else f" saved to {path}") +
               {"settled": "", "animating": ", parts of it are animating", "changing": ", still changing after 3s"}[state],
               file=sys.stderr)
