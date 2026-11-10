@@ -1,6 +1,6 @@
 #!/bin/bash
 # The bootloader's /sbin/init points here. Put PID 1 in the background before systemd.
-# Everything it forks inherits this; app services move themselves out with /usr/comma/app.
+# Everything it forks inherits this; app services move themselves out with /usr/comma/run_in_app_group.sh.
 
 # Mount v2 first or systemd falls back to hybrid mode when it sees v1 in use.
 mount -n -t sysfs -o nosuid,nodev,noexec sysfs /sys

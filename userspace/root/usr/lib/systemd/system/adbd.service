@@ -6,4 +6,4 @@ Type=notify
 TimeoutStartSec=10
 User=root
 Slice=app.slice
-ExecStart=/usr/comma/app /usr/comma/adbd
+ExecStart=/usr/comma/run_in_app_group.sh /usr/comma/adbd

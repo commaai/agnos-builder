@@ -11,7 +11,7 @@ User=comma
 Slice=app.slice
 # below 0, so the kernel's lowmemorykiller never picks the app
 OOMScoreAdjust=-500
-ExecStart=/usr/comma/app /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
+ExecStart=/usr/comma/run_in_app_group.sh /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
 # TODO: send SIGTERM first, then kill after a timeout
 ExecStop=/bin/bash -c "/usr/bin/tmux kill-session -t comma"
 TimeoutStopSec=1
