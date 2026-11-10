@@ -1,7 +1,9 @@
 # AGNOS glue, sourced by dhcpcd-run-hooks
 
 # Hand the DHCP DNS servers to systemd-resolved. resolvectl needs D-Bus, so this uses a resolved.conf drop-in,
-# and a restart: resolved can't reload it
+# and a restart: resolved can't reload it. LTE's DNS (modem.py) still goes through resolvectl, per link, which a
+# global drop-in can't express; it moves off D-Bus when D-Bus leaves the image, and then both work one way. A
+# restart keeps ppp0's servers (resolved reloads them), and modem.py retries a call that lands in one
 conf=/run/systemd/resolved.conf.d/dhcpcd-$interface.conf
 old=$(cat "$conf" 2>/dev/null)
 new=$old
