@@ -47,3 +47,6 @@ systemctl disable dpkg-db-backup.timer
 systemctl mask sys-fs-fuse-connections.mount sys-kernel-tracing.mount sys-kernel-config.mount
 # NetworkManager waits on this at startup and nothing uses it
 systemctl mask systemd-hostnamed.service
+
+# Promote SSH sessions, leaving the listening daemon in the background.
+echo "session optional pam_exec.so /usr/comma/app" >> /etc/pam.d/sshd

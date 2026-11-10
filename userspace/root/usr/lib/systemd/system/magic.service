@@ -9,12 +9,15 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 User=comma
+Slice=app.slice
+# below 0, so the kernel's lowmemorykiller never picks the app
+OOMScoreAdjust=-500
 PermissionsStartOnly=true
 ExecStartPre=-/bin/bash -c "mkdir -p /data/misc/display; echo 0 > /data/misc/display/sdm_dbg_cfg.txt; echo 0 > /data/misc/display/gbm_dbg_cfg.txt"
 
 # debugfs is root only, so this hands magic the screen calibration node as fd 3. not every panel has it
 OpenFile=/sys/kernel/debug/dsi_dwo_video_display/mipi_command:mipi_command:graceful
-ExecStart=/usr/local/venv/bin/python -u /usr/comma/magic.py
+ExecStart=/usr/comma/app /usr/local/venv/bin/python -u /usr/comma/magic.py
 Restart=on-failure
 RestartSec=1
 
