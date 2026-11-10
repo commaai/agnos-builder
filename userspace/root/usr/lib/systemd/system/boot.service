@@ -11,9 +11,11 @@ Before=wifi.service
 Before=systemd-journal-flush.service systemd-random-seed.service
 
 [Service]
+# comma and the UI wait for it
+Slice=app.slice
 Type=oneshot
 RemainAfterExit=true
-ExecStart=/usr/comma/boot.sh
+ExecStart=/usr/comma/run_in_app_group.sh /usr/comma/boot.sh
 StandardOutput=journal+console
 # only a backstop, boot.sh gives up first and reports what failed
 TimeoutStartSec=130

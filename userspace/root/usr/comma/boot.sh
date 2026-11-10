@@ -100,7 +100,10 @@ function mount_cache {
 }
 
 function mount_tmp {
-  mount -t tmpfs -o rw,nosuid,nodev,size=150M,mode=1777 tmpfs /tmp
+  # openpilot's queues are in /dev/shm and its sockets in /tmp. at ~1 kB of memory per file,
+  # something leaking files hits its memory limit before it takes the last inode
+  mount -t tmpfs -o rw,nosuid,nodev,size=150M,nr_inodes=1M,mode=1777 tmpfs /tmp
+  mount -o remount,nr_inodes=1M /dev/shm
 }
 
 function mount_var {

@@ -1,0 +1,35 @@
+#!/bin/bash
+# The bootloader's /sbin/init points here. Put PID 1 in the background before systemd.
+# Everything it forks inherits this; app services move themselves out with /usr/comma/run_in_app_group.sh.
+
+# Mount v2 first or systemd falls back to hybrid mode when it sees v1 in use.
+mount -n -t sysfs -o nosuid,nodev,noexec sysfs /sys
+mount -n -t cgroup2 -o nosuid,nodev,noexec cgroup2 /sys/fs/cgroup
+
+# On 4.9, systemd can only use v2 for memory. CPU policy needs a separate v1 hierarchy.
+# The app uses its root: child cpusets lose CPUs permanently when openpilot hotplugs them.
+BACKGROUND=/dev/cpusets/background
+mkdir -p /dev/cpusets &&
+mount -n -t cgroup -o cpuset,cpu cpusets /dev/cpusets &&
+mkdir "$BACKGROUND" &&
+echo 0,1 > "$BACKGROUND/cpuset.cpus" &&
+echo 0 > "$BACKGROUND/cpuset.mems" &&
+# The root group's default is 1024.
+echo 64 > "$BACKGROUND/cpu.shares" &&
+# A zero RT budget makes the kernel refuse SCHED_FIFO.
+echo 0 > "$BACKGROUND/cpu.rt_runtime_us" &&
+# The app moves itself out as user comma.
+chgrp comma /dev/cpusets/cgroup.procs &&
+chmod 664 /dev/cpusets/cgroup.procs &&
+echo $$ > "$BACKGROUND/cgroup.procs"
+
+# Cover both existing IRQs and ones requested later. Openpilot moves its own.
+mount -n -t proc proc /proc
+echo 3 > /proc/irq/default_smp_affinity
+for irq in /proc/irq/*/smp_affinity; do
+  echo 3 2> /dev/null > "$irq"
+done
+ionice -c idle -p $$
+
+# Still boot if any isolation setup failed.
+exec /lib/systemd/systemd "$@"
