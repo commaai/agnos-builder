@@ -1,10 +1,22 @@
 #!/usr/local/venv/bin/python
 """Look at and touch the screen without a person.
 
-  screen.py screenshot [PATH]          what the panel is showing, upright, as a PNG (default /tmp/screen.png, - for stdout)
-  screen.py tap X Y                    tap at screenshot pixel X, Y
-  screen.py swipe X0 Y0 X1 Y1 [MS]     drag from X0, Y0 to X1, Y1
+usage: /usr/comma/screen.py COMMAND [COMMAND ...]
 
+  screenshot [PATH]          PNG of the screen, upright. waits up to 3s for it to stop changing.
+                             PATH defaults to stdout when that isn't a terminal, else /tmp/screen.png
+  tap X Y                    tap at screenshot pixel X, Y (origin top left)
+  swipe X0 Y0 X1 Y1 [MS]     drag from X0, Y0 to X1, Y1 over MS milliseconds (default 300).
+                             scrollers fling on fast swipes; use ~1000 to stop where the finger does
+  sleep SECONDS
+  size                       print the screen size, WIDTHxHEIGHT
+
+Commands run in order, so one call can act and then look:
+
+  ssh DEVICE /usr/comma/screen.py tap 315 120 screenshot > after.png
+  ssh DEVICE /usr/comma/screen.py tap 30 150 tap 80 150 tap 130 150    # type on the keyboard
+
+Run it directly, it needs its venv python, and it reruns itself with sudo.
 Screenshots read the buffer being scanned out. Touches are written to the
 touchscreen's own event node, so every reader gets them like real ones.
 """
@@ -16,6 +28,10 @@ import struct
 import sys
 import time
 import zlib
+
+# before the slow imports
+if __name__ == "__main__" and os.geteuid() != 0 and len(sys.argv) > 1:
+  os.execvp("sudo", ["sudo", sys.executable, os.path.abspath(__file__), *sys.argv[1:]])
 
 import evdev
 import numpy as np
@@ -118,20 +134,35 @@ def _read_fb(fd, fb_id):
     fcntl.ioctl(fd, _GEM_CLOSE, struct.pack("II", fb.handle, 0))
 
 
-def screenshot():
-  """Upright RGB array (height, width, 3) of what the panel is scanning out."""
+def _grab(fd):
+  for _ in range(5):
+    planes = _scanout_planes(fd)
+    if len(planes) != 1:
+      raise RuntimeError(f"expected one plane scanning out, found {len(planes)}")
+    img = _read_fb(fd, planes[0].fb_id)
+    # a page flip during the copy can hand the buffer back to the renderer
+    if [p.fb_id for p in _scanout_planes(fd)] == [planes[0].fb_id]:
+      return img
+  raise RuntimeError("the screen kept flipping during the copy")
+
+
+def screenshot(settle=3.0):
+  """Upright RGB array (height, width, 3) of what the panel is scanning out.
+
+  Waits up to `settle` seconds for the screen to stop changing, ignoring
+  changes as small as a blinking cursor.
+  """
   fd = os.open("/dev/dri/card0", os.O_RDWR | os.O_CLOEXEC)
   try:
     fcntl.ioctl(fd, _SET_CLIENT_CAP, _Cap(_UNIVERSAL_PLANES, 1))
-    for _ in range(5):
-      planes = _scanout_planes(fd)
-      if len(planes) != 1:
-        raise RuntimeError(f"expected one plane scanning out, found {len(planes)}")
-      img = _read_fb(fd, planes[0].fb_id)
-      # a page flip during the copy can hand the buffer back to the renderer
-      if [p.fb_id for p in _scanout_planes(fd)] == [planes[0].fb_id]:
-        return np.rot90(img, _rotation())
-    raise RuntimeError("the screen kept flipping during the copy")
+    deadline = time.monotonic() + settle
+    img = _grab(fd)
+    while time.monotonic() < deadline:
+      time.sleep(0.15)
+      prev, img = img, _grab(fd)
+      if np.count_nonzero((prev != img).any(axis=2)) < img.shape[0] * img.shape[1] // 1000:
+        break
+    return np.rot90(img, _rotation())
   finally:
     os.close(fd)
 
@@ -160,6 +191,7 @@ class Touchscreen:
     else:
       raise RuntimeError("no touchscreen found")
     self.k = _rotation() % 4
+    self.size = (self.height, self.width) if self.k % 2 else (self.width, self.height)
 
   def close(self):
     os.close(self.fd)
@@ -171,6 +203,8 @@ class Touchscreen:
     self.close()
 
   def _native(self, x, y):
+    if not (0 <= x < self.size[0] and 0 <= y < self.size[1]):
+      raise ValueError(f"{x}, {y} is off the {self.size[0]}x{self.size[1]} screen")
     # inverse of screenshot()'s np.rot90
     if self.k == 1:
       return self.width - 1 - y, x
@@ -202,6 +236,7 @@ class Touchscreen:
     self.down(x, y)
     time.sleep(hold)
     self.up()
+    time.sleep(0.05)  # so back-to-back taps land in separate frames
 
   def swipe(self, x0, y0, x1, y1, duration=0.3):
     self.down(x0, y0)
@@ -210,30 +245,67 @@ class Touchscreen:
       time.sleep(duration / steps)
       self._move(x0 + (x1 - x0) * i // steps, y0 + (y1 - y0) * i // steps)
     self.up()
+    time.sleep(0.05)
+
+
+ARITY = {"screenshot": (0, 1), "tap": (2, 2), "swipe": (4, 5), "sleep": (1, 1), "size": (0, 0)}
+
+
+def parse(argv):
+  cmds = []
+  for arg in argv:
+    if arg in ARITY:
+      cmds.append([arg])
+    elif cmds and len(cmds[-1]) - 1 < ARITY[cmds[-1][0]][1]:
+      cmds[-1].append(arg)
+    else:
+      raise ValueError(f"unexpected {arg!r}")
+  for cmd, *args in cmds:
+    if len(args) < ARITY[cmd][0]:
+      raise ValueError(f"{cmd} needs {ARITY[cmd][0]} arguments")
+    if cmd in ("tap", "swipe", "sleep"):
+      for a in args:
+        float(a)
+  return cmds
 
 
 def main(argv):
-  cmd, args = (argv[0], argv[1:]) if argv else ("", [])
-  if cmd in ("screenshot", "tap", "swipe") and os.geteuid() != 0:
-    os.execvp("sudo", ["sudo", sys.executable, os.path.abspath(__file__), *argv])
+  try:
+    cmds = parse(argv)
+  except ValueError as err:
+    sys.exit(f"screen.py: {err}\n\n{__doc__}")
+  if not cmds:
+    print(__doc__)
+    return
 
-  if cmd == "screenshot" and len(args) <= 1:
-    img = screenshot()
-    path = args[0] if args else "/tmp/screen.png"
-    if path == "-":
-      write_png(img, sys.stdout.buffer)
-    else:
-      with open(path, "wb") as f:
-        write_png(img, f)
-      print(f"{path}: {img.shape[1]}x{img.shape[0]}")
-  elif cmd == "tap" and len(args) == 2:
-    with Touchscreen() as t:
-      t.tap(*map(int, args))
-  elif cmd == "swipe" and len(args) in (4, 5):
-    with Touchscreen() as t:
-      t.swipe(*map(int, args[:4]), *([int(args[4]) / 1000] if len(args) == 5 else []))
-  else:
-    sys.exit(__doc__)
+  touch = None
+  try:
+    for cmd, *args in cmds:
+      if cmd == "screenshot":
+        img = screenshot()
+        path = args[0] if args else ("/tmp/screen.png" if sys.stdout.isatty() else "-")
+        if path == "-":
+          write_png(img, sys.stdout.buffer)
+          sys.stdout.buffer.flush()
+        else:
+          with open(path, "wb") as f:
+            write_png(img, f)
+        print(f"screenshot {img.shape[1]}x{img.shape[0]}" + ("" if path == "-" else f" saved to {path}"), file=sys.stderr)
+      elif cmd == "sleep":
+        time.sleep(float(args[0]))
+      else:
+        touch = touch or Touchscreen()
+        if cmd == "size":
+          print(f"{touch.size[0]}x{touch.size[1]}")
+        elif cmd == "tap":
+          touch.tap(*map(int, args))
+        else:
+          touch.swipe(*map(int, args[:4]), *([int(args[4]) / 1000] if len(args) == 5 else []))
+  except ValueError as err:
+    sys.exit(f"screen.py: {err}")
+  finally:
+    if touch:
+      touch.close()
 
 
 if __name__ == "__main__":
