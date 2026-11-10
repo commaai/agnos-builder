@@ -9,6 +9,7 @@ openpilot PR titled `AGNOS <VERSION>`:
 - <what changed, most noticeable first>
 
 Build: agnos-builder <commit link> ([diff](https://github.com/commaai/agnos-builder/compare/<previous release>...<commit>))
+Sizes: system <before> → <after>, boot <before> → <after>
 
 ## Release Checklist
 
@@ -17,15 +18,14 @@ Build: agnos-builder <commit link> ([diff](https://github.com/commaai/agnos-buil
 
 ## Release Checklist
 
-- [ ] [`tests/test_agnos.py`](tests/test_agnos.py) passes
-- [ ] [`test_onroad`](https://github.com/commaai/openpilot/blob/master/openpilot/selfdrive/test/test_onroad.py) passes
-- [ ] 100/100 clean boots. Clean means `systemctl --failed` is empty, no new errors in `dmesg` (`scripts/diff_dmesg.py old.txt new.txt`), and openpilot starts
-  - [ ] cold boot
-  - [ ] warm boot
+- [ ] [`tests/test_agnos.py`](tests/test_agnos.py) passes after every boot
+  - [ ] 100/100 cold boots
+  - [ ] 100/100 warm boots
+- [ ] [`test_onroad`](https://github.com/commaai/openpilot/blob/master/openpilot/selfdrive/test/test_onroad.py) passes 20/20
 - [ ] Wi-Fi: lists networks and connects
 - [ ] Modem: connects to cell network
 - [ ] Image sizes haven't increased
-- [ ] Sounds work: `pkill -f manager ; /data/openpilot/scripts/disable-powersave.py && aplay /data/openpilot/openpilot/selfdrive/assets/sounds/engage.wav`
+- [ ] Sounds work: the mic picks up a sound played on the speaker: `pkill -f manager ; /data/openpilot/scripts/disable-powersave.py && (arecord -q -d 3 -f S16_LE -r 48000 /tmp/rec.wav & aplay -q /data/openpilot/openpilot/selfdrive/assets/sounds/engage.wav; wait)`
 - [ ] Clean openpilot build: `scons -c && ./openpilot/system/manager/build.py`
 - [ ] Factory reset
   - [ ] from openpilot menu
@@ -47,16 +47,16 @@ Build: agnos-builder <commit link> ([diff](https://github.com/commaai/agnos-buil
 
 ### ABL
 
-- [ ] unchanged
-- [ ] A/B slot fallback works
-- [ ] Boot time hasn't regressed (1s)
+- [ ] unchanged, or all of:
+  - [ ] A/B slot fallback works
+  - [ ] Boot time hasn't regressed (1s)
 
 ### XBL
 
-- [ ] unchanged
-- [ ] Display init works in cold and hot temperatures
-- [ ] Display works at 60FPS
-- [ ] Boot time hasn't regressed (2.4s)
+- [ ] unchanged, or all of:
+  - [ ] Display init works in cold and hot temperatures
+  - [ ] Display works at 60FPS
+  - [ ] Boot time hasn't regressed (2.4s)
 
 ### Setup
 
