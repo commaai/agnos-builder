@@ -22,7 +22,7 @@ Screenshots are small enough that viewers show them at full size, and taps use
 the same pixels. stdout only carries the PNG. stderr reports each screenshot's
 size, and says if parts of it are animating, or it was still changing after 3s.
 
-Run it as is, not with python3 or sudo. Screenshots read the buffer being
+It reruns itself as root in its venv. Screenshots read the buffer being
 scanned out. Touches are written to the touchscreen's own event node, so every
 reader gets them like real ones.
 """
@@ -35,9 +35,12 @@ import sys
 import time
 import zlib
 
-# before the slow imports
-if __name__ == "__main__" and os.geteuid() != 0 and len(sys.argv) > 1:
-  os.execvp("sudo", ["sudo", sys.executable, os.path.abspath(__file__), *sys.argv[1:]])
+# rerun as root in the venv, however it was started, before the slow imports
+if __name__ == "__main__":
+  if sys.prefix != "/usr/local/venv" and os.path.exists("/usr/local/venv"):
+    os.execv("/usr/local/venv/bin/python", ["/usr/local/venv/bin/python", os.path.abspath(__file__), *sys.argv[1:]])
+  if os.geteuid() != 0 and len(sys.argv) > 1:
+    os.execvp("sudo", ["sudo", sys.executable, os.path.abspath(__file__), *sys.argv[1:]])
 
 import evdev
 import numpy as np
