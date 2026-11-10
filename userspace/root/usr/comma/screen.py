@@ -239,7 +239,10 @@ class Touchscreen:
 
   def down(self, x, y):
     nx, ny = self._native(x, y)
+    # the kernel drops values that repeat the last one, so a reader that started since
+    # (like a restarted UI) would never get this position. a nudge first makes it a change
     self._write((e.EV_ABS, e.ABS_MT_SLOT, 0), (e.EV_ABS, e.ABS_MT_TRACKING_ID, 0xC0A),
+                (e.EV_ABS, e.ABS_MT_POSITION_X, nx ^ 1), (e.EV_ABS, e.ABS_MT_POSITION_Y, ny ^ 1),
                 (e.EV_ABS, e.ABS_MT_POSITION_X, nx), (e.EV_ABS, e.ABS_MT_POSITION_Y, ny),
                 (e.EV_ABS, e.ABS_MT_PRESSURE, 50), (e.EV_ABS, e.ABS_MT_TOUCH_MAJOR, 10),
                 (e.EV_KEY, e.BTN_TOUCH, 1))
