@@ -8,7 +8,7 @@ openpilot PR titled `AGNOS <VERSION>`:
 - ~33% faster cold boot: 4.45s → 3.00s
 - <what changed, most noticeable first>
 
-Build: agnos-builder <commit link> ([diff](https://github.com/commaai/agnos-builder/compare/<previous release>...<commit>))
+Build: agnos-builder <commit link>, diff from [master's AGNOS](https://github.com/commaai/agnos-builder/compare/<master AGNOS>...<commit>) and [release's AGNOS](https://github.com/commaai/agnos-builder/compare/<release AGNOS>...<commit>)
 Sizes: system <before> → <after>, boot <before> → <after>
 
 ## Release Checklist
@@ -73,4 +73,4 @@ Sizes: system <before> → <after>, boot <before> → <after>
 
 ## Diff-specific checks
 
-Review the full diff since the last release adversarially. Predict where the bugs are and add a check for each one.
+Review two diffs adversarially: from the AGNOS on openpilot master, and from the AGNOS on openpilot release. Predict where the bugs are and add a check for each one.
