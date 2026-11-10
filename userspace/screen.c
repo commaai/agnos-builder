@@ -1,4 +1,3 @@
-// Look at and touch the screen without a person. Run with no arguments for usage.
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -22,7 +21,7 @@
 #include <linux/input.h>
 
 static const char *USAGE =
-  "Look at and touch the screen without a person.\n"
+  "Look at and touch the screen virtually.\n"
   "\n"
   "usage: %1$s COMMAND [COMMAND ...]\n"
   "\n"
