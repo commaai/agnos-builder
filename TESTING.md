@@ -16,6 +16,30 @@ Sizes: system <before> → <after>, boot <before> → <after>
 ## Diff-specific checks
 ```
 
+## On the rack
+
+Every check runs on a rack comma four, no person needed. Read https://chestnut.comma.life once for reserving and releasing.
+
+1. Reserve a UP with a comma four: the reply is `<token> <station>`, and the device is `ssh -J <station> comma@10.254.254.2`.
+2. Install the candidate on it. Add `[upload]` to a commit message on the PR, and once its build finishes:
+   ```sh
+   ssh <station> 'PR=<number> PYTHONPATH=/data/rack-up python3 -' <<'EOF'
+   import json, os, urllib.request
+   from ultimate_provisioning import flash
+   from ultimate_provisioning.dut import DUT
+   url = f"https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-{os.environ['PR']}/agnos.json"
+   images = {f"{i['name']}_a": flash.fetch(i["url"], flash.CACHE / "candidate" / f"{i['name']}-{i['hash']}.img", i["hash"])
+             for i in json.load(urllib.request.urlopen(url)) if i["has_ab"]}
+   DUT().flash(images)
+   EOF
+   ```
+   `cat /VERSION` on the device should then show the PR's `VERSION`.
+3. Boot it: cold is the station's `dut_reboot` action, warm is `sudo reboot` on the device. SSH only comes back after the
+   `dut_connect` action, so run that after every boot.
+4. Look at and tap the screen with `/usr/comma/screen` (run it with no arguments for usage).
+
+Releasing the UP puts openpilot master's AGNOS back and wipes `/data`.
+
 ## Release Checklist
 
 - [ ] [`/usr/comma/test_agnos.py`](userspace/root/usr/comma/test_agnos.py) passes after every boot

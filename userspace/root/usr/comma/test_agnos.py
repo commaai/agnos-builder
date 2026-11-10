@@ -45,11 +45,18 @@ def is_active(unit):
 
 
 class ParamToggle:
-  def __init__(self, name, watcher):
+  """Flips a param and puts it, and whether its service runs, back as they were. Something else can run the service
+  without the param, like the rack starting sshd for one boot, so restoring the param alone could stop it."""
+  def __init__(self, name, watcher, service):
     self.path = os.path.join(PARAMS, name)
     self.watcher = watcher
+    self.service = service
 
   def __enter__(self):
+    # the rack masks the ssh watcher so it can always log in
+    if run("systemctl", "is-enabled", self.watcher).startswith("masked"):
+      raise unittest.SkipTest(f"{self.watcher} is masked")
+    self.was_active = is_active(self.service)
     try:
       with open(self.path) as f:
         self.orig = f.read()
@@ -69,6 +76,10 @@ class ParamToggle:
     else:
       with open(self.path, "w") as f:
         f.write(self.orig)
+    time.sleep(0.5)
+    wait_for(lambda: run("systemctl", "is-active", self.watcher) == "inactive")
+    if is_active(self.service) != self.was_active:
+      subprocess.run(["sudo", "systemctl", "start" if self.was_active else "stop", self.service], check=True)
 
 
 class TestAgnos(unittest.TestCase):
@@ -190,7 +201,7 @@ class TestAgnos(unittest.TestCase):
 
   def test_ssh_toggle(self):
     keys = "/tmp/authorized_keys"
-    with tempfile.TemporaryDirectory() as d, ParamToggle("SshEnabled", "ssh-param-watcher.service") as p:
+    with tempfile.TemporaryDirectory() as d, ParamToggle("SshEnabled", "ssh-param-watcher.service", "ssh") as p:
       key = os.path.join(d, "key")
       subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key], check=True)
       orig = os.path.join(d, "authorized_keys")
@@ -222,7 +233,7 @@ class TestAgnos(unittest.TestCase):
       except FileNotFoundError:
         return False
 
-    with ParamToggle("AdbEnabled", "adb-param-watcher.service") as p:
+    with ParamToggle("AdbEnabled", "adb-param-watcher.service", "adbd") as p:
       self.assertTrue(p.set(False, lambda: not is_active("adbd") and not gadget_bound()))
       self.assertTrue(p.set(True, lambda: is_active("adbd") and gadget_bound()))
 
