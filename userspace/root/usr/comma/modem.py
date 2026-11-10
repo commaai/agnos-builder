@@ -194,8 +194,10 @@ class PPPSession:
       self.kill()
       return False
     self.cleanup_routes()
+    # below Ethernet (100) and Wi-Fi (600), also while Wi-Fi roams: dhcpcd adds 2000000 to a roaming interface's
+    # routes until its lease is confirmed again, and a roam must not move traffic to LTE
     cmds = [
-      ["sudo", "ip", "route", "add", "default", "via", peer, "dev", "ppp0", "metric", "1000"],
+      ["sudo", "ip", "route", "add", "default", "via", peer, "dev", "ppp0", "metric", "2001000"],
       ["sudo", "ip", "route", "add", "default", "via", peer, "dev", "ppp0", "table", "1000"],
       ["sudo", "ip", "rule", "add", "from", ip, "table", "1000"],
     ]
