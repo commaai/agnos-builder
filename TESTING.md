@@ -21,7 +21,7 @@ Sizes: system <before> → <after>, boot <before> → <after>
 1. Build the candidate: add `[upload]` to a commit message on the PR. When the build's done,
    `https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-<number>/agnos.json` lists its images (~25 min).
 2. Flash its A/B images to slot a. `cat /VERSION` then matches the PR's `VERSION` file.
-3. With openpilot stopped, run `/usr/comma/test_agnos.py`. It passes when it ends with `OK` (skips are fine) and exits 0.
+3. With openpilot stopped (`pkill -f manager`), run `/usr/comma/test_agnos.py`. It passes when it ends with `OK` (skips are fine) and exits 0.
 4. A cold boot is a power cycle and a warm boot is `sudo reboot`.
 5. `/usr/comma/screen` looks at and taps the screen (run it with no arguments for usage).
 
