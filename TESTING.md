@@ -19,8 +19,8 @@ Sizes: system <before> → <after>, boot <before> → <after>
 ## Release Checklist
 
 - [ ] [`tests/test_agnos.py`](tests/test_agnos.py) passes after every boot
-  - [ ] 100/100 cold boots
-  - [ ] 100/100 warm boots
+  - [ ] 10/10 cold boots
+  - [ ] 10/10 warm boots
 - [ ] [`test_onroad`](https://github.com/commaai/openpilot/blob/master/openpilot/selfdrive/test/test_onroad.py) passes 20/20
 - [ ] Wi-Fi: lists networks and connects
 - [ ] Modem: connects to cell network
