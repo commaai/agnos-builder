@@ -5,20 +5,22 @@ usage: /usr/comma/screen.py COMMAND [COMMAND ...]
 
   screenshot [PATH]          PNG of the screen, upright. waits up to 3s for it to stop changing.
                              PATH defaults to stdout when that isn't a terminal, else /tmp/screen.png
-  tap X Y                    tap at screenshot pixel X, Y (origin top left)
+  tap X Y                    tap at screenshot pixel X, Y, origin top left
   swipe X0 Y0 X1 Y1 [MS]     drag from X0, Y0 to X1, Y1 over MS milliseconds (default 300).
                              scrollers fling on fast swipes; use ~1000 to stop where the finger does
   sleep SECONDS
-  size                       print the screen size, WIDTHxHEIGHT
 
 Commands run in order, so one call can act and then look:
 
   ssh DEVICE /usr/comma/screen.py tap 315 120 screenshot > after.png
-  ssh DEVICE /usr/comma/screen.py tap 30 150 tap 80 150 tap 130 150    # type on the keyboard
 
-Run it directly, it needs its venv python, and it reruns itself with sudo.
-Screenshots read the buffer being scanned out. Touches are written to the
-touchscreen's own event node, so every reader gets them like real ones.
+Screenshots are small enough that viewers show them at full size, and taps use
+the same pixels. stdout only carries the PNG. stderr reports each screenshot's
+size, and says when the screen was still changing after the wait.
+
+Run it as is, not with python3 or sudo. Screenshots read the buffer being
+scanned out. Touches are written to the touchscreen's own event node, so every
+reader gets them like real ones.
 """
 import ctypes
 import fcntl
@@ -37,8 +39,15 @@ import evdev
 import numpy as np
 from evdev import ecodes as e
 
+# screenshots are downscaled by a whole number to fit in this, so viewers don't rescale them
+MAX_SIZE = 1280
+
 # the UI draws rotated in the panel's portrait framebuffer. np.rot90 turns to make it upright
 ROTATION = {"comma mici": -1, "comma tizi": 1}
+
+
+def _scale(width, height):
+  return -(-max(width, height) // MAX_SIZE)
 
 
 def _rotation():
@@ -147,7 +156,8 @@ def _grab(fd):
 
 
 def screenshot(settle=3.0):
-  """Upright RGB array (height, width, 3) of what the panel is scanning out.
+  """Upright RGB array (height, width, 3) of what the panel is scanning out,
+  and whether it stopped changing.
 
   Waits up to `settle` seconds for the screen to stop changing, ignoring
   changes as small as a blinking cursor.
@@ -156,13 +166,15 @@ def screenshot(settle=3.0):
   try:
     fcntl.ioctl(fd, _SET_CLIENT_CAP, _Cap(_UNIVERSAL_PLANES, 1))
     deadline = time.monotonic() + settle
-    img = _grab(fd)
-    while time.monotonic() < deadline:
+    img, settled = _grab(fd), False
+    while not settled and time.monotonic() < deadline:
       time.sleep(0.15)
       prev, img = img, _grab(fd)
-      if np.count_nonzero((prev != img).any(axis=2)) < img.shape[0] * img.shape[1] // 1000:
-        break
-    return np.rot90(img, _rotation())
+      settled = np.count_nonzero((prev != img).any(axis=2)) < img.shape[0] * img.shape[1] // 1000
+    h, w, _ = img.shape
+    n = _scale(w, h)
+    img = img[:h - h % n, :w - w % n].reshape(h // n, n, w // n, n, 3).mean(axis=(1, 3)).astype(np.uint8)
+    return np.rot90(img, _rotation()), settled
   finally:
     os.close(fd)
 
@@ -191,7 +203,9 @@ class Touchscreen:
     else:
       raise RuntimeError("no touchscreen found")
     self.k = _rotation() % 4
-    self.size = (self.height, self.width) if self.k % 2 else (self.width, self.height)
+    self.n = _scale(self.width, self.height)
+    w, h = self.width // self.n, self.height // self.n
+    self.size = (h, w) if self.k % 2 else (w, h)
 
   def close(self):
     os.close(self.fd)
@@ -205,6 +219,7 @@ class Touchscreen:
   def _native(self, x, y):
     if not (0 <= x < self.size[0] and 0 <= y < self.size[1]):
       raise ValueError(f"{x}, {y} is off the {self.size[0]}x{self.size[1]} screen")
+    x, y = x * self.n + self.n // 2, y * self.n + self.n // 2
     # inverse of screenshot()'s np.rot90
     if self.k == 1:
       return self.width - 1 - y, x
@@ -248,7 +263,7 @@ class Touchscreen:
     time.sleep(0.05)
 
 
-ARITY = {"screenshot": (0, 1), "tap": (2, 2), "swipe": (4, 5), "sleep": (1, 1), "size": (0, 0)}
+ARITY = {"screenshot": (0, 1), "tap": (2, 2), "swipe": (4, 5), "sleep": (1, 1)}
 
 
 def parse(argv):
@@ -282,7 +297,7 @@ def main(argv):
   try:
     for cmd, *args in cmds:
       if cmd == "screenshot":
-        img = screenshot()
+        img, settled = screenshot()
         path = args[0] if args else ("/tmp/screen.png" if sys.stdout.isatty() else "-")
         if path == "-":
           write_png(img, sys.stdout.buffer)
@@ -290,14 +305,13 @@ def main(argv):
         else:
           with open(path, "wb") as f:
             write_png(img, f)
-        print(f"screenshot {img.shape[1]}x{img.shape[0]}" + ("" if path == "-" else f" saved to {path}"), file=sys.stderr)
+        print(f"screenshot {img.shape[1]}x{img.shape[0]}" + ("" if path == "-" else f" saved to {path}") +
+              ("" if settled else ", still changing after 3s"), file=sys.stderr)
       elif cmd == "sleep":
         time.sleep(float(args[0]))
       else:
         touch = touch or Touchscreen()
-        if cmd == "size":
-          print(f"{touch.size[0]}x{touch.size[1]}")
-        elif cmd == "tap":
+        if cmd == "tap":
           touch.tap(*map(int, args))
         else:
           touch.swipe(*map(int, args[:4]), *([int(args[4]) / 1000] if len(args) == 5 else []))
