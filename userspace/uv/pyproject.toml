@@ -21,6 +21,8 @@ dependencies = [
   "smbus2",
   # lpa.py, imported by the AGNOS updater in older openpilot releases
   "pyserial",
+  # wifi_manager.py, imported by the AGNOS updater in older openpilot releases
+  "jeepney",
 
   # provisioning
   "pyusb",
