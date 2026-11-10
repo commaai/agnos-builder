@@ -16,6 +16,7 @@ PIDS=()
 # and timeout would wait on it, so this gives up on reading its status instead
 function run_init {
   local name=$1
+  [ -f "/run/comma-init-$name.done" ] && return 0
   (
     start=${EPOCHREALTIME/./}
     if ! read -r -t "$INIT_TIMEOUT" ret < <((set -e; "$name") >&2; echo $?); then
@@ -28,6 +29,7 @@ function run_init {
       echo -e "\e[31m$name failed in $took\e[0m"
       exit 1
     fi
+    touch "/run/comma-init-$name.done"
     echo -e "\e[32m$name done in $took\e[0m"
   ) & PIDS+=($!)
 }
@@ -50,6 +52,15 @@ function part_dev {
 function mount_part {
   local dev
   dev=$(part_dev "$1")
+  if mountpoint -q "$2"; then
+    local source
+    source=$(findmnt -nr -M "$2" -o SOURCE)
+    [ "$(readlink -f "$source")" = "$(readlink -f "$dev")" ] || {
+      echo "$2 is mounted from unexpected source $source" >&2
+      return 1
+    }
+    return 0
+  fi
   mount "${@:3}" "$dev" "$2"
 }
 
@@ -76,10 +87,13 @@ function mount_persist {
 }
 
 function mount_data {
+  local mounted=0
+  mountpoint -q /data && mounted=1
   mount_part userdata /data -o discard,noatime,nodiratime,nosuid,nodev
   # first, so comma.sh can still clean up /data if something below fails
   chown comma: /data
-  rm -rf /data/tmp
+  # Only clear temporary data when mounting it for the first time this boot.
+  if [ "$mounted" = 0 ]; then rm -rf /data/tmp; fi
   # the rootfs symlinks /etc paths to these, and /data/persist is served to the modem and DSPs
   # through /system/rfs
   mkdir -p /data/etc/netplan /data/etc/NetworkManager/system-connections /data/ssh /data/tmp \
@@ -91,7 +105,9 @@ function mount_data {
 
 function mount_cache {
   local opts=(-t ext4 -o relatime,data=ordered,noauto_da_alloc,discard,noexec,nodev,nosuid)
-  if ! mount_part cache /cache "${opts[@]}"; then
+  if mountpoint -q /cache; then
+    mount_part cache /cache "${opts[@]}" || return 1
+  elif ! mount_part cache /cache "${opts[@]}"; then
     # it's blank on first boot, and it only holds debug logs, so format it whenever it won't mount
     mkfs.ext4 -F -q "$(part_dev cache)"
     mount_part cache /cache "${opts[@]}"
@@ -99,23 +115,41 @@ function mount_cache {
   chown comma: /cache
 }
 
+# Reuse live tmpfs mounts on a partial initialization retry.
+function mount_tmpfs {
+  local path=$1
+  shift
+  if mountpoint -q "$path"; then
+    [ "$(findmnt -nr -M "$path" -o FSTYPE)" = tmpfs ] || {
+      echo "$path is not a tmpfs" >&2
+      return 1
+    }
+    return 0
+  fi
+  mount -t tmpfs "$@" tmpfs "$path"
+}
+
 function mount_tmp {
   # openpilot's queues are in /dev/shm and its sockets in /tmp. at ~1 kB of memory per file,
   # something leaking files hits its memory limit before it takes the last inode
-  mount -t tmpfs -o rw,nosuid,nodev,size=150M,nr_inodes=1M,mode=1777 tmpfs /tmp
+  mount_tmpfs /tmp -o rw,nosuid,nodev,size=150M,nr_inodes=1M,mode=1777
   mount -o remount,nr_inodes=1M /dev/shm
 }
 
 function mount_var {
-  mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var
-  mkdir /var/log
-  mount -t tmpfs -o rw,nosuid,nodev,size=128M,mode=755 tmpfs /var/log
+  mount_tmpfs /var -o rw,nosuid,nodev,size=128M,mode=755
+  mkdir -p /var/log
+  mount_tmpfs /var/log -o rw,nosuid,nodev,size=128M,mode=755
   systemd-tmpfiles --create /usr/comma/tmpfiles.conf
 }
 
 function mount_home {
-  mount -t tmpfs -o rw,nosuid,nodev,size=100M,mode=1777 tmpfs /rwtmp
-  mkdir /rwtmp/home_work /rwtmp/home_upper
+  mount_tmpfs /rwtmp -o rw,nosuid,nodev,size=100M,mode=1777
+  mkdir -p /rwtmp/home_work /rwtmp/home_upper
+  if mountpoint -q /home; then
+    [ "$(findmnt -nr -M /home -o FSTYPE)" = overlay ] || return 1
+    return 0
+  fi
   mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home
 }
 
@@ -227,16 +261,13 @@ function setup_devices {
   [ -e /dev/ttyHS0 ] && uart=(/dev/ttyHS*)
   # /sys/class/gpio is for provisioning, it exports its pins as comma
   chgrp gpio /dev/gpiochip0 /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport}
-  chgrp input /dev/input/{event,mouse}* /dev/input/mice
-  chgrp video /dev/media* /dev/v4l-subdev* /dev/video*
   chgrp disk /dev/sd* /dev/sg*
   chgrp dialout /dev/ttyMSM*
   chmod 660 /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}* \
     /dev/gpiochip0 /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport} \
-    /dev/media* /dev/v4l-subdev* /dev/video* \
     /dev/sd* /dev/sg* \
     /dev/ttyMSM*
-  chmod 666 /dev/input/{event,mouse}* /dev/input/mice /dev/fuse /dev/net/tun /dev/spidev*
+  chmod 666 /dev/fuse /dev/net/tun /dev/spidev*
   chmod 664 /dev/rfkill
 
   # not every display and LED is on every device
@@ -262,14 +293,8 @@ function setup_devices {
     esac
   done
 
-  # the touchscreen and cameras can enumerate in any order
-  path=$(ls -d /sys/devices/platform/soc/894000.i2c/i2c-*/*/input/input*/event*)
-  ln -sf "../${path##*/}" /dev/input/by-path/platform-894000.i2c-event
-  path=$(ls -d /sys/devices/platform/soc/soc:qcom,cam-req-mgr/video4linux/video*)
-  ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
-  path=$(ls -d /sys/devices/platform/cam_sync/video4linux/video*)
-  ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-cam_sync-video-index0
-  ln -sf ../../video33 /dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1
+  # Use the same permission/alias handling for existing and later devices.
+  /usr/comma/uevent_helper.sh --reconcile
 
   return $ret
 }
@@ -303,7 +328,7 @@ function setup_gpios {
 
   local p d nodes=()
   for p in "${pins[@]}"; do
-    echo "$p" > /sys/class/gpio/export
+    [ -d "/sys/class/gpio/gpio$p" ] || echo "$p" > /sys/class/gpio/export
     d=/sys/class/gpio/gpio$p
     nodes+=("$d" "$d"/{active_low,direction,edge,value})
   done

@@ -21,11 +21,10 @@ import subprocess
 import tempfile
 import termios
 import time
-
 from contextlib import contextmanager
-from ipaddress import IPv4Address, AddressValueError
-
 from enum import Enum
+from ipaddress import AddressValueError, IPv4Address
+from pathlib import Path
 
 WEBBING_ICCID_PREFIX = "8985235"
 
@@ -35,7 +34,7 @@ logging.basicConfig(
   datefmt="%H:%M:%S",
 )
 
-# links to whichever ports answer AT, see _sync_ports
+# links to the modem's USB control/data interfaces, see _sync_ports
 AT_PORT = "/dev/modem_at0"
 PPP_PORT = "/dev/modem_at1"
 STATE_PATH = "/dev/shm/modem"
@@ -124,6 +123,31 @@ def _answers_at(port: str, timeout: float = 0.3) -> bool:
   except OSError:
     pass
   return False
+
+
+def _modem_ports(sysfs: Path = Path("/sys/class/tty")) -> tuple[str, str] | None:
+  """Find control/data interfaces on the same supported USB modem, independent of tty numbers."""
+  devices: dict[Path, dict[int, str]] = {}
+  for tty in sysfs.glob("ttyUSB*"):
+    try:
+      interface = next(p for p in tty.resolve(strict=True).parents if (p / "bInterfaceNumber").is_file())
+      device = interface.parent
+      if (device / "idVendor").read_text().strip().lower() != "2c7c":
+        continue
+      if (device / "idProduct").read_text().strip().lower() not in ("0125", "6007"):
+        continue
+      number = int((interface / "bInterfaceNumber").read_text().strip(), 16)
+      if number in (2, 3):
+        devices.setdefault(device, {})[number] = f"/dev/{tty.name}"
+    except (OSError, StopIteration, ValueError):
+      # A modem may disappear or enumerate one interface at a time.
+      continue
+
+  pairs = [(ports[2], ports[3]) for ports in devices.values() if 2 in ports and 3 in ports]
+  if len(pairs) != 1:
+    logging.warning(f"found {len(pairs)} complete USB modems, retrying")
+    return None
+  return pairs[0]
 
 
 class State(Enum):
@@ -343,11 +367,13 @@ class Modem:
       self._at(c)
 
   def _sync_ports(self) -> bool:
-    """The modem's nodes come up root only every time it enumerates, and their numbers
-    move if something is holding the old ones. Ask them which are AT ports and link those."""
-    ttys = sorted(glob.glob("/dev/ttyUSB*"), key=lambda p: int(p.removeprefix("/dev/ttyUSB")), reverse=True)
-    subprocess.run(["sudo", "chgrp", "dialout", *ttys], capture_output=True)
-    subprocess.run(["sudo", "chmod", "660", *ttys], capture_output=True)
+    ports = _modem_ports()
+    if ports is None:
+      return False
+    # Nodes come up root-only after every enumeration.
+    for command in (["sudo", "chgrp", "dialout", *ports], ["sudo", "chmod", "660", *ports]):
+      if subprocess.run(command, capture_output=True).returncode != 0:
+        return False
 
     fd = os.open(AT_LOCK, os.O_CREAT | os.O_RDWR, 0o666)
     try:
@@ -356,23 +382,17 @@ class Modem:
       os.close(fd)
       return False
     try:
-      # the AT ports are the highest two, stop there to stay off the GPS and debug ports
-      ports = []
-      for tty in ttys:
-        if _answers_at(tty):
-          ports.append(tty)
-        if len(ports) == 2:
-          break
+      if not all(_answers_at(port) for port in ports):
+        logging.warning(f"modem AT ports {ports} not ready, retrying")
+        return False
     finally:
       fcntl.flock(fd, fcntl.LOCK_UN)
       os.close(fd)
-    if len(ports) != 2:
-      logging.warning(f"found AT ports {ports} in {ttys}, retrying")
-      return False
 
-    for link, tty in zip((AT_PORT, PPP_PORT), reversed(ports)):
-      subprocess.run(["sudo", "ln", "-sfn", os.path.basename(tty), link], capture_output=True)
-    logging.info(f"AT port {ports[1]}, PPP port {ports[0]}")
+    for link, tty in zip((AT_PORT, PPP_PORT), ports):
+      if subprocess.run(["sudo", "ln", "-sfn", os.path.basename(tty), link], capture_output=True).returncode != 0:
+        return False
+    logging.info(f"AT port {ports[0]}, PPP port {ports[1]}")
     return True
 
   def _do_initializing(self):

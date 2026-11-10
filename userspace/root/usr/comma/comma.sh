@@ -71,7 +71,22 @@ ln -s /data/tmp/vscode-server ~/.vscode-server
 ln -s /data/tmp/vscode-server ~/.cursor-server
 ln -s /data/tmp/vscode-server ~/.windsurf-server
 
+setup_pid=""
+stop_setup () {
+  if [ -n "$setup_pid" ]; then
+    kill "$setup_pid" 2>/dev/null || true
+    for i in {1..20}; do
+      kill -0 "$setup_pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    kill -KILL "$setup_pid" 2>/dev/null || true
+    wait "$setup_pid" 2>/dev/null || true
+    setup_pid=""
+  fi
+}
+
 while true; do
+  stop_setup
   handle_setup_keys
 
   if [ -f $CONTINUE ]; then
@@ -82,21 +97,35 @@ while true; do
   rm -f $INSTALLER
 
   # run setup first, it only needs the screen. the rest can happen while it starts
-  python3 $SETUP &
+  python3 "$SETUP" &
+  setup_pid=$!
   pkill -f $INSTALLER
   sudo abctl --set_success
 
   echo "waiting for installer"
-  while [ ! -f $INSTALLER ]; do
+  while [ ! -f "$INSTALLER" ] && [ ! -f "$CONTINUE" ]; do
+    if ! kill -0 "$setup_pid" 2>/dev/null; then
+      wait "$setup_pid" 2>/dev/null || true
+      setup_pid=""
+      echo "setup exited before installer, retrying"
+      sleep 1
+      break
+    fi
     sleep 0.1
   done
+  if [ -f "$CONTINUE" ] || [ ! -f "$INSTALLER" ]; then
+    continue
+  fi
 
   # run installer and wait for continue.sh
   chmod +x $INSTALLER
   $INSTALLER &
+  installer_pid=$!
   echo "running installer"
-  while [ ! -f $CONTINUE ] && ps -p $! > /dev/null; do
+  while [ ! -f $CONTINUE ] && kill -0 "$installer_pid" 2>/dev/null; do
     sleep 0.1
   done
-  pkill -f "$SETUP"
+  if [ ! -f "$CONTINUE" ]; then
+    wait "$installer_pid" 2>/dev/null || true
+  fi
 done
