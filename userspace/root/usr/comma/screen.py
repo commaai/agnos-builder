@@ -4,7 +4,8 @@
 usage: {path} COMMAND [COMMAND ...]
 
   screenshot [PATH]          PNG of the screen, upright, once it stops changing (up to 3s).
-                             PATH defaults to stdout when that isn't a terminal, else /tmp/screen.png
+                             PATH is on the device. without one it goes to stdout when that isn't a
+                             terminal, so over SSH `screenshot > local.png` saves it on your side
   tap X Y                    tap at screenshot pixel X, Y, origin top left
   swipe X0 Y0 X1 Y1 [MS]     drag from X0, Y0 to X1, Y1 over MS milliseconds (default 300).
                              scrollers fling on fast swipes; use ~1000 to stop where the finger does
@@ -20,7 +21,8 @@ Only one screenshot can go to stdout; give the others a PATH on the device.
 
 Screenshots are small enough that viewers show them at full size, and taps use
 the same pixels. stdout only carries the PNG. stderr reports each screenshot's
-size, and says if parts of it are animating, or it was still changing after 3s.
+size, and says if a small part keeps animating (the rest is still, the frame is
+fine to use), or if it was still changing after 3s.
 It exits non-zero only on errors.
 
 It reruns itself as root in its venv. Screenshots read the buffer being
@@ -332,12 +334,16 @@ def main(argv):
           write_png(img, sys.stdout.buffer)
           sys.stdout.buffer.flush()
         else:
-          with open(path, "wb") as f:
+          try:
+            f = open(path, "wb")
+          except OSError as err:
+            raise ValueError(f"can't write {path} on the device ({err.strerror}). to save it locally, leave out PATH and redirect stdout") from None
+          with f:
             write_png(img, f)
           if "SUDO_UID" in os.environ:  # so whoever asked for it can delete it
             os.chown(path, int(os.environ["SUDO_UID"]), int(os.environ["SUDO_GID"]))
         print(f"screenshot {img.shape[1]}x{img.shape[0]}" + ("" if path == "-" else f" saved to {path}") +
-              {"settled": "", "animating": ", parts of it are animating", "changing": ", still changing after 3s"}[state],
+              {"settled": "", "animating": ", a small part keeps animating, the rest is still", "changing": ", still changing after 3s"}[state],
               file=sys.stderr)
       elif cmd == "sleep":
         time.sleep(float(args[0]))
