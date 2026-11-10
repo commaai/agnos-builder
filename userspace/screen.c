@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <math.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -16,9 +18,7 @@
 #include <unistd.h>
 
 #include <drm/drm.h>
-#include <drm/drm_fourcc.h>
 #include <drm/drm_mode.h>
-#include <linux/dma-buf.h>
 #include <linux/input.h>
 
 static const char *USAGE =
@@ -26,16 +26,19 @@ static const char *USAGE =
   "\n"
   "usage: %1$s COMMAND [COMMAND ...]\n"
   "\n"
-  "  screenshot [--now] [PATH]  PNG of the screen, upright, once it stops changing (up to 3s).\n"
-  "                             --now takes it right away, mid-animation if one is running.\n"
-  "                             PATH is on the device. without one it goes to stdout when that isn't a\n"
-  "                             terminal, so over SSH `screenshot > local.png` saves it on your side\n"
+  "  screenshot [--now] [PATH]  PNG of the screen, upright, once it's (mostly) stopped changing, up to\n"
+  "                             3s. --now takes it right away, mid-animation if one is running.\n"
+  "                             PATH is on the device, - is stdout. without one it goes to stdout when\n"
+  "                             that isn't a terminal, so over SSH `screenshot > local.png` saves it on\n"
+  "                             your side, and to /tmp/screen.png when it is\n"
   "  tap X Y                    tap at screenshot pixel X, Y, origin top left\n"
-  "  swipe X0 Y0 X1 Y1 [MS]     drag from X0, Y0 to X1, Y1 over MS milliseconds (default 300).\n"
+  "  swipe X0 Y0 X1 Y1 [MS]     drag from X0, Y0 to X1, Y1 over MS milliseconds (default 300, up to 10000).\n"
   "                             scrollers fling on fast swipes; use ~1000 to stop where the finger does\n"
   "  record SECONDS DIR         save each frame shown over SECONDS (up to 10) as DIR/MS.png, MS after\n"
   "                             the start, skipping frames that repeat the one before. DIR is on the\n"
-  "                             device. stderr reports the frame rate and the longest gap between frames\n"
+  "                             device and must be new or empty. frames are held in memory (up to\n"
+  "                             200MB) until the end. stderr reports the frame rate it caught, which on\n"
+  "                             a comma 3x is below the display's, and the longest gap between frames\n"
   "  sleep SECONDS\n"
   "\n"
   "Commands run in order, so one call can act and then look. Taps and swipes are\n"
@@ -50,8 +53,9 @@ static const char *USAGE =
   "Screenshots are small enough that viewers show them at full size, and taps use\n"
   "the same pixels. stdout only carries the PNG. stderr reports each screenshot's\n"
   "size, says if a small part keeps animating (the rest is still, the frame is fine\n"
-  "to use) or it was still changing after 3s, and says if a tap or swipe left the\n"
-  "screen as it was. It exits non-zero only on errors.\n"
+  "to use) or it was still changing after 3s, and says if a tap or swipe left every\n"
+  "pixel as it was. It exits non-zero only on errors, and checks every command,\n"
+  "including that taps and swipes are on the screen, before running any.\n"
   "\n"
   "Screenshots read the buffer being scanned out. Touches are written to the\n"
   "touchscreen's own event node, so every reader gets them like real ones.\n";
@@ -66,6 +70,12 @@ __attribute__((noreturn)) static void die(const char *fmt, ...) {
   fputc('\n', stderr);
   va_end(ap);
   exit(1);
+}
+
+static void *xmalloc(size_t n) {
+  void *p = malloc(n);
+  if (!p) die("out of memory");
+  return p;
 }
 
 static double now(void) {
@@ -99,10 +109,10 @@ static int scale_for(int w, int h) {
 
 // *** display ***
 
-// a framebuffer, or a sparse sample of it: every sx-th pixel of every sy-th row
+// a framebuffer, or a sparse sample of it: every sx-th pixel of every sy-th row. pixels are R, G, B, X
+// bytes, the format the UI allocates (the 4.9 kernel has no GETFB2 to ask)
 typedef struct {
   int w, h, sx, sy;  // native framebuffer size, sample spacing
-  int r, g, b;       // byte offsets in each 32-bit pixel
   uint32_t *px;      // (h / sy) rows of (w / sx) pixels
 } Frame;
 
@@ -152,8 +162,8 @@ static size_t cache_line(void) {
 }
 
 // drops cached copies of [p, p + n), so reads see what the GPU wrote rather than what an earlier read
-// cached. the dma-buf sync ioctl succeeds without doing this on these kernels. the lines are never dirty
-// (the mapping is read-only), so this writes nothing back
+// cached. the dma-buf sync ioctl succeeds without doing this on these kernels, so it isn't used. the
+// lines are never dirty (the mapping is read-only), so this writes nothing back
 static void invalidate(const uint8_t *p, size_t n) {
 #ifdef __aarch64__
   size_t line = cache_line();
@@ -164,25 +174,15 @@ static void invalidate(const uint8_t *p, size_t n) {
 #endif
 }
 
-static void read_fb(uint32_t fb_id, Frame *f, int full) {
+// 0, or -1 if the framebuffer went away, as it does when the UI restarts
+static int read_fb(uint32_t fb_id, Frame *f, int full) {
   struct drm_mode_fb_cmd fb = {.fb_id = fb_id};
-  if (ioctl(drm_fd, DRM_IOCTL_MODE_GETFB, &fb)) die("GETFB: %s", strerror(errno));
+  if (ioctl(drm_fd, DRM_IOCTL_MODE_GETFB, &fb)) {
+    if (errno == ENOENT) return -1;
+    die("GETFB: %s", strerror(errno));
+  }
   if (!fb.handle) die("reading the framebuffer needs root");
-
-  uint32_t format = DRM_FORMAT_ABGR8888;  // what the UI allocates. kernels with GETFB2 report it
-#ifdef DRM_IOCTL_MODE_GETFB2
-  struct drm_mode_fb_cmd2 fb2 = {.fb_id = fb_id};
-  if (!ioctl(drm_fd, DRM_IOCTL_MODE_GETFB2, &fb2)) {
-    format = fb2.pixel_format;
-    for (int i = 0; i < 4; i++)
-      if (fb2.handles[i] && fb2.handles[i] != fb.handle) gem_close(fb2.handles[i]);
-  }
-#endif
-  switch (format) {
-    case DRM_FORMAT_ABGR8888: case DRM_FORMAT_XBGR8888: f->r = 0; f->g = 1; f->b = 2; break;
-    case DRM_FORMAT_ARGB8888: case DRM_FORMAT_XRGB8888: f->r = 2; f->g = 1; f->b = 0; break;
-    default: die("unsupported pixel format %.4s", (char *)&format);
-  }
+  if (fb.bpp != 32 || fb.pitch < fb.width * 4) die("unexpected framebuffer: %u bpp, pitch %u for width %u", fb.bpp, fb.pitch, fb.width);
 
   struct drm_prime_handle prime = {.handle = fb.handle, .flags = DRM_CLOEXEC};
   if (ioctl(drm_fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &prime)) die("PRIME_HANDLE_TO_FD: %s", strerror(errno));
@@ -194,11 +194,9 @@ static void read_fb(uint32_t fb_id, Frame *f, int full) {
   int sx = full ? 1 : cache_line() / 4, sy = full ? 1 : 8;
   if (!f->px || f->w != (int)fb.width || f->h != (int)fb.height || f->sx != sx) {
     free(f->px);
-    *f = (Frame){.w = fb.width, .h = fb.height, .sx = sx, .sy = sy, .r = f->r, .g = f->g, .b = f->b};
-    f->px = malloc((size_t)(f->w / sx) * (f->h / sy) * 4);
+    *f = (Frame){.w = fb.width, .h = fb.height, .sx = sx, .sy = sy};
+    f->px = xmalloc((size_t)(f->w / sx) * (f->h / sy) * 4);
   }
-  struct dma_buf_sync sync = {.flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ};
-  ioctl(prime.fd, DMA_BUF_IOCTL_SYNC, &sync);
   uint32_t *o = f->px;
   for (int y = 0; y < f->h / sy * sy; y += sy) {
     const uint8_t *row = map + (size_t)y * fb.pitch;
@@ -211,17 +209,16 @@ static void read_fb(uint32_t fb_id, Frame *f, int full) {
     }
   }
 
-  sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ;
-  ioctl(prime.fd, DMA_BUF_IOCTL_SYNC, &sync);
-
   munmap((void *)map, len);
   close(prime.fd);
   gem_close(fb.handle);
+  return 0;
 }
 
 // copies the frame being shown and returns its fb. a frame is never torn: the UI draws into a back
 // buffer and the display flips to it once it's finished, so the shown buffer only changes if a flip
-// hands it back to the UI during the copy, which the check after it catches
+// hands it back to the UI during the copy. the check after it catches one flip, and a copy that
+// took long enough for two (away and back) is retried too
 static uint32_t grab(Frame *f, int full) {
   if (drm_fd < 0) {
     drm_fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
@@ -232,16 +229,16 @@ static uint32_t grab(Frame *f, int full) {
     // slow to copy between page flips
     ioctl(drm_fd, DRM_IOCTL_DROP_MASTER, 0);
   }
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 10; i++) {
     uint32_t fb = scanout_fb();
-    read_fb(fb, f, full);
-    // a page flip during the copy can hand the buffer back to the renderer
-    if (scanout_fb() == fb) return fb;
+    double start = now();
+    if (read_fb(fb, f, full)) continue;
+    if (scanout_fb() == fb && now() - start < 0.008) return fb;
   }
-  die("the screen kept flipping during the copy");
+  die("couldn't copy a frame without the screen flipping during it");
 }
 
-// fraction of sampled pixels that differ
+// fraction of pixels (or sampled pixels) that differ
 static double changed(const Frame *a, const Frame *b) {
   if (a->w != b->w || a->h != b->h || a->sx != b->sx) return 1;
   size_t n = 0, total = (size_t)(a->w / a->sx) * (a->h / a->sy);
@@ -252,12 +249,12 @@ static double changed(const Frame *a, const Frame *b) {
 enum { SETTLED, ANIMATING, CHANGING };
 
 // waits for the screen to be still for 0.4s, or for only small parts of it (a shimmer, a cursor) to keep
-// changing for 1s, up to 3s. leaves the last sample in `s` and the full frame in `f`
-static int settle(Frame *s, Frame *f) {
+// changing for 1s, up to 3s, then copies the frame into `f`. stillness is judged on a sparse sample
+static int settle(Frame *f) {
   enum { N = 64 };
   double t[N], c[N];
   int n = 0, state = CHANGING;
-  Frame prev = {0};
+  Frame prev = {0}, sample = {0}, *s = &sample;
   double start = now();
   grab(s, 0);
   while (now() - start < 3.0) {
@@ -281,6 +278,7 @@ static int settle(Frame *s, Frame *f) {
     }
   }
   free(prev.px);
+  free(sample.px);
   grab(f, 1);
   return state;
 }
@@ -319,7 +317,7 @@ static void chunk(FILE *out, const char *type, const uint8_t *data, size_t n) {
 // rgb is h rows of w * 3 bytes
 static void write_png(FILE *out, const uint8_t *rgb, int w, int h) {
   size_t row = (size_t)w * 3 + 1, raw_len = row * h;
-  uint8_t *raw = malloc(raw_len);
+  uint8_t *raw = xmalloc(raw_len);
   for (int y = 0; y < h; y++) {
     raw[y * row] = 0;  // no filter
     memcpy(raw + y * row + 1, rgb + (size_t)y * w * 3, row - 1);
@@ -327,7 +325,7 @@ static void write_png(FILE *out, const uint8_t *rgb, int w, int h) {
   // a zlib stream of stored deflate blocks
   size_t blocks = (raw_len + 65534) / 65535;
   size_t z_len = 2 + raw_len + blocks * 5 + 4;
-  uint8_t *z = malloc(z_len), *p = z;
+  uint8_t *z = xmalloc(z_len), *p = z;
   *p++ = 0x78;
   *p++ = 0x01;
   uint32_t a = 1, b = 0;
@@ -356,12 +354,21 @@ static void write_png(FILE *out, const uint8_t *rgb, int w, int h) {
   free(z);
 }
 
+// writes a PNG to path, or stdout for "-"
+static void save(const char *path, const uint8_t *rgb, int w, int h) {
+  int out_stdout = !strcmp(path, "-");
+  FILE *out = out_stdout ? stdout : fopen(path, "wb");
+  if (!out) die("can't write %s on the device (%s). to save it locally, leave out PATH and redirect stdout", path, strerror(errno));
+  write_png(out, rgb, w, h);
+  if (ferror(out) | (out_stdout ? fflush(out) : fclose(out))) die("writing %s failed", out_stdout ? "stdout" : path);
+}
+
 // box-downscale by `n` and turn upright
 static uint8_t *upright(const Frame *f, int n, int k, int *ow, int *oh) {
   int w = f->w / n, h = f->h / n;
   *ow = k % 2 ? h : w;
   *oh = k % 2 ? w : h;
-  uint8_t *rgb = malloc((size_t)w * h * 3);
+  uint8_t *rgb = xmalloc((size_t)w * h * 3);
   for (int uy = 0; uy < *oh; uy++)
     for (int ux = 0; ux < *ow; ux++) {
       int x, y;  // in the downscaled native image
@@ -375,9 +382,9 @@ static uint8_t *upright(const Frame *f, int n, int k, int *ow, int *oh) {
       for (int dy = 0; dy < n; dy++)
         for (int dx = 0; dx < n; dx++) {
           const uint8_t *px = (const uint8_t *)&f->px[(size_t)(y * n + dy) * f->w + x * n + dx];
-          sum[0] += px[f->r];
-          sum[1] += px[f->g];
-          sum[2] += px[f->b];
+          sum[0] += px[0];
+          sum[1] += px[1];
+          sum[2] += px[2];
         }
       uint8_t *o = rgb + ((size_t)uy * *ow + ux) * 3;
       for (int i = 0; i < 3; i++) o[i] = sum[i] / (n * n);
@@ -405,6 +412,7 @@ static void touch_open(void) {
     if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(bits)), bits) >= 0 && bits[ABS_MT_POSITION_X / 8] & (1 << ABS_MT_POSITION_X % 8) &&
         !ioctl(fd, EVIOCGABS(ABS_MT_POSITION_X), &ax) && !ioctl(fd, EVIOCGABS(ABS_MT_POSITION_Y), &ay)) {
       touch_fd = fd;
+      // both panels report 0 to the framebuffer's width and height, so touch units are its pixels
       touch_w = ax.maximum;
       touch_h = ay.maximum;
     } else {
@@ -419,8 +427,11 @@ static void touch_open(void) {
   touch_uh = (touch_k % 2 ? touch_w : touch_h) / touch_n;
 }
 
+static void on_screen(long x, long y) {
+  if (x < 0 || y < 0 || x >= touch_uw || y >= touch_uh) die("%ld, %ld is off the %dx%d screen", x, y, touch_uw, touch_uh);
+}
+
 static void native(int x, int y, int *nx, int *ny) {
-  if (x < 0 || y < 0 || x >= touch_uw || y >= touch_uh) die("%d, %d is off the %dx%d screen", x, y, touch_uw, touch_uh);
   x = x * touch_n + touch_n / 2;
   y = y * touch_n + touch_n / 2;
   // inverse of upright()
@@ -430,6 +441,19 @@ static void native(int x, int y, int *nx, int *ny) {
     case 3: *nx = y; *ny = touch_h - 1 - x; break;
     default: *nx = x; *ny = y;
   }
+}
+
+static const struct input_event LIFT[] = {
+  {.type = EV_ABS, .code = ABS_MT_SLOT, .value = 0}, {.type = EV_ABS, .code = ABS_MT_TRACKING_ID, .value = -1},
+  {.type = EV_KEY, .code = BTN_TOUCH, .value = 0}, {.type = EV_SYN, .code = SYN_REPORT},
+};
+static volatile sig_atomic_t finger_down;
+
+// so being killed mid-gesture (^C, a dropped SSH connection, a test timeout) doesn't leave a finger on the
+// screen, which the UI would take as a long press
+static void lift_and_exit(int sig) {
+  if (finger_down && write(touch_fd, LIFT, sizeof(LIFT)) < 0) {}
+  _exit(128 + sig);
 }
 
 static void emit(int n, const int (*ev)[3]) {
@@ -455,6 +479,7 @@ static void down(int x, int y) {
     {EV_ABS, ABS_MT_POSITION_X, nx}, {EV_ABS, ABS_MT_POSITION_Y, ny},
     {EV_ABS, ABS_MT_PRESSURE, 50}, {EV_ABS, ABS_MT_TOUCH_MAJOR, 10}, {EV_KEY, BTN_TOUCH, 1},
   };
+  finger_down = 1;
   emit(9, ev);
 }
 
@@ -466,8 +491,8 @@ static void move(int x, int y) {
 }
 
 static void up(void) {
-  const int ev[][3] = {{EV_ABS, ABS_MT_SLOT, 0}, {EV_ABS, ABS_MT_TRACKING_ID, -1}, {EV_KEY, BTN_TOUCH, 0}};
-  emit(3, ev);
+  if (write(touch_fd, LIFT, sizeof(LIFT)) < 0) die("touch: %s", strerror(errno));
+  finger_down = 0;
   nap(0.05);  // so back-to-back gestures land in separate frames
 }
 
@@ -477,13 +502,19 @@ static void up(void) {
 // before once it's done, so encoding doesn't hold up the copying
 static void record(double seconds, const char *dir) {
   if (mkdir(dir, 0755) && errno != EEXIST) die("can't make %s on the device (%s)", dir, strerror(errno));
-  enum { MAX = 600 };
+  DIR *d = opendir(dir);
+  if (!d) die("can't open %s on the device (%s)", dir, strerror(errno));
+  for (struct dirent *e; (e = readdir(d));)
+    if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) die("%s isn't empty, so its frames would mix with these", dir);
+  closedir(d);
+
+  enum { MAX = 600, MAX_BYTES = 200 << 20 };
   struct { double t; uint8_t *rgb; } shots[MAX];
   int nshots = 0, flips = 0, k = rotation(), w = 0, h = 0;
   double gap = 0, last = 0, start = now();
   Frame f = {0};
   uint32_t shown = 0;
-  while (now() - start < seconds && nshots < MAX) {
+  while (now() - start < seconds && nshots < MAX && (size_t)nshots * w * h * 3 < MAX_BYTES) {
     if (shown && scanout_fb() == shown) {
       nap(0.001);
       continue;
@@ -505,143 +536,157 @@ static void record(double seconds, const char *dir) {
   for (int i = 0; i < nshots; i++) {
     char path[PATH_MAX];
     snprintf(path, sizeof(path), "%s/%04d.png", dir, (int)(shots[i].t * 1000));
-    FILE *out = fopen(path, "wb");
-    if (!out) die("can't write %s on the device (%s)", path, strerror(errno));
-    write_png(out, shots[i].rgb, w, h);
-    fclose(out);
+    save(path, shots[i].rgb, w, h);
     free(shots[i].rgb);
   }
-  fprintf(stderr, "recorded %.1fs: %d frames shown (%.0f fps, longest gap %.0fms), %d different saved to %s\n", took,
-          flips, flips / took, gap * 1000, nshots, dir);
+  fprintf(stderr, "recorded %.1fs", took);
+  if (took < seconds) fprintf(stderr, " (stopped early, at the memory limit)");
+  fprintf(stderr, ": caught %d frames (%.0f fps, longest gap %.0fms), %d different saved to %s\n", flips,
+          flips / took, gap * 1000, nshots, dir);
 }
 
 // *** commands ***
 
-static int number(const char *s, double *v) {
-  char *end;
-  *v = strtod(s, &end);
-  return *s && !*end;
-}
-
 static const struct { const char *name; int min, max; } CMDS[] = {
   {"screenshot", 0, 2}, {"tap", 2, 2}, {"swipe", 4, 5}, {"sleep", 1, 1}, {"record", 2, 2},
 };
-enum { SCREENSHOT, TAP, SWIPE, SLEEP, RECORD };
+enum { SCREENSHOT, TAP, SWIPE, SLEEP, RECORD, NCMDS };
 
 static int command(const char *s) {
-  for (int i = 0; i < 5; i++)
+  for (int i = 0; i < NCMDS; i++)
     if (!strcmp(s, CMDS[i].name)) return i;
   return -1;
+}
+
+static int integer(const char *s, long *v) {
+  char *end;
+  errno = 0;
+  *v = strtol(s, &end, 10);
+  return *s && !*end && !errno;
+}
+
+static int seconds(const char *s, double *v) {
+  char *end;
+  *v = strtod(s, &end);
+  return *s && !*end && isfinite(*v) && *v >= 0;
+}
+
+// one command and its arguments: tap/swipe numbers in n[], seconds in secs, a PATH or DIR in path
+typedef struct {
+  int cmd, nargs, now;
+  long n[5];
+  double secs;
+  const char *path;
+} Cmd;
+
+// parses the command at argv[*i] and moves *i past it, dying on anything wrong with it
+static Cmd parse(int argc, char **argv, int *i) {
+  Cmd c = {.cmd = command(argv[*i])};
+  if (c.cmd < 0) die("unexpected '%s'. run it with no arguments for usage", argv[*i]);
+  char **a = argv + *i + 1;
+  while (*i + 1 + c.nargs < argc && c.nargs < CMDS[c.cmd].max && command(a[c.nargs]) < 0) c.nargs++;
+  if (c.nargs < CMDS[c.cmd].min) die("%s needs %d arguments", CMDS[c.cmd].name, CMDS[c.cmd].min);
+  *i += 1 + c.nargs;
+  switch (c.cmd) {
+    case SCREENSHOT:
+      c.now = c.nargs && !strcmp(a[0], "--now");
+      if (c.nargs == 2 && !c.now) die("screenshot takes one PATH");
+      c.path = c.nargs > c.now ? a[c.now] : NULL;
+      if (c.path && c.path[0] == '-' && c.path[1]) die("screenshot: unknown option '%s'", c.path);
+      break;
+    case TAP:
+    case SWIPE:
+      for (int j = 0; j < c.nargs; j++)
+        if (!integer(a[j], &c.n[j])) die("%s: '%s' isn't a whole number", CMDS[c.cmd].name, a[j]);
+      if (c.cmd == SWIPE && c.nargs < 5) c.n[4] = 300;
+      if (c.cmd == SWIPE && (c.n[4] < 1 || c.n[4] > 10000)) die("swipe: MS is 1 to 10000");
+      break;
+    case SLEEP:
+      if (!seconds(a[0], &c.secs)) die("sleep: '%s' isn't a number of seconds", a[0]);
+      break;
+    case RECORD:
+      if (!seconds(a[0], &c.secs) || c.secs <= 0 || c.secs > 10) die("record: SECONDS is more than 0, up to 10");
+      c.path = a[1];
+      break;
+  }
+  return c;
 }
 
 int main(int argc, char **argv) {
   char self[PATH_MAX] = "screen";
   ssize_t len = readlink("/proc/self/exe", self, sizeof(self) - 1);
   if (len > 0) self[len] = 0;
-
-  // check every command before running any
-  int stdout_shots = 0;
-  for (int i = 1; i < argc;) {
-    int c = command(argv[i]);
-    if (c < 0) {
-      fprintf(stderr, "screen: unexpected '%s'\n\n", argv[i]);
-      fprintf(stderr, USAGE, self);
-      return 1;
-    }
-    int n = 0;
-    while (i + 1 + n < argc && n < CMDS[c].max && command(argv[i + 1 + n]) < 0) n++;
-    if (n < CMDS[c].min) die("%s needs %d arguments", CMDS[c].name, CMDS[c].min);
-    char **a = argv + i + 1;
-    for (int j = 0; j < (c == SCREENSHOT ? 0 : c == RECORD ? 1 : n); j++) {
-      double v;
-      if (!number(a[j], &v)) die("%s: '%s' isn't a number", CMDS[c].name, a[j]);
-    }
-    if (c == SCREENSHOT) {
-      int now = n && !strcmp(a[0], "--now");
-      if (n == 2 && !now) die("screenshot takes one PATH");
-      if (n == now || !strcmp(a[now], "-")) stdout_shots++;
-    }
-    if (c == RECORD) {
-      double v;
-      number(a[0], &v);
-      if (v <= 0 || v > 10) die("record: SECONDS is up to 10");
-    }
-    i += 1 + n;
-  }
-  if (stdout_shots > 1) die("only one screenshot can go to stdout, give the others a PATH");
   if (argc == 1) {
     printf(USAGE, self);
     return 0;
   }
+
+  // check every command before running any
+  Cmd *cmds = xmalloc(sizeof(Cmd) * argc);
+  int ncmds = 0, stdout_shots = 0, gestures = 0;
+  for (int i = 1; i < argc;) {
+    Cmd c = cmds[ncmds++] = parse(argc, argv, &i);
+    stdout_shots += c.cmd == SCREENSHOT && (!c.path || !strcmp(c.path, "-"));
+    gestures += c.cmd == TAP || c.cmd == SWIPE;
+  }
+  if (stdout_shots > 1) die("only one screenshot can go to stdout, give the others a PATH");
+
   // it's setuid root, rather than going through sudo, which logs every call to the journal
   if (geteuid() != 0) die("%s needs to be setuid root (chown root %s && chmod u+s %s)", self, self, self);
-  // files it saves are written as whoever ran it
-  if (setfsuid(getuid()) < 0 || setfsgid(getgid()) < 0) {}
+  // files it saves are written, and device nodes opened, as whoever ran it. root is only for reading
+  // the framebuffer
+  setfsuid(getuid());
+  setfsgid(getgid());
+  if ((uid_t)setfsuid(-1) != getuid() || (gid_t)setfsgid(-1) != getgid()) die("couldn't drop to the caller's file permissions");
+
+  if (gestures) {
+    touch_open();
+    for (int i = 0; i < ncmds; i++)
+      for (int j = 0; j < (cmds[i].cmd == TAP ? 2 : cmds[i].cmd == SWIPE ? 4 : 0); j += 2) on_screen(cmds[i].n[j], cmds[i].n[j + 1]);
+    struct sigaction sa = {.sa_handler = lift_and_exit};
+    for (int sig = 0, sigs[] = {SIGINT, SIGTERM, SIGHUP, SIGPIPE}; sig < 4; sig++) sigaction(sigs[sig], &sa, NULL);
+  }
 
   Frame before = {0};  // the screen just before the last gesture
-  int gestured = 0;
-  for (int i = 1; i < argc;) {
-    int c = command(argv[i]), n = 0;
-    while (i + 1 + n < argc && n < CMDS[c].max && command(argv[i + 1 + n]) < 0) n++;
-    char **a = argv + i + 1;
-    double v[5];
-    for (int j = 0; j < n; j++) number(a[j], &v[j]);
-    i += 1 + n;
-
-    if (c == SCREENSHOT) {
-      int now = n && !strcmp(a[0], "--now");
-      a += now;
-      n -= now;
-      Frame f = {0}, sample = {0};
+  int gestured = -1;
+  for (int i = 0; i < ncmds; i++) {
+    Cmd c = cmds[i];
+    long *n = c.n;
+    if (c.cmd == SCREENSHOT) {
+      Frame f = {0};
       int state = SETTLED;
-      if (now) {
-        grab(&f, 1);
-        grab(&sample, 0);
-      } else {
-        state = settle(&sample, &f);
-      }
-      int k = rotation(), w, h;
-      uint8_t *rgb = upright(&f, scale_for(f.w, f.h), k, &w, &h);
-      const char *path = n ? a[0] : isatty(1) ? "/tmp/screen.png" : "-";
-      if (!strcmp(path, "-")) {
-        write_png(stdout, rgb, w, h);
-        fflush(stdout);
-      } else {
-        FILE *out = fopen(path, "wb");
-        if (!out) die("can't write %s on the device (%s). to save it locally, leave out PATH and redirect stdout", path, strerror(errno));
-        write_png(out, rgb, w, h);
-        fclose(out);
-      }
+      if (c.now) grab(&f, 1);
+      else state = settle(&f);
+      int w, h;
+      uint8_t *rgb = upright(&f, scale_for(f.w, f.h), rotation(), &w, &h);
+      const char *path = c.path ? c.path : isatty(1) ? "/tmp/screen.png" : "-";
+      save(path, rgb, w, h);
       fprintf(stderr, "screenshot %dx%d", w, h);
       if (strcmp(path, "-")) fprintf(stderr, " saved to %s", path);
       if (state == ANIMATING) fprintf(stderr, ", a small part keeps animating, the rest is still");
       if (state == CHANGING) fprintf(stderr, ", still changing after 3s");
-      if (gestured && changed(&before, &sample) < 0.01) fprintf(stderr, ", unchanged since before the last %s", gestured == 1 ? "tap" : "swipe");
+      if (gestured >= 0 && changed(&before, &f) == 0) fprintf(stderr, ", unchanged since before the last %s", CMDS[gestured].name);
       fputc('\n', stderr);
       free(rgb);
       free(f.px);
-      free(sample.px);
-    } else if (c == SLEEP) {
-      nap(v[0]);
-    } else if (c == RECORD) {
-      record(v[0], a[1]);
+    } else if (c.cmd == SLEEP) {
+      nap(c.secs);
+    } else if (c.cmd == RECORD) {
+      record(c.secs, c.path);
     } else {
-      touch_open();
-      grab(&before, 0);
-      gestured = c;
-      if (c == 1) {
-        down(v[0], v[1]);
+      grab(&before, 1);
+      gestured = c.cmd;
+      if (c.cmd == TAP) {
+        down(n[0], n[1]);
         nap(0.1);
         up();
       } else {
-        double ms = n == 5 ? v[4] : 300;
-        int steps = ms * 60 / 1000, nx, ny;
+        int steps = n[4] * 60 / 1000;
         if (steps < 1) steps = 1;
-        native(v[2], v[3], &nx, &ny);  // so an off-screen end fails before the finger goes down
-        down(v[0], v[1]);
+        down(n[0], n[1]);
         for (int s = 1; s <= steps; s++) {
-          nap(ms / 1000 / steps);
-          move(v[0] + (v[2] - v[0]) * s / steps, v[1] + (v[3] - v[1]) * s / steps);
+          nap(n[4] / 1000.0 / steps);
+          move(n[0] + (n[2] - n[0]) * s / steps, n[1] + (n[3] - n[1]) * s / steps);
         }
         up();
       }
