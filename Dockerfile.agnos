@@ -144,6 +144,8 @@ COPY ./output/linux-headers/include/ /usr/include/
 
 COPY ./userspace/irsc_util.c /tmp/agnos/
 RUN clang -O2 -Wall -Wextra -Werror -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c && rm /tmp/agnos/irsc_util.c
+COPY ./userspace/screen.c /tmp/agnos/
+RUN clang -O2 -Wall -Wextra -Werror -o /usr/comma/screen /tmp/agnos/screen.c && chmod u+s /usr/comma/screen && rm /tmp/agnos/screen.c
 
 COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
 RUN clang -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
