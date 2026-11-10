@@ -36,9 +36,10 @@ static const char *USAGE =
   "                             scrollers fling on fast swipes; use ~1000 to stop where the finger does\n"
   "  record SECONDS DIR         save each frame shown over SECONDS (up to 10) as DIR/MS.png, MS after\n"
   "                             the start, skipping frames that repeat the one before. DIR is on the\n"
-  "                             device and must be new or empty. frames are held in memory (up to\n"
-  "                             200MB) until the end. stderr reports the frame rate it caught, which on\n"
-  "                             a comma 3x is below the display's, and the longest gap between frames\n"
+  "                             device and must be new or empty. frames are held in memory until the\n"
+  "                             end, up to 200MB: about 540 frames on a comma four, 110 on a comma 3x.\n"
+  "                             stderr reports the frame rate it caught, which on a comma 3x is below\n"
+  "                             the display's, and the longest gap between frames\n"
   "  sleep SECONDS\n"
   "\n"
   "Commands run in order, so one call can act and then look. Taps and swipes are\n"
@@ -54,8 +55,9 @@ static const char *USAGE =
   "the same pixels. stdout only carries the PNG. stderr reports each screenshot's\n"
   "size, says if a small part keeps animating (the rest is still, the frame is fine\n"
   "to use) or it was still changing after 3s, and says if a tap or swipe left every\n"
-  "pixel as it was. It exits non-zero only on errors, and checks every command,\n"
-  "including that taps and swipes are on the screen, before running any.\n"
+  "pixel as it was. It exits non-zero only on errors, and checks every command\n"
+  "before running any: arguments, that taps and swipes are on the screen, and that\n"
+  "PATHs and DIRs can be written.\n"
   "\n"
   "Screenshots read the buffer being scanned out. Touches are written to the\n"
   "touchscreen's own event node, so every reader gets them like real ones.\n";
@@ -174,8 +176,8 @@ static void invalidate(const uint8_t *p, size_t n) {
 #endif
 }
 
-// 0, or -1 if the framebuffer went away, as it does when the UI restarts
-static int read_fb(uint32_t fb_id, Frame *f, int full) {
+// returns how long the copy took, or -1 if the framebuffer went away, as it does when the UI restarts
+static double read_fb(uint32_t fb_id, Frame *f, int full) {
   struct drm_mode_fb_cmd fb = {.fb_id = fb_id};
   if (ioctl(drm_fd, DRM_IOCTL_MODE_GETFB, &fb)) {
     if (errno == ENOENT) return -1;
@@ -198,6 +200,7 @@ static int read_fb(uint32_t fb_id, Frame *f, int full) {
     f->px = xmalloc((size_t)(f->w / sx) * (f->h / sy) * 4);
   }
   uint32_t *o = f->px;
+  double start = now();
   for (int y = 0; y < f->h / sy * sy; y += sy) {
     const uint8_t *row = map + (size_t)y * fb.pitch;
     invalidate(row, (size_t)f->w * 4);
@@ -209,16 +212,17 @@ static int read_fb(uint32_t fb_id, Frame *f, int full) {
     }
   }
 
+  double took = now() - start;
   munmap((void *)map, len);
   close(prime.fd);
   gem_close(fb.handle);
-  return 0;
+  return took;
 }
 
 // copies the frame being shown and returns its fb. a frame is never torn: the UI draws into a back
 // buffer and the display flips to it once it's finished, so the shown buffer only changes if a flip
-// hands it back to the UI during the copy. the check after it catches one flip, and a copy that
-// took long enough for two (away and back) is retried too
+// hands it back to the UI during the copy. the check after it catches one flip. a copy slow enough
+// for two (away and back) is retried, which makes a torn frame unlikely rather than impossible
 static uint32_t grab(Frame *f, int full) {
   if (drm_fd < 0) {
     drm_fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
@@ -231,9 +235,9 @@ static uint32_t grab(Frame *f, int full) {
   }
   for (int i = 0; i < 10; i++) {
     uint32_t fb = scanout_fb();
-    double start = now();
-    if (read_fb(fb, f, full)) continue;
-    if (scanout_fb() == fb && now() - start < 0.008) return fb;
+    double took = read_fb(fb, f, full);
+    if (took < 0 || scanout_fb() != fb) continue;
+    if (took < 0.008 || i >= 5) return fb;  // a slow copy on a busy device still beats failing
   }
   die("couldn't copy a frame without the screen flipping during it");
 }
@@ -360,7 +364,7 @@ static void save(const char *path, const uint8_t *rgb, int w, int h) {
   FILE *out = out_stdout ? stdout : fopen(path, "wb");
   if (!out) die("can't write %s on the device (%s). to save it locally, leave out PATH and redirect stdout", path, strerror(errno));
   write_png(out, rgb, w, h);
-  if (ferror(out) | (out_stdout ? fflush(out) : fclose(out))) die("writing %s failed", out_stdout ? "stdout" : path);
+  if (ferror(out) | (out_stdout ? fflush(out) : fclose(out))) die("writing %s failed (%s)", out_stdout ? "stdout" : path, strerror(errno));
 }
 
 // box-downscale by `n` and turn upright
@@ -501,13 +505,6 @@ static void up(void) {
 // polls for page flips and copies each new frame, then writes the ones that differ from the frame
 // before once it's done, so encoding doesn't hold up the copying
 static void record(double seconds, const char *dir) {
-  if (mkdir(dir, 0755) && errno != EEXIST) die("can't make %s on the device (%s)", dir, strerror(errno));
-  DIR *d = opendir(dir);
-  if (!d) die("can't open %s on the device (%s)", dir, strerror(errno));
-  for (struct dirent *e; (e = readdir(d));)
-    if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) die("%s isn't empty, so its frames would mix with these", dir);
-  closedir(d);
-
   enum { MAX = 600, MAX_BYTES = 200 << 20 };
   struct { double t; uint8_t *rgb; } shots[MAX];
   int nshots = 0, flips = 0, k = rotation(), w = 0, h = 0;
@@ -543,6 +540,32 @@ static void record(double seconds, const char *dir) {
   if (took < seconds) fprintf(stderr, " (stopped early, at the memory limit)");
   fprintf(stderr, ": caught %d frames (%.0f fps, longest gap %.0fms), %d different saved to %s\n", flips,
           flips / took, gap * 1000, nshots, dir);
+}
+
+// makes dir if needed and checks it's empty, before anything runs
+static void check_record_dir(const char *dir) {
+  if (mkdir(dir, 0755) && errno != EEXIST) die("can't make %s on the device (%s)", dir, strerror(errno));
+  DIR *d = opendir(dir);
+  if (!d) die("can't open %s on the device (%s)", dir, strerror(errno));
+  for (struct dirent *e; (e = readdir(d));)
+    if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) die("%s isn't empty, so its frames would mix with these", dir);
+  closedir(d);
+  if (access(dir, W_OK)) die("can't write to %s on the device", dir);
+}
+
+// checks a screenshot PATH can be written, before anything runs
+static void check_path(const char *path) {
+  if (!access(path, F_OK)) {
+    if (access(path, W_OK)) die("can't write %s on the device (%s). to save it locally, leave out PATH and redirect stdout", path, strerror(errno));
+    return;
+  }
+  char dir[PATH_MAX];
+  snprintf(dir, sizeof(dir), "%s", path);
+  char *slash = strrchr(dir, '/');
+  if (slash == dir) dir[1] = 0;
+  else if (slash) *slash = 0;
+  else strcpy(dir, ".");
+  if (access(dir, W_OK | X_OK)) die("can't write %s on the device (%s). to save it locally, leave out PATH and redirect stdout", path, strerror(errno));
 }
 
 // *** commands ***
@@ -602,7 +625,7 @@ static Cmd parse(int argc, char **argv, int *i) {
       if (c.cmd == SWIPE && (c.n[4] < 1 || c.n[4] > 10000)) die("swipe: MS is 1 to 10000");
       break;
     case SLEEP:
-      if (!seconds(a[0], &c.secs)) die("sleep: '%s' isn't a number of seconds", a[0]);
+      if (!seconds(a[0], &c.secs) || c.secs > 3600) die("sleep: '%s' isn't a number of seconds, up to 3600", a[0]);
       break;
     case RECORD:
       if (!seconds(a[0], &c.secs) || c.secs <= 0 || c.secs > 10) die("record: SECONDS is more than 0, up to 10");
@@ -639,12 +662,20 @@ int main(int argc, char **argv) {
   setfsgid(getgid());
   if ((uid_t)setfsuid(-1) != getuid() || (gid_t)setfsgid(-1) != getgid()) die("couldn't drop to the caller's file permissions");
 
+  for (int i = 0; i < ncmds; i++) {
+    if (cmds[i].cmd == SCREENSHOT && cmds[i].path && strcmp(cmds[i].path, "-")) check_path(cmds[i].path);
+    if (cmds[i].cmd != RECORD) continue;
+    for (int j = 0; j < i; j++)
+      if (cmds[j].cmd == RECORD && !strcmp(cmds[j].path, cmds[i].path)) die("two records into %s would mix their frames", cmds[i].path);
+    check_record_dir(cmds[i].path);
+  }
   if (gestures) {
     touch_open();
     for (int i = 0; i < ncmds; i++)
       for (int j = 0; j < (cmds[i].cmd == TAP ? 2 : cmds[i].cmd == SWIPE ? 4 : 0); j += 2) on_screen(cmds[i].n[j], cmds[i].n[j + 1]);
     struct sigaction sa = {.sa_handler = lift_and_exit};
-    for (int sig = 0, sigs[] = {SIGINT, SIGTERM, SIGHUP, SIGPIPE}; sig < 4; sig++) sigaction(sigs[sig], &sa, NULL);
+    int sigs[] = {SIGINT, SIGTERM, SIGHUP, SIGPIPE};
+    for (int i = 0; i < 4; i++) sigaction(sigs[i], &sa, NULL);
   }
 
   Frame before = {0};  // the screen just before the last gesture
@@ -674,8 +705,11 @@ int main(int argc, char **argv) {
     } else if (c.cmd == RECORD) {
       record(c.secs, c.path);
     } else {
-      grab(&before, 1);
-      gestured = c.cmd;
+      // only screenshots use the frame from before a gesture, so skip copying it otherwise
+      int looks_later = 0;
+      for (int j = i + 1; j < ncmds; j++) looks_later |= cmds[j].cmd == SCREENSHOT;
+      if (looks_later) grab(&before, 1);
+      gestured = looks_later ? c.cmd : -1;
       if (c.cmd == TAP) {
         down(n[0], n[1]);
         nap(0.1);
