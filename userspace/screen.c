@@ -40,7 +40,7 @@ static const char *USAGE =
   "                             end, up to 200MB: about 540 frames on a comma four, 110 on a comma 3x.\n"
   "                             stderr reports the frame rate it caught, which on a comma 3x is below\n"
   "                             the display's, and the longest gap between frames\n"
-  "  sleep SECONDS\n"
+  "  sleep SECONDS              up to 3600\n"
   "\n"
   "Commands run in order, so one call can act and then look. Taps and swipes are\n"
   "spaced so each one registers, so typing on the keyboard is just a run of taps:\n"
@@ -550,11 +550,13 @@ static void check_record_dir(const char *dir) {
   for (struct dirent *e; (e = readdir(d));)
     if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) die("%s isn't empty, so its frames would mix with these", dir);
   closedir(d);
-  if (access(dir, W_OK)) die("can't write to %s on the device", dir);
+  if (access(dir, W_OK)) die("can't write to %s on the device (%s)", dir, strerror(errno));
 }
 
 // checks a screenshot PATH can be written, before anything runs
 static void check_path(const char *path) {
+  struct stat st;
+  if (!stat(path, &st) && S_ISDIR(st.st_mode)) die("%s is a directory on the device; give a file name", path);
   if (!access(path, F_OK)) {
     if (access(path, W_OK)) die("can't write %s on the device (%s). to save it locally, leave out PATH and redirect stdout", path, strerror(errno));
     return;
@@ -705,9 +707,9 @@ int main(int argc, char **argv) {
     } else if (c.cmd == RECORD) {
       record(c.secs, c.path);
     } else {
-      // only screenshots use the frame from before a gesture, so skip copying it otherwise
+      // only a screenshot before the next gesture compares against this frame, so skip copying it otherwise
       int looks_later = 0;
-      for (int j = i + 1; j < ncmds; j++) looks_later |= cmds[j].cmd == SCREENSHOT;
+      for (int j = i + 1; j < ncmds && cmds[j].cmd != TAP && cmds[j].cmd != SWIPE; j++) looks_later |= cmds[j].cmd == SCREENSHOT;
       if (looks_later) grab(&before, 1);
       gestured = looks_later ? c.cmd : -1;
       if (c.cmd == TAP) {
