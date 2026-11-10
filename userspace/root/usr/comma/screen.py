@@ -3,7 +3,7 @@
 
 usage: /usr/comma/screen.py COMMAND [COMMAND ...]
 
-  screenshot [PATH]          PNG of the screen, upright. waits up to 3s for it to stop changing.
+  screenshot [PATH]          PNG of the screen, upright, once it stops changing (up to 3s).
                              PATH defaults to stdout when that isn't a terminal, else /tmp/screen.png
   tap X Y                    tap at screenshot pixel X, Y, origin top left
   swipe X0 Y0 X1 Y1 [MS]     drag from X0, Y0 to X1, Y1 over MS milliseconds (default 300).
@@ -20,7 +20,7 @@ Only one screenshot can go to stdout; give the others a PATH on the device.
 
 Screenshots are small enough that viewers show them at full size, and taps use
 the same pixels. stdout only carries the PNG. stderr reports each screenshot's
-size, and says when the screen was still changing after the wait.
+size, and says if parts of it are animating, or it was still changing after 3s.
 
 Run it as is, not with python3 or sudo. Screenshots read the buffer being
 scanned out. Touches are written to the touchscreen's own event node, so every
@@ -159,26 +159,33 @@ def _grab(fd):
   raise RuntimeError("the screen kept flipping during the copy")
 
 
-def screenshot(settle=3.0):
+def screenshot(timeout=3.0):
   """Upright RGB array (height, width, 3) of what the panel is scanning out,
-  and whether it stopped changing.
+  and how it ended: "settled", "animating" or "changing".
 
-  Waits up to `settle` seconds for the screen to stop changing, ignoring
-  changes as small as a blinking cursor.
+  Waits for the screen to be still for 0.4s, or for only small parts of it
+  (a shimmer, a cursor) to keep changing for 1s, up to `timeout` seconds.
   """
   fd = os.open("/dev/dri/card0", os.O_RDWR | os.O_CLOEXEC)
   try:
     fcntl.ioctl(fd, _SET_CLIENT_CAP, _Cap(_UNIVERSAL_PLANES, 1))
-    deadline = time.monotonic() + settle
-    img, settled = _grab(fd), False
-    while not settled and time.monotonic() < deadline:
-      time.sleep(0.15)
+    start = time.monotonic()
+    img, state, history = _grab(fd), "changing", []  # (time, fraction of pixels changed)
+    while time.monotonic() - start < timeout:
+      time.sleep(0.05)
       prev, img = img, _grab(fd)
-      settled = np.count_nonzero((prev != img).any(axis=2)) < img.shape[0] * img.shape[1] // 1000
+      now = time.monotonic()
+      history.append((now, np.count_nonzero((prev[::2, ::2] != img[::2, ::2]).any(axis=2)) / prev[::2, ::2, 0].size))
+      if now - start >= 0.4 and all(c < 0.01 for t, c in history if t > now - 0.4):
+        state = "settled"
+        break
+      if now - start >= 1.0 and all(c < 0.1 for t, c in history if t > now - 1.0):
+        state = "animating"
+        break
     h, w, _ = img.shape
     n = _scale(w, h)
     img = img[:h - h % n, :w - w % n].reshape(h // n, n, w // n, n, 3).mean(axis=(1, 3)).astype(np.uint8)
-    return np.rot90(img, _rotation()), settled
+    return np.rot90(img, _rotation()), state
   finally:
     os.close(fd)
 
@@ -306,7 +313,7 @@ def main(argv):
   try:
     for cmd, *args in cmds:
       if cmd == "screenshot":
-        img, settled = screenshot()
+        img, state = screenshot()
         path = args[0] if args else ("/tmp/screen.png" if sys.stdout.isatty() else "-")
         if path == "-":
           write_png(img, sys.stdout.buffer)
@@ -315,7 +322,8 @@ def main(argv):
           with open(path, "wb") as f:
             write_png(img, f)
         print(f"screenshot {img.shape[1]}x{img.shape[0]}" + ("" if path == "-" else f" saved to {path}") +
-              ("" if settled else ", still changing after 3s"), file=sys.stderr)
+              {"settled": "", "animating": ", parts of it are animating", "changing": ", still changing after 3s"}[state],
+              file=sys.stderr)
       elif cmd == "sleep":
         time.sleep(float(args[0]))
       else:
