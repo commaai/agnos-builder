@@ -18,7 +18,7 @@ Sizes: system <before> → <after>, boot <before> → <after>
 
 ## Release Checklist
 
-- [ ] [`tests/test_agnos.py`](tests/test_agnos.py) passes after every boot
+- [ ] [`/usr/comma/test_agnos.py`](userspace/root/usr/comma/test_agnos.py) passes after every boot
   - [ ] 10/10 cold boots
   - [ ] 10/10 warm boots
 - [ ] [`test_onroad`](https://github.com/commaai/openpilot/blob/master/openpilot/selfdrive/test/test_onroad.py) passes 20/20

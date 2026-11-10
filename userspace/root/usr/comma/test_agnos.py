@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# Run on a device with openpilot stopped: python3 test_agnos.py
+#!/usr/local/venv/bin/python
+# run with openpilot stopped
 import glob
 import importlib
 import importlib.metadata
