@@ -159,6 +159,7 @@ class TestAgnos(unittest.TestCase):
     finally:
       p.terminate()
       p.wait()
+      p.stdout.close()
 
   def test_magic_handoff(self):
     pid = run("systemctl", "show", "-P", "MainPID", "magic.service")
@@ -226,6 +227,10 @@ class TestAgnos(unittest.TestCase):
   def test_adb_toggle(self):
     # adbd only talks over USB, so check it's running with the USB gadget bound to the port.
     # disabling ADB unbinds the gadget, which drops USB networking until it's re-enabled
+    ssh = os.environ.get("SSH_CONNECTION", "").split()
+    if len(ssh) == 4 and f" {ssh[2]}/" in run("ip", "-o", "addr", "show", "usb0"):
+      self.skipTest("this SSH session runs over USB")
+
     def gadget_bound():
       try:
         with open("/config/usb_gadget/g1/UDC") as f:
