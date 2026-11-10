@@ -21,6 +21,7 @@ Only one screenshot can go to stdout; give the others a PATH on the device.
 Screenshots are small enough that viewers show them at full size, and taps use
 the same pixels. stdout only carries the PNG. stderr reports each screenshot's
 size, and says if parts of it are animating, or it was still changing after 3s.
+It exits non-zero only on errors.
 
 It reruns itself as root in its venv. Screenshots read the buffer being
 scanned out. Touches are written to the touchscreen's own event node, so every
@@ -98,6 +99,8 @@ _GETPLANERESOURCES = _iowr(0xB5, ctypes.sizeof(_PlaneRes))
 _GETPLANE = _iowr(0xB6, ctypes.sizeof(_Plane))
 _PRIME_HANDLE_TO_FD = _iowr(0x2D, ctypes.sizeof(_Prime))
 _UNIVERSAL_PLANES = 2
+_DMA_BUF_SYNC = (1 << 30) | (8 << 16) | (ord("b") << 8) | 0
+_SYNC_READ, _SYNC_START, _SYNC_END = 1, 0, 4
 
 # byte offsets of R, G, B in each little-endian 32-bit pixel
 _FORMATS = {b"AB24": (0, 1, 2), b"XB24": (0, 1, 2), b"AR24": (2, 1, 0), b"XR24": (2, 1, 0)}
@@ -140,9 +143,12 @@ def _read_fb(fd, fb_id):
     fcntl.ioctl(fd, _PRIME_HANDLE_TO_FD, prime)
     try:
       with mmap.mmap(prime.fd, fb.pitch * fb.height, mmap.MAP_SHARED, mmap.PROT_READ) as m:
+        # so the CPU sees what the GPU wrote, not stale cache lines
+        fcntl.ioctl(prime.fd, _DMA_BUF_SYNC, struct.pack("Q", _SYNC_START | _SYNC_READ))
         px = np.frombuffer(m, np.uint8).reshape(fb.height, fb.pitch)[:, :fb.width * 4].reshape(fb.height, fb.width, 4)
         img = px[:, :, list(_FORMATS[fourcc])]
         del px  # the mmap can't close while a view of it exists
+        fcntl.ioctl(prime.fd, _DMA_BUF_SYNC, struct.pack("Q", _SYNC_END | _SYNC_READ))
       return img
     finally:
       os.close(prime.fd)
