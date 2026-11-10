@@ -1,1 +1,2 @@
-PATH="/usr/local/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
+PATH="/usr/comma/shims:/usr/local/.cargo/bin:/usr/local/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
+PYTHONPATH="/data/pythonpath"
