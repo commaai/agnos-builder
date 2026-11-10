@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+# Run on a device with openpilot stopped: python3 test_agnos.py
+import glob
+import importlib
+import importlib.metadata
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+
+PARAMS = "/data/params/d"
+ZIPAPPS = {
+  "/usr/comma/setup": "openpilot.system.ui.setup",
+  "/usr/comma/reset": "openpilot.system.ui.reset",
+  "/usr/comma/updater": "openpilot.system.ui.updater",
+}
+# signs of a crash, restart loop or broken filesystem
+JOURNAL_ERRORS = ["segfault", "core dumped", "Traceback (most recent call last)", "Main process exited, code=",
+                  "start request repeated too quickly", "Failed to start", "Out of memory", "Memory cgroup out of memory", "oom-kill",
+                  "EXT4-fs error", "I/O error"]
+# process names allowed to listen on anything but loopback
+LISTENERS = {"sshd", "avahi-daemon"}
+MAX_BOOT_TIME = 5  # seconds from kernel start to magic
+# without /data/pythonpath, like after a factory reset
+NO_DATA_ENV = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+
+
+def run(*cmd):
+  return subprocess.run(cmd, capture_output=True, text=True).stdout.strip()
+
+def wait_for(f, timeout=10):
+  end = time.monotonic() + timeout
+  while time.monotonic() < end:
+    if f():
+      return True
+    time.sleep(0.1)
+  return f()
+
+def is_active(unit):
+  return run("systemctl", "is-active", unit) == "active"
+
+
+class ParamToggle:
+  def __init__(self, name, watcher):
+    self.path = os.path.join(PARAMS, name)
+    self.watcher = watcher
+
+  def __enter__(self):
+    try:
+      with open(self.path) as f:
+        self.orig = f.read()
+    except FileNotFoundError:
+      self.orig = None
+    return self
+
+  def set(self, enabled, check):
+    with open(self.path, "w") as f:
+      f.write("1" if enabled else "0")
+    # the watcher misses changes made while it's still running
+    return wait_for(lambda: check() and run("systemctl", "is-active", self.watcher) == "inactive")
+
+  def __exit__(self, *args):
+    if self.orig is None:
+      os.remove(self.path)
+    else:
+      with open(self.path, "w") as f:
+        f.write(self.orig)
+
+
+class TestAgnos(unittest.TestCase):
+  def test_no_failed_units(self):
+    self.assertEqual(run("systemctl", "list-units", "--failed", "--plain", "--no-legend"), "")
+
+  def test_system_running(self):
+    self.assertEqual(run("systemctl", "is-system-running"), "running")
+
+  def test_no_journal_errors(self):
+    journal = run("journalctl", "-b", "--no-pager", "-o", "cat")
+    for s in JOURNAL_ERRORS:
+      self.assertNotIn(s, journal)
+
+  def test_no_kernel_crashes(self):
+    dmesg = run("sudo", "dmesg")
+    for s in ("Internal error: Oops", "BUG:", "Kernel panic"):
+      self.assertNotIn(s, dmesg)
+
+  def test_boot_time(self):
+    t = int(run("systemctl", "show", "-P", "ActiveEnterTimestampMonotonic", "magic.service")) / 1e6
+    self.assertGreater(t, 0)
+    self.assertLess(t, MAX_BOOT_TIME)
+
+  def test_rootfs_readonly(self):
+    self.assertTrue(os.statvfs("/").f_flag & os.ST_RDONLY)
+
+  def test_open_ports(self):
+    for line in run("sudo", "ss", "-tulpnH").splitlines():
+      local = line.split()[4]
+      if local.startswith(("127.", "[::1]")):
+        continue
+      self.assertTrue(any(f'"{p}"' in line for p in LISTENERS), line)
+
+  def test_no_unit_restarts(self):
+    for unit in run("systemctl", "show", "-p", "Id,NRestarts", "*.service").split("\n\n"):
+      self.assertIn("NRestarts=0", unit)
+
+  def test_no_previous_panics(self):
+    self.assertEqual([f for f in os.listdir("/sys/fs/pstore") if f.startswith("dmesg-")], [])
+
+  def test_subsystems(self):
+    for d in glob.glob("/sys/bus/msm_subsys/devices/*"):
+      with open(f"{d}/name") as f:
+        name = f.read().strip()
+      with open(f"{d}/crash_count") as f:
+        self.assertEqual(f.read().strip(), "0", name)
+      if name in ("adsp", "cdsp", "modem"):
+        with open(f"{d}/state") as f:
+          self.assertEqual(f.read().strip(), "ONLINE", name)
+
+  def test_boot_slot(self):
+    with open("/proc/cmdline") as f:
+      slot = f.read().split("androidboot.slot_suffix=")[1].split()[0]
+    self.assertEqual(run("abctl", "--boot_slot"), slot)
+    self.assertEqual(os.stat("/").st_dev, os.stat(f"/dev/disk/by-partlabel/system{slot}").st_rdev)
+
+  def test_set_success_doesnt_write(self):
+    def writes():
+      os.sync()
+      with open("/sys/block/sde/stat") as f:
+        return int(f.read().split()[4])
+
+    subprocess.run(["sudo", "abctl", "--set_success"], check=True)
+    before = writes()
+    subprocess.run(["sudo", "abctl", "--set_success"], check=True)
+    self.assertEqual(writes(), before)
+
+  def test_input_hotplug(self):
+    # a fake input device that goes away with the process
+    code = "import evdev, time; ui = evdev.UInput(name='test_agnos'); print(ui.device.path, flush=True); time.sleep(30)"
+    p = subprocess.Popen(["sudo", sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
+    try:
+      node = p.stdout.readline().strip()
+      self.assertTrue(node.startswith("/dev/input/event"), node)
+      self.assertTrue(wait_for(lambda: os.access(node, os.R_OK | os.W_OK)))
+    finally:
+      p.terminate()
+      p.wait()
+
+  def test_magic_handoff(self):
+    pid = run("systemctl", "show", "-P", "MainPID", "magic.service")
+    for _ in range(5):
+      with socket.socket(socket.AF_UNIX) as s:
+        s.settimeout(5)
+        s.connect("/tmp/drmfd.sock")
+        _, fds, _, _ = socket.recv_fds(s, 1, 1)
+        self.assertEqual(len(fds), 1)
+        os.close(fds[0])
+    self.assertTrue(is_active("magic"))
+    self.assertEqual(run("systemctl", "show", "-P", "MainPID", "magic.service"), pid)
+
+  def test_python_packages_import(self):
+    mods = set()
+    for d in importlib.metadata.distributions():
+      for f in d.files or []:
+        if len(f.parts) == 1 and (f.name.endswith(".py") or ".cpython-" in f.name):
+          mods.add(f.name.split(".")[0])
+        elif len(f.parts) == 2 and f.name == "__init__.py":
+          mods.add(f.parts[0])
+
+    # without /data/pythonpath, like after a factory reset
+    path = sys.path[:]
+    sys.path[:] = [p for p in sys.path if not p.startswith("/data")]
+    try:
+      for m in sorted(mods):
+        if m.isidentifier() and not m.startswith("_"):
+          with self.subTest(module=m):
+            importlib.import_module(m)
+    finally:
+      sys.path[:] = path
+
+  def test_zipapps_import(self):
+    for app, module in ZIPAPPS.items():
+      with self.subTest(app=app):
+        p = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, '{app}'); import {module}"],
+                           cwd="/", env=NO_DATA_ENV, capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stderr)
+
+  def test_ssh_toggle(self):
+    keys = "/tmp/authorized_keys"
+    with tempfile.TemporaryDirectory() as d, ParamToggle("SshEnabled", "ssh-param-watcher.service") as p:
+      key = os.path.join(d, "key")
+      subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key], check=True)
+      orig = os.path.join(d, "authorized_keys")
+      if os.path.exists(keys):
+        shutil.copy(keys, orig)
+      subprocess.run(f"sudo tee -a {keys} < {key}.pub > /dev/null", shell=True, check=True)
+
+      def can_ssh():
+        return subprocess.run(["ssh", "-i", key, "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+                               "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=2", "comma@127.0.0.1", "true"],
+                              capture_output=True).returncode == 0
+
+      try:
+        self.assertTrue(p.set(False, lambda: not can_ssh()))
+        self.assertTrue(p.set(True, can_ssh))
+      finally:
+        if os.path.exists(orig):
+          subprocess.run(["sudo", "cp", orig, keys], check=True)
+        else:
+          subprocess.run(["sudo", "rm", "-f", keys], check=True)
+
+  def test_adb_toggle(self):
+    # adbd only talks over USB, so check it's running with the USB gadget bound to the port.
+    # disabling ADB unbinds the gadget, which drops USB networking until it's re-enabled
+    def gadget_bound():
+      try:
+        with open("/config/usb_gadget/g1/UDC") as f:
+          return f.read().strip() != ""
+      except FileNotFoundError:
+        return False
+
+    with ParamToggle("AdbEnabled", "adb-param-watcher.service") as p:
+      self.assertTrue(p.set(False, lambda: not is_active("adbd") and not gadget_bound()))
+      self.assertTrue(p.set(True, lambda: is_active("adbd") and gadget_bound()))
+
+
+if __name__ == "__main__":
+  unittest.main()
