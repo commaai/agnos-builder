@@ -10,9 +10,13 @@ usage: /usr/comma/screen.py COMMAND [COMMAND ...]
                              scrollers fling on fast swipes; use ~1000 to stop where the finger does
   sleep SECONDS
 
-Commands run in order, so one call can act and then look:
+Commands run in order, so one call can act and then look. Taps and swipes are
+spaced so each one registers, so typing on the keyboard is just a run of taps:
 
   ssh DEVICE /usr/comma/screen.py tap 315 120 screenshot > after.png
+  ssh DEVICE /usr/comma/screen.py screenshot /tmp/before.png tap 315 120 screenshot > after.png
+
+Only one screenshot can go to stdout; give the others a PATH on the device.
 
 Screenshots are small enough that viewers show them at full size, and taps use
 the same pixels. stdout only carries the PNG. stderr reports each screenshot's
@@ -278,6 +282,8 @@ def parse(argv):
       cmds[-1].append(arg)
     else:
       raise ValueError(f"unexpected {arg!r}")
+  if sum(c == ["screenshot"] or c == ["screenshot", "-"] for c in cmds) > 1:
+    raise ValueError("only one screenshot can go to stdout, give the others a PATH")
   for cmd, *args in cmds:
     if len(args) < ARITY[cmd][0]:
       raise ValueError(f"{cmd} needs {ARITY[cmd][0]} arguments")
