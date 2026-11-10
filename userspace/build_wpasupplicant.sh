@@ -19,3 +19,9 @@ sed -i '/^execute_after_dh_installexamples:/,+1d' debian/rules
 DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -b -uc -us -P"$profiles"
 cp ../wpasupplicant_*+agnos1_*.deb /tmp/agnos/wpasupplicant.deb
 
+# wpa_supplicant_prepare.sh sets aside a config this message is printed for, so Wi-Fi doesn't stay down for good
+dpkg-deb -x /tmp/agnos/wpasupplicant.deb /tmp/wpa-build/root
+echo "not_a_field=1" > /tmp/wpa-build/unreadable.conf
+/tmp/wpa-build/root/usr/sbin/wpa_supplicant -i agnos-check -D wired -c /tmp/wpa-build/unreadable.conf 2>&1 |
+  grep -q "Failed to read or parse configuration" ||
+  { echo "wpa_supplicant no longer says it can't read a config: update wpa_supplicant_prepare.sh"; exit 1; }
