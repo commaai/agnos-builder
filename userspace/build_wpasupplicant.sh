@@ -2,8 +2,8 @@
 
 # Ubuntu's wpasupplicant, with a config writer that only replaces the config with one it wrote completely and can
 # read back: upstream's fixes from after 2.10, plus checking the final flush (on a full /data, SAVE_CONFIG replied
-# OK and left an empty config) and writing a value with a # in hex. Built from the version apt would install now,
-# and a patch that no longer applies fails it
+# OK and left an empty config) and writing a value with a # in hex. Built from the version apt would install now
+# (base_setup.sh fails if a cached build of this stage falls behind it), and a patch that no longer applies fails it
 profiles=pkg.wpa.nogui,nodoc,noudeb  # no GUI, docs or installer udeb
 sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
 apt-get update
