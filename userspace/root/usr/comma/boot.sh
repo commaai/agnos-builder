@@ -152,6 +152,14 @@ function set_restart_levels {
   echo related | tee /sys/bus/msm_subsys/devices/subsys*/restart_level > /dev/null
 }
 
+function start_gpu {
+  wait_mount /firmware
+  wait_restart_levels
+  # The first open loads the zap firmware. Finish before wifi.service boots
+  # the modem, so model startup cannot get stuck behind its notifications.
+  : < /dev/kgsl-3d0
+}
+
 function start_venus {
   wait_mount /firmware
   until [ -e /dev/video33 ]; do
@@ -334,6 +342,7 @@ run_init mount_tmp
 run_init mount_var
 run_init mount_home
 run_init set_restart_levels
+run_init start_gpu
 run_init start_venus
 run_init start_cdsp
 run_init start_sound
