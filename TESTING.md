@@ -46,11 +46,12 @@ On the comma rack, https://chestnut.comma.life explains how to do each of these 
   - [ ] release AGNOS, candidate openpilot
   - [ ] candidate AGNOS, release openpilot
   - [ ] candidate AGNOS, candidate openpilot
-- [ ] Color calibration works from `/persist/comma/`
-  - [ ] tizi: `journalctl -u magic | grep 'Successfully setup color correction'`
-  - [ ] mici: `journalctl -u magic | grep 'Successfully setup screen calibration'`
-- [ ] Display works at 60FPS: `SHOW_FPS=1 /data/openpilot/openpilot/selfdrive/ui/ui.py`
-- [ ] Display stays on and calibrated after restarting `ui.py` 5 times
+- [ ] Graphics
+  - [ ] 60FPS: `SHOW_FPS=1 /data/openpilot/openpilot/selfdrive/ui/ui.py`
+  - [ ] stays on and calibrated after restarting `ui.py` 5 times
+  - [ ] color calibration from `/persist/comma/`
+    - [ ] tizi: `journalctl -u magic | grep 'Successfully setup color correction'`
+    - [ ] mici: `journalctl -u magic | grep 'Successfully setup screen calibration'`
 
 ### ABL
 
