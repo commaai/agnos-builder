@@ -197,6 +197,9 @@ function set_hostname {
   echo "comma-$serial" > /proc/sys/kernel/hostname
 }
 
+# Configure built-in devices once during boot. They must enumerate before this
+# function completes; late registration or reprobe is not supported.
+# Only devices designed for hotplug, such as USB, receive ongoing event handling.
 function setup_devices {
   # all of these should be there, so a missing one fails boot and the command that hit it says which.
   # keep going so it doesn't take the rest with it, and fail at the end
