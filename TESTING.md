@@ -66,11 +66,11 @@ On the comma rack, https://chestnut.comma.life explains how to do each of these 
 ### Setup
 
 - Not a real URL (e.g. `comma`, `abc123`, `...`)
-  - [ ] "Ensure the entered URL is valid"
-  - [ ] Start over
+  - [ ] says it's invalid. tizi: "Ensure the entered URL is valid", mici: "Invalid URL"
+  - [ ] try again. tizi: Start over, mici: swipe down
   - [ ] Reboot device
 - Website but not an installer URL (e.g. `github.com`, `comma.ai`, `installer.comma.ai`)
-  - [ ] "No custom software found at this URL."
+  - [ ] "No custom software found at this URL"
 - Valid installer URL (e.g. `openpilot.comma.ai`)
   - [ ] Download successful (comma logo or installer appears)
   - [ ] `/tmp/installer_url` should contain the installer URL
