@@ -13,11 +13,8 @@ import time
 import unittest
 
 PARAMS = "/data/params/d"
-ZIPAPPS = {
-  "/usr/comma/setup": "openpilot.system.ui.setup",
-  "/usr/comma/reset": "openpilot.system.ui.reset",
-  "/usr/comma/updater": "openpilot.system.ui.updater",
-}
+APPS = ("/usr/comma/setup", "/usr/comma/reset", "/usr/comma/updater")
+
 # signs of a crash, restart loop or broken filesystem
 JOURNAL_ERRORS = ["segfault", "core dumped", "Traceback (most recent call last)", "Main process exited, code=",
                   "start request repeated too quickly", "Failed to start", "Out of memory", "Memory cgroup out of memory", "oom-kill",
@@ -193,12 +190,15 @@ class TestAgnos(unittest.TestCase):
     finally:
       sys.path[:] = path
 
-  def test_zipapps_import(self):
-    for app, module in ZIPAPPS.items():
+  def test_standalone_apps_start(self):
+    # Native apps cannot be imported through sys.path. Render two frames without
+    # accessing DRM or waiting for a person, then let the normal render loop exit.
+    env = NO_DATA_ENV | {"RAYLIB_BACKEND": "headless", "PROFILE_RENDER": "2", "PROFILE_STATS": "1"}
+    for app in APPS:
       with self.subTest(app=app):
-        p = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, '{app}'); import {module}"],
-                           cwd="/", env=NO_DATA_ENV, capture_output=True, text=True)
-        self.assertEqual(p.returncode, 0, p.stderr)
+        p = subprocess.run([app, "/bin/false", "/nonexistent"], cwd="/", env=env,
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, p.stderr + p.stdout)
 
   def test_ssh_toggle(self):
     keys = "/tmp/authorized_keys"
