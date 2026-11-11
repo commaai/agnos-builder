@@ -49,9 +49,6 @@ On the comma rack, https://chestnut.comma.life explains how to do each of these 
 - [ ] Color calibration works from `/persist/comma/`
   - [ ] tizi: `journalctl -u magic | grep 'Successfully setup color correction'`
   - [ ] mici: `journalctl -u magic | grep 'Successfully setup screen calibration'`
-- [ ] AGNOS update works on warm boot, through the updater UI
-  - [ ] previous -> new
-  - [ ] new -> previous
 - [ ] Display works at 60FPS: `SHOW_FPS=1 /data/openpilot/openpilot/selfdrive/ui/ui.py`
 - [ ] Display stays on and calibrated after restarting `ui.py` 5 times
 
