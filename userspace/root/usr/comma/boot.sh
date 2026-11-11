@@ -1,7 +1,19 @@
 #!/bin/bash
-# each init starts immediately in the background and waits for whatever it needs itself
 
-# boot.service's timeout has to stay above this
+# ******************************************************************************************
+# boot.sh: a single script to boot comma devices. the boot.sh philosophy:
+# > booting is effectively kernel -> boot.sh -> app (e.g. openpilot). boot.sh should be able
+#   to function as an init directly without a traditional init system like systemd.
+# > for speed, each init function starts immediately and runs in the background
+# > for locality, each init function manages its own dependencies
+# > no late handling. the state once boot.sh is done is the state the system will remain in,
+#   with specific exceptions, such as USB devices the user may hotplug.
+# > fail loudly. nothing is optional and any failure results in a failed exit code
+# > failures should be contained and have defined error states. a single failed mount or 
+#   subsystem boot does not hang the whole process or impact the rest of the system
+# ******************************************************************************************
+
+# boot.service's systemd timeout has to stay above this
 INIT_TIMEOUT=120
 PARTITION_TIMEOUT=5
 # above PARTITION_TIMEOUT, a mount still has to find its partition and maybe format it
@@ -160,7 +172,7 @@ function start_sound {
   wait_mount /firmware
   wait_restart_levels
 
-  # TODO: is this needed?
+  # TODO: is this debug flag needed?
   echo 1 > /sys/module/subsystem_restart/parameters/enable_debug
   echo 1 > /sys/kernel/boot_adsp/boot
 
