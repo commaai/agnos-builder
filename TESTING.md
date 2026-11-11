@@ -9,7 +9,11 @@ openpilot PR titled `AGNOS <VERSION>`:
 - <what changed, most noticeable first>
 
 Build: agnos-builder <commit link>, diff from [master's AGNOS](https://github.com/commaai/agnos-builder/compare/<master AGNOS>...<commit>) and [release's AGNOS](https://github.com/commaai/agnos-builder/compare/<release AGNOS>...<commit>)
-Sizes: system <before> → <after>, boot <before> → <after>
+
+|        | release AGNOS | this AGNOS |
+|--------|---------------|------------|
+| system |               |            |
+| boot   |               |            |
 
 ## Release Checklist
 
@@ -34,8 +38,7 @@ On the comma rack, https://chestnut.comma.life explains how to do each of these 
   - [ ] 10/10 warm boots
 - [ ] [`test_onroad`](https://github.com/commaai/openpilot/blob/master/openpilot/selfdrive/test/test_onroad.py) passes 20/20
 - [ ] Wi-Fi: lists networks and connects
-- [ ] Modem: connects to cell network
-- [ ] Image sizes haven't increased
+- [ ] Modem sees the SIM and a cell tower, no data plan needed: `/dev/shm/modem` has an `iccid` and a `signal_strength`
 - [ ] Sounds work: the mic picks up a sound played on the speaker: `pkill -f manager ; /data/openpilot/scripts/disable-powersave.py && (arecord -q -d 3 -f S16_LE -r 48000 /tmp/rec.wav & aplay -q /data/openpilot/openpilot/selfdrive/assets/sounds/engage.wav; wait)`
 - [ ] Clean openpilot build: `scons -c && ./openpilot/system/manager/build.py`
 - [ ] Factory reset
