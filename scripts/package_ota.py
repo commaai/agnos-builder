@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import argparse
 import json
 import os
 import hashlib
@@ -194,14 +193,10 @@ def process_file(entry, checksums):
 
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser()
-  parser.add_argument("--ota-only", action="store_true", help="Package only A/B OTA partitions")
-  args = parser.parse_args()
-
   OTA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
   # Hash in parallel, but keep compression and manifest order deterministic.
-  entries = [entry for entry in GPTS + PARTITIONS if not args.ota_only or entry.ota]
+  entries = GPTS + PARTITIONS
   with ThreadPoolExecutor(max_workers=4) as executor:
     checksums = executor.map(checksum, entries)
     files = [(process_file(entry, hashes), entry.ota) for entry, hashes in zip(entries, checksums)]
@@ -214,8 +209,6 @@ if __name__ == "__main__":
     (AGNOS_STAGING_UPDATE_URL, "all-partitions-staging.json", False),
   ]
   for remote_url, output_fn, only_ota in configs:
-    if args.ota_only and not only_ota:
-      continue
     processed_files = []
     for f, ota in deepcopy(files):
       if only_ota and not ota:
