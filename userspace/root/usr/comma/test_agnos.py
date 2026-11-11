@@ -131,6 +131,9 @@ class TestAgnos(unittest.TestCase):
       local = line.split()[4]
       if local.startswith(("127.", "[::1]")):
         continue
+      # ss -l includes timesyncd's unconnected UDP client socket during NTP queries.
+      if line.startswith("udp ") and '"systemd-timesyn"' in line:
+        continue
       self.assertTrue(any(f'"{p}"' in line for p in LISTENERS), line)
 
   def test_no_unit_restarts(self):
