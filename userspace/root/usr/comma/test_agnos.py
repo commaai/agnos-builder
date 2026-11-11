@@ -1,11 +1,13 @@
 #!/usr/local/venv/bin/python
 # run with openpilot stopped
+import fcntl
 import glob
 import importlib
 import importlib.metadata
 import os
 import shutil
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -22,6 +24,8 @@ JOURNAL_ERRORS = ["segfault", "core dumped", "Traceback (most recent call last)"
 # process names allowed to listen on anything but loopback
 LISTENERS = {"sshd", "avahi-daemon"}
 MAX_BOOT_TIME = 5  # seconds from kernel start to magic
+DRM_IOCTL_WAIT_VBLANK = 0xC018643A
+DRM_VBLANK_RELATIVE = 0x1
 # without /data/pythonpath, like after a factory reset
 NO_DATA_ENV = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
 
@@ -39,6 +43,24 @@ def wait_for(f, timeout=10):
 
 def is_active(unit):
   return run("systemctl", "is-active", unit) == "active"
+
+def read(path):
+  with open(path) as f:
+    return f.read().strip("\0\n ")
+
+def refresh_rate(n=60):
+  """The panel's vblanks per second, whoever's drawing."""
+  with open("/dev/dri/card0", "rb", buffering=0) as f:
+    def vblank():
+      # struct drm_wait_vblank, with the request {type, sequence, signal} replaced by {type, sequence, sec, usec}
+      buf = bytearray(struct.pack("IIQ8x", DRM_VBLANK_RELATIVE, 1, 0))
+      fcntl.ioctl(f, DRM_IOCTL_WAIT_VBLANK, buf)
+      _, seq, sec, usec = struct.unpack("IIqq", buf)
+      return seq, sec + usec / 1e6
+    s0, t0 = vblank()
+    for _ in range(n):
+      s1, t1 = vblank()
+  return (s1 - s0) / (t1 - t0)
 
 
 class ParamToggle:
@@ -168,7 +190,18 @@ class TestAgnos(unittest.TestCase):
         self.assertEqual(len(fds), 1)
         os.close(fds[0])
     self.assertTrue(is_active("magic"))
+    # the same magic, so it hasn't lost the screen calibration
     self.assertEqual(run("systemctl", "show", "-P", "MainPID", "magic.service"), pid)
+    self.assertEqual(read("/sys/class/backlight/panel0-backlight/bl_power"), "0")
+    self.assertGreater(int(read("/sys/class/backlight/panel0-backlight/brightness")), 0)
+    self.assertAlmostEqual(refresh_rate(), 60, delta=1)
+
+  def test_screen_calibration(self):
+    journal = run("journalctl", "-b", "-u", "magic", "-o", "cat")
+    if "mici" in read("/sys/firmware/devicetree/base/model"):
+      self.assertTrue("Successfully setup screen calibration" in journal, "magic didn't set the gamma curves")
+    else:
+      self.assertTrue("Successfully setup color correction" in journal, "magic didn't set the color correction")
 
   def test_python_packages_import(self):
     mods = set()

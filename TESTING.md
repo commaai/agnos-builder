@@ -5,11 +5,15 @@
 openpilot PR titled `AGNOS <VERSION>`:
 
 ```
-- ~33% faster cold boot: 4.45s → 3.00s
 - <what changed, most noticeable first>
 
 Build: agnos-builder <commit link>, diff from [master's AGNOS](https://github.com/commaai/agnos-builder/compare/<master AGNOS>...<commit>) and [release's AGNOS](https://github.com/commaai/agnos-builder/compare/<release AGNOS>...<commit>)
-Sizes: system <before> → <after>, boot <before> → <after>
+
+|              | release AGNOS | this AGNOS |
+|--------------|---------------|------------|
+| cold boot    |               |            |
+| system image |               |            |
+| boot image   |               |            |
 
 ## Release Checklist
 
@@ -34,8 +38,7 @@ On the comma rack, https://chestnut.comma.life explains how to do each of these 
   - [ ] 10/10 warm boots
 - [ ] [`test_onroad`](https://github.com/commaai/openpilot/blob/master/openpilot/selfdrive/test/test_onroad.py) passes 20/20
 - [ ] Wi-Fi: lists networks and connects
-- [ ] Modem: connects to cell network
-- [ ] Image sizes haven't increased
+- [ ] Modem sees the SIM and a cell tower, no data plan needed: `/dev/shm/modem` has an `iccid` and a `signal_strength`
 - [ ] Sounds work: the mic picks up a sound played on the speaker: `pkill -f manager ; /data/openpilot/scripts/disable-powersave.py && (arecord -q -d 3 -f S16_LE -r 48000 /tmp/rec.wav & aplay -q /data/openpilot/openpilot/selfdrive/assets/sounds/engage.wav; wait)`
 - [ ] Clean openpilot build: `scons -c && ./openpilot/system/manager/build.py`
 - [ ] Factory reset
@@ -43,18 +46,9 @@ On the comma rack, https://chestnut.comma.life explains how to do each of these 
   - [ ] tapping on boot: `echo 5 > /tmp/taps && sudo mount --bind /tmp/taps /sys/class/input/input2/device/touch_count && sudo rm /run/comma-booted && sudo systemctl restart comma`
   - [ ] corrupt userdata: `dd if=/dev/zero of=/dev/disk/by-partlabel/userdata count=10 bs=1M`
 - [ ] Clean setup: factory reset -> install openpilot -> openpilot works (candidate is this PR)
-  - [ ] release AGNOS, release openpilot
   - [ ] release AGNOS, candidate openpilot
   - [ ] candidate AGNOS, release openpilot
   - [ ] candidate AGNOS, candidate openpilot
-- [ ] Color calibration works from `/persist/comma/`
-  - [ ] tizi: `journalctl -u magic | grep 'Successfully setup color correction'`
-  - [ ] mici: `journalctl -u magic | grep 'Successfully setup screen calibration'`
-- [ ] AGNOS update works on warm boot, through the updater UI
-  - [ ] previous -> new
-  - [ ] new -> previous
-- [ ] Display works at 60FPS: `SHOW_FPS=1 /data/openpilot/openpilot/selfdrive/ui/ui.py`
-- [ ] Display stays on and calibrated after restarting `ui.py` 5 times
 
 ### ABL
 
@@ -71,13 +65,13 @@ On the comma rack, https://chestnut.comma.life explains how to do each of these 
 
 ### Setup
 
-- (a) Not a real URL (e.g. `comma`, `abc123`, `...`)
+- Not a real URL (e.g. `comma`, `abc123`, `...`)
   - [ ] "Ensure the entered URL is valid"
   - [ ] Start over
   - [ ] Reboot device
-- (b) Website but not an installer URL (e.g. `github.com`, `comma.ai`, `installer.comma.ai`)
+- Website but not an installer URL (e.g. `github.com`, `comma.ai`, `installer.comma.ai`)
   - [ ] "No custom software found at this URL."
-- (c) Valid installer URL (e.g. `openpilot.comma.ai`)
+- Valid installer URL (e.g. `openpilot.comma.ai`)
   - [ ] Download successful (comma logo or installer appears)
   - [ ] `/tmp/installer_url` should contain the installer URL
   - [ ] Boots into openpilot
