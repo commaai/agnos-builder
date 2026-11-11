@@ -43,7 +43,6 @@ On the comma rack, https://chestnut.comma.life explains how to do each of these 
   - [ ] tapping on boot: `echo 5 > /tmp/taps && sudo mount --bind /tmp/taps /sys/class/input/input2/device/touch_count && sudo rm /run/comma-booted && sudo systemctl restart comma`
   - [ ] corrupt userdata: `dd if=/dev/zero of=/dev/disk/by-partlabel/userdata count=10 bs=1M`
 - [ ] Clean setup: factory reset -> install openpilot -> openpilot works (candidate is this PR)
-  - [ ] release AGNOS, release openpilot
   - [ ] release AGNOS, candidate openpilot
   - [ ] candidate AGNOS, release openpilot
   - [ ] candidate AGNOS, candidate openpilot
