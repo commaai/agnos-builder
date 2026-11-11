@@ -1,38 +1,27 @@
 # testing
 
-## Release PR
+## Release PR template
 
 openpilot PR titled `AGNOS <VERSION>`:
 
 ```
+Diff from [release's AGNOS](https://github.com/commaai/agnos-builder/compare/<release AGNOS>...<commit>)
 - <what changed, most noticeable first>
 
-Build: agnos-builder <commit link>, diff from [master's AGNOS](https://github.com/commaai/agnos-builder/compare/<master AGNOS>...<commit>) and [release's AGNOS](https://github.com/commaai/agnos-builder/compare/<release AGNOS>...<commit>)
+Diff from [master's AGNOS](https://github.com/commaai/agnos-builder/compare/<master AGNOS>...<commit>)
+- <what changed, most noticeable first>
 
-|              | release AGNOS | this AGNOS |
-|--------------|---------------|------------|
-| cold boot    |               |            |
-| system image |               |            |
-| boot image   |               |            |
+Build: agnos-builder <commit link>
 
 ## Release Checklist
 
 ## Diff-specific checks
 ```
 
-## Running the tests
-
-1. Build the candidate: add `[upload]` to a commit message on the PR. When the build's done,
-   `https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-<number>/agnos.json` lists its images (~25 min).
-2. Flash its A/B images to slot a. `cat /VERSION` then matches the PR's `VERSION` file.
-3. With openpilot stopped (`pkill -f manager`), run `/usr/comma/test_agnos.py`. It passes when it ends with `OK` (skips are fine) and exits 0.
-4. A cold boot is a power cycle and a warm boot is `sudo reboot`.
-5. `/usr/comma/screen` looks at and taps the screen (run it with no arguments for usage).
-
-On the comma rack, https://chestnut.comma.life explains how to do each of these without a person.
-
 ## Release Checklist
 
+- [ ] Boot time hasn't regressed: <before> -> <after>
+- [ ] Image size hasn't regressed: <before> -> <after>
 - [ ] [`/usr/comma/test_agnos.py`](userspace/root/usr/comma/test_agnos.py) passes after every boot
   - [ ] 10/10 cold boots
   - [ ] 10/10 warm boots
