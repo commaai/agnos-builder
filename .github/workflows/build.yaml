@@ -80,7 +80,7 @@ jobs:
       env:
         AGNOS_UPDATE_URL: https://gitlab.com/commaai/ci-artifacts/-/raw/agnos-builder/pr-${{ github.event.number }}
       run: |
-        scripts/package_ota.py
+        scripts/package_ota.py --ota-only
 
     - name: Save PR number, VERSION and stats
       if: "contains(env.LAST_COMMIT_MESSAGE, '[upload]')"
