@@ -202,12 +202,8 @@ class TestAgnos(unittest.TestCase):
   def test_screen_calibration(self):
     journal = run("journalctl", "-b", "-u", "magic", "-o", "cat")
     if "mici" in read("/sys/firmware/devicetree/base/model"):
-      if not os.path.exists("/persist/comma/dwo_gamma_curves"):
-        self.skipTest("no gamma curves in /persist/comma")
       self.assertTrue("Successfully setup screen calibration" in journal, "magic didn't set the gamma curves")
     else:
-      if "No color correction values found" in journal:
-        self.skipTest("no color correction values")
       self.assertTrue("Successfully setup color correction" in journal, "magic didn't set the color correction")
 
   def test_python_packages_import(self):
