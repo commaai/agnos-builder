@@ -1,0 +1,19 @@
+[Unit]
+Description=Synchronize the clock once per boot
+After=boot.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -u /usr/comma/ntpd.py
+TimeoutStartSec=infinity
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=2
+CapabilityBoundingSet=CAP_SYS_TIME
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
