@@ -121,12 +121,10 @@ RUN --mount=type=bind,source=userspace/root,target=/tmp/agnos/root \
 # Compile the vendor Ghostty definition supplied by the root filesystem overlay.
 RUN tic -x -o /usr/share/terminfo /usr/share/terminfo/ghostty.terminfo && \
     rm /usr/share/terminfo/ghostty.terminfo
-# Unpack setup and compile its bytecode. Run from the zipapp, it compiles every module at
-# each start and copies its assets to /tmp.
-RUN mv /usr/comma/setup /tmp/setup.zip && \
-    $XDG_DATA_HOME/venv/bin/python -m zipfile -e /tmp/setup.zip /usr/comma/setup && \
-    $XDG_DATA_HOME/venv/bin/python -m compileall -q --invalidation-mode unchecked-hash /usr/comma/setup && \
-    rm /tmp/setup.zip
+# The standalone apps share their Python runtime and native libraries.
+RUN tar -xJf /usr/comma/agnos-apps.tar.xz -C /usr/comma && \
+    rm /usr/comma/agnos-apps.tar.xz && \
+    for app in setup reset updater; do ln -sfn agnos-apps/$app /usr/comma/$app; done
 COPY ./userspace/root/home/$USERNAME/.config/ /root/.config
 
 # These vendor libraries retain unused PCRE dependencies from their original GLib build.

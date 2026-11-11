@@ -1,3 +1,5 @@
 *.deb filter=lfs diff=lfs merge=lfs -text
 *.ko filter=lfs diff=lfs merge=lfs -text
 userspace/root/usr/share/fonts/NotoSans??-Regular.woff2 filter=lfs diff=lfs merge=lfs -text
+
+userspace/root/usr/comma/agnos-apps.tar.xz filter=lfs diff=lfs merge=lfs -text

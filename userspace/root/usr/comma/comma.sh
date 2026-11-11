@@ -82,7 +82,7 @@ while true; do
   rm -f $INSTALLER
 
   # run setup first, it only needs the screen. the rest can happen while it starts
-  python3 $SETUP &
+  "$SETUP" &
   pkill -f $INSTALLER
   sudo abctl --set_success
 
