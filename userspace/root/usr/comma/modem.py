@@ -240,6 +240,7 @@ class Modem:
     self._sim_change = False
     self._apn = ""  # blank = network-provided via PCO
     self._roaming_allowed = True
+    self._initializing = False  # see _at
     self.running = True
     self.S = INITIAL_STATE.copy()
 
@@ -276,10 +277,11 @@ class Modem:
     os.replace(f.name, STATE_PATH)
 
   def _at(self, cmd):
-    """Send AT command, return response lines. [] on error or if LPA holds port."""
+    """Send AT command, return response lines. [] on error, or if another process (LPA, qcomgpsd) holds the port
+    outside of initializing: there every command has to take effect, so it waits for the port."""
     fd = os.open(AT_LOCK, os.O_CREAT | os.O_RDWR, 0o666)
     try:
-      fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+      fcntl.flock(fd, fcntl.LOCK_EX if self._initializing else fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
       os.close(fd)
       return []
@@ -378,6 +380,13 @@ class Modem:
   def _do_initializing(self):
     if not glob.glob("/dev/ttyUSB*"):
       return State.INITIALIZING
+    self._initializing = True
+    try:
+      return self._initialize()
+    finally:
+      self._initializing = False
+
+  def _initialize(self):
     logging.info("port found, initializing")
     self._ppp.kill()
     self._ppp.cleanup_routes()
