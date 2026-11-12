@@ -1,0 +1,15 @@
+# Ubuntu's, minus After=sysinit.target basic.target, so the daemon starts next to boot.service and
+# is up when boot.sh is done, see dbus.socket
+[Unit]
+Description=D-Bus System Message Bus
+Documentation=man:dbus-daemon(1)
+Requires=dbus.socket
+# Do not stop on shutdown
+DefaultDependencies=no
+
+[Service]
+Type=notify
+NotifyAccess=main
+ExecStart=@/usr/bin/dbus-daemon @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+ExecReload=/usr/bin/dbus-send --print-reply --system --type=method_call --dest=org.freedesktop.DBus / org.freedesktop.DBus.ReloadConfig
+OOMScoreAdjust=-900

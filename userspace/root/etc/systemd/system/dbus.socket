@@ -1,0 +1,10 @@
+# Ubuntu's, minus After=sysinit.target: openpilot opens the system bus the instant boot.sh is done,
+# and sysinit.target is only reached after boot.service. A drop-in can't remove an After=
+[Unit]
+Description=D-Bus System Message Bus Socket
+# Do not stop on shutdown
+DefaultDependencies=no
+Before=boot.service sockets.target
+
+[Socket]
+ListenStream=/run/dbus/system_bus_socket
