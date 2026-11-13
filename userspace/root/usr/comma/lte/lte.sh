@@ -5,9 +5,11 @@ function gpio {
   echo $2 > /sys/class/gpio/gpio$1/value
 }
 
-LTE_RST_N=50
-LTE_BOOT=52
-LTE_PWRKEY=116
+# TLMM lines, numbered from its gpiochip's base: 0 downstream, dynamic on mainline
+base=$(cat /sys/bus/platform/devices/3400000.pinctrl/gpio/*/base 2>/dev/null | head -1)
+LTE_RST_N=$((${base:-0} + 50))
+LTE_BOOT=$((${base:-0} + 52))
+LTE_PWRKEY=$((${base:-0} + 116))
 
 function is_modem_up {
   if lsusb -d "0x2c7c:" >/dev/null 2>&1; then
