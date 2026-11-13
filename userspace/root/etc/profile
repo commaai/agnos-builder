@@ -17,6 +17,12 @@ if [ "${PS1-}" ]; then
   fi
 fi
 
+# PATH and PYTHONPATH live in /etc/environment, which pam_env applies to ssh sessions that never
+# read this file. Load it here too for shells started without PAM: comma.sh and adb shell.
+set -a
+. /etc/environment
+set +a
+
 if [ -d /etc/profile.d ]; then
   for i in /etc/profile.d/*.sh; do
     if [ -r $i ]; then
@@ -30,15 +36,14 @@ fi
 export XDG_RUNTIME_DIR="/var/tmp/xdg"
 
 # python setup
-export PYTHONPATH="/data/pythonpath"
 export CC="${CC:-clang}"
 export CXX="${CXX:-clang++}"
-
-export PATH="/usr/local/.cargo/bin:$PATH"
 export UV_PYTHON_INSTALL_DIR="/usr/local/uv/python"
 export UV_PYTHON_PREFERENCE=only-system
 export UV_LINK_MODE=copy
-source /usr/local/venv/bin/activate
-
-# custom shims
-export PATH="/usr/comma/shims:${PATH}"
+# what the venv's activate sets, without putting its bin ahead of the shims
+export VIRTUAL_ENV="/usr/local/venv"
+export VIRTUAL_ENV_PROMPT="venv"
+if [ "${PS1-}" ]; then
+  PS1="(venv) ${PS1}"
+fi
