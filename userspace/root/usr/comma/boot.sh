@@ -331,8 +331,15 @@ function setup_gpios {
     pins+=(1264) # POWER ALERT
   fi
 
+  # the pins below 150 are TLMM lines, numbered from its gpiochip's base: 0 downstream, dynamic on mainline
+  local base
+  base=$(cat /sys/bus/platform/devices/3400000.pinctrl/gpio/*/base 2>/dev/null | head -1)
+
   local p d nodes=()
   for p in "${pins[@]}"; do
+    if (( p < 150 )); then
+      p=$((p + ${base:-0}))
+    fi
     echo "$p" > /sys/class/gpio/export
     d=/sys/class/gpio/gpio$p
     nodes+=("$d" "$d"/{active_low,direction,edge,value})
