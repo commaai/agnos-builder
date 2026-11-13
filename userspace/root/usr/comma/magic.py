@@ -33,6 +33,16 @@ def show_background(tex, pos):
   rl.end_drawing()
   power_screen()
 
+def load_background():
+  rl.init_window(0, 0, "not weston")
+  img = rl.load_image(BACKGROUND)
+  rl.image_resize(img, rl.get_screen_width(), rl.get_screen_width()//2)
+  tex = rl.load_texture_from_image(img)
+  rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
+  pos = rl.Vector2((rl.get_screen_width() - tex.width)/2.0, (rl.get_screen_height() - tex.height)/2.0)
+  rl.unload_image(img)
+  return tex, pos
+
 def handle_client(client, drm_master):
   try:
     drm_master_dup = os.dup(drm_master)
@@ -104,13 +114,7 @@ def main():
       time.sleep(0.1)
 
   os.environ['DRM_FD'] = str(drm_master)
-  rl.init_window(0, 0, "not weston")
-  img = rl.load_image(BACKGROUND)
-  rl.image_resize(img, rl.get_screen_width(), rl.get_screen_width()//2)
-  tex = rl.load_texture_from_image(img)
-  rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
-  pos = rl.Vector2((rl.get_screen_width() - tex.width)/2.0, (rl.get_screen_height() - tex.height)/2.0)
-  rl.unload_image(img)
+  tex, pos = load_background()
   show_background(tex, pos)
 
   # the panel only takes this once it's on, and loses it when magic restarts
@@ -126,6 +130,12 @@ def main():
       clients.discard(t)
     if not clients and need_background:
       need_background = False
+      # The departing client can remove the scanout framebuffer and disable the
+      # CRTC. Reinitialize our display before drawing instead of page flipping
+      # against the foreground client's expired scanout state.
+      rl.unload_texture(tex)
+      rl.close_window()
+      tex, pos = load_background()
       show_background(tex, pos)
 
     try:
