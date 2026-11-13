@@ -1,0 +1,167 @@
+# check=error=true
+# SPIKE: AGNOS on Void Linux (glibc, runit, eudev). See userspace/void/.
+
+# ################## #
+# ### Package  ##### #
+# ### Compilation ## #
+# ################## #
+# The adbd and graphics stages are the same Ubuntu stages as Dockerfile.agnos.
+FROM ubuntu:24.04 AS agnos-compiler
+
+RUN apt-get update && apt-get install -yq --no-install-recommends build-essential
+
+FROM agnos-compiler AS agnos-compiler-adbd
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+    ca-certificates curl clang android-libbase-dev android-libcutils-dev android-liblog-dev \
+    android-libboringssl-dev libbrotli-dev libcap-dev liblz4-dev libprotobuf-dev protobuf-compiler \
+    libsystemd-dev libzstd-dev
+COPY ./userspace/build_adbd.sh ./userspace/adbd-linux.patch /tmp/agnos/
+RUN /tmp/agnos/build_adbd.sh
+# Void has no Android libs, protobuf 35 instead of 3.21 and no libsystemd:
+# bundle every non-glibc/libstdc++ dependency of adbd from Ubuntu.
+RUN mkdir -p /tmp/agnos/adbd-libs && \
+    ldd /tmp/agnos/adbd | awk '$2 == "=>" && $3 ~ /^\// { print $3 }' | \
+      grep -vE '/(libc|libm|libdl|libpthread|librt|ld-linux-aarch64|libstdc\+\+|libgcc_s)\.so' | \
+      xargs -I{} cp -L {} /tmp/agnos/adbd-libs/ && \
+    ls -la /tmp/agnos/adbd-libs
+
+FROM agnos-compiler AS agnos-compiler-graphics
+RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
+COPY ./userspace/graphics/ /tmp/agnos/graphics-src/
+RUN mkdir -p /tmp/agnos/graphics && \
+    cp /tmp/agnos/graphics-src/libgbm.so /tmp/agnos/graphics/ && \
+    cp /tmp/agnos/graphics-src/libeglSubDriverWayland.so.patched /tmp/agnos/graphics/libeglSubDriverWayland.so && \
+    cd /tmp/agnos/graphics && \
+    gcc -shared -fPIC -Os -s -Wall -Wextra -Werror -Wl,-z,defs -Wl,-z,relro,-z,now \
+      -Wl,-soname,libagnos-wayland-stubs.so -o libagnos-wayland-stubs.so /tmp/agnos/graphics-src/stubs.c && \
+    gcc -shared -fPIC -Os -s -Wall -Wextra -Werror -Wl,-z,defs -Wl,-z,relro,-z,now \
+      -Wl,-soname,libCB.so -o libCB.so /tmp/agnos/graphics-src/opencl_stubs.c && \
+    nm -D --defined-only libagnos-wayland-stubs.so | \
+      awk '$3 ~ /^agnos_/ { name = $3; sub(/^agnos_/, "", name); print name, $3 }' > /tmp/agnos/graphics-symbols.map && \
+    for lib in libgbm.so libeglSubDriverWayland.so; do \
+      patchelf --rename-dynamic-symbols /tmp/agnos/graphics-symbols.map \
+        --remove-needed libwayland-client.so.0 --remove-needed libwayland-server.so.0 \
+        --remove-needed libwayland-egl.so.1 --remove-needed libffi.so.6 \
+        --add-needed libagnos-wayland-stubs.so "$lib" || exit 1; \
+    done
+
+# ################## #
+# ###### Base ###### #
+# ################## #
+FROM scratch AS void-base
+
+ARG VOID_ROOTFS
+ADD ${VOID_ROOTFS} /
+
+RUN mkdir -p /tmp/agnos
+COPY ./userspace/void/base_setup.sh /tmp/agnos/void/
+RUN /tmp/agnos/void/base_setup.sh
+
+COPY ./userspace/void/python_setup.sh /tmp/agnos/void/
+RUN /tmp/agnos/void/python_setup.sh
+
+# ################### #
+# ###### AGNOS ###### #
+# ################### #
+FROM void-base AS agnos
+
+ARG USERNAME=comma
+
+COPY --from=agnos-compiler-adbd /tmp/agnos/adbd /usr/comma/adbd
+COPY --from=agnos-compiler-adbd /tmp/agnos/adbd-libs/ /usr/lib/aarch64-linux-gnu/android/
+COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr/share/doc/adbd/NOTICE
+COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
+
+ARG XDG_DATA_HOME="/usr/local"
+
+# Install openpilot python packages
+COPY ./userspace/uv /tmp/agnos/uv
+RUN source $XDG_DATA_HOME/venv/bin/activate && \
+    cd /tmp/agnos/uv && \
+    MAKEFLAGS="-j$(nproc)" UV_NO_CACHE=1 UV_PROJECT_ENVIRONMENT=$XDG_DATA_HOME/venv uv sync --frozen --inexact --compile-bytecode \
+      --no-install-package msgq \
+      --no-install-package opendbc \
+      --no-install-package pandacan \
+      --no-install-package rednose \
+      --no-install-package teleoprtc \
+      --no-install-package tinygrad
+
+# Root filesystem overlay. Void merges /usr/sbin into /usr/bin and links
+# /usr/lib64 to /usr/lib: keep those directory symlinks, and skip the overlay's
+# usr/lib64/ld-linux-aarch64.so.1 -> /lib/... link, which would become a self-loop.
+RUN --mount=type=bind,source=userspace/root,target=/tmp/agnos/root \
+    set -o pipefail && \
+    tar -C /tmp/agnos/root --owner=0 --group=0 --mode=go-w --exclude=./usr/lib64 -cf - . | \
+      tar -C / --no-overwrite-dir --keep-directory-symlink -xf - && \
+    test -x /usr/bin/rmt_storage && test -f /usr/lib/ld-linux-aarch64.so.1 && test ! -L /usr/lib/ld-linux-aarch64.so.1
+COPY ./userspace/root/home/$USERNAME/.config/ /root/.config
+RUN chown -R $USERNAME: /home/$USERNAME/.config
+
+COPY ./output/linux-headers/include/ /usr/include/
+
+COPY ./userspace/irsc_util.c /tmp/agnos/
+RUN gcc -O2 -Wall -Wextra -Werror -o /usr/bin/irsc_util /tmp/agnos/irsc_util.c && rm /tmp/agnos/irsc_util.c
+
+COPY ./userspace/power_burn/power_burn_max.c /tmp/agnos/
+RUN gcc -O2 -o /home/$USERNAME/power_burn_max /tmp/agnos/power_burn_max.c \
+    -lpthread && rm /tmp/agnos/power_burn_max.c \
+    && chown $USERNAME: /home/$USERNAME/power_burn_max
+
+# color prompt (install_extras.sh)
+RUN sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /home/$USERNAME/.bashrc || true
+
+# Prefer ipv4 over ipv6
+RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+
+# trim.sh, minus the Ubuntu library paths (handled in finalize.sh)
+RUN site=/usr/local/venv/lib/python3.12/site-packages && \
+    find "$site"/{tinymesa,capnp,zstandard,kiwisolver,fontTools} -type f -name '*.so' \
+      -exec llvm-strip --strip-debug {} + && \
+    find "$site"/{sympy,numpy,matplotlib,mpmath,setuptools} -type d \( -name tests -o -name test \) \
+      -prune -exec rm -rf {} + && \
+    rm -f /usr/bin/*lto-dump* /usr/lib/llvm/*/bin/llvm-exegesis /usr/local/bin/llvm-exegesis
+
+# Services, Void config fixups, read-only rootfs. Keep this last (runs ldconfig
+# before pointing the GL SONAME links at Adreno).
+COPY ./userspace/void/ /tmp/agnos/void/
+RUN /tmp/agnos/void/finalize.sh && rm -rf /tmp/agnos
+
+COPY VERSION /VERSION
+
+RUN rm -rf /usr/share/icons/* /home/$USERNAME/.cache /root/.cache /usr/default/home/$USERNAME/.cache /usr/default/var/cache/xbps
+
+# ################## #
+# ##### Image ###### #
+# ################## #
+# Same as Dockerfile.agnos, except resolv.conf and ping.
+FROM --platform=$BUILDPLATFORM ubuntu:20.04 AS agnos-image-tools
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    android-sdk-libsparse-utils \
+    e2fsprogs \
+    libcap2-bin \
+    zstd \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM agnos-image-tools AS agnos-image-build
+ARG ROOTFS_IMAGE_SIZE=4500M
+ARG GIT_HASH
+ARG BUILD_DATETIME
+ARG ZSTD
+# No systemd-resolved: NetworkManager writes resolv.conf itself (dns=default).
+# bin/ping is a symlink on Void, so set the capability on the real binary.
+RUN --mount=type=bind,from=agnos,target=/rootfs,rw \
+    cd /rootfs && \
+    ln -sf /proc/sys/kernel/hostname etc/hostname && \
+    printf "127.0.0.1    localhost.localdomain localhost\n127.0.0.1    comma\n" > etc/hosts && \
+    ln -sf /run/NetworkManager/resolv.conf etc/resolv.conf && \
+    setcap cap_net_raw+ep usr/bin/iputils-ping && \
+    printf "%s\n%s\n" "$GIT_HASH" "$BUILD_DATETIME" > BUILD && \
+    mkdir /out && \
+    mkfs.ext4 -q -d /rootfs /tmp/system.img $ROOTFS_IMAGE_SIZE && \
+    img2simg /tmp/system.img /out/system.img && \
+    rm /tmp/system.img && \
+    if [ -n "$ZSTD" ]; then zstd -q -T0 -9 --rm /out/system.img; fi
+
+FROM scratch AS agnos-image
+COPY --from=agnos-image-build /out/ /

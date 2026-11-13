@@ -1,0 +1,13 @@
+#!/bin/sh
+# AGNOS override of runit-void's stage 2: no runsvchdir (it writes to the
+# read-only /etc). /etc/runit/runsvdir/current -> default is set at build time.
+
+PATH=/usr/bin:/usr/sbin
+
+[ -x /etc/rc.local ] && /etc/rc.local
+
+mkdir -p /run/runit/runsvdir
+ln -sfn /etc/runit/runsvdir/current /run/runit/runsvdir/current
+
+exec env - PATH=$PATH \
+    runsvdir -P /run/runit/runsvdir/current 'log: ...........................................................................................................................................................................................................................................................................................................................................................................................................'
