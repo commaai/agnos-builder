@@ -106,6 +106,14 @@ RUN source $XDG_DATA_HOME/venv/bin/activate && \
       --no-install-package teleoprtc \
       --no-install-package tinygrad
 
+# Released updater zipapps still use raygui, removed from current raylib.
+# Keep their dependency separate; agnos_legacy_updater selects it only for those apps.
+RUN curl -fsSL https://files.pythonhosted.org/packages/c2/f5/84e135ac611a6dfe8b95ff989097c200770907907afba78455d4c863981e/comma_deps_raylib-6.0.0.1.post98-py3-none-manylinux_2_28_aarch64.whl -o /tmp/legacy-raylib.whl && \
+    echo "9347fe18799c209dd1af746a44a94433bae69d4644de10e11dcc307aecd87fb1  /tmp/legacy-raylib.whl" | sha256sum -c - && \
+    python3 -m zipfile -e /tmp/legacy-raylib.whl /usr/local/legacy-raylib && \
+    mv /usr/local/legacy-raylib/*.data/purelib/* /usr/local/legacy-raylib/ && \
+    rm /tmp/legacy-raylib.whl
+
 # Install nice to haves
 COPY ./userspace/install_extras.sh /tmp/agnos/
 RUN /tmp/agnos/install_extras.sh
