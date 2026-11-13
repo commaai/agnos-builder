@@ -17,6 +17,16 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 COPY ./userspace/build_adbd.sh ./userspace/adbd-linux.patch /tmp/agnos/
 RUN /tmp/agnos/build_adbd.sh
 
+# With noble's dhcpcd 10.0.6, every roam between access points drops the Wi-Fi lease, routes and DNS for a second
+FROM agnos-compiler AS agnos-compiler-dhcpcd
+COPY ./userspace/build_dhcpcd.sh ./userspace/dhcpcd-roaming.patch /tmp/agnos/
+RUN /tmp/agnos/build_dhcpcd.sh
+
+# With noble's wpa_supplicant 2.10, SAVE_CONFIG on a full /data replies OK and leaves an empty or cut-off config
+FROM agnos-compiler AS agnos-compiler-wpa
+COPY ./userspace/build_wpasupplicant.sh ./userspace/wpa-config-write.patch ./userspace/wpa-config-write-checks.patch /tmp/agnos/
+RUN /tmp/agnos/build_wpasupplicant.sh
+
 # Qualcomm graphics without Wayland or OpenCL runtime dependencies
 FROM agnos-compiler AS agnos-compiler-graphics
 RUN apt-get update && apt-get install -yq --no-install-recommends patchelf
@@ -57,6 +67,8 @@ ARG USERNAME=comma
 
 # Base system setup
 RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
+COPY --from=agnos-compiler-dhcpcd /tmp/agnos/dhcpcd-base.deb /tmp/agnos/
+COPY --from=agnos-compiler-wpa /tmp/agnos/wpasupplicant.deb /tmp/agnos/
 COPY ./userspace/base_setup.sh ./userspace/openpilot_dependencies.sh /tmp/agnos/
 RUN /tmp/agnos/base_setup.sh
 
@@ -74,7 +86,6 @@ COPY --from=agnos-compiler-adbd /tmp/adbd-build/packages/modules/adb/NOTICE /usr
 COPY --from=agnos-compiler-graphics /tmp/agnos/graphics/ /usr/lib/aarch64-linux-gnu/
 
 # modem.service runs the packaged modem.py (AT + IPv4 PPP).
-# NetworkManager still requires libmm-glib0 for Wi-Fi/Ethernet operation.
 RUN apt-get update && \
     apt-get install -yq --no-install-recommends \
     python3 \
@@ -82,14 +93,10 @@ RUN apt-get update && \
     libglib2.0-dev \
     libc6 \
     libglib2.0-0t64 \
-    libgudev-1.0-0 \
-    libmm-glib0 \
-    libpolkit-gobject-1-0 \
     libsystemd0 \
     android-liblog \
     libjson-c5 \
-    patchelf \
-    polkitd && \
+    patchelf && \
     test ! -e /lib/systemd/system/ModemManager.service
 
 ARG XDG_DATA_HOME="/usr/local"

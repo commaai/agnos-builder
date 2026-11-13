@@ -22,6 +22,7 @@ apt-get install --no-install-recommends -yq \
     dnsmasq-base \
     gdb \
     git \
+    iproute2 \
     iptables-persistent \
     iputils-ping \
     jq \
@@ -34,31 +35,45 @@ apt-get install --no-install-recommends -yq \
     libgles1 \
     libgles2 \
     libnss-myhostname \
+    libpam-systemd \
     llvm-20 \
     locales \
     lsof \
     make \
-    network-manager \
     openssh-client \
     openssh-server \
     openssl \
     ppp \
     psmisc \
+    python3-yaml \
     rsync \
     strace \
     systemd \
     systemd-resolved \
+    systemd-sysv \
     systemd-timesyncd \
     tmux \
     usbutils \
-    vim \
-    wpasupplicant
+    vim
+
+# Our builds of dhcpcd-base and wpasupplicant (build_dhcpcd.sh, build_wpasupplicant.sh), held so apt never swaps
+# Ubuntu's back in. Installing wpasupplicant creates the netdev group, used below
+for p in dhcpcd-base wpasupplicant; do
+  # their build stages come from Docker's cache until their scripts change: make sure Ubuntu hasn't moved on since
+  [ "$(dpkg-deb -f /tmp/agnos/$p.deb Version)" = "$(apt-cache policy $p | sed -n 's/ *Candidate: //p')+agnos1" ] ||
+    { echo "$p is behind noble: drop its cached stage (docker builder prune; with NS=1, the Namespace build cache) and build again"; exit 1; }
+done
+apt-get install --no-install-recommends -yq /tmp/agnos/dhcpcd-base.deb /tmp/agnos/wpasupplicant.deb
+apt-mark hold dhcpcd-base wpasupplicant
+rm /tmp/agnos/dhcpcd-base.deb /tmp/agnos/wpasupplicant.deb
 
 # Create the privileged user and hardware access groups.
 useradd -G sudo -m -s /bin/bash "$USERNAME"
 echo "$USERNAME:$PASSWD" | chpasswd
 groupadd gpio
 groupadd gpu
+# udev's group for /dev/input, which boot.sh and uevent_helper.sh hand out; there's no udev to create it
+groupadd --system input
 usermod -aG root,video,gpio,adm,gpu,audio,disk,dialout,systemd-journal,netdev "$USERNAME"
 echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 

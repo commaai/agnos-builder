@@ -96,11 +96,13 @@ function mount_data {
   rm -rf /data/tmp
   # the rootfs symlinks /etc paths to these, and /data/persist is served to the modem and DSPs
   # through /system/rfs
-  mkdir -p /data/etc/netplan /data/etc/NetworkManager/system-connections /data/ssh /data/tmp \
+  mkdir -p /data/etc/dhcpcd /data/ssh /data/tmp \
     /data/persist/hlos_rfs/shared /data/persist/rfs/shared \
     /data/persist/rfs/msm/adsp /data/persist/rfs/msm/mpss
   touch /data/etc/timezone /data/etc/localtime
   chown comma: /data/ssh /data/tmp
+  # the hotspot doesn't survive a reboot, so this says whether openpilot wants it now (tethering.py)
+  rm -f /data/params/d/TetheringEnabled
 }
 
 function mount_cache {

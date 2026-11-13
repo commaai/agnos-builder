@@ -23,9 +23,8 @@ rm -f "$lib"/libgallium-*.so "$lib"/libEGL_mesa.so* "$lib"/libGLX_mesa.so* "$lib
 rm -rf "$lib"/dri "$lib"/gbm
 rm /usr/share/glvnd/egl_vendor.d/50_mesa.json
 
-# udev isn't used, see boot.sh. NetworkManager and others still depend on the package.
-dpkg --purge --force-depends udev
-rm -rf /usr/lib/udev /etc/udev
+# udev isn't installed, see boot.sh. Drop the rules systemd, apport and e2fsprogs ship for it.
+rm -rf /usr/lib/udev
 
 # systemd loads every unit it can reach before it starts the first job, about 1 ms each at boot.
 # AGNOS has no initrd, TPM, encrypted or verity disks, sysext, fsck or binfmt, so drop their units.

@@ -1,0 +1,20 @@
+[Unit]
+Description=Wi-Fi DHCP client on wlan0
+# keep retrying, Wi-Fi must never stay down
+StartLimitIntervalSec=0
+
+[Service]
+# dhcpcd for wlan0 alone, which takes the server's replies on a socket bound to the leased address. A second
+# manager (--allowinterfaces) next to dhcpcd-eth's would share 0.0.0.0:68 with it, and the kernel hands each
+# unicast reply to just one of them: renewals whose ACK went to dhcpcd-eth never complete, and the lease expires.
+# Leases persist in /data/etc/dhcpcd (/var/lib/dhcpcd links there, see tmpfiles.conf), so a known network
+# reconnects with a single DHCPREQUEST
+# wlan0 comes and goes with the Wi-Fi firmware (wifi.service), and dhcpcd for one interface exits when it's gone
+ExecStart=/usr/comma/wait_for_wlan0.sh /usr/sbin/dhcpcd --nobackground wlan0
+# dhcpcd logs to syslog as well, don't log everything twice
+StandardError=null
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

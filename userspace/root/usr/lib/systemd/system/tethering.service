@@ -1,0 +1,23 @@
+[Unit]
+Description=Wi-Fi hotspot on wlan0
+# tethering-param-watcher starts and stops it, following openpilot's Tethering* params. The hotspot is a
+# wpa_supplicant of its own, so the client (its wpa_supplicant and DHCP) stops while it runs
+Conflicts=wpa_supplicant-wlan0.service dhcpcd-wlan0.service
+After=wpa_supplicant-wlan0.service dhcpcd-wlan0.service
+# and DHCP and DNS for the hotspot's clients: the hotspot stops if dnsmasq does
+BindsTo=tethering-dnsmasq.service
+# only the watcher starts it, when the params ask for it: never refuse one
+StartLimitIntervalSec=0
+
+[Service]
+RuntimeDirectory=tethering
+# the config holds the hotspot's key
+UMask=0077
+ExecStartPre=/usr/bin/python3 /usr/comma/tethering.py start
+ExecStart=/usr/sbin/wpa_supplicant -i wlan0 -D nl80211 -c /run/tethering/wlan0.conf
+# new SSID, password or sharing: wpa_supplicant rereads its config on SIGHUP, and restarts the AP with it
+ExecReload=/usr/bin/python3 /usr/comma/tethering.py reload
+ExecReload=/bin/kill -HUP $MAINPID
+# however it stopped, back to the client
+ExecStopPost=-/usr/bin/python3 /usr/comma/tethering.py stop
+ExecStopPost=-/usr/bin/systemctl --no-block start wpa_supplicant-wlan0.service dhcpcd-wlan0.service

@@ -1,0 +1,10 @@
+[Unit]
+Description=Import NetworkManager's saved Wi-Fi networks once (wifi_migrate.py, temporary)
+# wpa_supplicant-wlan0.service pulls this in on every start; wpa_supplicant_prepare.sh leaves the marker when it
+# creates a new, empty config, and the import deletes it once it's done
+ConditionPathExists=/data/etc/wpa_supplicant/migrate-from-networkmanager
+After=wpa_supplicant-wlan0.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/comma/wifi_migrate.py

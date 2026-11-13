@@ -194,8 +194,10 @@ class PPPSession:
       self.kill()
       return False
     self.cleanup_routes()
+    # below Ethernet (100) and Wi-Fi (600), also while Wi-Fi roams: dhcpcd adds 2000000 to a roaming interface's
+    # routes until its lease is confirmed again, and a roam must not move traffic to LTE
     cmds = [
-      ["sudo", "ip", "route", "add", "default", "via", peer, "dev", "ppp0", "metric", "1000"],
+      ["sudo", "ip", "route", "add", "default", "via", peer, "dev", "ppp0", "metric", "2001000"],
       ["sudo", "ip", "route", "add", "default", "via", peer, "dev", "ppp0", "table", "1000"],
       ["sudo", "ip", "rule", "add", "from", ip, "table", "1000"],
     ]
@@ -216,9 +218,19 @@ class PPPSession:
       return False
     for cmd in (["sudo", "resolvectl", "dns", "ppp0", *dns_servers],
                 ["sudo", "resolvectl", "default-route", "ppp0", "yes"]):
-      r = subprocess.run(cmd, capture_output=True, text=True)
-      if r.returncode != 0:
-        logging.warning(f"resolvectl failed ({' '.join(cmd[1:])}): {r.stderr.strip()}")
+      # dhcpcd's DNS hook (50-agnos) restarts systemd-resolved, and a call that lands in the restart fails, or hangs
+      # for D-Bus's 25s activation timeout
+      for _ in range(3):
+        try:
+          r = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+          if r.returncode == 0:
+            break
+          error = r.stderr.strip()
+        except subprocess.TimeoutExpired:
+          error = "timed out"
+        time.sleep(1)
+      else:
+        logging.warning(f"resolvectl failed ({' '.join(cmd[1:])}): {error}")
         self.kill()
         return False
     logging.info(f"resolvectl: ppp0 DNS = {dns_servers}")
