@@ -48,5 +48,14 @@ systemctl mask sys-fs-fuse-connections.mount sys-kernel-tracing.mount sys-kernel
 # NetworkManager waits on this at startup and nothing uses it
 systemctl mask systemd-hostnamed.service
 
+# Nothing uses login sessions: openpilot runs as a service, XDG_RUNTIME_DIR comes from /etc/profile,
+# and the power key would need udev tags. That takes the per-user systemd it starts with it.
+systemctl mask systemd-logind.service
+sed -i '/pam_systemd/d' /etc/pam.d/common-session /etc/pam.d/runuser-l
+# No keyboard for the screen's console. The serial console's getty stays.
+systemctl disable getty@tty1.service
+# starts gettys on tty2-6 once D-Bus is gone too
+systemctl mask getty-static.service
+
 # Promote SSH sessions, leaving the listening daemon in the background.
 echo "session optional pam_exec.so /usr/comma/run_in_app_group.sh" >> /etc/pam.d/sshd
