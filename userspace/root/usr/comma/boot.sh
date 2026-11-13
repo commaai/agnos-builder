@@ -19,6 +19,8 @@ PARTITION_TIMEOUT=5
 # above PARTITION_TIMEOUT, a mount still has to find its partition and maybe format it
 MOUNT_TIMEOUT=10
 SOUND_TIMEOUT=20
+# a DSP comes up in ~0.2s
+SUBSYS_TIMEOUT=10
 
 PIDS=()
 
@@ -147,6 +149,21 @@ function wait_restart_levels {
   done
 }
 
+# wait_subsys <name>
+# a subsystem is up once the kernel marks it ONLINE, after its firmware is running and has
+# reported in. subsystem_get() finishes in a kernel worker, so the boot_*dsp writes return before that
+function wait_subsys {
+  local d state start=$SECONDS
+  for d in /sys/bus/msm_subsys/devices/subsys*; do
+    [ "$(< "$d/name")" = "$1" ] && break
+  done
+  [ "$(< "$d/name")" = "$1" ] || { echo "no subsystem $1"; return 1; }
+  until state=$(< "$d/state"); [ "$state" = ONLINE ]; do
+    (( SECONDS - start < SUBSYS_TIMEOUT )) || { echo "$1 is $state"; return 1; }
+    sleep 0.01
+  done
+}
+
 function set_restart_levels {
   # don't restart whole SoC on subsystem crash
   echo related | tee /sys/bus/msm_subsys/devices/subsys*/restart_level > /dev/null
@@ -164,8 +181,8 @@ function start_venus {
 function start_cdsp {
   wait_mount /firmware
   wait_restart_levels
-  # only queues the load, the cdsp comes up in the background
   echo 1 > /sys/kernel/boot_cdsp/boot
+  wait_subsys cdsp
 }
 
 function start_sound {
@@ -176,9 +193,9 @@ function start_sound {
   echo 1 > /sys/module/subsystem_restart/parameters/enable_debug
   echo 1 > /sys/kernel/boot_adsp/boot
 
+  # the card registers long before the ADSP is up. it says ONLINE from then on, so only the ADSP's own state says it's up
   local start=$SECONDS
-  until [ "$(cat /proc/asound/card0/state 2>/dev/null)" = ONLINE ] && \
-      amixer -D hw:0 controls | grep -q "SEC_MI2S_RX Audio Mixer MultiMedia1"; do
+  until amixer -D hw:0 controls 2>/dev/null | grep -q "SEC_MI2S_RX Audio Mixer MultiMedia1"; do
     (( SECONDS - start < SOUND_TIMEOUT )) || { echo "sound card not ready"; return 1; }
     sleep 0.01
   done
@@ -191,11 +208,12 @@ function start_sound {
     amixer -D hw:0 -q cset "name='TERT_MI2S_TX Channels'" Two
   fi
 
-  # sound is ready, let clients in. opening a PCM before the ADSP is up floods the console with errors
-  find /dev/snd -maxdepth 1 -type c -exec chgrp audio {} + -exec chmod 660 {} +
-
   # mici has no amp config, and starting Python to find that out is most of this job
   grep -q mici /sys/firmware/devicetree/base/model || /usr/local/venv/bin/python /usr/comma/sound/amplifier.py
+
+  # sound is ready, let clients in. opening a PCM before the ADSP is up floods the console with errors
+  wait_subsys adsp
+  find /dev/snd -maxdepth 1 -type c -exec chgrp audio {} + -exec chmod 660 {} +
 }
 
 function set_firmware_timeout {
