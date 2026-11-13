@@ -48,7 +48,6 @@ apt-get install --no-install-recommends -yq \
     strace \
     systemd \
     systemd-resolved \
-    systemd-timesyncd \
     tmux \
     usbutils \
     vim \

@@ -13,6 +13,8 @@ systemctl enable wifi.service
 systemctl enable power_monitor.service
 systemctl enable power_drop_monitor.service
 systemctl enable brightnessd.service
+systemctl enable ntpd.service
+systemctl mask systemd-timesyncd.service
 systemctl enable ssh-param-watcher.path
 systemctl enable ssh-param-watcher.service
 systemctl enable adb-param-watcher.path
