@@ -65,6 +65,7 @@ echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 # Kernel and scheduling settings.
 echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf
 echo "vm.dirty_expire_centisecs = 200" >> /etc/sysctl.conf
+echo "kernel.sched_boost = 1" >> /etc/sysctl.conf
 echo "$USERNAME - rtprio 100" >> /etc/security/limits.conf
 echo "$USERNAME - nice -10" >> /etc/security/limits.conf
 
