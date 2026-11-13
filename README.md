@@ -51,6 +51,10 @@ git submodule update --init agnos-kernel-sdm845
     NS=1 ./build_system.sh
     ```
 
+To build the factory userdata images for packaging, install `e2fsprogs`, `fakeroot`,
+and `android-sdk-libsparse-utils`, then run `scripts/build_userdata.sh`. It clones
+openpilot once for both device sizes and does not require sudo or Docker.
+
 ### Flashing
 
 Flashing to a comma 3/3X (Be sure to set your device in QDL mode before flashing. Refer to [QDL MODE Section](https://flash.comma.ai/) for more information.):
