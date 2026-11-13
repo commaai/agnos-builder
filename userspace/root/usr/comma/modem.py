@@ -438,6 +438,11 @@ class Modem:
     return {"imei": imei, "iccid": iccid, "mcc_mnc": mcc_mnc, "modem_version": modem_version}
 
   def _do_searching(self):
+    # Signal measurements are useful even when the SIM cannot establish data.
+    signal_state = self._poll_signal()
+    if signal_state:
+      self._publish_state(**signal_state)
+
     new_roaming = self._is_roaming_allowed()
     if new_roaming != self._roaming_allowed:
       logging.info(f"roaming changed: {self._roaming_allowed} -> {new_roaming}")
