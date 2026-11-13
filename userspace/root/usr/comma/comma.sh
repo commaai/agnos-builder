@@ -49,20 +49,45 @@ handle_setup_keys () {
   fi
 }
 
+launch_reset () {
+  # A restarted app service can leave updater overlays mounted below /data.
+  # Remove children before parents, without detaching /data or hiding a busy
+  # filesystem behind a lazy unmount. findmnt raw output escapes whitespace.
+  local -a reset_mounts
+  local i target reset_tree
+  if ! reset_tree=$(findmnt --submounts --raw --noheadings --output TARGET /data); then
+    if mountpoint -q /data; then
+      echo "Cannot reset: failed to inspect mounts under /data" >&2
+      return 1
+    fi
+  fi
+  mapfile -t reset_mounts <<< "$reset_tree"
+  for ((i=${#reset_mounts[@]}-1; i>=0; i--)); do
+    printf -v target '%b' "${reset_mounts[i]}"
+    if [[ "$target" == /data/* ]]; then
+      if ! sudo umount -- "$target"; then
+        echo "Cannot reset: failed to unmount $target" >&2
+        return 1
+      fi
+    fi
+  done
+  "$RESET" "$@"
+}
+
 # factory reset handling
 if [ ! -f /run/comma-booted ]; then
-  sudo touch /run/comma-booted
   if [ -f "$RESET_TRIGGER" ]; then
     echo "launching system reset, reset trigger present"
+    launch_reset || exit 1
     rm -f $RESET_TRIGGER
-    $RESET
   elif (( "$(cat /sys/class/input/input2/device/touch_count)" > 4 )); then
     echo "launching system reset, got taps"
-    $RESET --tap-reset
+    launch_reset --tap-reset || exit 1
   elif ! mountpoint -q /data; then
     echo "userdata not mounted. loading system reset"
-    $RESET --recover
+    launch_reset --recover || exit 1
   fi
+  sudo touch /run/comma-booted
 fi
 
 # symlink vscode to userdata
