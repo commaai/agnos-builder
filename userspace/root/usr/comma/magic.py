@@ -122,6 +122,7 @@ def main():
 
   clients = set()
   need_background = False
+  background_visible = True
 
   while True:
     dead = [t for t in list(clients) if not t.is_alive()]
@@ -130,19 +131,21 @@ def main():
       clients.discard(t)
     if not clients and need_background:
       need_background = False
-      # The departing client can remove the scanout framebuffer and disable the
-      # CRTC. Reinitialize our display before drawing instead of page flipping
-      # against the foreground client's expired scanout state.
-      rl.unload_texture(tex)
-      rl.close_window()
       tex, pos = load_background()
       show_background(tex, pos)
+      background_visible = True
 
     try:
       client, _ = server.accept()
     except Exception:
       continue
 
+    # Release background scanout before the foreground initializes its display.
+    # Legacy GPU clients only modeset if the CRTC is inactive at initialization.
+    if background_visible:
+      rl.unload_texture(tex)
+      rl.close_window()
+      background_visible = False
     need_background = True
     t = threading.Thread(target=handle_client, args=(client, drm_master), daemon=True)
     t.start()

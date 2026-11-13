@@ -108,6 +108,7 @@ while true; do
 
   # run setup first, it only needs the screen. the rest can happen while it starts
   "$SETUP" &
+  setup_pid=$!
   pkill -f $INSTALLER
   sudo abctl --set_success
 
@@ -116,6 +117,10 @@ while true; do
     sleep 0.1
   done
 
+  # Setup exits after publishing the downloaded installer. Wait for its display
+  # resources to be released before the next client initializes scanout.
+  wait "$setup_pid"
+
   # run installer and wait for continue.sh
   chmod +x $INSTALLER
   $INSTALLER &
@@ -123,5 +128,4 @@ while true; do
   while [ ! -f $CONTINUE ] && ps -p $! > /dev/null; do
     sleep 0.1
   done
-  pkill -f "$SETUP"
 done
