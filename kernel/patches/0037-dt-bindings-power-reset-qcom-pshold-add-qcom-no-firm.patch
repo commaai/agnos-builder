@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 03:46:09 -0800
+Subject: [PATCH] dt-bindings: power: reset: qcom,pshold: add
+ qcom,no-firmware-warm-reset
+
+Some Qualcomm secure firmware implements PSCI without SYSTEM_RESET2, and
+its SYSTEM_RESET is a cold reset. On such boards the only way to restart
+without losing RAM (pstore, crash logs, a download-mode request) is to
+drop PS_HOLD with the PMIC configured for a warm reset.
+
+This can't be probed: PSCI_FEATURES reports SYSTEM_RESET2 missing, but not
+whether SYSTEM_RESET is warm or cold. Add a property that describes this
+firmware behaviour, so the restart driver can take warm restarts through
+PS_HOLD on these boards only.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ .../devicetree/bindings/power/reset/qcom,pshold.yaml      | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/power/reset/qcom,pshold.yaml b/Documentation/devicetree/bindings/power/reset/qcom,pshold.yaml
+index 527962d54a..c752b06e0e 100644
+--- a/Documentation/devicetree/bindings/power/reset/qcom,pshold.yaml
++++ b/Documentation/devicetree/bindings/power/reset/qcom,pshold.yaml
+@@ -21,6 +21,14 @@ properties:
+   reg:
+     maxItems: 1
+ 
++  qcom,no-firmware-warm-reset:
++    type: boolean
++    description:
++      The secure firmware has no warm reset. PSCI SYSTEM_RESET2 is not
++      implemented, and SYSTEM_RESET is a cold reset, which loses the contents
++      of RAM. Warm restarts have to drop PS_HOLD with the PMIC set up for a
++      warm reset.
++
+ required:
+   - compatible
+   - reg

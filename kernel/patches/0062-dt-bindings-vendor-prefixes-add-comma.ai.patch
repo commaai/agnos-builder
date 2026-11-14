@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 04:50:54 -0800
+Subject: [PATCH] dt-bindings: vendor-prefixes: add comma.ai
+
+comma.ai makes the comma four and comma 3X driver assistance devices,
+which are built around the Qualcomm SDM845. Add the prefix that their
+board compatibles use.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ Documentation/devicetree/bindings/vendor-prefixes.yaml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+index 9bef7afd34..e162329558 100644
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -357,6 +357,8 @@ patternProperties:
+     description: Conexant Systems, Inc.
+   "^colorfly,.*":
+     description: Colorful GRP, Shenzhen Xueyushi Technology Ltd.
++  "^comma,.*":
++    description: comma.ai, Inc.
+   "^compal,.*":
+     description: Compal Electronics, Inc.
+   "^compulab,.*":

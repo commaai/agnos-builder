@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Date: Mon, 2 Nov 2026 00:38:00 -0800
+Subject: [PATCH] ASoC: qcom: sdm845: keep an optional codec MCLK enabled
+
+The comma 3X speaker and microphones go through a MAX98089 codec that
+runs from the RPMh LN_BB_CLK2 19.2 MHz clock. openpilot programs the
+MAX98089 itself over i2c-dev, read-modify-writing its registers from a
+fixed table, so it has no kernel driver and nothing enables its master
+clock: without it the codec PLLs have no reference and there is no
+sound.
+
+Let the sound card take an optional "mclk" clock and hold it enabled
+for as long as the card is bound, which covers every stream on both
+MI2S links.
+
+This is not intended for upstream. There the MAX98089 would be described
+with the existing max98088 driver as the codec of both links, owning its
+MCLK. That needs openpilot to configure the codec through ALSA controls
+instead of raw register writes, and the driver to learn the digital
+microphone and DAI port selection from DT, which today come only from
+platform data or are hard-coded the other way round.
+
+Based on Trey Moen's vamOS PR 128.
+
+[adeeb: split from the tertiary MI2S change, write the commit message]
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ sound/soc/qcom/sdm845.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/sound/soc/qcom/sdm845.c b/sound/soc/qcom/sdm845.c
+index 3cc53cd4eb..4a5cbcd799 100644
+--- a/sound/soc/qcom/sdm845.c
++++ b/sound/soc/qcom/sdm845.c
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include <dt-bindings/sound/qcom,q6afe.h>
++#include <linux/clk.h>
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
+ #include <sound/core.h>
+@@ -576,6 +577,7 @@ static int sdm845_snd_platform_probe(struct platform_device *pdev)
+ 	struct snd_soc_card *card;
+ 	struct sdm845_snd_data *data;
+ 	struct device *dev = &pdev->dev;
++	struct clk *mclk;
+ 	int ret;
+ 
+ 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+@@ -587,6 +589,10 @@ static int sdm845_snd_platform_probe(struct platform_device *pdev)
+ 	if (!data)
+ 		return -ENOMEM;
+ 
++	mclk = devm_clk_get_optional_enabled(dev, "mclk");
++	if (IS_ERR(mclk))
++		return dev_err_probe(dev, PTR_ERR(mclk), "failed to enable mclk\n");
++
+ 	card->driver_name = DRIVER_NAME;
+ 	card->dapm_widgets = sdm845_snd_widgets;
+ 	card->num_dapm_widgets = ARRAY_SIZE(sdm845_snd_widgets);

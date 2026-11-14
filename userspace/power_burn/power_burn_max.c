@@ -83,12 +83,9 @@ static void fatal_sig(int s) {
 }
 
 static void leds_on(void) {
-  save_and_write("/sys/class/leds/led:torch_0/brightness",  "500");
-  save_and_write("/sys/class/leds/led:torch_1/brightness",  "500");
-  save_and_write("/sys/class/leds/led:torch_2/brightness",  "300");
-  save_and_write("/sys/class/leds/led:switch_0/brightness", "255");
-  save_and_write("/sys/class/leds/led:switch_1/brightness", "255");
-  save_and_write("/sys/class/leds/led:switch_2/brightness", "255");
+  char maximum[64];
+  if (sysfs_read("/sys/class/leds/ir:torch/max_brightness", maximum, sizeof(maximum)) == 0)
+    save_and_write("/sys/class/leds/ir:torch/brightness", maximum);
 }
 
 static void cpu_bus_freq_max(void) {

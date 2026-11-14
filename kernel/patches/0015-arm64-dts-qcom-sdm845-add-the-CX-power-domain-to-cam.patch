@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 06:32:34 -0800
+Subject: [PATCH] arm64: dts: qcom: sdm845: add the CX power domain to camcc
+
+The camera clock controller had no power domain, so its GDSCs had no
+parent and nothing tied the camera clock rates to a CX corner. The
+downstream camcc votes CX per source clock rate: BPS, IPE and IFE need
+CX NOMINAL at 600 MHz and SVS_L1 at 480 MHz, and every camera clock needs
+at least SVS. On mainline the ISP ran correctly only because another
+voter happened to hold CX high.
+
+Put camcc on CX, as GCC already is. Each GDSC then becomes a CX
+subdomain, and a camera block whose OPP table has required-opps on
+rpmhpd (attached to its GDSC) votes the CX corner its clock rate needs.
+The vote passes through the GDSC unchanged, as UFS's does through
+UFS_PHY_GDSC.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ arch/arm64/boot/dts/qcom/sdm845.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sdm845.dtsi b/arch/arm64/boot/dts/qcom/sdm845.dtsi
+index b1f6782a3a..2a2e24891c 100644
+--- a/arch/arm64/boot/dts/qcom/sdm845.dtsi
++++ b/arch/arm64/boot/dts/qcom/sdm845.dtsi
+@@ -4604,6 +4604,7 @@ clock_camcc: clock-controller@ad00000 {
+ 			#power-domain-cells = <1>;
+ 			clocks = <&rpmhcc RPMH_CXO_CLK>;
+ 			clock-names = "bi_tcxo";
++			power-domains = <&rpmhpd SDM845_CX>;
+ 		};
+ 
+ 		mdss: display-subsystem@ae00000 {

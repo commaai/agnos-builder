@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 03:47:22 -0800
+Subject: [PATCH] watchdog: pm8916_wdt: drop a pretimeout that no longer fits
+ the timeout
+
+The bark (S1) timer is programmed as timeout - pretimeout. When the
+timeout is set at or below the current pretimeout, that subtraction
+underflows, and the 8-bit register gets whatever the low bits are. The
+watchdog core drops such a pretimeout itself, but only for drivers without
+a set_timeout callback, and this driver has one.
+
+Drop the pretimeout in that case, as the core does.
+
+Fixes: 969c0acc039f ("watchdog: Add pm8916 watchdog driver")
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/watchdog/pm8916_wdt.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/watchdog/pm8916_wdt.c b/drivers/watchdog/pm8916_wdt.c
+index 007ed139ab..b227a9dde1 100644
+--- a/drivers/watchdog/pm8916_wdt.c
++++ b/drivers/watchdog/pm8916_wdt.c
+@@ -88,6 +88,9 @@ static int pm8916_wdt_set_timeout(struct watchdog_device *wdev,
+ 				  unsigned int timeout)
+ {
+ 	wdev->timeout = timeout;
++	/* Disable pretimeout if it doesn't fit the new timeout */
++	if (wdev->pretimeout >= wdev->timeout)
++		wdev->pretimeout = 0;
+ 
+ 	return pm8916_wdt_configure_timers(wdev);
+ }

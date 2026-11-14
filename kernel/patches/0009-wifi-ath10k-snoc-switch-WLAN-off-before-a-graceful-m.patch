@@ -1,0 +1,210 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 05:04:42 -0800
+Subject: [PATCH] wifi: ath10k: snoc: switch WLAN off before a graceful modem
+ shutdown
+
+On SDM845 the WCN3990 firmware is managed by the modem, and the WLAN
+block goes down with it. When the modem is shut down gracefully (for
+example by rmtfs exiting at reboot, or a remoteproc stop), ath10k only
+records MODEM_STOPPED and keeps the WLAN firmware and the copy engines
+running until the WLFW QMI server exit is processed, after the modem is
+gone.
+
+On a comma four this wedges the SoC interconnect in about one modem stop
+in six within ~20 s of boot, while NetworkManager is scanning or ath10k is
+still starting the firmware: every CPU that next touches a config-NoC
+register (TCSR, UART, the UFS doorbell) stalls, UFS reports "timedout
+waiting for doorbell", and only a reset recovers. Two things are needed
+to avoid it:
+
+ - the WLAN firmware has to be switched off while the modem still runs.
+   With the host side fenced but the firmware left running, the stop
+   still hangs (1 in 7). With WLAN mode OFF sent first, as ath10k does
+   when the interface goes down or the driver is unloaded, it does not
+   (0/21 with the interface down, 0/40 with ath10k_snoc unloaded);
+ - the host must not touch the copy engines after that. A start that
+   polled the copy engines after mode OFF hung the same way.
+
+ath10k already gets QCOM_SSR_BEFORE_SHUTDOWN and keeps MODEM_STOPPED set
+until QCOM_SSR_BEFORE_POWERUP. On a graceful stop, use that flag to fence
+the device (drop register reads and writes, refuse to power up), set
+CRASH_FLUSH so that commands fail right away instead of timing out and
+requesting a hardware restart while the modem is down, and send WLAN
+mode OFF. The existing "fw down" and "fw ready" indications then
+restart the firmware through the normal recovery path once the modem is
+back. If the stop cuts the first firmware probe short
+(the modem's "fw ready" and the stop can come within a few hundred ms of
+each other early in boot), probe again on the next "fw ready" instead of
+starting recovery of a device that was never registered.
+
+The firmware answers mode OFF in milliseconds when it is up. When it
+does not answer, for example when the modem stop collides with the
+interface going down early in boot (seen in ~1 of 10 reboots at 10-12 s
+uptime), waiting the full 30 s QMI timeout only delays the shutdown:
+in all such cases on record the modem stop that followed was clean. So
+wait at most 2 s for mode OFF and log when there was no answer, and
+don't send a second mode OFF from the power down path once the modem
+stop has sent one.
+
+This relies on the remoteproc driver sending QCOM_SSR_BEFORE_SHUTDOWN
+before it asks the modem to shut down.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/net/wireless/ath/ath10k/qmi.c  | 20 +++++++++----
+ drivers/net/wireless/ath/ath10k/snoc.c | 40 +++++++++++++++++++++++---
+ 2 files changed, 51 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath10k/qmi.c b/drivers/net/wireless/ath/ath10k/qmi.c
+index 0d74548a5f..3247a38d02 100644
+--- a/drivers/net/wireless/ath/ath10k/qmi.c
++++ b/drivers/net/wireless/ath/ath10k/qmi.c
+@@ -24,6 +24,7 @@
+ 
+ #define ATH10K_QMI_CLIENT_ID		0x4b4e454c
+ #define ATH10K_QMI_TIMEOUT		30
++#define ATH10K_QMI_WLAN_OFF_TIMEOUT	(2 * HZ)
+ #define SMEM_IMAGE_VERSION_TABLE       469
+ #define SMEM_IMAGE_TABLE_CNSS_INDEX     13
+ #define SMEM_IMAGE_VERSION_ENTRY_SIZE	128
+@@ -378,7 +379,8 @@ static int ath10k_qmi_send_cal_report_req(struct ath10k_qmi *qmi)
+ }
+ 
+ static int
+-ath10k_qmi_mode_send_sync_msg(struct ath10k *ar, enum wlfw_driver_mode_enum_v01 mode)
++ath10k_qmi_mode_send_sync_msg(struct ath10k *ar, enum wlfw_driver_mode_enum_v01 mode,
++			      unsigned long timeout)
+ {
+ 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+ 	struct ath10k_qmi *qmi = ar_snoc->qmi;
+@@ -407,9 +409,11 @@ ath10k_qmi_mode_send_sync_msg(struct ath10k *ar, enum wlfw_driver_mode_enum_v01
+ 		goto out;
+ 	}
+ 
+-	ret = qmi_txn_wait(&txn, ATH10K_QMI_TIMEOUT * HZ);
+-	if (ret < 0)
++	ret = qmi_txn_wait(&txn, timeout);
++	if (ret < 0) {
++		ath10k_warn(ar, "no response to wlan mode %d request: %d\n", mode, ret);
+ 		goto out;
++	}
+ 
+ 	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+ 		ath10k_err(ar, "more request rejected: %d\n", resp.resp.error);
+@@ -528,7 +532,7 @@ int ath10k_qmi_wlan_enable(struct ath10k *ar,
+ 		return ret;
+ 	}
+ 
+-	ret = ath10k_qmi_mode_send_sync_msg(ar, mode);
++	ret = ath10k_qmi_mode_send_sync_msg(ar, mode, ATH10K_QMI_TIMEOUT * HZ);
+ 	if (ret) {
+ 		ath10k_err(ar, "failed to send qmi mode: %d\n", ret);
+ 		return ret;
+@@ -539,7 +543,13 @@ int ath10k_qmi_wlan_enable(struct ath10k *ar,
+ 
+ int ath10k_qmi_wlan_disable(struct ath10k *ar)
+ {
+-	return ath10k_qmi_mode_send_sync_msg(ar, QMI_WLFW_OFF_V01);
++	/*
++	 * The firmware answers in milliseconds when it can. Don't hold up a
++	 * modem shutdown or an interface down for 30 s when it can't, for
++	 * example because it is still starting or already going down.
++	 */
++	return ath10k_qmi_mode_send_sync_msg(ar, QMI_WLFW_OFF_V01,
++					     ATH10K_QMI_WLAN_OFF_TIMEOUT);
+ }
+ 
+ static void ath10k_qmi_add_wlan_ver_smem(struct ath10k *ar, const char *fw_build_id)
+diff --git a/drivers/net/wireless/ath/ath10k/snoc.c b/drivers/net/wireless/ath/ath10k/snoc.c
+index ab5b11dbd4..73c99d1f39 100644
+--- a/drivers/net/wireless/ath/ath10k/snoc.c
++++ b/drivers/net/wireless/ath/ath10k/snoc.c
+@@ -478,6 +478,9 @@ static void ath10k_snoc_write32(struct ath10k *ar, u32 offset, u32 value)
+ {
+ 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+ 
++	if (test_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags))
++		return;
++
+ 	iowrite32(value, ar_snoc->mem + offset);
+ }
+ 
+@@ -486,6 +489,9 @@ static u32 ath10k_snoc_read32(struct ath10k *ar, u32 offset)
+ 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+ 	u32 val;
+ 
++	if (test_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags))
++		return 0;
++
+ 	val = ioread32(ar_snoc->mem + offset);
+ 
+ 	return val;
+@@ -1073,6 +1079,10 @@ static void ath10k_snoc_wlan_disable(struct ath10k *ar)
+ {
+ 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+ 
++	/* Already switched off when the modem stop began */
++	if (test_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags))
++		return;
++
+ 	/* If both ATH10K_FLAG_CRASH_FLUSH and ATH10K_SNOC_FLAG_RECOVERY
+ 	 * flags are not set, it means that the driver has restarted
+ 	 * due to a crash inject via debugfs. In this case, the driver
+@@ -1096,11 +1106,15 @@ static void ath10k_snoc_hif_power_down(struct ath10k *ar)
+ static int ath10k_snoc_hif_power_up(struct ath10k *ar,
+ 				    enum ath10k_firmware_mode fw_mode)
+ {
++	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+ 	int ret;
+ 
+ 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "%s:WCN3990 driver state = %d\n",
+ 		   __func__, ar->state);
+ 
++	if (test_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags))
++		return -ESHUTDOWN;
++
+ 	ret = ath10k_hw_power_on(ar);
+ 	if (ret) {
+ 		ath10k_err(ar, "failed to power on device: %d\n", ret);
+@@ -1382,7 +1396,12 @@ int ath10k_snoc_fw_indication(struct ath10k *ar, u64 type)
+ 
+ 	switch (type) {
+ 	case ATH10K_QMI_EVENT_FW_READY_IND:
+-		if (test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags)) {
++		/*
++		 * Restart the firmware, or probe again if a modem shutdown cut
++		 * the first probe short.
++		 */
++		if (test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags) &&
++		    test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags)) {
+ 			ath10k_core_start_recovery(ar);
+ 			break;
+ 		}
+@@ -1535,10 +1554,23 @@ static int ath10k_snoc_modem_notify(struct notifier_block *nb, unsigned long act
+ 	case QCOM_SSR_BEFORE_SHUTDOWN:
+ 		ath10k_dbg(ar, ATH10K_DBG_SNOC, "received modem %s event\n",
+ 			   notify_data->crashed ? "crashed" : "stopping");
+-		if (!notify_data->crashed)
+-			set_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags);
+-		else
++		if (notify_data->crashed) {
+ 			clear_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags);
++			break;
++		}
++
++		/*
++		 * The WLAN block goes down with the modem, and a register
++		 * access after that stalls the interconnect. Stop all register
++		 * access until the modem is powered up again, fail commands
++		 * right away instead of waiting for the firmware, and switch
++		 * the WLAN firmware off while the modem can still do it
++		 * cleanly.
++		 */
++		set_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags);
++		set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
++		if (test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags))
++			ath10k_qmi_wlan_disable(ar);
+ 		break;
+ 
+ 	case QCOM_SSR_AFTER_SHUTDOWN:

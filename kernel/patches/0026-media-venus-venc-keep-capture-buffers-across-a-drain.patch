@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Date: Sat, 19 Sep 2026 10:43:31 +0300
+Subject: [PATCH] media: venus: venc: keep capture buffers across a drain
+
+Capture buffers can be queued after the firmware has completed EOS but
+before userspace has dequeued the LAST buffer. In the stopped state,
+buf_queue returns every buffer to userspace empty, so these capture
+buffers come back after V4L2_ENC_CMD_START as empty, non-LAST
+completions with zero timestamps, which breaks matching encoded frames
+to their source frames.
+
+Only return output buffers in the stopped state. Capture buffers go on
+the normal firmware queue and are used once encoding resumes.
+
+Fixes: 7493db46e4c4 ("venus: venc: add handling for VIDIOC_ENCODER_CMD")
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/media/platform/qcom/venus/venc.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/qcom/venus/venc.c b/drivers/media/platform/qcom/venus/venc.c
+index ca7009b8ec..984483a3bf 100644
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -1336,7 +1336,9 @@ static void venc_vb2_buf_queue(struct vb2_buffer *vb)
+ 
+ 	mutex_lock(&inst->lock);
+ 
+-	if (inst->enc_state == VENUS_ENC_STATE_STOPPED) {
++	/* Capture buffers queued after EOS are needed when encoding resumes. */
++	if (inst->enc_state == VENUS_ENC_STATE_STOPPED &&
++	    V4L2_TYPE_IS_OUTPUT(vb->type)) {
+ 		vbuf->sequence = inst->sequence_cap++;
+ 		vbuf->field = V4L2_FIELD_NONE;
+ 		vb2_set_plane_payload(vb, 0, 0);

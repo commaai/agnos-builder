@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import argparse
 from contextlib import ExitStack
+import ctypes
 import fcntl
 import os
 from pathlib import Path
@@ -175,19 +176,36 @@ def boot_slot():
   raise ValueError('no boot slot in kernel command line')
 
 
-def open_ufs_sg(stack):
-  # UFS_IOCTL_QUERY: u32 opcode, u8 idn, padding, u16 size, u32 value.
-  # https://github.com/commaai/agnos-kernel-sdm845/blob/8b0e4d289b246a5cc1b0484b25a3f9f8d4772544/include/uapi/scsi/ufs/ioctl.h
-  # Use the stable UFS LUN node.
-  sg, = Path('/sys/class/block/sdb/device/scsi_generic').iterdir()
-  f = stack.enter_context(open(f'/dev/{sg.name}', 'r+b', buffering=0))
-  return f
+def open_ufs(stack):
+  bsg, = Path('/dev/bsg').glob('ufs-bsg*')
+  return stack.enter_context(open(bsg, 'r+b', buffering=0))
 
 
 def query_lun(f, value=None):
-  data = bytearray(struct.pack('<IBxHI', 3 if value is None else 4, 0, 4, value or 0))
-  fcntl.ioctl(f, 0x5388, data, True)
-  return struct.unpack_from('<I', data, 8)[0]
+  """Read, or write and return, the UFS bBootLunEn attribute."""
+  # struct ufs_bsg_request (include/uapi/scsi/scsi_bsg_ufs.h): u32 msgcode, then a query
+  # request UPIU: a 12-byte header (transaction type, query function at byte 5) and the
+  # big-endian query: opcode (READ_ATTR 3, WRITE_ATTR 4), IDN (bBootLunEn 0), index,
+  # selector, reserved, length, value, reserved.
+  write = value is not None
+  data = (struct.pack('<IB4xB6x', 0x16, 0x16, 0x81 if write else 0x01) +
+          struct.pack('>4BHHI8x', 4 if write else 3, 0, 0, 0, 0, 0, value or 0))
+  request = ctypes.create_string_buffer(data, len(data))
+  # struct ufs_bsg_reply: int result, u32 payload length, then the response UPIU.
+  reply = ctypes.create_string_buffer(40)
+  # struct sg_io_v4 (include/uapi/linux/bsg.h): guard 'Q', BSG_PROTOCOL_SCSI,
+  # BSG_SUB_PROTOCOL_SCSI_TRANSPORT, the request, the reply buffer and a timeout in ms.
+  sg_io = bytearray(160)
+  struct.pack_into('<iIIIQ', sg_io, 0, ord('Q'), 0, 2, len(request), ctypes.addressof(request))
+  struct.pack_into('<IQ', sg_io, 44, len(reply), ctypes.addressof(reply))
+  struct.pack_into('<I', sg_io, 88, 30000)
+  fcntl.ioctl(f, 0x2285, sg_io)  # SG_IO
+  # The response UPIU has the query response code at byte 6, and the value where it was sent.
+  result, = struct.unpack_from('<i', reply.raw, 0)
+  response = reply.raw[8 + 6]
+  if result or response:
+    raise OSError(f'UFS query failed: result {result}, response {response}')
+  return struct.unpack_from('>I', reply.raw, 8 + 12 + 8)[0]
 
 
 def change_slot(command, slot):
@@ -204,7 +222,7 @@ def change_slot(command, slot):
       if required not in partitions:
         raise ValueError(f'missing partition {required}')
     if command == 'set_active':
-      ufs = open_ufs_sg(stack)
+      ufs = open_ufs(stack)
       if query_lun(ufs) not in (1, 2):
         raise ValueError('invalid UFS boot LUN')
       other = 'b' if slot == 'a' else 'a'
@@ -244,6 +262,10 @@ def main():
   group.add_argument('--version', action='version', version='Version: v1.0')
   parser.add_argument('--dbg', type=int, choices=(0, 1), default=0)
   args = parser.parse_args()
+  # Updaters run abctl as the comma user. GPT writes only need the disk group, but the
+  # UFS query takes CAP_SYS_RAWIO.
+  if args.set_active is not None and os.geteuid() != 0:
+    os.execvp('sudo', ['sudo', '-n', __file__, *sys.argv[1:]])
   try:
     if args.boot_slot:
       print('_' + boot_slot())

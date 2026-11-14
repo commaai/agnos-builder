@@ -1,0 +1,267 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Date: Tue, 15 Sep 2026 14:21:07 +0300
+Subject: [PATCH] clk: qcom: camcc-sdm845: round shared PLL parent rates
+
+The 808 MHz camera PLL actually runs at 808000195 Hz. When an RCG that
+propagates rate changes to its parent asks for the nominal 808 MHz, the
+clock framework sees a new parent rate, although the PLL would stay at
+the same achievable rate, and recalculates and reprograms the PLL's
+other children. Their recalculated rates can then select the next
+frequency table entry, and with it a parent that isn't running. This
+happens through the ordinary CSI PHY timer RCGs as well as through the
+shared RCGs, and breaks the camera clocks while other camera blocks are
+running.
+
+Have determine_rate return the rate the parent can actually achieve,
+while the RCG keeps its canonical frequency, so that an unchanged PLL
+isn't reprogrammed. The other RCG operations, and RCGs that don't
+propagate rate changes to their parent, are unchanged.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/clk/qcom/camcc-sdm845.c | 70 ++++++++++++++++++++++-----------
+ 1 file changed, 48 insertions(+), 22 deletions(-)
+
+diff --git a/drivers/clk/qcom/camcc-sdm845.c b/drivers/clk/qcom/camcc-sdm845.c
+index 534dc56fc1..0887c8d59f 100644
+--- a/drivers/clk/qcom/camcc-sdm845.c
++++ b/drivers/clk/qcom/camcc-sdm845.c
+@@ -17,6 +17,27 @@
+ #include "clk-regmap.h"
+ #include "gdsc.h"
+ 
++static struct clk_ops cam_cc_shared_ops;
++static struct clk_ops cam_cc_rcg_ops;
++
++static int cam_cc_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
++{
++	long parent_rate;
++	int ret;
++
++	ret = clk_rcg2_ops.determine_rate(hw, req);
++	if (ret || !(clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT))
++		return ret;
++
++	/* Avoid reprogramming siblings for the fractional PLL rounding error. */
++	parent_rate = clk_hw_round_rate(req->best_parent_hw, req->best_parent_rate);
++	if (parent_rate < 0)
++		return parent_rate;
++
++	req->best_parent_rate = parent_rate;
++	return 0;
++}
++
+ enum {
+ 	P_BI_TCXO,
+ 	P_CAM_CC_PLL0_OUT_EVEN,
+@@ -205,7 +226,7 @@ static struct clk_rcg2 cam_cc_bps_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -269,7 +290,7 @@ static struct clk_rcg2 cam_cc_csi0phytimer_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -284,7 +305,7 @@ static struct clk_rcg2 cam_cc_csi1phytimer_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -299,7 +320,7 @@ static struct clk_rcg2 cam_cc_csi2phytimer_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -314,7 +335,7 @@ static struct clk_rcg2 cam_cc_csi3phytimer_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -361,7 +382,7 @@ static struct clk_rcg2 cam_cc_fd_core_clk_src = {
+ 		.name = "cam_cc_fd_core_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -384,7 +405,7 @@ static struct clk_rcg2 cam_cc_icp_clk_src = {
+ 		.name = "cam_cc_icp_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -409,7 +430,7 @@ static struct clk_rcg2 cam_cc_ife_0_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -431,7 +452,7 @@ static struct clk_rcg2 cam_cc_ife_0_csid_clk_src = {
+ 		.name = "cam_cc_ife_0_csid_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -446,7 +467,7 @@ static struct clk_rcg2 cam_cc_ife_1_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -460,7 +481,7 @@ static struct clk_rcg2 cam_cc_ife_1_csid_clk_src = {
+ 		.name = "cam_cc_ife_1_csid_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -475,7 +496,7 @@ static struct clk_rcg2 cam_cc_ife_lite_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -489,7 +510,7 @@ static struct clk_rcg2 cam_cc_ife_lite_csid_clk_src = {
+ 		.name = "cam_cc_ife_lite_csid_clk_src",
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -515,7 +536,7 @@ static struct clk_rcg2 cam_cc_ipe_0_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -530,7 +551,7 @@ static struct clk_rcg2 cam_cc_ipe_1_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -545,7 +566,7 @@ static struct clk_rcg2 cam_cc_jpeg_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -570,7 +591,7 @@ static struct clk_rcg2 cam_cc_lrme_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_shared_ops,
++		.ops = &cam_cc_shared_ops,
+ 	},
+ };
+ 
+@@ -593,7 +614,7 @@ static struct clk_rcg2 cam_cc_mclk0_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -608,7 +629,7 @@ static struct clk_rcg2 cam_cc_mclk1_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -623,7 +644,7 @@ static struct clk_rcg2 cam_cc_mclk2_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -638,7 +659,7 @@ static struct clk_rcg2 cam_cc_mclk3_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -662,7 +683,7 @@ static struct clk_rcg2 cam_cc_slow_ahb_clk_src = {
+ 		.parent_data = cam_cc_parent_data_0,
+ 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
+ 		.flags = CLK_SET_RATE_PARENT,
+-		.ops = &clk_rcg2_ops,
++		.ops = &cam_cc_rcg_ops,
+ 	},
+ };
+ 
+@@ -1719,6 +1740,11 @@ static int cam_cc_sdm845_probe(struct platform_device *pdev)
+ 	struct regmap *regmap;
+ 	struct alpha_pll_config cam_cc_pll_config = { };
+ 
++	cam_cc_shared_ops = clk_rcg2_shared_ops;
++	cam_cc_shared_ops.determine_rate = cam_cc_determine_rate;
++	cam_cc_rcg_ops = clk_rcg2_ops;
++	cam_cc_rcg_ops.determine_rate = cam_cc_determine_rate;
++
+ 	regmap = qcom_cc_map(pdev, &cam_cc_sdm845_desc);
+ 	if (IS_ERR(regmap))
+ 		return PTR_ERR(regmap);

@@ -1,0 +1,91 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Sun, 1 Nov 2026 20:08:48 -0800
+Subject: [PATCH] usb: typec: qcom: gen1: leave the port as a sink on shutdown
+
+On shutdown, stop the port, which turns VBUS and VCONN off, and leave the
+Type-C block in UFP mode, as the downstream SMB2 driver does, so that the
+bootloader and the next boot come up as a USB device.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c      | 13 +++++++++++++
+ drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.h      |  1 +
+ .../typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c    | 14 ++++++++++++++
+ 3 files changed, 28 insertions(+)
+
+diff --git a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c
+index ea1d5b0927..9fb5dc254a 100644
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.c
+@@ -140,6 +140,18 @@ static void qcom_pmic_typec_remove(struct platform_device *pdev)
+ 	fwnode_handle_put(tcpm->tcpc.fwnode);
+ }
+ 
++static void qcom_pmic_typec_shutdown(struct platform_device *pdev)
++{
++	struct pmic_typec *tcpm = platform_get_drvdata(pdev);
++
++	if (!tcpm->port_shutdown)
++		return;
++
++	/* Unregistering the TCPM port turns VBUS and VCONN off */
++	qcom_pmic_typec_remove(pdev);
++	tcpm->port_shutdown(tcpm);
++}
++
+ static const struct pmic_typec_resources gen1_typec_res = {
+ 	.pdphy_res = &pm8150b_pdphy_res,
+ 	.port_res = &gen1_port_res,
+@@ -174,6 +186,7 @@ static struct platform_driver qcom_pmic_typec_driver = {
+ 	},
+ 	.probe = qcom_pmic_typec_probe,
+ 	.remove = qcom_pmic_typec_remove,
++	.shutdown = qcom_pmic_typec_shutdown,
+ };
+ 
+ module_platform_driver(qcom_pmic_typec_driver);
+diff --git a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.h b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.h
+index 6f89d296ad..d0398c53f0 100644
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.h
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec.h
+@@ -20,6 +20,7 @@ struct pmic_typec {
+ 	int (*port_start)(struct pmic_typec *tcpm,
+ 			  struct tcpm_port *tcpm_port);
+ 	void (*port_stop)(struct pmic_typec *tcpm);
++	void (*port_shutdown)(struct pmic_typec *tcpm);
+ };
+ 
+ #define tcpc_to_tcpm(_tcpc_) container_of(_tcpc_, struct pmic_typec, tcpc)
+diff --git a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c
+index b4e3e49664..7487f9c8ce 100644
+--- a/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c
++++ b/drivers/usb/typec/tcpm/qcom/qcom_pmic_typec_port_gen1.c
+@@ -539,6 +539,19 @@ static void gen1_typec_port_stop(struct pmic_typec *tcpm)
+ 	port->tcpm_port = NULL;
+ }
+ 
++/*
++ * Leave the port as a sink, like the downstream driver does, so that the
++ * bootloader and the next boot come up as a USB device.
++ */
++static void gen1_typec_port_shutdown(struct pmic_typec *tcpm)
++{
++	struct gen1_typec_port *port = tcpm->pmic_typec_port;
++
++	mutex_lock(&port->lock);
++	gen1_typec_set_power_role(port, UFP_EN_CMD);
++	mutex_unlock(&port->lock);
++}
++
+ int qcom_pmic_typec_gen1_port_probe(struct platform_device *pdev,
+ 				    struct pmic_typec *tcpm,
+ 				    const struct pmic_typec_port_resources *res,
+@@ -600,6 +613,7 @@ int qcom_pmic_typec_gen1_port_probe(struct platform_device *pdev,
+ 
+ 	tcpm->port_start = gen1_typec_port_start;
+ 	tcpm->port_stop = gen1_typec_port_stop;
++	tcpm->port_shutdown = gen1_typec_port_shutdown;
+ 
+ 	return 0;
+ }

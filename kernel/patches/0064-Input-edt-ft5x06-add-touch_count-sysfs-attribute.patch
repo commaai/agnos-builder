@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Trey Moen <trey@moen.ai>
+Date: Fri, 27 Mar 2026 06:30:23 -0700
+Subject: [PATCH] Input: edt-ft5x06 - add touch_count sysfs attribute
+
+Count completed touches (finger-up events) and expose the counter in
+sysfs. AGNOS reads it early in boot to detect the tap pattern that
+requests a factory reset, which includes taps made before any userspace
+input listener is running.
+
+This is a local ABI and is not intended for upstream.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/input/touchscreen/edt-ft5x06.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/drivers/input/touchscreen/edt-ft5x06.c b/drivers/input/touchscreen/edt-ft5x06.c
+index 7aa8ca06d6..d4df2b955e 100644
+--- a/drivers/input/touchscreen/edt-ft5x06.c
++++ b/drivers/input/touchscreen/edt-ft5x06.c
+@@ -146,6 +146,7 @@ struct edt_ft5x06_ts_data {
+ 	enum edt_ver version;
+ 	unsigned int crc_errors;
+ 	unsigned int header_errors;
++	u64 touch_count;
+ };
+ 
+ struct edt_i2c_chip_data {
+@@ -339,6 +340,8 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
+ 					       type != TOUCH_EVENT_UP))
+ 			touchscreen_report_pos(tsdata->input, &tsdata->prop,
+ 					       x, y, true);
++		else if (type == TOUCH_EVENT_UP)
++			tsdata->touch_count++;
+ 	}
+ 
+ 	input_mt_report_pointer_emulation(tsdata->input, true);
+@@ -554,6 +557,17 @@ static ssize_t crc_errors_show(struct device *dev,
+ 
+ static DEVICE_ATTR_RO(crc_errors);
+ 
++static ssize_t touch_count_show(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++	struct i2c_client *client = to_i2c_client(dev);
++	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
++
++	return sysfs_emit(buf, "%llu\n", tsdata->touch_count);
++}
++
++static DEVICE_ATTR_RO(touch_count);
++
+ static struct attribute *edt_ft5x06_attrs[] = {
+ 	&edt_ft5x06_attr_gain.dattr.attr,
+ 	&edt_ft5x06_attr_offset.dattr.attr,
+@@ -565,6 +579,7 @@ static struct attribute *edt_ft5x06_attrs[] = {
+ 	&dev_attr_fw_version.attr,
+ 	&dev_attr_header_errors.attr,
+ 	&dev_attr_crc_errors.attr,
++	&dev_attr_touch_count.attr,
+ 	NULL
+ };
+ ATTRIBUTE_GROUPS(edt_ft5x06);

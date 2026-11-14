@@ -1,0 +1,136 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Sun, 1 Nov 2026 23:51:22 -0800
+Subject: [PATCH] power: supply: qcom_smbx: leave the Type-C role to the Type-C
+ driver
+
+The charger's init sequence writes the Type-C software control register
+(TYPE_C_INTRPT_ENB_SOFTWARE_CTRL) to clear the power role command and
+hand VCONN to software, with a FIXME saying the Type-C driver will take
+this over. The PMI8998/PM660 Type-C block now has its own TCPM driver,
+which sets the power role and VCONN through that same register. If the
+charger probes after the port has started, it silently resets the role
+the port selected, e.g. forced source mode for a USB peripheral.
+
+Skip that write when a driver is bound to the PMIC's Type-C node, which
+describes the same USBIN peripheral. Checking for a bound driver, rather
+than for an enabled node, keeps the old behaviour when the Type-C driver
+is not built or fails to probe. If the Type-C driver binds after the
+charger, it programs the role and VCONN itself when its port starts, so
+the charger's earlier write does no harm.
+
+The charger still writes TYPE_C_CFG, clearing factory mode detection and
+VCONN_OC_CFG. That is right: the Type-C driver does not program those
+bits (it only sets TYPE_C_OR_U_USB in that register, and regmap
+serialises the two read-modify-writes), and the downstream driver clears
+them the same way.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/power/supply/qcom_smbx.c | 68 ++++++++++++++++++++++++++++----
+ 1 file changed, 60 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/power/supply/qcom_smbx.c b/drivers/power/supply/qcom_smbx.c
+index be45d9545f..dc8daa0c81 100644
+--- a/drivers/power/supply/qcom_smbx.c
++++ b/drivers/power/supply/qcom_smbx.c
+@@ -18,6 +18,7 @@
+ #include <linux/platform_device.h>
+ #include <linux/pm_wakeirq.h>
+ #include <linux/of.h>
++#include <linux/of_platform.h>
+ #include <linux/power_supply.h>
+ #include <linux/regmap.h>
+ #include <linux/types.h>
+@@ -135,6 +136,8 @@
+ #define OCP_CHARGER_BIT					BIT(1)
+ #define SDP_CHARGER_BIT					BIT(0)
+ 
++#define USBIN_PERIPH					0x300
++
+ #define USBIN_CMD_IL					0x340
+ #define USBIN_SUSPEND_BIT				BIT(0)
+ 
+@@ -800,14 +803,6 @@ static const struct power_supply_desc smb_psy_desc = {
+ /* Init sequence derived from vendor downstream driver */
+ static const struct smb_init_register smb_init_seq[] = {
+ 	{ .addr = AICL_RERUN_TIME_CFG, .mask = AICL_RERUN_TIME_MASK, .val = 0 },
+-	/*
+-	 * By default configure us as an upstream facing port
+-	 * FIXME: This will be handled by the type-c driver
+-	 */
+-	{ .addr = TYPE_C_INTRPT_ENB_SOFTWARE_CTRL,
+-	  .mask = TYPEC_POWER_ROLE_CMD_MASK | VCONN_EN_SRC_BIT |
+-		  VCONN_EN_VALUE_BIT,
+-	  .val = VCONN_EN_SRC_BIT },
+ 	/*
+ 	 * Disable Type-C factory mode and stay in Attached.SRC state when VCONN
+ 	 * over-current happens
+@@ -901,10 +896,67 @@ static const struct smb_init_register smb_init_seq[] = {
+ 	  .val = 1000000 / CURRENT_SCALE_FACTOR },
+ };
+ 
++/*
++ * The PMIC's Type-C node describes the USBIN peripheral, which holds the
++ * Type-C controls.
++ */
++static struct device_node *smb_get_typec_node(struct smb_chip *chip)
++{
++	struct device_node *np;
++	u32 reg;
++
++	for_each_available_child_of_node(chip->dev->parent->of_node, np)
++		if (!of_property_read_u32(np, "reg", &reg) &&
++		    reg == chip->base + USBIN_PERIPH)
++			return np;
++
++	return NULL;
++}
++
++/* A driver bound to the Type-C node owns the Type-C controls */
++static bool smb_typec_has_driver(struct smb_chip *chip)
++{
++	struct platform_device *typec;
++	struct device_node *np;
++	bool bound;
++
++	np = smb_get_typec_node(chip);
++	if (!np)
++		return false;
++
++	typec = of_find_device_by_node(np);
++	of_node_put(np);
++	if (!typec)
++		return false;
++
++	device_lock(&typec->dev);
++	bound = device_is_bound(&typec->dev);
++	device_unlock(&typec->dev);
++	put_device(&typec->dev);
++
++	return bound;
++}
++
+ static int smb_init_hw(struct smb_chip *chip)
+ {
+ 	int rc, i;
+ 
++	/*
++	 * Without a Type-C driver, clear any power role command and put VCONN
++	 * under software control, off. A Type-C driver that binds later sets
++	 * both itself when its port starts.
++	 */
++	if (!smb_typec_has_driver(chip)) {
++		rc = regmap_update_bits(chip->regmap,
++					chip->base + TYPE_C_INTRPT_ENB_SOFTWARE_CTRL,
++					TYPEC_POWER_ROLE_CMD_MASK |
++					VCONN_EN_SRC_BIT | VCONN_EN_VALUE_BIT,
++					VCONN_EN_SRC_BIT);
++		if (rc < 0)
++			return dev_err_probe(chip->dev, rc,
++					     "Couldn't configure Type-C\n");
++	}
++
+ 	for (i = 0; i < ARRAY_SIZE(smb_init_seq); i++) {
+ 		dev_dbg(chip->dev, "%d: Writing 0x%02x to 0x%02x\n", i,
+ 			smb_init_seq[i].val, smb_init_seq[i].addr);

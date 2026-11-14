@@ -143,15 +143,14 @@ class TestAgnos(unittest.TestCase):
   def test_no_previous_panics(self):
     self.assertEqual([f for f in os.listdir("/sys/fs/pstore") if f.startswith("dmesg-")], [])
 
-  def test_subsystems(self):
-    for d in glob.glob("/sys/bus/msm_subsys/devices/*"):
-      with open(f"{d}/name") as f:
-        name = f.read().strip()
-      with open(f"{d}/crash_count") as f:
-        self.assertEqual(f.read().strip(), "0", name)
-      if name in ("adsp", "cdsp", "modem"):
-        with open(f"{d}/state") as f:
-          self.assertEqual(f.read().strip(), "ONLINE", name)
+  def test_remoteprocs(self):
+    # the ADSP and the modem
+    procs = glob.glob("/sys/class/remoteproc/*")
+    self.assertEqual(len(procs), 2)
+    for d in procs:
+      self.assertEqual(read(f"{d}/state"), "running", read(f"{d}/name"))
+    # a crashed one recovers and runs again, so only the log says it crashed
+    self.assertNotIn("crash detected", run("sudo", "dmesg"))
 
   def test_boot_slot(self):
     with open("/proc/cmdline") as f:
@@ -160,10 +159,11 @@ class TestAgnos(unittest.TestCase):
     self.assertEqual(os.stat("/").st_dev, os.stat(f"/dev/disk/by-partlabel/system{slot}").st_rdev)
 
   def test_set_success_doesnt_write(self):
+    # the slot flags are in the boot partitions' GPT
+    disk = os.path.realpath("/dev/disk/by-partlabel/boot_a").rstrip("0123456789").split("/")[-1]
     def writes():
       os.sync()
-      with open("/sys/block/sde/stat") as f:
-        return int(f.read().split()[4])
+      return int(read(f"/sys/block/{disk}/stat").split()[4])
 
     subprocess.run(["sudo", "abctl", "--set_success"], check=True)
     before = writes()
@@ -195,8 +195,9 @@ class TestAgnos(unittest.TestCase):
     self.assertTrue(is_active("magic"))
     # the same magic, so it hasn't lost the screen calibration
     self.assertEqual(run("systemctl", "show", "-P", "MainPID", "magic.service"), pid)
-    self.assertEqual(read("/sys/class/backlight/panel0-backlight/bl_power"), "0")
-    self.assertGreater(int(read("/sys/class/backlight/panel0-backlight/brightness")), 0)
+    backlight, = glob.glob("/sys/class/backlight/*")
+    self.assertEqual(read(f"{backlight}/bl_power"), "0")
+    self.assertGreater(int(read(f"{backlight}/brightness")), 0)
     self.assertAlmostEqual(refresh_rate(), 60, delta=1)
 
   def test_screen_calibration(self):

@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Trey Moen <trey@moen.ai>
+Date: Mon, 2 Nov 2026 00:37:18 -0800
+Subject: [PATCH] Input: s6sy761 - add touch_count sysfs attribute
+
+Count completed touches (finger-up events) and expose the counter in
+sysfs, as edt-ft5x06 does for the comma four. AGNOS reads it early in
+boot to detect the tap pattern that requests a factory reset, which
+includes taps made before any userspace input listener is running.
+
+Unlike edt-ft5x06, this controller only scans once it gets SENSE_ON,
+which the driver sends from the input device's open(). Send it at the
+end of probe too, so the counter sees taps before anything opens the
+device. On the comma 3X the UI keeps the device open whenever it runs,
+so this doesn't change how long the controller scans in practice.
+
+This is a local ABI and is not intended for upstream.
+
+[adeeb: use DEVICE_ATTR_RO() and sysfs_emit() like the edt-ft5x06 one;
+ send SENSE_ON at probe]
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/input/touchscreen/s6sy761.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/drivers/input/touchscreen/s6sy761.c b/drivers/input/touchscreen/s6sy761.c
+index 899c179fb2..5d2f4b6b9c 100644
+--- a/drivers/input/touchscreen/s6sy761.c
++++ b/drivers/input/touchscreen/s6sy761.c
+@@ -108,6 +108,8 @@ struct s6sy761_data {
+ 
+ 	u16 devid;
+ 	u8 tx_channel;
++
++	u64 touch_count;
+ };
+ 
+ /*
+@@ -165,6 +167,7 @@ static void s6sy761_report_release(struct s6sy761_data *sdata,
+ {
+ 	input_mt_slot(sdata->input, tid);
+ 	input_mt_report_slot_state(sdata->input, MT_TOOL_FINGER, false);
++	sdata->touch_count++;
+ 
+ 	input_sync(sdata->input);
+ }
+@@ -282,8 +285,19 @@ static ssize_t s6sy761_sysfs_devid(struct device *dev,
+ 
+ static DEVICE_ATTR(devid, 0444, s6sy761_sysfs_devid, NULL);
+ 
++static ssize_t touch_count_show(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++	struct s6sy761_data *sdata = dev_get_drvdata(dev);
++
++	return sysfs_emit(buf, "%llu\n", sdata->touch_count);
++}
++
++static DEVICE_ATTR_RO(touch_count);
++
+ static struct attribute *s6sy761_sysfs_attrs[] = {
+ 	&dev_attr_devid.attr,
++	&dev_attr_touch_count.attr,
+ 	NULL
+ };
+ ATTRIBUTE_GROUPS(s6sy761_sysfs);
+@@ -462,6 +476,11 @@ static int s6sy761_probe(struct i2c_client *client)
+ 	if (err)
+ 		return err;
+ 
++	/* touch_count must see taps before any listener opens the device */
++	err = i2c_smbus_write_byte(sdata->client, S6SY761_SENSE_ON);
++	if (err)
++		return err;
++
+ 	pm_runtime_enable(&client->dev);
+ 
+ 	return 0;

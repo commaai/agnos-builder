@@ -1,0 +1,148 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 02:14:27 -0800
+Subject: [PATCH] Input: pm8941-pwrkey - set the PS_HOLD reset type at restart
+ time
+
+The PS_HOLD reset type (warm, hard or shutdown) is only programmed from
+the reboot notifier. A panic restarts through emergency_restart(), which
+doesn't run reboot notifiers, so the PMIC resets with whatever type was
+left from boot. That type isn't necessarily the one reboot_mode asks for,
+for example with reboot=cold,panic_warm, where panic() switches to
+panic_reboot_mode just before restarting, or after reboot_mode is changed
+at runtime through /sys/kernel/reboot/mode.
+
+Program the restart type from a restart handler instead, ahead of the
+handlers that drop PS_HOLD or call into firmware. It runs for orderly and
+emergency restarts alike and reads reboot_mode as it is at that point.
+Restart handlers run in atomic context, which the SPMI regmap supports, so
+the wait between the enable updates becomes a udelay(). The reboot
+notifier keeps setting the shutdown type for power-off and halt. The PON
+is shared with resin, so only the power key registers the handler, whose
+priority has to be unique.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/input/misc/pm8941-pwrkey.c | 72 +++++++++++++++++++++---------
+ 1 file changed, 52 insertions(+), 20 deletions(-)
+
+diff --git a/drivers/input/misc/pm8941-pwrkey.c b/drivers/input/misc/pm8941-pwrkey.c
+index 53249d2c08..76dda2bcb6 100644
+--- a/drivers/input/misc/pm8941-pwrkey.c
++++ b/drivers/input/misc/pm8941-pwrkey.c
+@@ -58,6 +58,7 @@ struct pm8941_data {
+ 	unsigned int	pull_up_bit;
+ 	unsigned int	status_bit;
+ 	bool		supports_ps_hold_poff_config;
++	bool		ps_hold_restart_type;
+ 	bool		supports_debounce_config;
+ 	bool		has_pon_pbs;
+ 	bool		wakeup_source_default;
+@@ -84,13 +85,10 @@ struct pm8941_pwrkey {
+ 	const struct pm8941_data *data;
+ };
+ 
+-static int pm8941_reboot_notify(struct notifier_block *nb,
+-				unsigned long code, void *unused)
++static void pm8941_ps_hold_set_reset_type(struct pm8941_pwrkey *pwrkey,
++					  unsigned int reset_type)
+ {
+-	struct pm8941_pwrkey *pwrkey = container_of(nb, struct pm8941_pwrkey,
+-						    reboot_notifier);
+ 	unsigned int enable_reg;
+-	unsigned int reset_type;
+ 	int error;
+ 
+ 	/* PMICs with revision 0 have the enable bit in same register as ctrl */
+@@ -112,21 +110,7 @@ static int pm8941_reboot_notify(struct notifier_block *nb,
+ 	 * Updates of PON_PS_HOLD_ENABLE requires 3 sleep cycles between
+ 	 * writes.
+ 	 */
+-	usleep_range(100, 1000);
+-
+-	switch (code) {
+-	case SYS_HALT:
+-	case SYS_POWER_OFF:
+-		reset_type = PON_PS_HOLD_TYPE_SHUTDOWN;
+-		break;
+-	case SYS_RESTART:
+-	default:
+-		if (reboot_mode == REBOOT_WARM)
+-			reset_type = PON_PS_HOLD_TYPE_WARM_RESET;
+-		else
+-			reset_type = PON_PS_HOLD_TYPE_HARD_RESET;
+-		break;
+-	}
++	udelay(100);
+ 
+ 	error = regmap_update_bits(pwrkey->regmap,
+ 				   pwrkey->baseaddr + PON_PS_HOLD_RST_CTL,
+@@ -142,6 +126,36 @@ static int pm8941_reboot_notify(struct notifier_block *nb,
+ 				   PON_PS_HOLD_ENABLE);
+ 	if (error)
+ 		dev_err(pwrkey->dev, "unable to re-set enable: %d\n", error);
++}
++
++static int pm8941_reboot_notify(struct notifier_block *nb,
++				unsigned long code, void *unused)
++{
++	struct pm8941_pwrkey *pwrkey = container_of(nb, struct pm8941_pwrkey,
++						    reboot_notifier);
++
++	/* Restarts are set up by pm8941_pwrkey_restart() */
++	if (code != SYS_HALT && code != SYS_POWER_OFF)
++		return NOTIFY_DONE;
++
++	pm8941_ps_hold_set_reset_type(pwrkey, PON_PS_HOLD_TYPE_SHUTDOWN);
++
++	return NOTIFY_DONE;
++}
++
++/*
++ * Choose the reset type when the restart happens, so that it follows
++ * reboot_mode as it is then: changed at runtime, or set to panic_reboot_mode
++ * by a panic. This also covers emergency restarts, which skip the reboot
++ * notifiers.
++ */
++static int pm8941_pwrkey_restart(struct sys_off_data *data)
++{
++	struct pm8941_pwrkey *pwrkey = data->cb_data;
++
++	pm8941_ps_hold_set_reset_type(pwrkey, reboot_mode == REBOOT_WARM ?
++				      PON_PS_HOLD_TYPE_WARM_RESET :
++				      PON_PS_HOLD_TYPE_HARD_RESET);
+ 
+ 	return NOTIFY_DONE;
+ }
+@@ -401,6 +415,23 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
+ 				error);
+ 			return error;
+ 		}
++
++		/*
++		 * Ahead of the handlers that drop PS_HOLD or call into firmware.
++		 * The PON is shared with resin, so only the power key sets it.
++		 */
++		if (pwrkey->data->ps_hold_restart_type) {
++			error = devm_register_sys_off_handler(&pdev->dev,
++							      SYS_OFF_MODE_RESTART,
++							      SYS_OFF_PRIO_FIRMWARE + 1,
++							      pm8941_pwrkey_restart,
++							      pwrkey);
++			if (error) {
++				unregister_reboot_notifier(&pwrkey->reboot_notifier);
++				return dev_err_probe(&pdev->dev, error,
++						     "failed to register restart handler\n");
++			}
++		}
+ 	}
+ 
+ 	wakeup = pwrkey->data->wakeup_source_default ||
+@@ -426,6 +457,7 @@ static const struct pm8941_data pwrkey_data = {
+ 	.name = "pm8941_pwrkey",
+ 	.phys = "pm8941_pwrkey/input0",
+ 	.supports_ps_hold_poff_config = true,
++	.ps_hold_restart_type = true,
+ 	.supports_debounce_config = true,
+ 	.has_pon_pbs = false,
+ 	.wakeup_source_default = true,

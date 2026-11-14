@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: David Heidelberg <david@ixit.cz>
+Date: Mon, 28 Sep 2026 23:42:39 +0200
+Subject: [PATCH] media: venus: core: look up static codec nodes among children
+ only
+
+venus_add_video_core() checks whether the decoder or encoder node is
+already present in the device tree with of_find_node_by_name(). That
+function drops a reference on the node it starts from and searches the
+rest of the whole tree rather than the children of that node, so every
+probe drops two references on the video-codec node that the driver
+never took.
+
+Once the node's refcount reaches zero, which on SDM845 happens on the
+first unload of venus_core, of_node_release() complains about a bad
+of_node_put() and the node's sysfs directory is gone; the next probe
+then crashes while attaching the dynamic child nodes:
+
+  OF: ERROR: of_node_release() detected bad of_node_put() on /soc@0/video-codec@aa00000
+  Unable to handle kernel NULL pointer dereference at virtual address 0000000000000008
+  ...
+  kernfs_find_and_get_ns+0x24/0x80
+  safe_name+0x48/0xd8
+  __of_attach_node_sysfs+0x58/0x118
+  __of_attach_node+0x8c/0x170
+  __of_changeset_entry_apply+0xe8/0x178
+  __of_changeset_apply_entries+0x50/0x1e0
+  of_changeset_apply+0x54/0xc0
+  venus_add_dynamic_nodes+0xb4/0xe0 [venus_core]
+  venus_probe+0x2f4/0x3c0 [venus_core]
+
+Use of_get_child_by_name(), which only looks at the direct children,
+where static codec nodes live, and leaves the parent's refcount alone.
+
+Assisted-by: LLM
+Fixes: 687bfbba5a1c ("media: venus: Add support for static video encoder/decoder declarations")
+Reported-by: Dan Carpenter <dan.carpenter@linaro.org>
+Closes: https://lore.kernel.org/all/aAuqgiSxrh24-L-D@stanley.mountain/
+Link: https://lore.kernel.org/all/20260928-venus-of-node-ref-v1-1-7579fb84445a@ixit.cz/
+Signed-off-by: David Heidelberg <david@ixit.cz>
+---
+ drivers/media/platform/qcom/venus/core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/qcom/venus/core.c b/drivers/media/platform/qcom/venus/core.c
+index 243e342b0a..3e69fc7ea3 100644
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -306,7 +306,7 @@ static int venus_add_video_core(struct venus_core *core, const char *node_name,
+ 	if (!node_name)
+ 		return 0;
+ 
+-	enp = of_find_node_by_name(dev->of_node, node_name);
++	enp = of_get_child_by_name(dev->of_node, node_name);
+ 	if (enp) {
+ 		of_node_put(enp);
+ 		return 0;
