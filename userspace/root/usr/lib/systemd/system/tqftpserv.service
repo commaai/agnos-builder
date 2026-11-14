@@ -1,0 +1,9 @@
+[Unit]
+Description=Qualcomm firmware file service
+# serves the modem firmware partition, which boot.sh mounts
+After=boot.service
+Before=rmtfs.service
+
+[Service]
+ExecStart=/usr/bin/tqftpserv
+Restart=always

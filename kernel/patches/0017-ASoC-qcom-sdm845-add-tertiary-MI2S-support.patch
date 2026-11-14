@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Date: Mon, 2 Nov 2026 00:37:43 -0800
+Subject: [PATCH] ASoC: qcom: sdm845: add tertiary MI2S support
+
+The comma 3X records its microphones on TERTIARY_MI2S_TX, with the SoC
+as bit clock and frame master, but the sdm845 machine driver only
+handles the primary, secondary and quaternary MI2S ports and rejects
+the tertiary one with "invalid dai id".
+
+Handle TERTIARY_MI2S_RX/TX like the secondary port: enable the
+tertiary MI2S bit clock at 1.536 MHz on the first stream, release it on
+the last one, make the CPU DAI the bit clock and frame master, and set
+the codec DAI to I2S format.
+
+Based on Trey Moen's vamOS PR 128.
+
+[adeeb: split from the amplifier MCLK change, rebase on v7.3]
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ sound/soc/qcom/sdm845.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/sound/soc/qcom/sdm845.c b/sound/soc/qcom/sdm845.c
+index cc8452474f..3cc53cd4eb 100644
+--- a/sound/soc/qcom/sdm845.c
++++ b/sound/soc/qcom/sdm845.c
+@@ -38,6 +38,7 @@ struct sdm845_snd_data {
+ 	bool stream_prepared[AFE_PORT_MAX];
+ 	uint32_t pri_mi2s_clk_count;
+ 	uint32_t sec_mi2s_clk_count;
++	uint32_t ter_mi2s_clk_count;
+ 	uint32_t quat_tdm_clk_count;
+ };
+ 
+@@ -212,6 +213,8 @@ static int sdm845_snd_hw_params(struct snd_pcm_substream *substream,
+ 	case QUATERNARY_MI2S_RX:
+ 	case SECONDARY_MI2S_RX:
+ 	case SECONDARY_MI2S_TX:
++	case TERTIARY_MI2S_RX:
++	case TERTIARY_MI2S_TX:
+ 		break;
+ 	default:
+ 		pr_err("%s: invalid dai id 0x%x\n", __func__, cpu_dai->id);
+@@ -364,6 +367,18 @@ static int sdm845_snd_startup(struct snd_pcm_substream *substream)
+ 		snd_soc_dai_set_fmt(cpu_dai, fmt);
+ 		snd_soc_dai_set_fmt(codec_dai, codec_dai_fmt);
+ 		break;
++
++	case TERTIARY_MI2S_RX:
++	case TERTIARY_MI2S_TX:
++		codec_dai_fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_I2S;
++		if (++(data->ter_mi2s_clk_count) == 1) {
++			snd_soc_dai_set_sysclk(cpu_dai,
++				Q6AFE_LPASS_CLK_ID_TER_MI2S_IBIT,
++				MI2S_BCLK_RATE,	SNDRV_PCM_STREAM_CAPTURE);
++		}
++		snd_soc_dai_set_fmt(cpu_dai, fmt);
++		snd_soc_dai_set_fmt(codec_dai, codec_dai_fmt);
++		break;
+ 	case QUATERNARY_MI2S_RX:
+ 		codec_dai_fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_I2S;
+ 		snd_soc_dai_set_sysclk(cpu_dai,
+@@ -447,6 +462,15 @@ static void  sdm845_snd_shutdown(struct snd_pcm_substream *substream)
+ 		}
+ 		break;
+ 
++	case TERTIARY_MI2S_RX:
++	case TERTIARY_MI2S_TX:
++		if (--(data->ter_mi2s_clk_count) == 0) {
++			snd_soc_dai_set_sysclk(cpu_dai,
++				Q6AFE_LPASS_CLK_ID_TER_MI2S_IBIT,
++				0, SNDRV_PCM_STREAM_CAPTURE);
++		}
++		break;
++
+ 	case QUATERNARY_TDM_RX_0:
+ 	case QUATERNARY_TDM_TX_0:
+ 		if (--(data->quat_tdm_clk_count) == 0) {

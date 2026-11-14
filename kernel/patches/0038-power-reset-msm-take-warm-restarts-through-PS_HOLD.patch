@@ -1,0 +1,92 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Sun, 1 Nov 2026 23:52:01 -0800
+Subject: [PATCH] power: reset: msm: take warm restarts through PS_HOLD
+
+The secure firmware on SDM845 devices such as the comma four implements
+PSCI 1.1 without SYSTEM_RESET2 (PSCI_FEATURES returns NOT_SUPPORTED), and
+its SYSTEM_RESET is a cold reset. So there is no firmware call for a warm
+reset: RAM does not survive a reboot or a panic, and with it go the console
+and crash logs that ramoops keeps in pstore. reboot=warm makes no
+difference. The downstream kernel avoided this with qcom,force-warm-reboot,
+which selects the PMIC's warm reset and drops PS_HOLD itself.
+
+For boards whose DT says qcom,no-firmware-warm-reset, register a restart
+handler ahead of the firmware (PSCI) one that drops PS_HOLD when
+reboot_mode is warm. pm8941-pwrkey selects the PMIC's reset type for
+PS_HOLD from reboot_mode at restart time, before this handler runs.
+Without the property nothing changes, and firmware that implements a warm
+reset keeps getting PSCI SYSTEM_RESET2.
+
+While at it, check the return values of the handler registrations.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/power/reset/msm-poweroff.c | 39 +++++++++++++++++++++++++-----
+ 1 file changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/power/reset/msm-poweroff.c b/drivers/power/reset/msm-poweroff.c
+index c7eb6dc8e9..a2b78a32ac 100644
+--- a/drivers/power/reset/msm-poweroff.c
++++ b/drivers/power/reset/msm-poweroff.c
+@@ -14,6 +14,7 @@
+ #include <linux/pm.h>
+ 
+ static void __iomem *msm_ps_hold;
++static bool msm_no_fw_warm_reset;
+ 
+ static int do_msm_poweroff(struct sys_off_data *data)
+ {
+@@ -23,20 +24,46 @@ static int do_msm_poweroff(struct sys_off_data *data)
+ 	return NOTIFY_DONE;
+ }
+ 
++static int do_msm_firmware_restart(struct sys_off_data *data)
++{
++	/*
++	 * For firmware without a warm reset (no PSCI SYSTEM_RESET2, and a cold
++	 * SYSTEM_RESET), take warm restarts through PS_HOLD, which keeps RAM.
++	 * The PMIC is set up to warm reset when PS_HOLD drops.
++	 */
++	if (msm_no_fw_warm_reset && reboot_mode == REBOOT_WARM)
++		return do_msm_poweroff(data);
++
++	return NOTIFY_DONE;
++}
++
+ static int msm_restart_probe(struct platform_device *pdev)
+ {
++	int ret;
++
+ 	msm_ps_hold = devm_platform_ioremap_resource(pdev, 0);
+ 	if (IS_ERR(msm_ps_hold))
+ 		return PTR_ERR(msm_ps_hold);
+ 
+-	devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_RESTART,
+-				      128, do_msm_poweroff, NULL);
++	msm_no_fw_warm_reset = of_property_read_bool(pdev->dev.of_node,
++						     "qcom,no-firmware-warm-reset");
++
++	ret = devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_RESTART,
++					    SYS_OFF_PRIO_FIRMWARE - 1,
++					    do_msm_firmware_restart, NULL);
++	if (ret)
++		return dev_err_probe(&pdev->dev, ret,
++				     "failed to register firmware restart handler\n");
+ 
+-	devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_POWER_OFF,
+-				      SYS_OFF_PRIO_DEFAULT, do_msm_poweroff,
+-				      NULL);
++	ret = devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_RESTART,
++					    128, do_msm_poweroff, NULL);
++	if (ret)
++		return ret;
+ 
+-	return 0;
++	return devm_register_sys_off_handler(&pdev->dev,
++					     SYS_OFF_MODE_POWER_OFF,
++					     SYS_OFF_PRIO_DEFAULT,
++					     do_msm_poweroff, NULL);
+ }
+ 
+ static const struct of_device_id of_msm_restart_match[] = {

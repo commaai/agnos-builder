@@ -1,0 +1,124 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 03:47:41 -0800
+Subject: [PATCH] watchdog: pm8916_wdt: stop the watchdog when Linux won't come
+ back to ping it
+
+The PMIC watchdog is not reset with the SoC. If it is still armed when
+the system powers off, halts or restarts into the bootloader or a download
+mode (fastboot, EDL), nothing pings it any more, and whether it then bites
+depends on the PMIC's power state and on what the boot firmware does with
+it. A bite would abort a firmware flash, or reset a device that was meant
+to stay off. Userspace can't always disarm it first: systemd keeps the
+watchdog armed through shutdown for RebootWatchdogSec, and paths such as
+sysrq-o, poweroff -ff and hw_protection_shutdown() skip userspace.
+
+Stop the watchdog in those cases, and keep it running through a plain
+restart. Stop it as late as possible, after device_shutdown(), so that a
+hang in a driver's shutdown callback still resets: from a power-off
+prepare handler, and from a restart handler that runs ahead of the
+handlers that reset the SoC (the PMIC regmap is fast_io, so this is fine
+with interrupts off). A halt has no hook after device_shutdown(), so it
+uses a reboot notifier. watchdog_stop_on_reboot() doesn't fit, as it
+stops on every restart, and before device_shutdown().
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/watchdog/pm8916_wdt.c | 63 ++++++++++++++++++++++++++++++++++-
+ 1 file changed, 62 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/watchdog/pm8916_wdt.c b/drivers/watchdog/pm8916_wdt.c
+index b227a9dde1..940e961d05 100644
+--- a/drivers/watchdog/pm8916_wdt.c
++++ b/drivers/watchdog/pm8916_wdt.c
+@@ -6,6 +6,7 @@
+ #include <linux/of.h>
+ #include <linux/property.h>
+ #include <linux/platform_device.h>
++#include <linux/reboot.h>
+ #include <linux/regmap.h>
+ #include <linux/watchdog.h>
+ 
+@@ -39,6 +40,7 @@
+ struct pm8916_wdt {
+ 	struct regmap *regmap;
+ 	struct watchdog_device wdev;
++	struct notifier_block halt_nb;
+ 	u32 baseaddr;
+ };
+ 
+@@ -103,6 +105,43 @@ static int pm8916_wdt_set_pretimeout(struct watchdog_device *wdev,
+ 	return pm8916_wdt_configure_timers(wdev);
+ }
+ 
++/*
++ * After a power off, a halt, or a restart into the bootloader or a download
++ * mode, nothing pings the watchdog any more, so stop it. Do that as late as
++ * possible, after device_shutdown(), so that a hang in a driver's shutdown
++ * still resets. A plain restart leaves it running.
++ */
++static int pm8916_wdt_restart(struct sys_off_data *data)
++{
++	struct pm8916_wdt *wdt = data->cb_data;
++
++	if (data->cmd && *data->cmd)
++		pm8916_wdt_stop(&wdt->wdev);
++
++	return NOTIFY_DONE;
++}
++
++static int pm8916_wdt_power_off_prepare(struct sys_off_data *data)
++{
++	struct pm8916_wdt *wdt = data->cb_data;
++
++	pm8916_wdt_stop(&wdt->wdev);
++
++	return NOTIFY_DONE;
++}
++
++/* Nothing runs after device_shutdown() on a halt, so stop it here. */
++static int pm8916_wdt_halt_notify(struct notifier_block *nb,
++				  unsigned long action, void *data)
++{
++	struct pm8916_wdt *wdt = container_of(nb, struct pm8916_wdt, halt_nb);
++
++	if (action == SYS_HALT)
++		pm8916_wdt_stop(&wdt->wdev);
++
++	return NOTIFY_DONE;
++}
++
+ static irqreturn_t pm8916_wdt_isr(int irq, void *arg)
+ {
+ 	struct pm8916_wdt *wdt = arg;
+@@ -233,7 +272,29 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
+ 	watchdog_init_timeout(&wdt->wdev, 0, dev);
+ 	pm8916_wdt_configure_timers(&wdt->wdev);
+ 
+-	return devm_watchdog_register_device(dev, &wdt->wdev);
++	err = devm_watchdog_register_device(dev, &wdt->wdev);
++	if (err)
++		return err;
++
++	/*
++	 * Restart handlers run with interrupts off, which the PMIC's fast_io
++	 * regmap allows. Run ahead of the handlers that reset the SoC.
++	 */
++	err = devm_register_sys_off_handler(dev, SYS_OFF_MODE_RESTART,
++					    SYS_OFF_PRIO_FIRMWARE + 2,
++					    pm8916_wdt_restart, wdt);
++	if (err)
++		return err;
++
++	err = devm_register_sys_off_handler(dev, SYS_OFF_MODE_POWER_OFF_PREPARE,
++					    SYS_OFF_PRIO_DEFAULT,
++					    pm8916_wdt_power_off_prepare, wdt);
++	if (err)
++		return err;
++
++	wdt->halt_nb.notifier_call = pm8916_wdt_halt_notify;
++
++	return devm_register_reboot_notifier(dev, &wdt->halt_nb);
+ }
+ 
+ static int __maybe_unused pm8916_wdt_suspend(struct device *dev)

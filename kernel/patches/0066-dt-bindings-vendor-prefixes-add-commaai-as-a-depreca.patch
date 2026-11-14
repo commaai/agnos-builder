@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 04:50:54 -0800
+Subject: [PATCH] dt-bindings: vendor-prefixes: add commaai as a deprecated
+ comma.ai prefix
+
+The panda's compatible, commaai,panda, predates the comma prefix and is
+what comma's device trees and spidev patch have always used. Document
+it, marked deprecated, so that the device tree validates without
+renaming the compatible that userspace and existing device trees
+depend on.
+
+This is local to AGNOS, like the spidev patch that needs it. Upstream
+would take a single prefix, so the panda would become comma,panda.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ Documentation/devicetree/bindings/vendor-prefixes.yaml | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+index e162329558..e2d14a7bd6 100644
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -359,6 +359,9 @@ patternProperties:
+     description: Colorful GRP, Shenzhen Xueyushi Technology Ltd.
+   "^comma,.*":
+     description: comma.ai, Inc.
++  "^commaai,.*":
++    description: comma.ai, Inc. (deprecated, use comma)
++    deprecated: true
+   "^compal,.*":
+     description: Compal Electronics, Inc.
+   "^compulab,.*":

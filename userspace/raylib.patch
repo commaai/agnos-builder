@@ -1,0 +1,572 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeebshihadeh@gmail.com>
+Date: Fri, 13 Nov 2026 20:41:44 -0800
+Subject: [PATCH] comma: support the mainline kernel's display and touchscreen
+
+The COMMA backend was written for the downstream kernel, whose display
+path is ION buffers turned by the SDE rotator. Mainline msm DRM has
+neither, and its DPU can't rotate by 90 degrees on SDM845:
+
+- Turn rlsw's landscape target into the portrait panel on the CPU, into
+  one of two dumb buffers, in square tiles so the reads stay in cache
+  and the write-combined panel buffer is written a row at a time.
+- Present each frame with a blocking atomic commit that changes only the
+  primary plane's FB_ID, and modeset (drmModeSetCrtc) only when the CRTC
+  isn't showing a framebuffer. The commit returns once the frame is
+  latched at vblank, which paces the UI to the panel and frees the
+  previous buffer. magic hands every client the same DRM file, so a
+  client can't count on reading its own flip events, and a flip queued
+  before the last one completes fails with EBUSY; a blocking commit
+  needs neither. A modeset per frame would include the connector, whose
+  encoder->crtc link msm clears and restores in every such commit while
+  DPU reads it from the vblank IRQ ("no encoder found for crtc 0").
+- Find the backlight under /sys/class/backlight instead of assuming the
+  downstream panel0-backlight name.
+- Take the panel orientation from the devicetree model, since there's no
+  som_id, before and independently of the touchscreen.
+- Open the touchscreen by its stable by-path name, seed each slot's
+  position from the kernel (evdev only reports changed axes), and track
+  the active slot per device. Run without touch rather than exit if it
+  is missing.
+---
+ src/platforms/rcore_comma.c         | 178 ++++++++++++++++++-------
+ src/platforms/rcore_comma_display.c | 198 ++++++++--------------------
+ 2 files changed, 187 insertions(+), 189 deletions(-)
+
+diff --git a/src/platforms/rcore_comma.c b/src/platforms/rcore_comma.c
+index fb73e6ed..dbdce709 100644
+--- a/src/platforms/rcore_comma.c
++++ b/src/platforms/rcore_comma.c
+@@ -45,6 +45,7 @@
+ *     3. This notice may not be removed or altered from any source distribution.
+ *
+ **********************************************************************************************/
++#include <dirent.h>
+ #include <errno.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -54,6 +55,7 @@
+ #include <unistd.h>
+ 
+ #include <sys/socket.h>
++#include <sys/ioctl.h>
+ #include <sys/un.h>
+ 
+ #include <linux/input.h>
+@@ -83,6 +85,7 @@ struct finger {
+ struct touch {
+   struct finger fingers[MAX_TOUCH_POINTS];
+   int fd;
++  int slot;
+ };
+ 
+ 
+@@ -94,7 +97,10 @@ struct drm_platform {
+ 
+   uint32_t connector_id;
+   uint32_t crtc_id;
++  uint32_t plane_id;
++  uint32_t fb_id_prop;
+   bool needs_modeset;
++  bool display_lost;  // a modeset failed; logged once, until one succeeds
+ 
+   drmModeModeInfo mode;
+ };
+@@ -392,6 +398,33 @@ static int init_drm (const char *dev_path) {
+   drmModeFreeConnector(connector);
+   drmModeFreeResources(res);
+ 
++  // frames are atomic commits of the primary plane's FB_ID
++  drmModePlaneRes *planes = NULL;
++  if (drmSetClientCap(platform.drm.fd, DRM_CLIENT_CAP_ATOMIC, 1) == 0) planes = drmModeGetPlaneResources(platform.drm.fd);
++  for (uint32_t i = 0; planes && i < planes->count_planes && !platform.drm.fb_id_prop; i++) {
++    drmModePlane *plane = drmModeGetPlane(platform.drm.fd, planes->planes[i]);
++    drmModeObjectProperties *props = drmModeObjectGetProperties(platform.drm.fd, planes->planes[i], DRM_MODE_OBJECT_PLANE);
++    bool primary = false;
++    uint32_t fb_id_prop = 0;
++    for (uint32_t j = 0; props && j < props->count_props; j++) {
++      drmModePropertyRes *prop = drmModeGetProperty(platform.drm.fd, props->props[j]);
++      if (strcmp(prop->name, "type") == 0) primary = props->prop_values[j] == DRM_PLANE_TYPE_PRIMARY;
++      if (strcmp(prop->name, "FB_ID") == 0) fb_id_prop = prop->prop_id;
++      drmModeFreeProperty(prop);
++    }
++    if (primary && (plane->possible_crtcs & 1)) {  // res->crtcs[0]
++      platform.drm.plane_id = plane->plane_id;
++      platform.drm.fb_id_prop = fb_id_prop;
++    }
++    drmModeFreeObjectProperties(props);
++    drmModeFreePlane(plane);
++  }
++  drmModeFreePlaneResources(planes);
++  if (!platform.drm.fb_id_prop) {
++    TRACELOG(LOG_WARNING, "COMMA: No atomic primary plane");
++    return -1;
++  }
++
+   return 0;
+ }
+ 
+@@ -414,8 +447,32 @@ static FILE* open_with_retry(const char *path, const char *mode) {
+   return NULL;
+ }
+ 
++// the panel's backlight, named after its DSI host
++static const char *find_backlight(void) {
++  static char path[sizeof("/sys/class/backlight/") + sizeof(((struct dirent *)0)->d_name)];
++  DIR *d = opendir("/sys/class/backlight");
++  if (!d) return NULL;
++  struct dirent *ent;
++  const char *found = NULL;
++  while (!found && (ent = readdir(d)) != NULL) {
++    if (ent->d_name[0] == '.') continue;
++    snprintf(path, sizeof(path), "/sys/class/backlight/%s", ent->d_name);
++    found = path;
++  }
++  closedir(d);
++  return found;
++}
++
+ static int turn_screen_on () {
+-  FILE *f = open_with_retry("/sys/class/backlight/panel0-backlight/bl_power", "w");
++  const char *bl = find_backlight();
++  if (!bl) {
++    TRACELOG(LOG_WARNING, "COMMA: No backlight device found");
++    return -1;
++  }
++
++  char filepath[512];
++  snprintf(filepath, sizeof(filepath), "%s/bl_power", bl);
++  FILE *f = open_with_retry(filepath, "w");
+   if (f) {
+     fputs("0", f);
+     fclose(f);
+@@ -425,7 +482,8 @@ static int turn_screen_on () {
+   }
+ 
+   unsigned long max_brightness = 0;
+-  f = open_with_retry("/sys/class/backlight/panel0-backlight/max_brightness", "r");
++  snprintf(filepath, sizeof(filepath), "%s/max_brightness", bl);
++  f = open_with_retry(filepath, "r");
+   if (f) {
+     if (fscanf(f, "%lu", &max_brightness) != 1) {
+       TRACELOG(LOG_WARNING, "COMMA: Failed to read max_brightness");
+@@ -438,7 +496,8 @@ static int turn_screen_on () {
+     return -1;
+   }
+ 
+-  f = open_with_retry("/sys/class/backlight/panel0-backlight/brightness", "w");
++  snprintf(filepath, sizeof(filepath), "%s/brightness", bl);
++  f = open_with_retry(filepath, "w");
+   if (f) {
+     max_brightness = (int)((max_brightness / 100.0 ) * 65.0);
+     fprintf(f, "%lu", max_brightness);
+@@ -475,30 +534,27 @@ static int init_touch(const char *dev_path) {
+     return -1;
+   }
+ 
+-  FILE *fp = fopen("/sys/devices/platform/vendor/vendor:gpio-som-id/som_id", "r");
+-  if (fp != NULL) {
+-    int origin;
+-    int ret = fscanf(fp, "%d", &origin);
+-    fclose(fp);
+-    if (ret != 1) {
+-      TRACELOG(LOG_WARNING, "COMMA: Failed to test for screen origin");
+-      return -1;
+-    } else {
+-      platform.canonical_zero = origin == 1;
+-    }
+-  } else {
+-    TRACELOG(LOG_WARNING, "COMMA: Failed to open screen origin");
+-    platform.canonical_zero = false;
++  // evdev omits unchanged coordinates, including on the first contact
++  int x[MAX_TOUCH_POINTS + 1] = { ABS_MT_POSITION_X };
++  int y[MAX_TOUCH_POINTS + 1] = { ABS_MT_POSITION_Y };
++  bool have_positions = ioctl(platform.touch.fd, EVIOCGMTSLOTS(sizeof(x)), x) == 0 &&
++                        ioctl(platform.touch.fd, EVIOCGMTSLOTS(sizeof(y)), y) == 0;
++  if (!have_positions) TRACELOG(LOG_WARNING, "COMMA: Failed to read initial touch positions");
++
++  struct input_absinfo slot = {0};
++  if (ioctl(platform.touch.fd, EVIOCGABS(ABS_MT_SLOT), &slot) < 0) {
++    TRACELOG(LOG_WARNING, "COMMA: Failed to read initial touch slot");
+   }
++  platform.touch.slot = slot.value;
+ 
+   for (int i = 0; i < MAX_TOUCH_POINTS; ++i) {
+-    platform.touch.fingers[i].x = -1;
+-    platform.touch.fingers[i].y = -1;
++    platform.touch.fingers[i].x = have_positions ? (platform.canonical_zero ? CORE.Window.screen.width - y[i + 1] : y[i + 1]) : -1;
++    platform.touch.fingers[i].y = have_positions ? (platform.canonical_zero ? x[i + 1] : CORE.Window.screen.height - x[i + 1]) : -1;
+     platform.touch.fingers[i].state = FINGER_STATE_REMOVED;
+     platform.touch.fingers[i].resetNextFrame = false;
+ 
+-    CORE.Input.Touch.currentTouchState[0] = 0;
+-    CORE.Input.Touch.previousTouchState[0] = 0;
++    CORE.Input.Touch.currentTouchState[i] = 0;
++    CORE.Input.Touch.previousTouchState[i] = 0;
+   }
+ 
+   for (int i = 0; i < MAX_MOUSE_BUTTONS; ++i) {
+@@ -738,32 +794,50 @@ void DisableCursor(void) {
+   CORE.Input.Mouse.cursorHidden = true;
+ }
+ 
+-// show a framebuffer at the next vblank, and wait for it
++// show a framebuffer and wait for it: a blocking atomic commit of the primary plane's FB_ID returns once the
++// frame is latched at vblank, which paces drawing to the panel and frees the buffer shown before. magic hands
++// every client the same DRM file, so a client can't count on reading its own flip events, and a flip queued
++// before the last one completes fails with EBUSY; a blocking commit needs neither
+ static bool present_framebuffer(uint32_t framebuffer) {
+-  // Closing another client's DRM file can remove the active framebuffer and
+-  // disable the CRTC. Restore it when page flipping is no longer possible.
+-  if (platform.drm.needs_modeset ||
+-      drmModePageFlip(platform.drm.fd, platform.drm.crtc_id, framebuffer, 0, NULL) != 0) {
+-    if (!platform.drm.needs_modeset) TRACELOG(LOG_WARNING, "COMMA: Failed to page flip");
++  // when another client of magic's DRM file exits, it removes its framebuffers, and removing the one on
++  // screen disables the CRTC. a plane update can't turn it back on, so that's the normal handover: note it
++  // and modeset. if the modeset fails too, warn once and retry every frame quietly until the display is back
++  bool modeset = platform.drm.needs_modeset;
++  if (!modeset) {
++    drmModeAtomicReq *req = drmModeAtomicAlloc();
++    int ret = req ? drmModeAtomicAddProperty(req, platform.drm.plane_id, platform.drm.fb_id_prop, framebuffer) : -1;
++    if (ret >= 0) ret = drmModeAtomicCommit(platform.drm.fd, req, 0, NULL);
++    drmModeAtomicFree(req);
++    if (ret != 0) {
++      TRACELOG(LOG_INFO, "COMMA: Plane update failed, setting the CRTC");
++      modeset = true;
++    }
++  }
++  if (modeset) {
+     if (drmModeSetCrtc(platform.drm.fd, platform.drm.crtc_id, framebuffer, 0, 0, &platform.drm.connector_id, 1, &platform.drm.mode) != 0) {
+-      TRACELOG(LOG_WARNING, "COMMA: Failed to set CRTC");
++      if (!platform.drm.display_lost) TRACELOG(LOG_WARNING, "COMMA: Failed to set CRTC: %s", strerror(errno));
++      platform.drm.display_lost = true;
+       platform.drm.needs_modeset = true;
+       return false;
+     }
++    if (platform.drm.display_lost) TRACELOG(LOG_INFO, "COMMA: Display restored");
++    platform.drm.display_lost = false;
+     platform.drm.needs_modeset = false;
+   }
+ 
+-  static uint32_t vblank_id = 0;
+-  drmVBlank v = {0};
+-  v.request.type = DRM_VBLANK_RELATIVE;
+-  v.request.sequence = 1;
+-  drmWaitVBlank(platform.drm.fd, &v);
+   if (platform.debug_mode) {
+-    if ((v.reply.sequence - vblank_id) > 1) {
+-      TRACELOG(LOG_WARNING, "%i FRAME(s) DROPPED!", (v.reply.sequence - vblank_id) - 1);
++    static uint32_t vblank_id = 0;
++    drmVBlank v = {0};
++    v.request.type = DRM_VBLANK_RELATIVE;
++    if (drmWaitVBlank(platform.drm.fd, &v) != 0) {
++      TRACELOG(LOG_WARNING, "COMMA: Reading display sequence failed: %s", strerror(errno));
++    } else {
++      if (vblank_id && (v.reply.sequence - vblank_id) > 1) {
++        TRACELOG(LOG_WARNING, "%i FRAME(s) DROPPED!", (v.reply.sequence - vblank_id) - 1);
++      }
++      vblank_id = v.reply.sequence;
+     }
+   }
+-  vblank_id = v.reply.sequence;
+   return true;
+ }
+ 
+@@ -860,9 +934,6 @@ const char *GetKeyName(int key) {
+ }
+ 
+ void PollInputEvents(void) {
+-  // slot i is for events of finger i
+-  static int slot = 0;
+-
+   for (int i = 0; i < MAX_TOUCH_POINTS; ++i) {
+     CORE.Input.Touch.previousTouchState[i] = CORE.Input.Touch.currentTouchState[i];
+     // caused by single frame down and up events
+@@ -914,9 +985,18 @@ void PollInputEvents(void) {
+     } else if (event.type == EV_ABS) { // raw events. Process these untill we get a sync frame
+ 
+       if (event.code == ABS_MT_SLOT) { // switch finger
+-        slot = event.value;
+-      } else if (event.code == ABS_MT_TRACKING_ID) { // finger on screen or not
+-        platform.touch.fingers[slot].state = event.value == -1 ? FINGER_STATE_REMOVING : FINGER_STATE_TOUCHING;
++        platform.touch.slot = event.value;
++        continue;
++      }
++      int slot = platform.touch.slot;
++      if (slot < 0 || slot >= MAX_TOUCH_POINTS) continue;
++
++      if (event.code == ABS_MT_TRACKING_ID) { // finger on screen or not
++        if (event.value >= 0) {
++          platform.touch.fingers[slot].state = FINGER_STATE_TOUCHING;
++        } else if (platform.touch.fingers[slot].state == FINGER_STATE_TOUCHING) {
++          platform.touch.fingers[slot].state = FINGER_STATE_REMOVING;
++        }
+       } else if (event.code == ABS_MT_POSITION_X) {
+         platform.touch.fingers[slot].y = (1 - platform.canonical_zero) * (CORE.Window.screen.height - event.value) + (platform.canonical_zero * event.value);
+       } else if (event.code == ABS_MT_POSITION_Y) {
+@@ -959,9 +1039,17 @@ int InitPlatform(void) {
+   CORE.Window.renderOffset.y = 0;
+ 
+ 
+-  if (init_touch("/dev/input/event2")) {
+-    TRACELOG(LOG_FATAL, "COMMA: Failed to initialize touch device");
+-    return -1;
++  // the comma four's panel is mounted the other way around
++  char model[sizeof("comma mici")] = {0};
++  FILE *fp = fopen("/sys/firmware/devicetree/base/model", "r");
++  if (fp) {
++    if (fread(model, 1, sizeof(model), fp) != sizeof(model)) model[0] = 0;
++    fclose(fp);
++  }
++  platform.canonical_zero = memcmp(model, "comma mici", sizeof(model)) == 0;
++
++  if (init_touch("/dev/input/by-path/platform-894000.i2c-event")) {
++    TRACELOG(LOG_WARNING, "COMMA: Failed to initialize touch device, continuing without touch");
+   }
+ 
+   if (init_screen()) {
+diff --git a/src/platforms/rcore_comma_display.c b/src/platforms/rcore_comma_display.c
+index 19b32af3..429bd348 100644
+--- a/src/platforms/rcore_comma_display.c
++++ b/src/platforms/rcore_comma_display.c
+@@ -1,135 +1,61 @@
+ // the panel of comma devices for raylib's software renderer, included by rcore_comma.c.
+-// rlsw draws into a landscape target, which the display's rotator turns into one of two portrait panel buffers to flip to.
+-// the target is rlsw's framebuffer, so its rows are bottom up like GL's, and the rotator flips them too
++// rlsw draws into a landscape target, which is turned into one of two portrait panel buffers to flip to.
++// the target is rlsw's framebuffer, so its rows are bottom up like GL's, and the turn flips them too
+ #include <sys/ioctl.h>
+ #include <sys/mman.h>
+ #include <drm_fourcc.h>
+-#include <linux/videodev2.h>
+-
+-// the msm ION interface of the 4.9 kernel (linux/ion.h, linux/msm_ion.h)
+-typedef int ion_user_handle_t;
+-struct ion_allocation_data {
+-  size_t len, align;
+-  unsigned int heap_id_mask, flags;
+-  ion_user_handle_t handle;
+-};
+-struct ion_fd_data {
+-  ion_user_handle_t handle;
+-  int fd;
+-};
+-struct ion_handle_data {
+-  ion_user_handle_t handle;
+-};
+-struct ion_custom_data {
+-  unsigned int cmd;
+-  unsigned long arg;
+-};
+-struct ion_flush_data {
+-  ion_user_handle_t handle;
+-  int fd;
+-  void *vaddr;
+-  unsigned int offset, length;
+-};
+-#define ION_IOMMU_HEAP_ID 25
+-#define ION_FLAG_CACHED 1
+-#define ION_IOC_ALLOC _IOWR('I', 0, struct ion_allocation_data)
+-#define ION_IOC_FREE _IOWR('I', 1, struct ion_handle_data)
+-#define ION_IOC_SHARE _IOWR('I', 4, struct ion_fd_data)
+-#define ION_IOC_CUSTOM _IOWR('I', 6, struct ion_custom_data)
+-#define ION_IOC_CLEAN_CACHES _IOWR('M', 0, struct ion_flush_data)
+ 
+ typedef struct {
+-  int fd;
+-  ion_user_handle_t handle;
+-  uint8_t *map;
++  uint32_t handle;  // a dumb buffer on the platform's own DRM fd
++  uint32_t pitch;
++  uint8_t *map;     // write-combined
+   size_t size;
+-} ion_buffer;
++} panel_buffer;
+ 
+ static struct {
+-  int ion_fd, rotator_fd;
+-  ion_buffer target, panel[2];
++  uint8_t *target;
++  panel_buffer panel[2];
+   uint32_t framebuffers[2];  // of the panel buffers, on the platform's own DRM fd
+   int back;
+-} display = {.ion_fd = -1, .rotator_fd = -1};
++} display;
+ 
+-static int ion_alloc(ion_buffer *buffer, size_t size, bool cached) {
+-  struct ion_allocation_data alloc = {.len = size, .align = 4096, .heap_id_mask = 1 << ION_IOMMU_HEAP_ID,
+-                                      .flags = cached ? ION_FLAG_CACHED : 0};
+-  if (ioctl(display.ion_fd, ION_IOC_ALLOC, &alloc)) return -errno;
+-  buffer->handle = alloc.handle;
++static void display_close(void) {
++  // the framebuffers go with the platform's DRM fd
++  for (int i = 0; i < 2; i++) {
++    panel_buffer *buffer = &display.panel[i];
++    if (buffer->map) munmap(buffer->map, buffer->size);
++    if (buffer->handle) drmModeDestroyDumbBuffer(platform.drm.render_fd, buffer->handle);
++  }
++  free(display.target);
++  memset(&display, 0, sizeof(display));
++}
+ 
+-  struct ion_fd_data share = {.handle = alloc.handle};
+-  if (ioctl(display.ion_fd, ION_IOC_SHARE, &share)) return -errno;
+-  buffer->fd = share.fd;
++static int panel_alloc(panel_buffer *buffer, int width, int height) {
++  uint64_t size, offset;
++  if (drmModeCreateDumbBuffer(platform.drm.render_fd, width, height, 32, 0, &buffer->handle, &buffer->pitch, &size)) return -errno;
+   buffer->size = size;
+-
+-  void *map = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, buffer->fd, 0);
++  if (drmModeMapDumbBuffer(platform.drm.render_fd, buffer->handle, &offset)) return -errno;
++  void *map = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, platform.drm.render_fd, offset);
+   if (map == MAP_FAILED) return -errno;
+   buffer->map = map;
+   return 0;
+ }
+ 
+-static void ion_free(ion_buffer *buffer) {
+-  if (buffer->map) munmap(buffer->map, buffer->size);
+-  if (buffer->size) close(buffer->fd);
+-  if (buffer->handle) ioctl(display.ion_fd, ION_IOC_FREE, &(struct ion_handle_data){.handle = buffer->handle});
+-  *buffer = (ion_buffer){0};
+-}
+-
+-static void display_close(void) {
+-  // the framebuffers go with the platform's DRM fd
+-  for (int i = 0; i < 2; i++) ion_free(&display.panel[i]);
+-  ion_free(&display.target);
+-  if (display.rotator_fd >= 0) close(display.rotator_fd);
+-  if (display.ion_fd >= 0) close(display.ion_fd);
+-  memset(&display, 0, sizeof(display));
+-  display.ion_fd = display.rotator_fd = -1;
+-}
+-
+-static int display_setup(void) {
++// 0 or a negative errno
++static int display_init(void) {
+   int panel_width = platform.drm.mode.hdisplay;
+   int panel_height = platform.drm.mode.vdisplay;
+-  struct v4l2_control rotate = {.id = V4L2_CID_ROTATE, .value = platform.canonical_zero ? 270 : 90};
+-  struct v4l2_control flip = {.id = V4L2_CID_VFLIP, .value = 1};
+-  // the v4l2 and DRM fourccs are the same
+-  struct v4l2_format in = {.type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
+-                           .fmt.pix = {.width = panel_height, .height = panel_width, .pixelformat = DRM_FORMAT_ABGR8888}};
+-  struct v4l2_format out = {.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+-                            .fmt.pix = {.width = panel_width, .height = panel_height, .pixelformat = DRM_FORMAT_ABGR8888}};
+-  if (ioctl(display.rotator_fd, VIDIOC_S_CTRL, &rotate) || ioctl(display.rotator_fd, VIDIOC_S_CTRL, &flip)) return -errno;
+-  if (ioctl(display.rotator_fd, VIDIOC_S_FMT, &in) || ioctl(display.rotator_fd, VIDIOC_S_FMT, &out)) return -errno;
+-  if (in.fmt.pix.bytesperline != (uint32_t)panel_height * 4) return -EINVAL;  // rlsw's rows aren't padded
+-
+-  // the target is read back while drawing, so it's cached and cleaned before each rotation
+-  int ret = ion_alloc(&display.target, in.fmt.pix.sizeimage, true);
+-  if (ret) return ret;
+-  for (int i = 0; i < 2; i++) {
+-    ret = ion_alloc(&display.panel[i], out.fmt.pix.sizeimage, false);
+-    if (ret) return ret;
+-    uint32_t handle;
+-    if (drmPrimeFDToHandle(platform.drm.render_fd, display.panel[i].fd, &handle)) return -errno;
+-    uint32_t handles[4] = {handle};
+-    uint32_t pitches[4] = {out.fmt.pix.bytesperline};
++  display.target = malloc((size_t)panel_width * panel_height * 4);
++  int ret = display.target ? 0 : -ENOMEM;
++  for (int i = 0; i < 2 && !ret; i++) {
++    ret = panel_alloc(&display.panel[i], panel_width, panel_height);
++    if (ret) break;
++    uint32_t handles[4] = {display.panel[i].handle};
++    uint32_t pitches[4] = {display.panel[i].pitch};
+     uint32_t offsets[4] = {0};
+     if (drmModeAddFB2(platform.drm.render_fd, panel_width, panel_height, DRM_FORMAT_ABGR8888, handles, pitches, offsets,
+-                      &display.framebuffers[i], 0)) return -errno;
++                      &display.framebuffers[i], 0)) ret = -errno;
+   }
+-
+-  struct v4l2_requestbuffers requests[2] = {{.count = 1, .type = V4L2_BUF_TYPE_VIDEO_OUTPUT, .memory = V4L2_MEMORY_USERPTR},
+-                                            {.count = 2, .type = V4L2_BUF_TYPE_VIDEO_CAPTURE, .memory = V4L2_MEMORY_USERPTR}};
+-  for (int i = 0; i < 2; i++) {
+-    if (ioctl(display.rotator_fd, VIDIOC_REQBUFS, &requests[i])) return -errno;
+-    if (ioctl(display.rotator_fd, VIDIOC_STREAMON, &requests[i].type)) return -errno;
+-  }
+-  return 0;
+-}
+-
+-// 0 or a negative errno
+-static int display_init(void) {
+-  display.ion_fd = open("/dev/ion", O_RDWR | O_CLOEXEC);
+-  if (display.ion_fd < 0) return -errno;
+-  display.rotator_fd = open("/dev/video2", O_RDWR | O_CLOEXEC);  // sde_rotator, a v4l2 mem2mem device
+-  int ret = display.rotator_fd < 0 ? -errno : display_setup();
+   if (ret) display_close();
+   return ret;
+ }
+@@ -137,7 +63,7 @@ static int display_init(void) {
+ // the target to draw into, when it's width x height
+ static uint8_t *display_target(int width, int height) {
+   bool fits = width == platform.drm.mode.vdisplay && height == platform.drm.mode.hdisplay;
+-  return fits ? display.target.map : NULL;
++  return fits ? display.target : NULL;
+ }
+ 
+ // set a property of the CRTC to a blob, or clear it when data is NULL. 0 or a negative errno
+@@ -163,42 +89,26 @@ static int set_crtc_blob(const char *name, const void *data, uint32_t size) {
+   return ret;
+ }
+ 
+-static int rotator_queue(int type, int index, const ion_buffer *buffer) {
+-  // the rotator takes the dmabuf fd as the user pointer
+-  struct v4l2_buffer queued = {.type = type, .memory = V4L2_MEMORY_USERPTR, .index = index, .m.userptr = buffer->fd,
+-                               .length = buffer->size, .bytesused = buffer->size};
+-  return ioctl(display.rotator_fd, VIDIOC_QBUF, &queued) ? -errno : 0;
+-}
+-
+-static int rotator_wait(int type) {
+-  struct v4l2_buffer done = {.type = type, .memory = V4L2_MEMORY_USERPTR};
+-  if (ioctl(display.rotator_fd, VIDIOC_DQBUF, &done)) return -errno;
+-  return done.flags & V4L2_BUF_FLAG_ERROR ? -EIO : 0;
+-}
+-
+-// restarting the rotator's queues returns any buffers still in them
+-static void rotator_restart(void) {
+-  int output = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+-  int capture = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+-  ioctl(display.rotator_fd, VIDIOC_STREAMOFF, &output);
+-  ioctl(display.rotator_fd, VIDIOC_STREAMOFF, &capture);
+-  ioctl(display.rotator_fd, VIDIOC_STREAMON, &output);
+-  ioctl(display.rotator_fd, VIDIOC_STREAMON, &capture);
+-}
+-
+-// rotate the target into the back panel buffer, and give its framebuffer to flip to. 0 or a negative errno
++// turn the target into the back panel buffer, and give its framebuffer to flip to. 0 or a negative errno.
++// on a w x h panel, pixel (x, y) is the target's column h - 1 - y of row w - 1 - x when the panel's origin is
++// the canonical zero (the comma four), else column y of row x. it goes in square tiles, so both sides stay in cache,
++// and the panel buffer is written a row at a time, as write-combining wants
+ static int display_rotate(uint32_t *framebuffer) {
+-  struct ion_flush_data flush = {.handle = display.target.handle, .vaddr = display.target.map, .length = display.target.size};
+-  struct ion_custom_data clean = {.cmd = ION_IOC_CLEAN_CACHES, .arg = (uintptr_t)&flush};
+-  if (ioctl(display.ion_fd, ION_IOC_CUSTOM, &clean)) return -errno;
+-
+-  int ret = rotator_queue(V4L2_BUF_TYPE_VIDEO_OUTPUT, 0, &display.target);
+-  if (!ret) ret = rotator_queue(V4L2_BUF_TYPE_VIDEO_CAPTURE, display.back, &display.panel[display.back]);
+-  if (!ret) ret = rotator_wait(V4L2_BUF_TYPE_VIDEO_CAPTURE);
+-  if (!ret) ret = rotator_wait(V4L2_BUF_TYPE_VIDEO_OUTPUT);
+-  if (ret) {
+-    rotator_restart();
+-    return ret;
++  enum { TILE = 32 };
++  const panel_buffer *panel = &display.panel[display.back];
++  int width = platform.drm.mode.hdisplay, height = platform.drm.mode.vdisplay;
++  const uint32_t *target = (const uint32_t *)display.target;  // width rows of height pixels
++  bool flip = platform.canonical_zero;
++  for (int y0 = 0; y0 < height; y0 += TILE) {
++    for (int x0 = 0; x0 < width; x0 += TILE) {
++      for (int y = y0; y < y0 + TILE && y < height; y++) {
++        uint32_t *row = (uint32_t *)(panel->map + (size_t)y * panel->pitch);
++        int column = flip ? height - 1 - y : y;
++        for (int x = x0; x < x0 + TILE && x < width; x++) {
++          row[x] = target[(size_t)(flip ? width - 1 - x : x) * height + column];
++        }
++      }
++    }
+   }
+   *framebuffer = display.framebuffers[display.back];
+   return 0;

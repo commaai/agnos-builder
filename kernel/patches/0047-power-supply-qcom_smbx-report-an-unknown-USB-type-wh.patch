@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 03:51:10 -0800
+Subject: [PATCH] power: supply: qcom_smbx: report an unknown USB type while
+ APSD runs
+
+Reading POWER_SUPPLY_PROP_USB_TYPE returns -EAGAIN until automatic power
+source detection (APSD) has finished. power_supply_uevent() only skips a
+property that fails with -ENODEV, -ENODATA or -EINVAL; any other error
+fails the whole uevent. With a cable attached at boot, APSD is usually
+still running when udev triggers the coldplug "add" event, so the
+charger's event is dropped:
+
+  power_supply pmi8998-charger: uevent: failed to send synthetic uevent: -11
+
+and reading usb_type from sysfs fails with EAGAIN in the same window.
+
+While detection runs the type simply isn't known yet, which is what
+POWER_SUPPLY_USB_TYPE_UNKNOWN means. Report that, as other chargers
+with BC1.2 detection do (bq256xx, bq25630, mp2629). The driver's status
+work already polls for the APSD result and calls power_supply_changed()
+once it is in, so userspace still gets the real type.
+
+The status work keeps using -EAGAIN internally to retry and rerun APSD.
+
+Fixes: 8648aeb5d7b7 ("power: supply: add Qualcomm PMI8998 SMB2 Charger driver")
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/power/supply/qcom_smbx.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/power/supply/qcom_smbx.c b/drivers/power/supply/qcom_smbx.c
+index f5ebf07886..f58c51ad92 100644
+--- a/drivers/power/supply/qcom_smbx.c
++++ b/drivers/power/supply/qcom_smbx.c
+@@ -659,6 +659,7 @@ static int smb_get_property(struct power_supply *psy,
+ 			     union power_supply_propval *val)
+ {
+ 	struct smb_chip *chip = power_supply_get_drvdata(psy);
++	int rc;
+ 
+ 	switch (psp) {
+ 	case POWER_SUPPLY_PROP_MANUFACTURER:
+@@ -682,7 +683,16 @@ static int smb_get_property(struct power_supply *psy,
+ 	case POWER_SUPPLY_PROP_HEALTH:
+ 		return smb_get_prop_health(chip, &val->intval);
+ 	case POWER_SUPPLY_PROP_USB_TYPE:
+-		return smb_apsd_get_charger_type(chip, &val->intval);
++		rc = smb_apsd_get_charger_type(chip, &val->intval);
++		/*
++		 * APSD is still running. The type isn't known yet, and
++		 * smb_status_change_work() reports it once APSD is done.
++		 */
++		if (rc == -EAGAIN) {
++			val->intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
++			return 0;
++		}
++		return rc;
+ 	default:
+ 		dev_err(chip->dev, "invalid property: %d\n", psp);
+ 		return -EINVAL;

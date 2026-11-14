@@ -3,3 +3,6 @@
 userspace/root/usr/share/fonts/NotoSans??-Regular.woff2 filter=lfs diff=lfs merge=lfs -text
 
 userspace/root/usr/comma/agnos-apps.tar.xz filter=lfs diff=lfs merge=lfs -text
+
+# Preserve patch context and mail trailers; builds check the added source.
+*.patch -whitespace

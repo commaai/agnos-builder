@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 01:48:18 -0800
+Subject: [PATCH] power: supply: qcom_smbx: use the battery's constant charge
+ current
+
+The init sequence caps the fast charge current at 1 A, whatever the
+battery is rated for. power_supply_get_battery_info() already gives the
+driver the battery's constant-charge-current-max-microamp, so program
+that when the battery specifies it, up to the 4.5 A the downstream
+driver allows. Batteries without the property keep the 1 A cap.
+
+The comma four's firmware and downstream kernel run the charger at 2 A,
+and its device tree can now say so.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/power/supply/qcom_smbx.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/power/supply/qcom_smbx.c b/drivers/power/supply/qcom_smbx.c
+index f58c51ad92..be45d9545f 100644
+--- a/drivers/power/supply/qcom_smbx.c
++++ b/drivers/power/supply/qcom_smbx.c
+@@ -74,6 +74,7 @@
+ 
+ #define FAST_CHARGE_CURRENT_CFG				0x61
+ #define FAST_CHARGE_CURRENT_SETTING_MASK		GENMASK(7, 0)
++#define FAST_CHARGE_CURRENT_MAX_UA			4500000
+ 
+ #define FLOAT_VOLTAGE_CFG				0x70
+ #define FLOAT_VOLTAGE_SETTING_MASK			GENMASK(7, 0)
+@@ -892,7 +893,8 @@ static const struct smb_init_register smb_init_seq[] = {
+ 	/*
+ 	 * This overrides all of the current limit options exposed to userspace
+ 	 * and prevents the device from pulling more than ~1A. This is done
+-	 * to minimise potential fire hazard risks.
++	 * to minimise potential fire hazard risks. A battery that specifies
++	 * its constant charge current gets that instead.
+ 	 */
+ 	{ .addr = FAST_CHARGE_CURRENT_CFG,
+ 	  .mask = FAST_CHARGE_CURRENT_SETTING_MASK,
+@@ -1016,6 +1018,17 @@ static int smb_probe(struct platform_device *pdev)
+ 	if (rc < 0)
+ 		return dev_err_probe(chip->dev, rc, "Couldn't set vbat max\n");
+ 
++	if (chip->batt_info->constant_charge_current_max_ua > 0) {
++		rc = min(chip->batt_info->constant_charge_current_max_ua,
++			 FAST_CHARGE_CURRENT_MAX_UA) / CURRENT_SCALE_FACTOR;
++		rc = regmap_update_bits(chip->regmap,
++					chip->base + FAST_CHARGE_CURRENT_CFG,
++					FAST_CHARGE_CURRENT_SETTING_MASK, rc);
++		if (rc < 0)
++			return dev_err_probe(chip->dev, rc,
++					     "Couldn't set fast charge current\n");
++	}
++
+ 	rc = smb_init_irq(chip, &irq, "bat-ov", smb_handle_batt_overvoltage);
+ 	if (rc < 0)
+ 		return rc;

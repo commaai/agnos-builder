@@ -32,7 +32,7 @@ Build: agnos-builder <commit link>
 - [ ] Clean openpilot build: `scons -c && ./openpilot/system/manager/build.py`
 - [ ] Factory reset
   - [ ] from openpilot menu
-  - [ ] tapping on boot: `echo 5 > /tmp/taps && sudo mount --bind /tmp/taps /sys/class/input/input2/device/touch_count && sudo rm /run/comma-booted && sudo systemctl restart comma`
+  - [ ] tapping on boot: `echo 5 > /tmp/taps && sudo mount --bind /tmp/taps /sys/devices/platform/soc@0/894000.i2c/i2c-*/*/touch_count && sudo rm /run/comma-booted && sudo systemctl restart comma`
   - [ ] corrupt userdata: `dd if=/dev/zero of=/dev/disk/by-partlabel/userdata count=10 bs=1M`
 - [ ] Clean setup: factory reset -> install openpilot -> openpilot works (candidate is this PR)
   - [ ] release AGNOS, candidate openpilot
