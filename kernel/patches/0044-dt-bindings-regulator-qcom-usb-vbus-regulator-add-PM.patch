@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Sun, 1 Nov 2026 20:08:26 -0800
+Subject: [PATCH] dt-bindings: regulator: qcom,usb-vbus-regulator: add PMI8998
+
+The PMI8998 OTG block has the same register layout as the PM8150B one,
+but its current-limit selector uses 250 mA steps from 250 mA to 2 A, so
+it cannot use qcom,pm8150b-vbus-reg as a fallback compatible.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ .../bindings/regulator/qcom,usb-vbus-regulator.yaml          | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/regulator/qcom,usb-vbus-regulator.yaml b/Documentation/devicetree/bindings/regulator/qcom,usb-vbus-regulator.yaml
+index 024b34d0eb..a26cbef30d 100644
+--- a/Documentation/devicetree/bindings/regulator/qcom,usb-vbus-regulator.yaml
++++ b/Documentation/devicetree/bindings/regulator/qcom,usb-vbus-regulator.yaml
+@@ -17,6 +17,9 @@ description: |
+   The pm8150b variant uses an OTG current-limit selector, supporting limits
+   of 500 mA, 1000 mA, 1500 mA, 2000 mA, 2500 mA and 3000 mA.
+ 
++  The pmi8998 variant has the same register layout as pm8150b, but its OTG
++  current-limit selector uses 250 mA steps from 250 mA to 2000 mA.
++
+   The pm4125 variant uses a different register layout with a 2-bit VBOOST
+   voltage selector supporting output voltages of 4.25 V, 4.5 V, 4.75 V
+   and 5.0 V.
+@@ -27,6 +30,7 @@ properties:
+       - enum:
+           - qcom,pm8150b-vbus-reg
+           - qcom,pm4125-vbus-reg
++          - qcom,pmi8998-vbus-reg
+       - items:
+           - enum:
+               - qcom,pm6150-vbus-reg
+@@ -49,6 +53,7 @@ allOf:
+               - qcom,pm6150-vbus-reg
+               - qcom,pm7250b-vbus-reg
+               - qcom,pmi632-vbus-reg
++              - qcom,pmi8998-vbus-reg
+     then:
+       required:
+         - regulator-min-microamp

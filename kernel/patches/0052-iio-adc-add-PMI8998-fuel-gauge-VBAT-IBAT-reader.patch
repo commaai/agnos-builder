@@ -1,0 +1,293 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Sun, 1 Nov 2026 20:07:00 -0800
+Subject: [PATCH] iio: adc: add PMI8998 fuel gauge VBAT/IBAT reader
+
+The comma four has no battery and no dedicated power monitor: VBAT is
+supplied by a regulator and the PMI8998 fuel gauge is the only device
+measuring the SoM's input rail. No fuel gauge algorithm is needed, so
+rather than a power_supply driver, expose the rail's voltage and current
+as plain IIO channels. The iio-hwmon bridge then provides in1_input (mV)
+and curr1_input (mA).
+
+Without the FG algorithm, IBATT is never updated. Like the downstream
+driver on these devices, read IADC instead and start each conversion in
+direct mode, returning the last completed sample so reads don't block.
+
+The scaling factors are the ones used by the downstream fuel gauge
+driver and the PMI8998 fuel gauge RFC. The direct-mode IADC conversion
+follows Daniel Koepping's change to the downstream fuel gauge driver.
+
+Link: https://lore.kernel.org/all/20251124-pmi8998_fuel_gauge-v1-2-dd3791f61478@ixit.cz/
+Link: https://github.com/commaai/agnos-kernel-sdm845/commit/8e3385d2d36228e40892920211e8c91d46a6858f
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/iio/adc/Kconfig            |  11 ++
+ drivers/iio/adc/Makefile           |   1 +
+ drivers/iio/adc/qcom-spmi-fg-adc.c | 223 +++++++++++++++++++++++++++++
+ 3 files changed, 235 insertions(+)
+ create mode 100644 drivers/iio/adc/qcom-spmi-fg-adc.c
+
+diff --git a/drivers/iio/adc/Kconfig b/drivers/iio/adc/Kconfig
+index 415e519ad4..5b4ab717ec 100644
+--- a/drivers/iio/adc/Kconfig
++++ b/drivers/iio/adc/Kconfig
+@@ -1366,6 +1366,17 @@ config QCOM_PM8XXX_XOADC
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called qcom-pm8xxx-xoadc.
+ 
++config QCOM_SPMI_FG_ADC
++	tristate "Qualcomm PMI8998 fuel-gauge ADC"
++	depends on MFD_SPMI_PMIC
++	help
++	  VBAT voltage and current measured by the PMI8998 fuel gauge on
++	  boards without a battery. The channels can be consumed by the
++	  iio-hwmon bridge.
++
++	  To compile this driver as a module, choose M here: the module will
++	  be called qcom-spmi-fg-adc.
++
+ config QCOM_SPMI_RRADC
+ 	tristate "Qualcomm SPMI RRADC"
+ 	depends on MFD_SPMI_PMIC
+diff --git a/drivers/iio/adc/Makefile b/drivers/iio/adc/Makefile
+index dcec0abb03..37bdeb3d9e 100644
+--- a/drivers/iio/adc/Makefile
++++ b/drivers/iio/adc/Makefile
+@@ -121,6 +121,7 @@ obj-$(CONFIG_QCOM_PM8XXX_XOADC) += qcom-pm8xxx-xoadc.o
+ obj-$(CONFIG_QCOM_SPMI_ADC5) += qcom-spmi-adc5.o
+ obj-$(CONFIG_QCOM_SPMI_ADC5_GEN3) += qcom-spmi-adc5-gen3.o
+ obj-$(CONFIG_QCOM_SPMI_IADC) += qcom-spmi-iadc.o
++obj-$(CONFIG_QCOM_SPMI_FG_ADC) += qcom-spmi-fg-adc.o
+ obj-$(CONFIG_QCOM_SPMI_RRADC) += qcom-spmi-rradc.o
+ obj-$(CONFIG_QCOM_SPMI_VADC) += qcom-spmi-vadc.o
+ obj-$(CONFIG_QCOM_VADC_COMMON) += qcom-vadc-common.o
+diff --git a/drivers/iio/adc/qcom-spmi-fg-adc.c b/drivers/iio/adc/qcom-spmi-fg-adc.c
+new file mode 100644
+index 0000000000..3177a1b2d3
+--- /dev/null
++++ b/drivers/iio/adc/qcom-spmi-fg-adc.c
+@@ -0,0 +1,223 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Qualcomm PMI8998 fuel gauge VBAT/IBAT measurements
++ *
++ * On boards where VBAT is supplied by a regulator rather than a battery, no
++ * fuel gauge algorithm is needed, but the FG still measures the VBAT rail.
++ * Expose its voltage and current as IIO channels, e.g. for the iio-hwmon
++ * bridge.
++ */
++#include <linux/cleanup.h>
++#include <linux/iio/iio.h>
++#include <linux/jiffies.h>
++#include <linux/mod_devicetable.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/platform_device.h>
++#include <linux/property.h>
++#include <linux/regmap.h>
++#include <linux/unaligned.h>
++#include <soc/qcom/qcom-spmi-pmic.h>
++
++#define FG_BATT_INFO_VBATT_LSB	0xa0
++#define FG_BATT_INFO_IADC_LSB	0xae
++#define FG_BATT_INFO_SEC_ACCESS	0xd0
++#define FG_SEC_ACCESS_UNLOCK	0xa5
++#define FG_BATT_INFO_TM_MISC	0xe5
++#define FG_ALG_DIRECT_MODE_EN	BIT(4)
++#define FG_IADC_CONV		BIT(2)
++#define FG_ADC_ENABLE_REG_CTRL	BIT(1)
++
++/* An IADC conversion takes up to 170 ms */
++#define FG_IADC_CONV_MS		170
++
++struct fg_adc {
++	struct regmap *regmap;
++	u32 base;
++	bool swap_bytes;
++	/* Serializes IADC conversions */
++	struct mutex lock;
++	unsigned long last_trigger;
++	u16 last_iadc;
++};
++
++static int fg_adc_write_tm_misc(struct fg_adc *adc, u8 val)
++{
++	int ret;
++
++	ret = regmap_write(adc->regmap, adc->base + FG_BATT_INFO_SEC_ACCESS,
++			   FG_SEC_ACCESS_UNLOCK);
++	if (ret)
++		return ret;
++
++	return regmap_write(adc->regmap, adc->base + FG_BATT_INFO_TM_MISC, val);
++}
++
++/*
++ * Without the FG algorithm running, IBATT is never updated. Instead, start
++ * IADC conversions in direct mode, on a rising edge of IADC_CONV. Each read
++ * returns the last completed sample and starts the next conversion, unless
++ * one is still running. The register reads zero while converting.
++ */
++static int fg_adc_trigger_iadc(struct fg_adc *adc)
++{
++	u8 val = FG_ALG_DIRECT_MODE_EN | FG_ADC_ENABLE_REG_CTRL;
++	int ret;
++
++	ret = fg_adc_write_tm_misc(adc, val);
++	if (ret)
++		return ret;
++
++	ret = fg_adc_write_tm_misc(adc, val | FG_IADC_CONV);
++	if (ret)
++		return ret;
++
++	adc->last_trigger = jiffies;
++	return 0;
++}
++
++static int fg_adc_read(struct fg_adc *adc, unsigned int reg, u16 *raw)
++{
++	u8 buf[2];
++	int ret;
++
++	ret = regmap_bulk_read(adc->regmap, adc->base + reg, buf, sizeof(buf));
++	if (ret)
++		return ret;
++
++	*raw = adc->swap_bytes ? get_unaligned_be16(buf) : get_unaligned_le16(buf);
++	return 0;
++}
++
++static int fg_adc_read_iadc(struct fg_adc *adc, u16 *raw)
++{
++	int ret;
++
++	guard(mutex)(&adc->lock);
++
++	ret = fg_adc_read(adc, FG_BATT_INFO_IADC_LSB, raw);
++	if (ret)
++		return ret;
++
++	if (*raw)
++		adc->last_iadc = *raw;
++	else
++		*raw = adc->last_iadc;
++
++	if (time_before(jiffies, adc->last_trigger + msecs_to_jiffies(FG_IADC_CONV_MS) + 1))
++		return 0;
++
++	return fg_adc_trigger_iadc(adc);
++}
++
++static int fg_adc_read_raw(struct iio_dev *indio_dev,
++			   struct iio_chan_spec const *chan,
++			   int *val, int *val2, long mask)
++{
++	struct fg_adc *adc = iio_priv(indio_dev);
++	u16 raw;
++	int ret;
++
++	switch (mask) {
++	case IIO_CHAN_INFO_RAW:
++		if (chan->type == IIO_CURRENT)
++			ret = fg_adc_read_iadc(adc, &raw);
++		else
++			ret = fg_adc_read(adc, FG_BATT_INFO_VBATT_LSB, &raw);
++		if (ret)
++			return ret;
++
++		*val = chan->type == IIO_CURRENT ? (s16)raw : raw;
++		return IIO_VAL_INT;
++	case IIO_CHAN_INFO_SCALE:
++		/* 122.070 uV and 488.281 uA per LSB */
++		*val = chan->type == IIO_VOLTAGE ? 122070 : 488281;
++		*val2 = 1000000;
++		return IIO_VAL_FRACTIONAL;
++	default:
++		return -EINVAL;
++	}
++}
++
++static const struct iio_info fg_adc_info = {
++	.read_raw = fg_adc_read_raw,
++};
++
++static const struct iio_chan_spec fg_adc_channels[] = {
++	{
++		.type = IIO_VOLTAGE,
++		.indexed = 1,
++		.channel = 0,
++		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
++	},
++	{
++		.type = IIO_CURRENT,
++		.indexed = 1,
++		.channel = 1,
++		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
++	},
++};
++
++static int fg_adc_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	const struct qcom_spmi_pmic *pmic;
++	struct iio_dev *indio_dev;
++	struct fg_adc *adc;
++	int ret;
++
++	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
++	if (!indio_dev)
++		return -ENOMEM;
++
++	adc = iio_priv(indio_dev);
++	adc->regmap = dev_get_regmap(dev->parent, NULL);
++	if (!adc->regmap)
++		return -ENODEV;
++
++	ret = device_property_read_u32(dev, "reg", &adc->base);
++	if (ret)
++		return ret;
++
++	pmic = qcom_pmic_get(dev);
++	if (IS_ERR(pmic))
++		return dev_err_probe(dev, PTR_ERR(pmic), "failed to get PMIC revision\n");
++
++	/* PMI8998 v1 has the measurement bytes swapped */
++	adc->swap_bytes = pmic->major < 2;
++
++	ret = devm_mutex_init(dev, &adc->lock);
++	if (ret)
++		return ret;
++
++	/* Have a first current sample ready */
++	ret = fg_adc_trigger_iadc(adc);
++	if (ret)
++		return ret;
++
++	indio_dev->name = "pmi8998-fg-adc";
++	indio_dev->modes = INDIO_DIRECT_MODE;
++	indio_dev->info = &fg_adc_info;
++	indio_dev->channels = fg_adc_channels;
++	indio_dev->num_channels = ARRAY_SIZE(fg_adc_channels);
++
++	return devm_iio_device_register(dev, indio_dev);
++}
++
++static const struct of_device_id fg_adc_match[] = {
++	{ .compatible = "qcom,pmi8998-fg-adc" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, fg_adc_match);
++
++static struct platform_driver fg_adc_driver = {
++	.probe = fg_adc_probe,
++	.driver = {
++		.name = "qcom-spmi-fg-adc",
++		.of_match_table = fg_adc_match,
++	},
++};
++module_platform_driver(fg_adc_driver);
++
++MODULE_DESCRIPTION("Qualcomm PMI8998 fuel gauge VBAT/IBAT measurements");
++MODULE_LICENSE("GPL");

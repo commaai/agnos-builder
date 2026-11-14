@@ -9,7 +9,7 @@ systemctl enable ultimate_provisioning.service
 systemctl enable lte.service
 systemctl enable modem.service
 systemctl enable magic.service
-systemctl enable wifi.service
+systemctl enable rmtfs.service
 systemctl enable power_monitor.service
 systemctl enable power_drop_monitor.service
 systemctl enable brightnessd.service

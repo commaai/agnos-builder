@@ -1,0 +1,115 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Sun, 1 Nov 2026 20:08:26 -0800
+Subject: [PATCH] regulator: qcom_usb_vbus: add PMI8998 support
+
+The PMI8998 OTG block is controlled like the PM8150B one, with two
+differences taken from the downstream SMB2 driver: the current limit
+uses 250 mA steps from 250 mA to 2 A, and the buck-boost "1 in 8" mode
+is halted while sourcing VBUS (a SEC_ACCESS protected register).
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/regulator/qcom_usb_vbus-regulator.c | 68 +++++++++++++++++++++
+ 1 file changed, 68 insertions(+)
+
+diff --git a/drivers/regulator/qcom_usb_vbus-regulator.c b/drivers/regulator/qcom_usb_vbus-regulator.c
+index 9aea688762..19adb2fcb5 100644
+--- a/drivers/regulator/qcom_usb_vbus-regulator.c
++++ b/drivers/regulator/qcom_usb_vbus-regulator.c
+@@ -19,6 +19,10 @@
+ #define OTG_CURRENT_LIMIT_MASK		GENMASK(2, 0)
+ #define OTG_CFG				0x53
+ #define OTG_EN_SRC_CFG			BIT(1)
++#define OTG_ENG_OTG_CFG			0xc0
++#define ENG_BUCKBOOST_HALT1_8_MODE	BIT(0)
++#define SEC_ACCESS			0xd0
++#define SEC_ACCESS_UNLOCK		0xa5
+ 
+ #define PM4125_VBOOST_EN		0x50
+ #define PM4125_VBOOST_SEL		0x52
+@@ -45,6 +49,10 @@ static const unsigned int curr_table[] = {
+ 	500000, 1000000, 1500000, 2000000, 2500000, 3000000,
+ };
+ 
++static const unsigned int pmi8998_curr_table[] = {
++	250000, 500000, 750000, 1000000, 1250000, 1500000, 1750000, 2000000,
++};
++
+ static const unsigned int pm4125_vboost_table[] = {
+ 	4250000, 4500000, 4750000, 5000000,
+ };
+@@ -68,6 +76,65 @@ static const struct qcom_usb_vbus_reg_data pm8150b_data = {
+ 	.ops = &qcom_usb_vbus_reg_ops,
+ };
+ 
++/*
++ * PMI8998 halts the buck-boost "1 in 8" mode while sourcing VBUS, and
++ * resumes it once VBUS is off. The register is protected by SEC_ACCESS.
++ */
++static int pmi8998_vbus_set_halt1_8(struct regulator_dev *rdev, bool halt)
++{
++	unsigned int base = rdev->desc->enable_reg - CMD_OTG;
++	int ret;
++
++	ret = regmap_write(rdev->regmap, base + SEC_ACCESS, SEC_ACCESS_UNLOCK);
++	if (ret)
++		return ret;
++
++	return regmap_update_bits(rdev->regmap, base + OTG_ENG_OTG_CFG,
++				  ENG_BUCKBOOST_HALT1_8_MODE,
++				  halt ? ENG_BUCKBOOST_HALT1_8_MODE : 0);
++}
++
++static int pmi8998_vbus_enable(struct regulator_dev *rdev)
++{
++	int ret;
++
++	ret = pmi8998_vbus_set_halt1_8(rdev, true);
++	if (ret)
++		return ret;
++
++	return regulator_enable_regmap(rdev);
++}
++
++static int pmi8998_vbus_disable(struct regulator_dev *rdev)
++{
++	int ret;
++
++	ret = regulator_disable_regmap(rdev);
++	if (ret)
++		return ret;
++
++	return pmi8998_vbus_set_halt1_8(rdev, false);
++}
++
++static const struct regulator_ops qcom_usb_vbus_pmi8998_reg_ops = {
++	.enable = pmi8998_vbus_enable,
++	.disable = pmi8998_vbus_disable,
++	.is_enabled = regulator_is_enabled_regmap,
++	.get_current_limit = regulator_get_current_limit_regmap,
++	.set_current_limit = regulator_set_current_limit_regmap,
++};
++
++static const struct qcom_usb_vbus_reg_data pmi8998_data = {
++	.cmd_otg = CMD_OTG,
++	.otg_cfg = OTG_CFG,
++	.otg_en_src_cfg = OTG_EN_SRC_CFG,
++	.csel_reg = OTG_CURRENT_LIMIT_CFG,
++	.csel_mask = OTG_CURRENT_LIMIT_MASK,
++	.curr_table = pmi8998_curr_table,
++	.n_current_limits = ARRAY_SIZE(pmi8998_curr_table),
++	.ops = &qcom_usb_vbus_pmi8998_reg_ops,
++};
++
+ static const struct regulator_ops qcom_usb_vbus_pm4125_reg_ops = {
+ 	.enable = regulator_enable_regmap,
+ 	.disable = regulator_disable_regmap,
+@@ -166,6 +233,7 @@ static int qcom_usb_vbus_regulator_probe(struct platform_device *pdev)
+ static const struct of_device_id qcom_usb_vbus_regulator_match[] = {
+ 	{ .compatible = "qcom,pm8150b-vbus-reg", .data = &pm8150b_data },
+ 	{ .compatible = "qcom,pm4125-vbus-reg",  .data = &pm4125_data },
++	{ .compatible = "qcom,pmi8998-vbus-reg", .data = &pmi8998_data },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(of, qcom_usb_vbus_regulator_match);

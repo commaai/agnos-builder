@@ -18,9 +18,8 @@ INIT_TIMEOUT=120
 PARTITION_TIMEOUT=5
 # above PARTITION_TIMEOUT, a mount still has to find its partition and maybe format it
 MOUNT_TIMEOUT=10
-SOUND_TIMEOUT=20
-# a DSP comes up in ~0.2s
-SUBSYS_TIMEOUT=10
+# a driver that has its firmware probes in well under a second, and the ADSP and its sound card in ~1s
+DEVICE_TIMEOUT=10
 
 PIDS=()
 
@@ -76,11 +75,7 @@ function wait_mount {
   done
 }
 
-# OTAs don't write these, so both slots use slot a's copy
-function mount_dsp {
-  mount_part dsp_a /dsp -o ro
-}
-
+# OTAs don't write this, so both slots use slot a's copy
 function mount_firmware {
   mount_part modem_a /firmware -o ro
 }
@@ -94,11 +89,9 @@ function mount_data {
   # first, so comma.sh can still clean up /data if something below fails
   chown comma: /data
   rm -rf /data/tmp
-  # the rootfs symlinks /etc paths to these, and /data/persist is served to the modem and DSPs
-  # through /system/rfs
+  # the rootfs symlinks /etc paths to these, and tqftpserv serves the modem's files from the last one
   mkdir -p /data/etc/netplan /data/etc/NetworkManager/system-connections /data/ssh /data/tmp \
-    /data/persist/hlos_rfs/shared /data/persist/rfs/shared \
-    /data/persist/rfs/msm/adsp /data/persist/rfs/msm/mpss
+    /data/persist/rfs/msm/mpss
   touch /data/etc/timezone /data/etc/localtime
   chown comma: /data/ssh /data/tmp
 }
@@ -133,92 +126,104 @@ function mount_home {
   mount -t overlay overlay -o lowerdir=/usr/default/home,upperdir=/rwtmp/home_upper,workdir=/rwtmp/home_work /home
 }
 
-# wait_restart_levels
-# a subsystem booted before these are set would take the whole SoC down if it crashes
-function wait_restart_levels {
+# wait_for <what> <command...>
+# polls the command until it succeeds
+function wait_for {
   local start=$SECONDS
-  while true; do
-    if grep -qvx RELATED /sys/bus/msm_subsys/devices/subsys*/restart_level; then
-      : # at least one subsystem is not ready
-    elif [ "$?" = 1 ]; then
-      return 0
-    fi
-    # Read errors can be transient too; retry until the same deadline.
-    (( SECONDS - start < PARTITION_TIMEOUT )) || { echo "restart levels not set"; return 1; }
+  until "${@:2}"; do
+    (( SECONDS - start < DEVICE_TIMEOUT )) || { echo "no $1"; return 1; }
     sleep 0.01
   done
 }
 
-# wait_subsys <name>
-# a subsystem is up once the kernel marks it ONLINE, after its firmware is running and has
-# reported in. subsystem_get() finishes in a kernel worker, so the boot_*dsp writes return before that
-function wait_subsys {
-  local d state start=$SECONDS
-  for d in /sys/bus/msm_subsys/devices/subsys*; do
-    [ "$(< "$d/name")" = "$1" ] && break
-  done
-  [ "$(< "$d/name")" = "$1" ] || { echo "no subsystem $1"; return 1; }
-  until state=$(< "$d/state"); [ "$state" = ONLINE ]; do
-    (( SECONDS - start < SUBSYS_TIMEOUT )) || { echo "$1 is $state"; return 1; }
-    sleep 0.01
-  done
+# video_node <name>
+# prints the V4L2 node with that name. drivers register them in any order
+function video_node {
+  local d
+  for d in /sys/class/video4linux/video*; do
+    [ "$(< "$d/name")" = "$1" ] && { echo "/dev/${d##*/}"; return 0; }
+  done 2>/dev/null
+  return 1
 }
 
-function set_restart_levels {
-  # don't restart whole SoC on subsystem crash
-  echo related | tee /sys/bus/msm_subsys/devices/subsys*/restart_level > /dev/null
+# remoteproc_running <name>
+function remoteproc_running {
+  local d
+  for d in /sys/class/remoteproc/remoteproc*; do
+    [ "$(< "$d/name")" = "$1" ] && [ "$(< "$d/state")" = running ] && return 0
+  done 2>/dev/null
+  return 1
 }
 
+# there's no udev to load modules, so whichever job needs a device loads its driver. the ones that
+# are modules rather than built in need /firmware when they probe, see kernel/README.md
 function start_venus {
   wait_mount /firmware
-  until [ -e /dev/video33 ]; do
-    sleep 0.01
+  # it boots the video firmware as it probes, and then each core registers its node
+  modprobe -a venus_core venus_enc venus_dec
+  local name node
+  for name in qcom-venus-encoder qcom-venus-decoder; do
+    wait_for "$name" video_node "$name" > /dev/null
+    node=$(video_node "$name")
+    chgrp video "$node"
+    chmod 660 "$node"
   done
-  # opening the node boots the venus encoder
-  : < /dev/video33
 }
 
-function start_cdsp {
-  wait_mount /firmware
-  wait_restart_levels
-  echo 1 > /sys/kernel/boot_cdsp/boot
-  wait_subsys cdsp
+function start_camera {
+  # its ICP firmware is in the rootfs, and only loads when camerad acquires the ICP
+  modprobe spectra_camera
+  wait_for cam-req-mgr video_node cam-req-mgr > /dev/null
+  wait_for cam_sync video_node cam_sync > /dev/null
+  local req sync
+  req=$(video_node cam-req-mgr)
+  sync=$(video_node cam_sync)
+  # camerad opens these paths, as udev named them on the downstream kernel
+  mkdir -p /dev/v4l/by-path
+  ln -sf "../../${req##*/}" /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
+  ln -sf "../../${sync##*/}" /dev/v4l/by-path/platform-cam_sync-video-index0
+  chgrp video "$req" "$sync" /dev/media* /dev/v4l-subdev*
+  chmod 660 "$req" "$sync" /dev/media* /dev/v4l-subdev*
 }
 
 function start_sound {
   wait_mount /firmware
-  wait_restart_levels
-
-  # TODO: is this debug flag needed?
-  echo 1 > /sys/module/subsystem_restart/parameters/enable_debug
-  echo 1 > /sys/kernel/boot_adsp/boot
-
-  # the card registers long before the ADSP is up. it says ONLINE from then on, so only the ADSP's own state says it's up
-  local start=$SECONDS
-  until amixer -D hw:0 controls 2>/dev/null | grep -q "SEC_MI2S_RX Audio Mixer MultiMedia1"; do
-    (( SECONDS - start < SOUND_TIMEOUT )) || { echo "sound card not ready"; return 1; }
-    sleep 0.01
-  done
-
-  amixer -D hw:0 -q cset "name='SEC_MI2S_RX Audio Mixer MultiMedia1'" 1
+  local card capture
   if grep -q mici /sys/firmware/devicetree/base/model; then
-    amixer -D hw:0 -q cset "name='MultiMedia1 Mixer SEC_MI2S_TX'" 1
+    card=commamici capture=SEC_MI2S_TX
   else
-    amixer -D hw:0 -q cset "name='MultiMedia1 Mixer TERT_MI2S_TX'" 1
-    amixer -D hw:0 -q cset "name='TERT_MI2S_TX Channels'" Two
+    card=commatizi capture=TERT_MI2S_TX
   fi
 
-  # mici has no amp config, and starting Python to find that out is most of this job
-  grep -q mici /sys/firmware/devicetree/base/model || /usr/local/venv/bin/python /usr/comma/sound/amplifier.py
+  # the ADSP boots in the background once its driver probes. its services come up with it, and
+  # the sound card registers once they have, so the card being there means sound is ready
+  modprobe qcom_q6v5_pas
+  wait_for "ADSP" remoteproc_running adsp
+  wait_for "sound card $card" test -d "/proc/asound/$card"
 
-  # sound is ready, let clients in. opening a PCM before the ADSP is up floods the console with errors
-  wait_subsys adsp
+  # playback is MultiMedia1 (device 0), capture is MultiMedia2 (device 1)
+  amixer -c "$card" -q cset "name='SEC_MI2S_RX Audio Mixer MultiMedia1'" 1
+  amixer -c "$card" -q cset "name='MultiMedia2 Mixer $capture'" 1
+
+  # mici has no amp config, and starting Python to find that out is most of this job
+  [ "$card" = commamici ] || /usr/local/venv/bin/python /usr/comma/sound/amplifier.py
+
   find /dev/snd -maxdepth 1 -type c -exec chgrp audio {} + -exec chmod 660 {} +
 }
 
-function set_firmware_timeout {
-  # nothing in userspace provides firmware, a request for a missing one would wait 60s
-  echo 1 > /sys/class/firmware/timeout
+function start_wifi {
+  # the firmware reports 0e:00:00:00:00:00. give the interface the address the downstream driver
+  # did, the 00:0a:f5 OUI and the low 3 bytes of the SoC serial number. NetworkManager starts after
+  # boot.sh, and sets it whenever it brings wlan0 up
+  local serial
+  serial=$(< /sys/devices/soc0/serial_number)
+  (( serial > 0 ))
+  mkdir -p /run/NetworkManager/conf.d
+  printf '[connection-wlan-mac]\nmatch-device=interface-name:wlan0\nwifi.cloned-mac-address=00:0a:f5:%02x:%02x:%02x\n' \
+    $(( serial >> 16 & 255 )) $(( serial >> 8 & 255 )) $(( serial & 255 ))  > /run/NetworkManager/conf.d/wlan-mac.conf
+
+  # wlan0 only shows up once the modem is running, which rmtfs.service starts after boot.sh
+  modprobe ath10k_snoc
 }
 
 function set_hostname {
@@ -234,9 +239,8 @@ function setup_devices {
   local ret=0
   trap 'ret=1' ERR
 
-  # rmt_storage reads the EFS partitions by name. the others are for the updater, reset and hardware.h
-  local efs=(modemst1 modemst2 fsc fsg)
-  local parts=("${efs[@]}" persist ssd userdata {abl,aop,boot,devcfg,system,xbl,xbl_config}_{a,b})
+  # rmtfs serves the EFS partitions to the modem. the others are for the updater, reset and hardware.h
+  local parts=(modemst1 modemst2 fsc fsg persist ssd userdata {abl,aop,boot,devcfg,system,xbl,xbl_config}_{a,b})
   local pattern
   pattern="^PARTNAME=($(IFS='|'; echo "${parts[*]}"))\$"
 
@@ -251,99 +255,91 @@ function setup_devices {
     ret=1
   fi
 
-  chgrp gpu /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}*
+  chgrp gpu /dev/dri/{card,renderD}* /dev/dma_heap/system
   # the 3X has no high speed UART
   local uart=()
   [ -e /dev/ttyHS0 ] && uart=(/dev/ttyHS*)
+  # sensord takes the IMU interrupt from the TLMM's character device
+  local tlmm
+  tlmm=$(ls -d /sys/bus/platform/devices/3400000.pinctrl/gpiochip*)
+  tlmm=/dev/${tlmm##*/}
   # /sys/class/gpio is for provisioning, it exports its pins as comma
-  chgrp gpio /dev/gpiochip0 /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport}
-  chgrp input /dev/input/{event,mouse}* /dev/input/mice
-  chgrp video /dev/media* /dev/v4l-subdev* /dev/video*
-  chgrp disk /dev/sd* /dev/sg*
+  chgrp gpio "$tlmm" /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport}
+  chgrp input /dev/input/event*
+  chgrp disk /dev/sd*
   chgrp dialout /dev/ttyMSM*
-  chmod 660 /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0 /dev/dri/{card,controlD,renderD}* \
-    /dev/gpiochip0 /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport} \
-    /dev/media* /dev/v4l-subdev* /dev/video* \
-    /dev/sd* /dev/sg* \
+  chmod 660 /dev/dri/{card,renderD}* /dev/dma_heap/system \
+    "$tlmm" /dev/i2c-* "${uart[@]}" /sys/class/gpio/{export,unexport} \
+    /dev/sd* \
     /dev/ttyMSM*
-  chmod 666 /dev/input/{event,mouse}* /dev/input/mice /dev/fuse /dev/net/tun /dev/spidev*
+  chmod 666 /dev/input/event* /dev/fuse /dev/net/tun /dev/spidev*
   chmod 664 /dev/rfkill
 
   # not every display and LED is on every device
   local attr video_attrs=()
-  for attr in /sys/class/backlight/panel0-backlight/{brightness,bl_power} \
-      /sys/class/leds/led:{torch,switch}_2/brightness \
-      /sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent; do
+  for attr in /sys/class/backlight/*/{brightness,bl_power} /sys/class/leds/ir:torch/brightness; do
     [ -e "$attr" ] && video_attrs+=("$attr")
   done
   chgrp video "${video_attrs[@]}"
   chmod 664 "${video_attrs[@]}"
 
-  mkdir -p /dev/disk/by-partlabel /dev/block/bootdevice/by-name /dev/input/by-path /dev/v4l/by-path
+  mkdir -p /dev/disk/by-partlabel /dev/input/by-path
 
   local line path dev name
   for line in "${found[@]}"; do
     IFS== read -r path name <<< "$line"
     dev=${path%/uevent:PARTNAME}
-    dev=${dev##*/}
-    case " ${efs[*]} " in
-      *" $name "*) ln -sf "../../../$dev" "/dev/block/bootdevice/by-name/$name" ;;
-      *) ln -sf "../../$dev" "/dev/disk/by-partlabel/$name" ;;
-    esac
+    ln -sf "../../${dev##*/}" "/dev/disk/by-partlabel/$name"
   done
 
-  # the touchscreen and cameras can enumerate in any order
-  path=$(ls -d /sys/devices/platform/soc/894000.i2c/i2c-*/*/input/input*/event*)
+  # input devices can enumerate in any order
+  path=$(ls -d /sys/bus/platform/devices/894000.i2c/i2c-*/*/input/input*/event*)
   ln -sf "../${path##*/}" /dev/input/by-path/platform-894000.i2c-event
-  path=$(ls -d /sys/devices/platform/soc/soc:qcom,cam-req-mgr/video4linux/video*)
-  ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-soc:qcom_cam-req-mgr-video-index0
-  path=$(ls -d /sys/devices/platform/cam_sync/video4linux/video*)
-  ln -sf "../../${path##*/}" /dev/v4l/by-path/platform-cam_sync-video-index0
-  ln -sf ../../video33 /dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1
 
   return $ret
 }
 
 function setup_gpios {
-  # a UP's TCAN driver owns some of these and nothing there uses them, it exports its own
-  grep -q "ultimate provisioning" /sys/firmware/devicetree/base/model && return 0
-
   # keep going so one bad pin doesn't take the rest with it, and fail at the end
   set +e
   local ret=0
   trap 'ret=1' ERR
 
+  # openpilot drives these through the legacy sysfs ABI, as gpio<TLMM base + pin>. lte.sh and
+  # power_drop_monitor.py take theirs by name from the character device, which an export would block
   local pins=(
     49   # SOM_ST_IO
     134  # ST_BOOT0
-    50   # LTE_RST_N
-    116  # LTE_PWRKEY
     124  # ST_RST_N
     34   # GPS_PWR_EN, not connected on mici but pigeond still drives it
-    52   # LTE_BOOT
   )
   if grep -q mici /sys/firmware/devicetree/base/model; then
     pins+=(
       33   # GPS_SAFEBOOT_N
       32   # GPS_RST_N
     )
-  elif grep -q tizi /sys/firmware/devicetree/base/model; then
-    pins+=(1264) # POWER ALERT
   fi
+
+  # the kernel numbers the chips as they probe
+  local base
+  base=$(cat /sys/bus/platform/devices/3400000.pinctrl/gpio/gpiochip*/base)
 
   local p d nodes=()
   for p in "${pins[@]}"; do
-    echo "$p" > /sys/class/gpio/export
-    d=/sys/class/gpio/gpio$p
+    echo $(( base + p )) > /sys/class/gpio/export
+    d=/sys/class/gpio/gpio$(( base + p ))
     nodes+=("$d" "$d"/{active_low,direction,edge,value})
   done
   chgrp -f gpio "${nodes[@]}"
   chmod -f 770 "${nodes[@]}"
 
+  # the internal USB hub's reset, which nothing else drives
+  # shellcheck disable=SC2046  # gpiofind prints the chip and the offset
+  gpioset $(gpiofind HUB_RST_N)=1
+
   return $ret
 }
 
-run_init mount_dsp
 run_init mount_firmware
 run_init mount_persist
 run_init mount_data
@@ -351,11 +347,10 @@ run_init mount_cache
 run_init mount_tmp
 run_init mount_var
 run_init mount_home
-run_init set_restart_levels
 run_init start_venus
-run_init start_cdsp
+run_init start_camera
 run_init start_sound
-run_init set_firmware_timeout
+run_init start_wifi
 run_init set_hostname
 run_init setup_devices
 run_init setup_gpios

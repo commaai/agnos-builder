@@ -1,0 +1,192 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 07:18:28 -0800
+Subject: [PATCH] media: venus: venc: scale the source to the capture format
+ size
+
+The encoder sets the firmware's input and output frame sizes
+(HFI_PROPERTY_PARAM_FRAME_SIZE for HFI_BUFFER_INPUT and HFI_BUFFER_OUTPUT)
+to the same value, so it can only encode the source at its own size.
+Venus can scale the source down: msm_vidc sets the input frame size from
+the OUTPUT format and the output frame size from the CAPTURE format, and
+the firmware advertises the range in HFI_CAPABILITY_SCALE_X/Y (down to
+1/8 on HFI 4xx and 6xx, no upscaling).
+
+Do the same, with the semantics of the iris encoder: a CAPTURE format
+size that differs from the source is the size to scale it to. The source
+is the OUTPUT crop rectangle, now kept in inst->crop, and is what the
+input frame size is set to; inst->width/height become the encoded size.
+Setting the OUTPUT format or the crop rectangle resets the encoded size
+to the crop, so a client sets the CAPTURE format last to scale. Without
+scaling capabilities the size is clamped to the crop, as is a request
+beyond the advertised range. S_FMT on CAPTURE returns the size that is
+encoded after that clamping, and sizes the bitstream buffers for it.
+
+The default crop rectangle is the requested OUTPUT size, rather than that
+size padded to 128x32: a client that sets a 1920x1080 OUTPUT format and
+no crop rectangle used to encode 1920x1088, padding rows included, and
+now encodes 1920x1080. A CAPTURE size that pads to the same 128x32
+aligned size as the crop rectangle stands for the crop rectangle, as it
+did before, when CAPTURE S_FMT set the encoded size to the requested size
+aligned up; it is not a scale. Before this, any other CAPTURE size set
+after the OUTPUT format made the encoder read a top-left window of the
+source of that size, or past its end for a larger one.
+
+The load estimate for clock and bandwidth scaling uses the larger of
+the source and encoded sizes for encoders, since the source is what is
+read and pre-processed.
+
+On SDM845 this moves openpilot's downscales (1344x760 to 1280x720 for
+three live streams, and to 526x330) from the CPU to Venus, as on the
+downstream kernel: the live stream encoder process drops from 25.9% to
+1.2% of a CPU, with the picture geometry unchanged.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ .../media/platform/qcom/venus/pm_helpers.c    |  7 +-
+ drivers/media/platform/qcom/venus/venc.c      | 77 ++++++++++++++++---
+ 2 files changed, 74 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/venus/pm_helpers.c b/drivers/media/platform/qcom/venus/pm_helpers.c
+index e88e66be4f..addfb8f251 100644
+--- a/drivers/media/platform/qcom/venus/pm_helpers.c
++++ b/drivers/media/platform/qcom/venus/pm_helpers.c
+@@ -170,7 +170,12 @@ static u32 load_per_instance(struct venus_inst *inst)
+ 	if (!inst || !(inst->state >= INST_INIT && inst->state < INST_STOP))
+ 		return 0;
+ 
+-	mbs = (ALIGN(inst->width, 16) / 16) * (ALIGN(inst->height, 16) / 16);
++	/* an encoder processes its source, which can be larger than the stream */
++	if (inst->session_type == VIDC_SESSION_TYPE_ENC)
++		mbs = (ALIGN(max(inst->width, inst->crop.width), 16) / 16) *
++		      (ALIGN(max(inst->height, inst->crop.height), 16) / 16);
++	else
++		mbs = (ALIGN(inst->width, 16) / 16) * (ALIGN(inst->height, 16) / 16);
+ 
+ 	return mbs * inst->fps;
+ }
+diff --git a/drivers/media/platform/qcom/venus/venc.c b/drivers/media/platform/qcom/venus/venc.c
+index 25f6804ab6..b94759cd67 100644
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -233,6 +233,23 @@ static int venc_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
+ 	return 0;
+ }
+ 
++/*
++ * The size a source dimension src is scaled to for a requested size dst,
++ * within the firmware's scaling range (Q16 factors) and the frame size
++ * limits. Without a scaling range there is no scaling.
++ */
++static u32 venc_scaled_size(struct venus_inst *inst, u32 cap, u32 src, u32 dst,
++			    u32 frame_min, u32 frame_max)
++{
++	u32 lo = mult_frac(src, cap_min(inst, cap) ?: SZ_64K, SZ_64K);
++	u32 hi = mult_frac(src, cap_max(inst, cap) ?: SZ_64K, SZ_64K);
++
++	lo = ALIGN(max(lo, frame_min), 2);
++	hi = min(hi, frame_max) & ~1;
++
++	return clamp(ALIGN(dst, 2), lo, hi);
++}
++
+ static int venc_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
+ {
+ 	struct venus_inst *inst = to_inst(file);
+@@ -287,12 +304,51 @@ static int venc_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
+ 	format.fmt.pix_mp.height = orig_pixmp.height;
+ 	venc_try_fmt_common(inst, &format);
+ 
+-	inst->width = format.fmt.pix_mp.width;
+-	inst->height = format.fmt.pix_mp.height;
++	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
++		/* The source is the requested size, without the format's padding */
++		inst->crop.left = 0;
++		inst->crop.top = 0;
++		inst->crop.width = ALIGN(clamp(orig_pixmp.width,
++					       frame_width_min(inst),
++					       frame_width_max(inst)), 2);
++		inst->crop.height = ALIGN(clamp(orig_pixmp.height,
++						frame_height_min(inst),
++						frame_height_max(inst)), 2);
++		inst->width = inst->crop.width;
++		inst->height = inst->crop.height;
++	} else if (orig_pixmp.width && orig_pixmp.height &&
++		   (format.fmt.pix_mp.width != ALIGN(inst->crop.width, 128) ||
++		    format.fmt.pix_mp.height != ALIGN(inst->crop.height, 32))) {
++		/*
++		 * A capture size that pads to the same buffer size as the crop
++		 * rectangle stands for the crop rectangle, as it did before
++		 * the encoder could scale. Any other size is the size to scale
++		 * the crop rectangle to.
++		 */
++		inst->width = venc_scaled_size(inst, HFI_CAPABILITY_SCALE_X,
++					       inst->crop.width,
++					       orig_pixmp.width,
++					       frame_width_min(inst),
++					       frame_width_max(inst));
++		inst->height = venc_scaled_size(inst, HFI_CAPABILITY_SCALE_Y,
++						inst->crop.height,
++						orig_pixmp.height,
++						frame_height_min(inst),
++						frame_height_max(inst));
++	} else {
++		inst->width = inst->crop.width;
++		inst->height = inst->crop.height;
++	}
+ 
+-	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
++	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+ 		inst->fmt_out = fmt;
+-	else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
++	} else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
++		/* Report, and size the buffers for, the size that is encoded */
++		pixmp->width = inst->width;
++		pixmp->height = inst->height;
++		pixmp->plane_fmt[0].sizeimage = orig_pixmp.plane_fmt[0].sizeimage;
++		venc_try_fmt_common(inst, f);
++
+ 		inst->fmt_cap = fmt;
+ 		inst->output_buf_size = pixmp->plane_fmt[0].sizeimage;
+ 	}
+@@ -348,8 +404,8 @@ venc_g_selection(struct file *file, void *fh, struct v4l2_selection *s)
+ 		s->r.height = inst->out_height;
+ 		break;
+ 	case V4L2_SEL_TGT_CROP:
+-		s->r.width = inst->width;
+-		s->r.height = inst->height;
++		s->r.width = inst->crop.width;
++		s->r.height = inst->crop.height;
+ 		break;
+ 	default:
+ 		return -EINVAL;
+@@ -380,6 +436,7 @@ venc_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
+ 	case V4L2_SEL_TGT_CROP:
+ 		s->r.top = 0;
+ 		s->r.left = 0;
++		inst->crop = s->r;
+ 		inst->width = s->r.width;
+ 		inst->height = s->r.height;
+ 		break;
+@@ -1050,8 +1107,8 @@ static int venc_init_session(struct venus_inst *inst)
+ 	if (ret)
+ 		goto deinit;
+ 
+-	ret = venus_helper_set_input_resolution(inst, inst->width,
+-						inst->height);
++	ret = venus_helper_set_input_resolution(inst, inst->crop.width,
++						inst->crop.height);
+ 	if (ret)
+ 		goto deinit;
+ 
+@@ -1469,7 +1526,9 @@ static void venc_inst_init(struct venus_inst *inst)
+ 	inst->fmt_cap = &venc_formats[VENUS_FMT_H264];
+ 	inst->fmt_out = &venc_formats[VENUS_FMT_NV12];
+ 	inst->width = 1280;
+-	inst->height = ALIGN(720, 32);
++	inst->height = 720;
++	inst->crop.width = inst->width;
++	inst->crop.height = inst->height;
+ 	inst->out_width = 1280;
+ 	inst->out_height = 720;
+ 	inst->fps = 15;

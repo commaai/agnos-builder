@@ -1,0 +1,183 @@
+/dts-v1/;
+
+#include "sdm845-comma-common.dtsi"
+
+/ {
+	model = "comma tizi";
+	compatible = "comma,tizi", "qcom,sdm845";
+	/*
+	 * ABL boots the DTB whose board-id matches the CDT platform type. The
+	 * comma 3 is 0x20, which no DTB here matches; ABL also refuses to boot it.
+	 */
+	qcom,board-id = <0x21 0>;
+
+	/*
+	 * Touch controller supply. The enable is active high on the 3X. The
+	 * boot firmware's display driver sets PM8998 GPIO10 high on every board
+	 * except the comma 3, where it is active low (hence the downstream name
+	 * tp_3v3_en_n), and the downstream kernel never changes it. Requesting
+	 * it high at boot keeps that level without a glitch.
+	 */
+	tp3v3: tp3v3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "tp3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pm8998_gpios 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+};
+
+&i2c5 {
+	touchscreen@17 {
+		compatible = "samsung,s6sy761";
+		reg = <0x17>;
+
+		interrupts-extended = <&tlmm 125 IRQ_TYPE_EDGE_FALLING>;
+
+		vdd-supply = <&tp3v3>;
+		avdd-supply = <&tp3v3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_reset_n>;
+
+		touchscreen-size-x = <1080>;
+		touchscreen-size-y = <2160>;
+	};
+};
+
+/*
+ * The MAX98089 amplifier (0x10) is also on this bus. openpilot configures it
+ * over i2c-dev, so it has no node here.
+ */
+&i2c10 {
+	clock-frequency = <100000>;
+
+	status = "okay";
+
+	power-sensor@40 {
+		compatible = "ti,ina231";
+		reg = <0x40>;
+		shunt-resistor = <30000>;
+	};
+};
+
+&mdss_dsi0 {
+	panel@0 {
+		compatible = "samsung,ea8074-l590nt06", "samsung,ea8074";
+		reg = <0>;
+
+		vddio-supply = <&vreg_l14a_1p88>;
+		/* lcd3v3 enables the external regulator for both bias rails */
+		elvdd-supply = <&lcd3v3>;
+		elvss-supply = <&lcd3v3>;
+
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_te>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+/* The INA231 ALERT output, which power_drop_monitor waits on, is GPIO5 */
+&pm8998_gpios {
+	gpio-line-names =
+		/*  0 */ "", "", "", "", "POWER_ALERT", "", "", "",
+		/*  8 */ "", "", "", "", "", "", "", "",
+		/* 16 */ "", "", "", "", "", "", "", "",
+		/* 24 */ "", "";
+};
+
+/*
+ * Downstream drives this port exactly as on mici (Type-C in DRP mode, VBUS
+ * from the PMI8998 boost), but which 3X connector its CC and VBUS reach has
+ * not been checked against a schematic, and the harness side carries the car
+ * supply. Until it is, the port only sinks: ADB and NCM to a PC still work.
+ */
+&pmi8998_typec {
+	connector {
+		power-role = "sink";
+		/delete-property/ try-power-role;
+		/delete-property/ vbus-supply;
+		/delete-property/ source-pdos;
+		sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM |
+				       PDO_FIXED_DATA_SWAP)>;
+	};
+};
+
+&q6afedai {
+	dai@12 {
+		reg = <SECONDARY_MI2S_RX>;
+		qcom,sd-lines = <0>;
+	};
+
+	dai@15 {
+		reg = <TERTIARY_MI2S_TX>;
+		qcom,sd-lines = <0 1>;
+	};
+};
+
+&sound {
+	model = "comma-tizi";
+	pinctrl-0 = <&sec_mi2s_active>, <&ter_mi2s_active>;
+	/* Amplifier MCLK */
+	clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
+	clock-names = "mclk";
+
+	mic-dai-link {
+		link-name = "Tertiary MI2S Capture";
+		cpu {
+			sound-dai = <&q6afedai TERTIARY_MI2S_TX>;
+		};
+		platform {
+			sound-dai = <&q6routing>;
+		};
+		codec {
+			sound-dai = <&mic_codec>;
+		};
+	};
+};
+
+&tlmm {
+	panel_te: panel-te-state {
+		pins = "gpio10";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	ter_mi2s_active: ter-mi2s-active-state {
+		pins = "gpio75", "gpio76", "gpio77", "gpio78";
+		function = "ter_mi2s";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	/*
+	 * The touch controller's reset, active low. The bootloader pulses it
+	 * and leaves it high; s6sy761 has no reset handling, so keep it high.
+	 */
+	touch_reset_n: touch-reset-n-state {
+		pins = "gpio104";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+};
+
+&wifi {
+	qcom,calibration-variant = "comma-tizi";
+};

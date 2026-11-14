@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin Reckmann <robin.reckmann@gmail.com>
+Date: Thu, 26 Mar 2026 21:31:22 +0900
+Subject: [PATCH] Input: edt-ft5x06 - add support for FocalTech FT3168
+
+The FocalTech FT3168 is the touch controller of the comma four, behind
+its 240x536 DWO DO0200FAT07 panel. It works with this driver's FocalTech
+support as is, and reports up to two touch points.
+
+Add it with that limit, under the focaltech,ft3168 compatible and an
+ft3168 I2C id without the edt- prefix, like the other FocalTech parts.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/input/touchscreen/edt-ft5x06.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/input/touchscreen/edt-ft5x06.c b/drivers/input/touchscreen/edt-ft5x06.c
+index d6c3d033b8..7aa8ca06d6 100644
+--- a/drivers/input/touchscreen/edt-ft5x06.c
++++ b/drivers/input/touchscreen/edt-ft5x06.c
+@@ -1459,6 +1459,10 @@ static const struct edt_i2c_chip_data edt_ft3518_data = {
+ 	.max_support_points = 10,
+ };
+ 
++static const struct edt_i2c_chip_data edt_ft3168_data = {
++	.max_support_points = 2,
++};
++
+ static const struct edt_i2c_chip_data edt_ft5452_data = {
+ 	.max_support_points = 5,
+ };
+@@ -1490,6 +1494,7 @@ static const struct i2c_device_id edt_ft5x06_ts_id[] = {
+ 	{ .name = "ft3518", .driver_data = (long)&edt_ft3518_data },
+ 	{ .name = "ft5452", .driver_data = (long)&edt_ft5452_data },
+ 	/* Note no edt- prefix for compatibility with the ft6236.c driver */
++	{ .name = "ft3168", .driver_data = (long)&edt_ft3168_data },
+ 	{ .name = "ft6236", .driver_data = (long)&edt_ft6236_data },
+ 	{ .name = "ft8201", .driver_data = (long)&edt_ft8201_data },
+ 	{ .name = "ft8716", .driver_data = (long)&edt_ft8716_data },
+@@ -1504,6 +1509,7 @@ static const struct of_device_id edt_ft5x06_of_match[] = {
+ 	{ .compatible = "edt,edt-ft5406", .data = &edt_ft5x06_data },
+ 	{ .compatible = "edt,edt-ft5506", .data = &edt_ft5506_data },
+ 	{ .compatible = "evervision,ev-ft5726", .data = &edt_ft5506_data },
++	{ .compatible = "focaltech,ft3168", .data = &edt_ft3168_data },
+ 	{ .compatible = "focaltech,ft3518", .data = &edt_ft3518_data },
+ 	{ .compatible = "focaltech,ft5426", .data = &edt_ft5506_data },
+ 	{ .compatible = "focaltech,ft5452", .data = &edt_ft5452_data },

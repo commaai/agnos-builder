@@ -1,0 +1,19 @@
+[Unit]
+Description=Qualcomm remote filesystem service
+# rmtfs boots the modem DSP, which runs the Wi-Fi firmware, once it serves
+# the modem's EFS partitions. boot.sh mounts the modem firmware and links
+# the partitions by name.
+After=boot.service
+Requires=tqftpserv.service
+After=tqftpserv.service
+# Each restart also restarts the modem DSP, so stop retrying a crash loop.
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+ExecStart=/usr/bin/rmtfs -P -s
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

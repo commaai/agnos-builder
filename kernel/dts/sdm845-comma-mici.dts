@@ -1,0 +1,241 @@
+/dts-v1/;
+
+#include <dt-bindings/leds/common.h>
+#include "sdm845-comma-common.dtsi"
+
+/ {
+	model = "comma mici";
+	compatible = "comma,mici", "qcom,sdm845";
+	qcom,board-id = <0x22 0>;
+
+	aliases {
+		hsuart0 = &uart3;
+	};
+
+	thermal-zones {
+		intake-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&pm8998_adc_tm 0>;
+
+			trips {
+				intake-alert {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+
+		exhaust-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&pm8998_adc_tm 1>;
+
+			trips {
+				exhaust-alert {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+
+		bottom-soc-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&pm8998_adc_tm 2>;
+
+			trips {
+				bottom-soc-alert {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+
+		gnss-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&pm8998_adc_tm 3>;
+
+			trips {
+				gnss-alert {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+	};
+};
+
+&cam_sensor_mclk0_active {
+	drive-strength = <2>;
+};
+
+&cam_sensor_mclk1_active {
+	drive-strength = <2>;
+};
+
+&cam_sensor_mclk2_active {
+	drive-strength = <2>;
+};
+
+&i2c5 {
+	touchscreen@38 {
+		compatible = "focaltech,ft3168";
+		reg = <0x38>;
+
+		interrupts-extended = <&tlmm 125 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 104 GPIO_ACTIVE_LOW>;
+
+		iovcc-supply = <&vreg_s4a_1p8>;
+		vcc-supply = <&lcd3v3>;
+
+		touchscreen-size-x = <240>;
+		touchscreen-size-y = <536>;
+	};
+};
+
+&mdss_dsi0 {
+	panel@0 {
+		compatible = "dwo,do0200fat07";
+		reg = <0>;
+
+		vddio-supply = <&vreg_l14a_1p88>;
+		vdd-supply = <&lcd3v3>;
+
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+
+		rotation = <90>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0>;
+};
+
+&pm8998_adc {
+	channel@4d {
+		reg = <ADC5_AMUX_THM1_100K_PU>;
+		label = "intake_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+
+	channel@4e {
+		reg = <ADC5_AMUX_THM2_100K_PU>;
+		label = "exhaust_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+
+	channel@50 {
+		reg = <ADC5_AMUX_THM4_100K_PU>;
+		label = "bottom_soc_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+
+	channel@51 {
+		reg = <ADC5_AMUX_THM5_100K_PU>;
+		label = "gnss_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+};
+
+&pm8998_adc_tm {
+	status = "okay";
+
+	intake-therm@0 {
+		reg = <0>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM1_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	exhaust-therm@1 {
+		reg = <1>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM2_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	bottom-soc-therm@2 {
+		reg = <2>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM4_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	gnss-therm@3 {
+		reg = <3>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM5_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+};
+
+&pmi8998_flash {
+	status = "okay";
+
+	led-2 {
+		color = <LED_COLOR_ID_IR>;
+		function = LED_FUNCTION_TORCH;
+		led-sources = <3>;
+		led-max-microamp = <300000>;
+	};
+};
+
+&q6afedai {
+	dai@12 {
+		reg = <SECONDARY_MI2S_RX>;
+		qcom,sd-lines = <1>;
+	};
+
+	dai@13 {
+		reg = <SECONDARY_MI2S_TX>;
+		qcom,sd-lines = <0>;
+	};
+};
+
+&sound {
+	model = "comma-mici";
+
+	mic-dai-link {
+		link-name = "Secondary MI2S Capture";
+		cpu {
+			sound-dai = <&q6afedai SECONDARY_MI2S_TX>;
+		};
+		platform {
+			sound-dai = <&q6routing>;
+		};
+		codec {
+			sound-dai = <&mic_codec>;
+		};
+	};
+};
+
+/* GNSS */
+&uart3 {
+	status = "okay";
+};
+
+/* Always on, as in the downstream mici board file */
+&vreg_l8a_1p2 {
+	regulator-always-on;
+};
+
+&wifi {
+	qcom,calibration-variant = "comma-mici";
+};
