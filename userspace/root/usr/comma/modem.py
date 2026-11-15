@@ -135,6 +135,8 @@ class State(Enum):
 
 
 STATE_WAIT = 1.0  # seconds to wait after each state handler returns
+SEARCH_INTERVAL = 10.0  # seconds between AT registration checks
+POLL_INTERVAL = 30.0  # seconds between AT status polls and SIM checks
 
 
 class PPPSession:
@@ -243,6 +245,7 @@ class Modem:
     self._initializing = False  # see _at
     self.running = True
     self.S = INITIAL_STATE.copy()
+    self._last_at: dict[str, float] = {}
 
   @staticmethod
   def _read_param(key):
@@ -443,6 +446,9 @@ class Modem:
       logging.info(f"roaming changed: {self._roaming_allowed} -> {new_roaming}")
       self._roaming_allowed = new_roaming
 
+    if not self._due("search", SEARCH_INTERVAL):
+      return self._searching_idle()
+
     v = self._atv("AT+CREG?", "+CREG:")
     if not v:
       return self._searching_idle()
@@ -501,8 +507,17 @@ class Modem:
       return True
     return False
 
+  def _due(self, name: str, interval: float) -> bool:
+    now = time.monotonic()
+    if now - self._last_at.get(name, -interval) < interval:
+      return False
+    self._last_at[name] = now
+    return True
+
   def _check_iccid(self, state):
     if state in (State.INITIALIZING, State.DISCONNECTING) or not self.S["iccid"]:
+      return
+    if not self._due("iccid", POLL_INTERVAL):
       return
     iccid = (self._atv("AT+QCCID", "+QCCID:") or "").rstrip("F")
     if iccid and iccid != self.S["iccid"]:
@@ -516,7 +531,8 @@ class Modem:
     if self._sim_change or not os.path.exists(AT_PORT) or self._params_changed():
       return State.DISCONNECTING
 
-    self._poll()
+    if self._due("poll", POLL_INTERVAL):
+      self._poll()
     return State.CONNECTED
 
   def _do_disconnecting(self):
