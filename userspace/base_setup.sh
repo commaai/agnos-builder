@@ -22,6 +22,7 @@ apt-get install --no-install-recommends -yq \
     dnsmasq-base \
     gdb \
     git \
+    gpiod \
     iptables-persistent \
     iputils-ping \
     jq \
@@ -44,6 +45,7 @@ apt-get install --no-install-recommends -yq \
     openssl \
     ppp \
     psmisc \
+    python3-libgpiod \
     rsync \
     strace \
     systemd \
@@ -52,6 +54,7 @@ apt-get install --no-install-recommends -yq \
     tmux \
     usbutils \
     vim \
+    wireless-regdb \
     wpasupplicant
 
 # Create the privileged user and hardware access groups.
@@ -65,7 +68,6 @@ echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 # Kernel and scheduling settings.
 echo "net.ipv4.conf.all.rp_filter = 2" >> /etc/sysctl.conf
 echo "vm.dirty_expire_centisecs = 200" >> /etc/sysctl.conf
-echo "kernel.sched_boost = 1" >> /etc/sysctl.conf
 echo "$USERNAME - rtprio 100" >> /etc/security/limits.conf
 echo "$USERNAME - nice -10" >> /etc/security/limits.conf
 
@@ -76,11 +78,7 @@ install -d -o "$USERNAME" -g "$USERNAME" /data /persist
 install -d /config
 ln -sf /bin/bash /bin/sh
 
-# Ubuntu Base doesn't provide the merged /lib64 directory.
-mkdir /usr/lib64
-ln -s usr/lib64 /lib64
-
-# Install Ubuntu's graphics development files before replacing their libraries.
+# Install graphics development files for openpilot.
 /tmp/agnos/openpilot_dependencies.sh
 
 # Versioned LLVM packages don't provide the unversioned commands.

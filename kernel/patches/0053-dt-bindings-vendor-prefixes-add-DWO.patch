@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 04:50:53 -0800
+Subject: [PATCH] dt-bindings: vendor-prefixes: add DWO
+
+DWO is a display panel maker in Shenzhen. Add its prefix for the
+DO0200FAT07 panel used on the comma four.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ Documentation/devicetree/bindings/vendor-prefixes.yaml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+index ba20029693..9bef7afd34 100644
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -475,6 +475,8 @@ patternProperties:
+     description: DaSheng, Inc.
+   "^dserve,.*":
+     description: dServe Technology B.V.
++  "^dwo,.*":
++    description: Shenzhen DWO Technology Co., Ltd.
+   "^dynaimage,.*":
+     description: Dyna-Image
+   "^ea,.*":

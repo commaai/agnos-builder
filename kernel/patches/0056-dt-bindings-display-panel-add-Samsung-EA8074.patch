@@ -1,0 +1,105 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: David Heidelberg <david@ixit.cz>
+Date: Mon, 2 Nov 2026 00:37:06 -0800
+Subject: [PATCH] dt-bindings: display: panel: add Samsung EA8074
+
+The Samsung EA8074 is an AMOLED display driver IC driven over MIPI DSI
+in command mode. It is used with the AMS601NT01 (Huawei Mate 10 Pro),
+AMS621RC (Xiaomi Mi 8) and L590NT06 (comma three and comma 3X) panels,
+which need different initialisation sequences and timings, so each
+panel gets its own compatible with the DDIC as the fallback.
+
+[adeeb: fill in the maintainer, allow the panel-common properties
+ (reset-gpios, port) with unevaluatedProperties]
+Signed-off-by: David Heidelberg <david@ixit.cz>
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ .../display/panel/samsung,ea8074.yaml         | 79 +++++++++++++++++++
+ 1 file changed, 79 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml
+
+diff --git a/Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml b/Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml
+new file mode 100644
+index 0000000000..1d8e2d4804
+--- /dev/null
++++ b/Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml
+@@ -0,0 +1,79 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/display/panel/samsung,ea8074.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Samsung EA8074 AMOLED DDIC
++
++maintainers:
++  - David Heidelberg <david@ixit.cz>
++
++description:
++  The Samsung EA8074 is an AMOLED display driver IC, used with the panels
++  listed below in MIPI DSI command mode.
++
++allOf:
++  - $ref: panel-common.yaml#
++
++properties:
++  compatible:
++    items:
++      - enum:
++          # Samsung 6.01 inch, 1080x2160 pixels
++          - samsung,ea8074-ams601nt01
++          # Samsung 6.21 inch, 1080x2248 pixels
++          - samsung,ea8074-ams621rc
++          # Samsung 5.9 inch, 1080x2160 pixels
++          - samsung,ea8074-l590nt06
++      - const: samsung,ea8074
++
++  reg:
++    maxItems: 1
++
++  elvdd-supply:
++    description: EL driving positive voltage supply
++
++  elvss-supply:
++    description: EL driving negative voltage supply
++
++  vddio-supply:
++    description: I/O voltage supply
++
++required:
++  - compatible
++  - reg
++  - reset-gpios
++  - elvdd-supply
++  - elvss-supply
++  - vddio-supply
++
++unevaluatedProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    dsi {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        panel@0 {
++            compatible = "samsung,ea8074-ams621rc", "samsung,ea8074";
++            reg = <0>;
++
++            reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
++
++            vddio-supply = <&vreg_l14a_1p8>;
++            elvdd-supply = <&lab>;
++            elvss-supply = <&ibb>;
++
++            port {
++                panel_in: endpoint {
++                    remote-endpoint = <&dsi0_out>;
++                };
++            };
++        };
++    };
++
++...

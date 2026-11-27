@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Robin Reckmann <robin.reckmann@gmail.com>
+Date: Sat, 29 Aug 2026 05:44:07 -0700
+Subject: [PATCH] clk: qcom: dispcc-sdm845: avoid enabling DSI PLL during probe
+
+Commit a1d63493634e ("clk: qcom: dispcc-sdm845: Enable parents for pixel
+clocks") set CLK_OPS_PARENT_ENABLE on the two DSI pixel clock sources.
+With that flag the clock framework enables the parent around a
+reparent, including when it adopts orphans while the DSI PHY registers
+its PLL at probe. On SDM845 that parent is the 10nm DSI PLL, and
+enabling it before the PHY has been initialised can make the PLL fail
+to lock.
+
+Drop the flag again for SDM845. The DSI host and MDSS paths prepare and
+enable the PLL themselves when they need it, after the PHY is set up.
+
+Fixes: a1d63493634e ("clk: qcom: dispcc-sdm845: Enable parents for pixel clocks")
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/clk/qcom/dispcc-sdm845.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/clk/qcom/dispcc-sdm845.c b/drivers/clk/qcom/dispcc-sdm845.c
+index 5df2893f56..f371edc881 100644
+--- a/drivers/clk/qcom/dispcc-sdm845.c
++++ b/drivers/clk/qcom/dispcc-sdm845.c
+@@ -279,7 +279,7 @@ static struct clk_rcg2 disp_cc_mdss_pclk0_clk_src = {
+ 		.name = "disp_cc_mdss_pclk0_clk_src",
+ 		.parent_data = disp_cc_parent_data_4,
+ 		.num_parents = ARRAY_SIZE(disp_cc_parent_data_4),
+-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
++		.flags = CLK_SET_RATE_PARENT,
+ 		.ops = &clk_pixel_ops,
+ 	},
+ };
+@@ -294,7 +294,7 @@ static struct clk_rcg2 disp_cc_mdss_pclk1_clk_src = {
+ 		.name = "disp_cc_mdss_pclk1_clk_src",
+ 		.parent_data = disp_cc_parent_data_4,
+ 		.num_parents = ARRAY_SIZE(disp_cc_parent_data_4),
+-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
++		.flags = CLK_SET_RATE_PARENT,
+ 		.ops = &clk_pixel_ops,
+ 	},
+ };

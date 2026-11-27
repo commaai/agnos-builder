@@ -1,0 +1,284 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Sun, 1 Nov 2026 23:51:39 -0800
+Subject: [PATCH] power: supply: qcom_smbx: support forcing discharge
+
+Boards may need to run from the battery with a power source attached:
+the comma four, for instance, is tested with its USB-C port on a host
+computer, which must not power it, so that the power drawn from its main
+supply can be measured. The downstream driver offers this as
+"input_suspend", which suspends the USBIN and DCIN inputs.
+
+Expose it as the standard charge_behaviour property: "force-discharge"
+suspends both inputs and "auto" resumes them. Reading it back returns
+what was asked for.
+
+USBIN also has to be suspended while the PMIC sources VBUS through its
+OTG boost (the qcom_usb_vbus regulator), so that the charger doesn't try
+to draw from our own output; downstream does this whenever OTG is on.
+Make the charger the only writer of the suspend bits and have it combine
+both reasons: USBIN is suspended while discharge is forced or OTG is
+enabled. USBIN is the VBUS of the PMIC's Type-C connector, so the charger
+takes the connector's vbus-supply and re-evaluates on its regulator
+enable and disable events. Neither the VBUS regulator nor the Type-C
+driver needs to know about the charger. The USBIN plugin interrupt can't
+be used for this: it does not fire for VBUS that the PMIC sources itself.
+
+The writable "status" property cleared the same USBIN suspend bit, with
+"Charging" and "Discharging" both resuming the input and only "Unknown"
+suspending it. Drop its write support rather than fix it, so that
+charge_behaviour is the one interface to the input suspend.
+
+Program the suspend bits at probe, so that they match the driver's state
+from the start whatever the bootloader left, as the downstream driver
+does. On the comma four, a forced discharge already doesn't survive a
+warm reboot: USBIN suspend is clear before the kernel starts.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/power/supply/qcom_smbx.c | 134 ++++++++++++++++++++++++++++++-
+ 1 file changed, 130 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/power/supply/qcom_smbx.c b/drivers/power/supply/qcom_smbx.c
+index dc8daa0c81..ba62fb0b1e 100644
+--- a/drivers/power/supply/qcom_smbx.c
++++ b/drivers/power/supply/qcom_smbx.c
+@@ -21,6 +21,7 @@
+ #include <linux/of_platform.h>
+ #include <linux/power_supply.h>
+ #include <linux/regmap.h>
++#include <linux/regulator/consumer.h>
+ #include <linux/types.h>
+ #include <linux/workqueue.h>
+ 
+@@ -103,6 +104,9 @@
+ #define USBIN_LT_3P6V_RT_STS_BIT			BIT(1)
+ #define USBIN_COLLAPSE_RT_STS_BIT			BIT(0)
+ 
++#define CMD_OTG						0x140
++#define OTG_EN_BIT					BIT(0)
++
+ #define OTG_CFG						0x153
+ #define OTG_RESERVED_MASK				GENMASK(7, 6)
+ #define DIS_OTG_ON_TLIM_BIT				BIT(5)
+@@ -290,6 +294,9 @@
+ #define USBIN_CONT_AICL_THRESHOLD_CFG			0x384
+ #define USBIN_CONT_AICL_THRESHOLD_CFG_MASK		GENMASK(5, 0)
+ 
++#define DCIN_CMD_IL					0x440
++#define DCIN_SUSPEND_BIT				BIT(0)
++
+ #define DC_ENG_SSUPPLY_CFG2				0x4C1
+ #define ENG_SSUPPLY_IVREF_OTG_SS_MASK			GENMASK(2, 0)
+ #define OTG_SS_SLOW					0x3
+@@ -388,6 +395,9 @@ struct smb_init_register {
+  * @usb_in_i_chan:	USB_IN current measurement channel
+  * @usb_in_v_chan:	USB_IN voltage measurement channel
+  * @chg_psy:		Charger power supply instance
++ * @suspend_lock:	Serialises updates of the input suspend bits
++ * @force_discharge:	Userspace asked to run without external input
++ * @vbus_nb:		Notifier for the regulator that sources VBUS
+  */
+ struct smb_chip {
+ 	struct device *dev;
+@@ -404,6 +414,10 @@ struct smb_chip {
+ 	struct iio_channel *usb_in_v_chan;
+ 
+ 	struct power_supply *chg_psy;
++
++	struct mutex suspend_lock;
++	bool force_discharge;
++	struct notifier_block vbus_nb;
+ };
+ 
+ static enum power_supply_property smb_properties[] = {
+@@ -416,6 +430,7 @@ static enum power_supply_property smb_properties[] = {
+ 	POWER_SUPPLY_PROP_HEALTH,
+ 	POWER_SUPPLY_PROP_ONLINE,
+ 	POWER_SUPPLY_PROP_USB_TYPE,
++	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
+ };
+ 
+ static int smb_get_prop_usb_online(struct smb_chip *chip, int *val)
+@@ -658,6 +673,53 @@ static int smb_get_prop_health(struct smb_chip *chip, int *val)
+ 	}
+ }
+ 
++/*
++ * The charger owns the input suspend bits. Forcing discharge suspends both
++ * inputs, so the system runs from the battery even with a power source
++ * attached. USBIN is also suspended while the OTG boost sources VBUS, so the
++ * charger doesn't try to draw from our own output.
++ */
++static int smb_update_input_suspend(struct smb_chip *chip)
++{
++	unsigned int otg;
++	int rc;
++
++	lockdep_assert_held(&chip->suspend_lock);
++
++	rc = regmap_read(chip->regmap, chip->base + CMD_OTG, &otg);
++	if (rc < 0)
++		return rc;
++
++	rc = regmap_assign_bits(chip->regmap, chip->base + USBIN_CMD_IL,
++				USBIN_SUSPEND_BIT,
++				chip->force_discharge || (otg & OTG_EN_BIT));
++	if (rc < 0)
++		return rc;
++
++	return regmap_assign_bits(chip->regmap, chip->base + DCIN_CMD_IL,
++				  DCIN_SUSPEND_BIT, chip->force_discharge);
++}
++
++static int smb_set_charge_behaviour(struct smb_chip *chip, int val)
++{
++	int rc;
++
++	if (val != POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO &&
++	    val != POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE)
++		return -EINVAL;
++
++	mutex_lock(&chip->suspend_lock);
++	WRITE_ONCE(chip->force_discharge,
++		   val == POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE);
++	rc = smb_update_input_suspend(chip);
++	mutex_unlock(&chip->suspend_lock);
++	if (rc < 0)
++		return rc;
++
++	power_supply_changed(chip->chg_psy);
++	return 0;
++}
++
+ static int smb_get_property(struct power_supply *psy,
+ 			     enum power_supply_property psp,
+ 			     union power_supply_propval *val)
+@@ -697,6 +759,11 @@ static int smb_get_property(struct power_supply *psy,
+ 			return 0;
+ 		}
+ 		return rc;
++	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
++		val->intval = READ_ONCE(chip->force_discharge) ?
++			      POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE :
++			      POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO;
++		return 0;
+ 	default:
+ 		dev_err(chip->dev, "invalid property: %d\n", psp);
+ 		return -EINVAL;
+@@ -710,11 +777,10 @@ static int smb_set_property(struct power_supply *psy,
+ 	struct smb_chip *chip = power_supply_get_drvdata(psy);
+ 
+ 	switch (psp) {
+-	case POWER_SUPPLY_PROP_STATUS:
+-		return regmap_update_bits(chip->regmap, chip->base + USBIN_CMD_IL,
+-					  USBIN_SUSPEND_BIT, !val->intval);
+ 	case POWER_SUPPLY_PROP_CURRENT_MAX:
+ 		return smb_set_current_limit(chip, val->intval);
++	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
++		return smb_set_charge_behaviour(chip, val->intval);
+ 	default:
+ 		dev_err(chip->dev, "No setter for property: %d\n", psp);
+ 		return -EINVAL;
+@@ -725,8 +791,8 @@ static int smb_property_is_writable(struct power_supply *psy,
+ 				     enum power_supply_property psp)
+ {
+ 	switch (psp) {
+-	case POWER_SUPPLY_PROP_STATUS:
+ 	case POWER_SUPPLY_PROP_CURRENT_MAX:
++	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
+ 		return 1;
+ 	default:
+ 		return 0;
+@@ -793,6 +859,8 @@ static const struct power_supply_desc smb_psy_desc = {
+ 		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+ 		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+ 		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
++	.charge_behaviours = BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO) |
++			     BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE),
+ 	.properties = smb_properties,
+ 	.num_properties = ARRAY_SIZE(smb_properties),
+ 	.get_property = smb_get_property,
+@@ -937,6 +1005,48 @@ static bool smb_typec_has_driver(struct smb_chip *chip)
+ 	return bound;
+ }
+ 
++static int smb_vbus_notify(struct notifier_block *nb, unsigned long event,
++			   void *data)
++{
++	struct smb_chip *chip = container_of(nb, struct smb_chip, vbus_nb);
++
++	if (event & (REGULATOR_EVENT_ENABLE | REGULATOR_EVENT_DISABLE)) {
++		mutex_lock(&chip->suspend_lock);
++		smb_update_input_suspend(chip);
++		mutex_unlock(&chip->suspend_lock);
++	}
++
++	return NOTIFY_OK;
++}
++
++/*
++ * USBIN is the VBUS of the PMIC's Type-C connector. Re-evaluate the input
++ * suspend whenever the regulator that sources VBUS there turns on or off.
++ */
++static int smb_init_vbus(struct smb_chip *chip)
++{
++	struct device_node *np, *connector;
++	struct regulator *vbus;
++
++	np = smb_get_typec_node(chip);
++	connector = of_get_child_by_name(np, "connector");
++	of_node_put(np);
++	if (!connector)
++		return 0;
++
++	vbus = devm_of_regulator_get_optional(chip->dev, connector, "vbus");
++	of_node_put(connector);
++	if (IS_ERR(vbus)) {
++		if (PTR_ERR(vbus) == -ENODEV)
++			return 0;
++		return dev_err_probe(chip->dev, PTR_ERR(vbus),
++				     "Couldn't get VBUS regulator\n");
++	}
++
++	chip->vbus_nb.notifier_call = smb_vbus_notify;
++	return devm_regulator_register_notifier(vbus, &chip->vbus_nb);
++}
++
+ static int smb_init_hw(struct smb_chip *chip)
+ {
+ 	int rc, i;
+@@ -1008,6 +1118,10 @@ static int smb_probe(struct platform_device *pdev)
+ 	chip->dev = &pdev->dev;
+ 	chip->name = pdev->name;
+ 
++	rc = devm_mutex_init(chip->dev, &chip->suspend_lock);
++	if (rc)
++		return rc;
++
+ 	chip->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+ 	if (!chip->regmap)
+ 		return dev_err_probe(chip->dev, -ENODEV,
+@@ -1029,10 +1143,22 @@ static int smb_probe(struct platform_device *pdev)
+ 				     "Couldn't get usbin_i IIO channel\n");
+ 	}
+ 
++	rc = smb_init_vbus(chip);
++	if (rc < 0)
++		return rc;
++
+ 	rc = smb_init_hw(chip);
+ 	if (rc < 0)
+ 		return rc;
+ 
++	/* Start out charging normally, whatever the bootloader left */
++	mutex_lock(&chip->suspend_lock);
++	rc = smb_update_input_suspend(chip);
++	mutex_unlock(&chip->suspend_lock);
++	if (rc < 0)
++		return dev_err_probe(chip->dev, rc,
++				     "Couldn't set input suspend\n");
++
+ 	supply_config.drv_data = chip;
+ 	supply_config.fwnode = dev_fwnode(&pdev->dev);
+ 

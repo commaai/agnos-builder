@@ -9,7 +9,7 @@ Type=oneshot
 RemainAfterExit=true
 User=comma
 Slice=app.slice
-# below 0, so the kernel's lowmemorykiller never picks the app
+# below 0, so the kernel's OOM killer prefers other processes
 OOMScoreAdjust=-500
 ExecStart=/usr/comma/run_in_app_group.sh /usr/bin/tmux new-session -s comma -d /usr/comma/comma.sh
 # TODO: send SIGTERM first, then kill after a timeout

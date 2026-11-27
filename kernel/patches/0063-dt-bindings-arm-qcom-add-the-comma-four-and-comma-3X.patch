@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 04:50:54 -0800
+Subject: [PATCH] dt-bindings: arm: qcom: add the comma four and comma 3X
+
+The comma four ("mici") and comma 3X ("tizi") are driver assistance
+devices built around the SDM845. Add their board compatibles, which
+their device trees use together with qcom,sdm845.
+
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ Documentation/devicetree/bindings/arm/qcom.yaml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/arm/qcom.yaml b/Documentation/devicetree/bindings/arm/qcom.yaml
+index ff8a35df78..166f83d108 100644
+--- a/Documentation/devicetree/bindings/arm/qcom.yaml
++++ b/Documentation/devicetree/bindings/arm/qcom.yaml
+@@ -960,6 +960,8 @@ properties:
+ 
+       - items:
+           - enum:
++              - comma,mici
++              - comma,tizi
+               - google,blueline
+               - google,crosshatch
+               - huawei,planck

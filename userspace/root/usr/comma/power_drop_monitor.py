@@ -1,56 +1,62 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
+import glob
 import time
-import smbus2
-import select
 import datetime
 import subprocess
 
+import gpiod
+
 ALERT_VOLTAGE_THRESHOLD_mV = 4000
 
-POWER_ALERT_GPIO_PIN = 1264
-INA231_BUS = 0
-INA231_ADDRESS = 0x40
-INA231_MASK_REG = 0x06
-INA231_LIMIT_REG = 0x07
-INA231_MASK_CONFIG = (1 << 12) # Bus undervoltage, not latching
-INA231_BUS_VOLTAGE_LSB_mV = 1.25
-VOLTAGE_FILE = "/sys/class/hwmon/hwmon1/in1_input"
+# The INA231 ALERT output, PM8998 GPIO5 on tizi, named in the board DT
+ALERT_GPIO_LINE = "POWER_ALERT"
 PARAM_FILE = "/data/params/d/LastPowerDropDetected"
 
-alert_pin_base = f"/sys/class/gpio/gpio{POWER_ALERT_GPIO_PIN}/"
+def find_backlight():
+  backlights = glob.glob("/sys/class/backlight/*")
+  if not backlights:
+    raise RuntimeError("no backlight device")
+  return backlights[0]
+
+def find_ina231():
+  for p in glob.glob("/sys/class/hwmon/hwmon*/name"):
+    with open(p) as f:
+      if f.read().strip() == "ina231":
+        return os.path.dirname(p)
+  raise RuntimeError("no ina231 hwmon device")
 
 def set_screen_power(on):
-  with open("/sys/class/backlight/panel0-backlight/bl_power", "w") as f:
+  with open(f"{backlight}/bl_power", "w") as f:
     f.write("0\n" if on else "4\n")
 
 def get_screen_power():
-  with open("/sys/class/backlight/panel0-backlight/bl_power", "r") as f:
+  with open(f"{backlight}/bl_power", "r") as f:
     return f.read(1) == "0"
 
-def swap_word_bytes(val):
-  return ((val & 0xFF) << 8) | ((val & 0xFF00) >> 8)
-
-def write_once(path, value):
-  with open(path, 'w') as f:
-    f.write(value)
-
-def init_alert_pin():
-  write_once(os.path.join(alert_pin_base, 'direction'), 'in')
-  write_once(os.path.join(alert_pin_base, 'edge'), 'falling')
-
-def init_voltage_alert():
-  with smbus2.SMBus(INA231_BUS) as bus:
-    bus.write_word_data(INA231_ADDRESS, INA231_MASK_REG, swap_word_bytes(INA231_MASK_CONFIG), force=True)
-    bus.write_word_data(INA231_ADDRESS, INA231_LIMIT_REG, swap_word_bytes(int(ALERT_VOLTAGE_THRESHOLD_mV / INA231_BUS_VOLTAGE_LSB_mV)), force=True)
+def read_hwmon(attr):
+  with open(f"{ina231}/{attr}", "r") as f:
+    return int(f.read().strip())
 
 def read_voltage_mV():
-  with open(VOLTAGE_FILE, "r") as f:
-    return int(f.read().strip())
+  return read_hwmon("in1_input")
 
 def read_current_mA():
-  with open("/sys/class/hwmon/hwmon1/curr1_input", "r") as f:
-    return int(f.read().strip())
+  return read_hwmon("curr1_input")
+
+def request_alert_line():
+  line = gpiod.find_line(ALERT_GPIO_LINE)
+  if line is None:
+    raise RuntimeError(f"no GPIO line {ALERT_GPIO_LINE}")
+  line.request(consumer="power_drop_monitor", type=gpiod.LINE_REQ_EV_FALLING_EDGE, flags=gpiod.LINE_REQ_FLAG_BIAS_PULL_UP)
+  return line
+
+def init_voltage_alert():
+  # the ina2xx driver programs the bus undervoltage alert, latched until
+  # in1_lcrit_alarm is read
+  with open(f"{ina231}/in1_lcrit", "w") as f:
+    f.write(f"{ALERT_VOLTAGE_THRESHOLD_mV}\n")
+  read_hwmon("in1_lcrit_alarm")
 
 def update_param(stage, v_initial, i_initial, v_final, i_final):
   try:
@@ -60,8 +66,8 @@ def update_param(stage, v_initial, i_initial, v_final, i_final):
       f.flush()
       os.fdatasync(f.fileno())
       os.fsync(f.fileno())
-  except Exception:
-    print("Failed to update LastControlledShutdown param")
+  except Exception as e:
+    print(f"Failed to update {PARAM_FILE}: {e}")
 
 def printk(msg):
   with open('/dev/kmsg', 'w') as kmsg:
@@ -89,6 +95,7 @@ def perform_controlled_shutdown():
     printk("Voltage restored. Not shutting down!")
     update_param("ABORT", v_initial, i_initial, v_now, i_now)
     set_screen_power(prev_screen_power)
+    read_hwmon("in1_lcrit_alarm")
     return
 
   update_param("SHUTDOWN", v_initial, i_initial, v_now, i_now)
@@ -99,24 +106,15 @@ def perform_controlled_shutdown():
   subprocess.call(["/usr/sbin/halt", "-f"])
 
 if __name__ == '__main__':
-  init_alert_pin()
+  # Any error, including a device that hasn't probed yet (ina2xx is a
+  # module), exits; systemd restarts the service, which also re-arms the
+  # latched alert.
+  backlight = find_backlight()
+  ina231 = find_ina231()
+  line = request_alert_line()
   init_voltage_alert()
 
-  # Setup interrupt
-  f = open(os.path.join(alert_pin_base, 'value'), 'r')
-  po = select.poll()
-  po.register(f, select.POLLPRI)
-
-  # Interrupt loop
-  f.read()
   while True:
-    try:
-      events = po.poll(60000)
-      if events:
-        f.seek(0)
-        state_last = f.read().strip()
-        if int(state_last) == 0:
-          perform_controlled_shutdown()
-    except Exception:
-      pass
-
+    if line.event_wait(sec=60):
+      line.event_read()
+      perform_controlled_shutdown()

@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Date: Tue, 15 Sep 2026 14:21:07 +0300
+Subject: [PATCH] media: venus: core: handle absent codec children during
+ recovery
+
+The encoder and decoder are separate modules, and either of them may not
+be bound when the firmware reports a system error. The recovery handler
+waits for both to go idle and passes core->dev_dec and core->dev_enc to
+pm_runtime_active() unconditionally, so it dereferences a NULL device
+when only one of them is bound.
+
+Treat an absent child as idle.
+
+Fixes: 43e221e485e5 ("media: venus: Rework recovery mechanism")
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/media/platform/qcom/venus/core.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/qcom/venus/core.c b/drivers/media/platform/qcom/venus/core.c
+index 3e69fc7ea3..ae3d446cc9 100644
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -104,7 +104,8 @@ static void venus_sys_error_handler(struct work_struct *work)
+ 	core->state = CORE_UNINIT;
+ 
+ 	for (i = 0; i < max_attempts; i++) {
+-		if (!pm_runtime_active(core->dev_dec) && !pm_runtime_active(core->dev_enc))
++		if ((!core->dev_dec || !pm_runtime_active(core->dev_dec)) &&
++		    (!core->dev_enc || !pm_runtime_active(core->dev_enc)))
+ 			break;
+ 		msleep(10);
+ 	}

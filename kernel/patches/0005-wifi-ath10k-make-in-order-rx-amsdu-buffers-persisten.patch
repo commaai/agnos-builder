@@ -1,0 +1,133 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: David Heidelberg <david@ixit.cz>
+Date: Tue, 20 Oct 2026 20:52:07 +0200
+Subject: [PATCH] wifi: ath10k: make in-order rx amsdu buffers persistent
+
+The WCN3990 might split MSDUs among multiple "in-order" indications.
+The driver needs information from previous indications to handle MPDUs
+that are not started by the same indications that complete them. Stash
+the MSDUs of an incomplete MPDU in the driver state, together with the
+peer id, tid and frag flag identifying it, and prepend them to the MSDU
+list of the next indication so the MPDU can be completed instead of
+being dropped and confusing the driver.
+
+Keeping the actual buffers around is required, not just metadata: the
+stashed MSDUs are the payload of the incomplete MPDU, which can only be
+processed and delivered once the buffer flagged as the last MSDU
+arrives. If the next indication does not continue the pending MPDU
+(different peer id, tid or frag flag, or an offload indication), bail
+out to recovery as before, since no firmware is known to do this. Cap
+the stash at the rx ring size and bail out the same way if the last MSDU
+never arrives, so a firmware that stops mid MPDU cannot grow it without
+bound.
+
+Based on effort of Richard Acayan.
+
+Link: https://lore.kernel.org/all/20261020-ath10k-a-msdu-v4-1-670b69d39059@ixit.cz/
+Signed-off-by: David Heidelberg <david@ixit.cz>
+---
+ drivers/net/wireless/ath/ath10k/htt.h    | 10 +++++
+ drivers/net/wireless/ath/ath10k/htt_rx.c | 48 +++++++++++++++++++++++-
+ 2 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/ath/ath10k/htt.h b/drivers/net/wireless/ath/ath10k/htt.h
+index 25c6b2e2f8..0a3998bdc3 100644
+--- a/drivers/net/wireless/ath/ath10k/htt.h
++++ b/drivers/net/wireless/ath/ath10k/htt.h
+@@ -1929,6 +1929,16 @@ struct ath10k_htt {
+ 	bool bundle_tx;
+ 	struct sk_buff_head tx_req_head;
+ 	struct sk_buff_head tx_complete_head;
++
++	/* MSDUs of an MPDU left incomplete by an in-order indication, waiting
++	 * for the next indication to continue it
++	 */
++	struct {
++		u8 tid;
++		u16 peer_id;
++		bool frag;
++		struct sk_buff_head msdus;
++	} rx_in_ord_split;
+ };
+ 
+ struct ath10k_htt_tx_ops {
+diff --git a/drivers/net/wireless/ath/ath10k/htt_rx.c b/drivers/net/wireless/ath/ath10k/htt_rx.c
+index ab2d373b47..40fdde280a 100644
+--- a/drivers/net/wireless/ath/ath10k/htt_rx.c
++++ b/drivers/net/wireless/ath/ath10k/htt_rx.c
+@@ -296,6 +296,8 @@ void ath10k_htt_rx_free(struct ath10k_htt *htt)
+ 	skb_queue_purge(&htt->rx_in_ord_compl_q);
+ 	skb_queue_purge(&htt->tx_fetch_ind_q);
+ 
++	skb_queue_purge(&htt->rx_in_ord_split.msdus);
++
+ 	spin_lock_bh(&htt->rx_ring.lock);
+ 	ath10k_htt_rx_ring_free(htt);
+ 	spin_unlock_bh(&htt->rx_ring.lock);
+@@ -846,6 +848,8 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
+ 	skb_queue_head_init(&htt->tx_fetch_ind_q);
+ 	atomic_set(&htt->num_mpdus_ready, 0);
+ 
++	skb_queue_head_init(&htt->rx_in_ord_split.msdus);
++
+ 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "htt rx ring size %d fill_level %d\n",
+ 		   htt->rx_ring.size, htt->rx_ring.fill_level);
+ 	return 0;
+@@ -3301,6 +3305,28 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
+ 	 * extracted and processed.
+ 	 */
+ 	__skb_queue_head_init(&list);
++
++	if (!skb_queue_empty(&htt->rx_in_ord_split.msdus)) {
++		/* An MPDU left incomplete by a previous indication is
++		 * pending. It might still be possible to handle indications
++		 * that do not continue it if there is only one peer that
++		 * splits at each given moment. We are bailing out because we
++		 * should have a test case for this before trying to fix it.
++		 */
++		if (tid != htt->rx_in_ord_split.tid ||
++		    peer_id != htt->rx_in_ord_split.peer_id ||
++		    frag != htt->rx_in_ord_split.frag ||
++		    offload) {
++			ath10k_warn(ar, "split amsdu did not resume immediately\n");
++			htt->rx_confused = true;
++			__skb_queue_purge(&htt->rx_in_ord_split.msdus);
++			ath10k_core_start_recovery(ar);
++			return -EIO;
++		}
++
++		skb_queue_splice_init(&htt->rx_in_ord_split.msdus, &list);
++	}
++
+ 	if (ar->hw_params.target_64bit)
+ 		ret = ath10k_htt_rx_pop_paddr64_list(htt, &resp->rx_in_ord_ind,
+ 						     &list);
+@@ -3339,7 +3365,27 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
+ 			ath10k_htt_rx_h_enqueue(ar, &amsdu, status);
+ 			break;
+ 		case -EAGAIN:
+-			fallthrough;
++			/* The MPDU is incomplete. Stash the remaining MSDUs
++			 * and wait for the next indication to continue it.
++			 * A last MSDU that never arrives would otherwise keep
++			 * growing the stash on every indication, so give up
++			 * once it cannot plausibly be an A-MSDU any more.
++			 */
++			if (skb_queue_len(&list) > HTT_RX_RING_SIZE) {
++				ath10k_warn(ar, "split amsdu exceeds %d msdus\n",
++					    HTT_RX_RING_SIZE);
++				htt->rx_confused = true;
++				__skb_queue_purge(&list);
++				ath10k_core_start_recovery(ar);
++				return -EIO;
++			}
++
++			htt->rx_in_ord_split.tid = tid;
++			htt->rx_in_ord_split.peer_id = peer_id;
++			htt->rx_in_ord_split.frag = frag;
++			skb_queue_splice_init(&list,
++					      &htt->rx_in_ord_split.msdus);
++			return 0;
+ 		default:
+ 			/* Should not happen. */
+ 			ath10k_warn(ar, "failed to extract amsdu: %d\n", ret);

@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Adeeb Shihadeh <adeeb@comma.ai>
+Date: Mon, 2 Nov 2026 19:49:39 -0800
+Subject: [PATCH] clk: qcom: gcc-sdm845: don't keep the MMNOC TBU GDSCs on
+ until sync_state
+
+The bootloader leaves the HLOS1 votes for the three MMNOC SMMU TBU GDSCs
+set. Since commit 0e789b491ba0 ("pmdomain: core: Leave powered-on genpds
+on until sync_state") genpd keeps such domains on until the provider's
+sync_state(). On boards where that never happens (on SDM845 the GMU is
+never bound to a driver, so GCC's sync_state stays pending), the votes
+are held forever, even though the TBU devices are runtime suspended and
+nothing asked for them.
+
+A powered MMNOC TBU is not safe without a bandwidth vote on the MMNOC.
+Once the last MMNOC HF user (usually the display) drops its votes, MM1
+goes to zero in the RPMh sleep set, and the next time the CPU cluster
+enters its RSC sleep state the whole SoC stops: no lockup report, no
+watchdog pretimeout, only the PMIC watchdog bite ~30 s later. On the
+comma four this happens every time the DSI display is turned off through
+KMS. Keeping the TBU GDSCs off avoids it, and so does holding any MM1
+vote in the sleep bucket; powering only the three TBU GDSCs back on
+brings the hang back.
+
+The HLOS votes aren't needed for translation; the downstream kernel
+leaves them off and sets them only around TBU debug register access,
+together with an MMNOC vote, which is what the qcom TBU driver does
+upstream as well. Let genpd turn them off at boot like any other unused
+domain.
+
+Fixes: 0e789b491ba0 ("pmdomain: core: Leave powered-on genpds on until sync_state")
+Signed-off-by: Adeeb Shihadeh <adeeb@comma.ai>
+---
+ drivers/clk/qcom/gcc-sdm845.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/clk/qcom/gcc-sdm845.c b/drivers/clk/qcom/gcc-sdm845.c
+index 6d0f9cede5..2c0ef15172 100644
+--- a/drivers/clk/qcom/gcc-sdm845.c
++++ b/drivers/clk/qcom/gcc-sdm845.c
+@@ -3496,6 +3496,7 @@ static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc = {
+ 	.gdscr = 0x7d040,
+ 	.pd = {
+ 		.name = "hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc",
++		.flags = GENPD_FLAG_NO_STAY_ON,
+ 	},
+ 	.pwrsts = PWRSTS_OFF_ON,
+ 	.flags = VOTABLE,
+@@ -3505,6 +3506,7 @@ static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc = {
+ 	.gdscr = 0x7d048,
+ 	.pd = {
+ 		.name = "hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc",
++		.flags = GENPD_FLAG_NO_STAY_ON,
+ 	},
+ 	.pwrsts = PWRSTS_OFF_ON,
+ 	.flags = VOTABLE,
+@@ -3514,6 +3516,7 @@ static struct gdsc hlos1_vote_mmnoc_mmu_tbu_sf_gdsc = {
+ 	.gdscr = 0x7d044,
+ 	.pd = {
+ 		.name = "hlos1_vote_mmnoc_mmu_tbu_sf_gdsc",
++		.flags = GENPD_FLAG_NO_STAY_ON,
+ 	},
+ 	.pwrsts = PWRSTS_OFF_ON,
+ 	.flags = VOTABLE,

@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
+import glob
+import select
 import time
 
 # limit display brightness with display uptime to prevent burn in
 
 BL_OFF = 4
-BL_POWER_PATH = "/sys/class/backlight/panel0-backlight/bl_power"
-BRIGHTNESS_PATH = "/sys/class/backlight/panel0-backlight/brightness"
-MAX_BRIGHTNESS_PATH= "/sys/devices/platform/soc/soc:qcom,dsi-display@0/max_brightness_percent"
 
 MAX_PERCENT = 90
 MIN_PERCENT = 30
@@ -21,13 +20,24 @@ def read(path: str) -> int:
 
 
 if __name__ == "__main__":
-  last_perc = None
   last_off_ts = time.monotonic()
+  backlight = None
+  poller = select.poll()
   while True:
     try:
+      if backlight is None:
+        path = glob.glob("/sys/class/backlight/*")[0]
+        # The backlight core notifies actual_brightness on every brightness
+        # write, so a write above the cap is undone right away.
+        actual = open(f"{path}/actual_brightness")
+        poller.register(actual, select.POLLPRI | select.POLLERR)
+        backlight = path
+
       # sample brightness and backlight power
-      bl_power = read(BL_POWER_PATH)
-      brightness = read(BRIGHTNESS_PATH)
+      actual.seek(0)
+      actual.read()
+      bl_power = read(f"{backlight}/bl_power")
+      brightness = read(f"{backlight}/brightness")
       if bl_power == BL_OFF or brightness == 0:
         last_off_ts = time.monotonic()
 
@@ -36,11 +46,13 @@ if __name__ == "__main__":
       clipped_perc = MAX_PERCENT - (HOURLY_PERC_DECREASE*uptime_hours)
       clipped_perc = int(max(min(clipped_perc, MAX_PERCENT), MIN_PERCENT))
 
-      if clipped_perc != last_perc:
-        with open(MAX_BRIGHTNESS_PATH, 'w') as f:
-          f.write(f"{int(clipped_perc)}\n")
-      last_perc = clipped_perc
+      # the kernel has no brightness cap, so lower the brightness directly
+      max_brightness = read(f"{backlight}/max_brightness") * clipped_perc // 100
+      if brightness > max_brightness:
+        with open(f"{backlight}/brightness", 'w') as f:
+          f.write(f"{max_brightness}\n")
     except Exception:
-      pass
+      time.sleep(5)
+      continue
 
-    time.sleep(5)
+    poller.poll(5000)

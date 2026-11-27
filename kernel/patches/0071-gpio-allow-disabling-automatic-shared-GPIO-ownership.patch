@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrei Radulescu <andi.radulescu@gmail.com>
+Date: Tue, 15 Sep 2026 14:21:07 +0300
+Subject: [PATCH] gpio: allow disabling automatic shared GPIO ownership
+
+The downstream Spectra camera driver, which AGNOS builds as an
+out-of-tree module, arbitrates the shared camera GPIOs itself through
+the legacy integer API. With GPIO_SHARED, gpiolib reserves GPIOs
+referenced by multiple firmware consumers for its shared GPIO proxies,
+so every sensor power-up fails with EBUSY before Spectra can acquire
+them.
+
+Expose the existing setting to expert configurations, so that AGNOS can
+turn it off and leave the GPIO ownership to Spectra. Keep automatic
+sharing enabled by default.
+
+This is local to AGNOS and goes away with the Spectra driver.
+
+Signed-off-by: Andrei Radulescu <andi.radulescu@gmail.com>
+---
+ drivers/gpio/Kconfig | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpio/Kconfig b/drivers/gpio/Kconfig
+index a48586bb8e..e16250d4fc 100644
+--- a/drivers/gpio/Kconfig
++++ b/drivers/gpio/Kconfig
+@@ -46,9 +46,15 @@ config GPIOLIB_IRQCHIP
+ 	bool
+ 
+ config GPIO_SHARED
+-	def_bool y
++	bool "Automatic shared GPIO ownership" if EXPERT
++	default y
+ 	depends on HAVE_SHARED_GPIOS || COMPILE_TEST
+ 	select AUXILIARY_BUS
++	help
++	  Automatically reserve GPIOs referenced by multiple firmware consumers
++	  and arbitrate their values through shared GPIO proxies. Disable this
++	  when legacy GPIO consumers already manage ownership of shared lines.
++	  If unsure, say Y.
+ 
+ config DEBUG_GPIO
+ 	bool "Debug GPIO calls"

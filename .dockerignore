@@ -1,5 +1,6 @@
-*.pyc
-*.pyo
+**/*.pyc
+**/*.pyo
+**/__pycache__
 .*.swp
 .*.swo
 **/.DS_Store
@@ -10,5 +11,10 @@ output/
 output/*
 !output/linux-headers/
 !output/linux-headers/**
+!output/kernel-modules/
+!output/kernel-modules/**
 edk2_tici/
-agnos-kernel-sdm845/
+kernel/linux/
+kernel/spectra/
+.ccache/
+.git
